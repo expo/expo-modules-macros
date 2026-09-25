@@ -19,6 +19,11 @@ internal let javaScriptEncodableProtocolName = "JavaScriptEncodable"
 /// dynamic-type API) and `JavaScriptDecodable & JavaScriptEncodable` (the `from(object:)` /
 /// `toObject(appContext:)` paths convert JS values through `decode`/`encode`). A record field has to
 /// support both directions, so the assertion requires the intersection.
+///
+/// The exception is a property whose type mentions `Any` (`[String: Any]?`, `[Any]`, …): it can't
+/// conform to the JS codable protocols, so the JS-value paths convert it through the `JavaScriptValue`
+/// free-form methods, and it's asserted against `jsConvertibleProtocolName` alone for the dictionary
+/// paths.
 internal let recordFieldProtocolName = "AnyArgument & JavaScriptDecodable & JavaScriptEncodable"
 
 /// The constraint a `@Union` case payload type must satisfy: the union decodes by trying each payload's
@@ -45,6 +50,10 @@ internal struct ConformanceAssertion {
   /// Declared types as written. Composed types (`[Int]`, `String?`, …) are kept verbatim — their
   /// conditional conformances transitively constrain the elements.
   let types: [String]
+  /// The constraint for this member's types, overriding the one passed to `typeConformanceAssertions`.
+  /// `@Record` uses it to assert only `AnyArgument` for a property that mentions `Any`, which can't be
+  /// `JavaScriptDecodable & JavaScriptEncodable`.
+  var constraint: String? = nil
 }
 
 /// A directional conformance-assertion peer for a `@JS` member: a never-called `private func` whose
@@ -111,7 +120,7 @@ internal func typeConformanceAssertions(
   for assertions: [ConformanceAssertion],
   constraint: String = jsConvertibleProtocolName
 ) -> DeclSyntax? {
-  let bodies = assertions.compactMap { conformanceAssertionBody($0, constraint: constraint) }
+  let bodies = assertions.compactMap { conformanceAssertionBody($0, constraint: $0.constraint ?? constraint) }
   guard !bodies.isEmpty else {
     return nil
   }

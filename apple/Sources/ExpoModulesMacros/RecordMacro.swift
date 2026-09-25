@@ -37,6 +37,13 @@ import SwiftSyntaxMacros
  user modules without any internal core symbols. Every property type must therefore conform to both
  `AnyArgument` and `JavaScriptDecodable & JavaScriptEncodable`.
 
+ A property whose type mentions `Any` (`Any?`, `[String: Any]?`, `[String: [Any]]`, …) can't conform to
+ the JS codable protocols. On the JS-value paths it converts through the `JavaScriptValue` free-form
+ methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and the matching `encodeAny…`
+ for `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic `decodeAny(_:as:in:)` /
+ `encodeAny(_:in:)` for any other type. Such a property only needs `AnyArgument` for the dictionary
+ paths, and a bare `Any` needs nothing, since the dictionary paths pass it through unchanged.
+
  For classes that inherit from another `@Record`-annotated class, the synthesized
  methods chain to `super` so inherited properties are handled first.
  */
@@ -70,7 +77,15 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     // first so that, for a non-conforming type, this clear "requires that '…' conform to '…'" error
     // is reported ahead of the noisier "no member 'decode'"/"getDynamicType" errors from the
     // conversion code below.
-    let assertions = properties.map { ConformanceAssertion(name: $0.name, types: [$0.type]) }
+    let assertions = properties.map { property in
+      // A bare `Any` can't conform to anything and needs no conformance, since every path converts it
+      // without one.
+      ConformanceAssertion(
+        name: property.name,
+        types: property.freeForm?.isBareAny == true ? [] : [property.type],
+        constraint: property.freeForm != nil ? jsConvertibleProtocolName : nil
+      )
+    }
     if let assertionMember = typeConformanceAssertions(for: assertions, constraint: recordFieldProtocolName) {
       members.append(assertionMember)
     }
@@ -129,6 +144,56 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
 // MARK: - Property model
 
 /**
+ How a property whose type mentions `Any` converts on the JS-value paths. Such a type can't conform to
+ the JS codable protocols, so the property converts through the `JavaScriptValue` free-form methods.
+ */
+private enum FreeFormConversion {
+  /// `Any`, `[Any]` or `[String: Any]`, wrapped in at most one optional: the dedicated methods for
+  /// that shape, named by `decodeMethod` and `encodeMethod`. The optional is handled around them.
+  case shape(decodeMethod: String, encodeMethod: String, isOptional: Bool, isBareAny: Bool)
+  /// Any other type that mentions `Any`: the generic `decodeAny(_:as:in:)` and `encodeAny(_:in:)`.
+  case generic
+
+  /// Classifies a type that mentions `Any`; the caller checks `isConvertibleFreeFormType` first.
+  init(type: TypeSyntax) {
+    let wrapped = optionalWrappedType(type)
+    switch freeFormShape(of: wrapped ?? type) {
+    case .any:
+      self = .shape(
+        decodeMethod: "decodeAny",
+        encodeMethod: "encodeAny",
+        isOptional: wrapped != nil,
+        isBareAny: true
+      )
+    case .array:
+      self = .shape(
+        decodeMethod: "decodeAnyArray",
+        encodeMethod: "encodeAnyArray",
+        isOptional: wrapped != nil,
+        isBareAny: false
+      )
+    case .dictionary:
+      self = .shape(
+        decodeMethod: "decodeAnyDictionary",
+        encodeMethod: "encodeAnyDictionary",
+        isOptional: wrapped != nil,
+        isBareAny: false
+      )
+    case nil:
+      self = .generic
+    }
+  }
+
+  /// True for `Any` itself, optional or not.
+  var isBareAny: Bool {
+    guard case .shape(_, _, _, let isBareAny) = self else {
+      return false
+    }
+    return isBareAny
+  }
+}
+
+/**
  A single record property discovered on the type, paired with everything the synthesized
  conversions need: its property name (also the JS key), its written type, and how the
  source may omit it.
@@ -145,6 +210,8 @@ private struct RecordProperty {
   let defaultValue: String?
   /// True when the property's type is optional (`T?` / `T!` / `Optional<T>`).
   let isOptional: Bool
+  /// How the property converts when its type mentions `Any`, or `nil` for every other type.
+  let freeForm: FreeFormConversion?
 
   /// True when the property declares a default value (`var x: T = …`).
   var hasDefault: Bool {
@@ -202,12 +269,26 @@ private func recordProperties(
           "@Record properties must declare an explicit type — '\(ident.identifier.text)' has none"
         )
       }
+      // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
+      let annotatedType = binding.typeAnnotation?.type
+      let freeForm = try annotatedType.flatMap { annotatedType -> FreeFormConversion? in
+        guard mentionsFreeFormAny(annotatedType) else {
+          return nil
+        }
+        guard isConvertibleFreeFormType(annotatedType) else {
+          throw MacroExpansionErrorMessage(
+            "@Record property '\(ident.identifier.text)' can't be typed '\(type)', because a type holding Any converts to and from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any], or JavaScriptValue to keep the JavaScript value unconverted"
+          )
+        }
+        return FreeFormConversion(type: annotatedType)
+      }
       properties.append(
         RecordProperty(
           name: ident.identifier.text,
           type: type,
           defaultValue: binding.initializer?.value.trimmedDescription,
-          isOptional: binding.typeAnnotation.map { isOptionalType($0.type) } ?? false
+          isOptional: annotatedType.map(isOptionalType) ?? false,
+          freeForm: freeForm
         )
       )
     }
@@ -279,7 +360,8 @@ private func memberwiseInit(properties: [RecordProperty]) -> DeclSyntax {
  undefined; defaulted properties fall back to the property's declared default (inlined) when
  undefined; optional properties become `nil` when undefined/null. Each property is decoded with
  `JavaScriptDecodable.decode`, so the factory binds the `runtime` from the app context once and
- threads it to every read.
+ threads it to every read. A free-form property decodes through the `JavaScriptValue` free-form
+ methods, which take the runtime too.
  */
 private func fromJSObjectFactory(properties: [RecordProperty]) -> DeclSyntax {
   var lines: [String] = []
@@ -327,12 +409,23 @@ private func factoryBody(properties: [RecordProperty], readLines: [String]) -> S
 
 /// Per-property read statements for the JS-object factory, each producing a `let <name>` by decoding
 /// the JS value with `JavaScriptDecodable.decode` (recovering the app context from `runtime` itself).
+/// A free-form property decodes through the `JavaScriptValue` free-form methods instead; for an optional
+/// free-form shape, `undefined`/`null` map to `nil` around the call, just like `Optional.decode`.
 private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
   for property in properties {
     let valueVar = "\(property.name)JSValue"
     let exprType = expressionType(property.type)
-    let decode = "try \(exprType).decode(\(valueVar), in: runtime)"
+    let decode: String
+    switch property.freeForm {
+    case .shape(let decodeMethod, _, let isOptional, _):
+      let call = "try JavaScriptValue.\(decodeMethod)(\(valueVar), in: runtime)"
+      decode = isOptional ? "\(valueVar).isUndefined() || \(valueVar).isNull() ? nil : \(call)" : call
+    case .generic:
+      decode = "try JavaScriptValue.decodeAny(\(valueVar), as: \(exprType).self, in: runtime)"
+    case nil:
+      decode = "try \(exprType).decode(\(valueVar), in: runtime)"
+    }
     lines.append("  let \(valueVar) = object.getProperty(\"\(property.name)\")")
     if property.isRequired {
       lines.append("  guard !\(valueVar).isUndefined() else {")
@@ -340,7 +433,8 @@ private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
       lines.append("  }")
       lines.append("  let \(property.name) = \(decode)")
     } else if property.isOptional {
-      // `Optional.decode` already maps `undefined`/`null` to `nil`, so the read is a plain decode.
+      // `Optional.decode` (and the free-form reads above) already map `undefined`/`null` to `nil`, so
+      // the read is a plain decode.
       lines.append("  let \(property.name) = \(decode)")
     } else {
       lines.append("  let \(property.name) = \(valueVar).isUndefined() ? \(property.defaultValue!) : \(decode)")
@@ -349,13 +443,18 @@ private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
   return lines
 }
 
-/// Per-property read statements for the dictionary factory, each producing a `let <name>`.
+/// Per-property read statements for the dictionary factory, each producing a `let <name>`. A bare `Any`
+/// property has no dynamic type to cast through, and the dictionary value already is an `Any`, so it's
+/// read unchanged.
 private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
   for property in properties {
     let valueVar = "\(property.name)Value"
     let exprType = expressionType(property.type)
-    let cast = "try \(exprType).getDynamicType().cast(\(valueVar), appContext: appContext) as! \(exprType)"
+    let isBareAny = property.freeForm?.isBareAny == true
+    let cast = isBareAny
+      ? valueVar
+      : "try \(exprType).getDynamicType().cast(\(valueVar), appContext: appContext) as! \(exprType)"
     lines.append("  let \(valueVar) = dictionary[\"\(property.name)\"]")
     if property.isRequired {
       lines.append("  guard let \(valueVar) else {")
@@ -365,7 +464,7 @@ private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
     } else if property.isOptional {
       lines.append("  let \(property.name): \(property.type) = (\(valueVar) == nil || \(valueVar)! is NSNull) ? nil : \(cast)")
     } else {
-      lines.append("  let \(property.name) = \(valueVar) == nil ? \(property.defaultValue!) : \(cast)")
+      lines.append("  let \(property.name) = \(valueVar) == nil ? \(property.defaultValue!) : \(isBareAny ? valueVar + "!" : cast)")
     }
   }
   return lines
@@ -405,7 +504,8 @@ private func toDictionaryMethod(properties: [RecordProperty], inheritsRecord: Bo
 
 /**
  `toObject(appContext:)` — builds a `JavaScriptObject` directly, encoding each property with
- `JavaScriptEncodable.encode`. The fast write path mirroring `from(object:)`. The `runtime` is bound
+ `JavaScriptEncodable.encode` (or, for a free-form property, the matching `JavaScriptValue` free-form
+ method). The fast write path mirroring `from(object:)`. The `runtime` is bound
  from the app context once and threaded to every write. Subclasses chain to `super` so inherited
  properties are written first.
  */
@@ -424,7 +524,19 @@ private func toObjectMethod(properties: [RecordProperty], inheritsRecord: Bool) 
     lines.append("  let object = runtime.createObject()")
   }
   for property in properties {
-    lines.append("  object.setProperty(\"\(property.name)\", value: try \(expressionType(property.type)).encode(self.\(property.name), in: runtime))")
+    let exprType = expressionType(property.type)
+    let encode: String
+    switch property.freeForm {
+    case .shape(_, let encodeMethod, let isOptional, _):
+      encode = isOptional
+        ? "self.\(property.name) == nil ? .null : try JavaScriptValue.\(encodeMethod)(self.\(property.name)!, in: runtime)"
+        : "try JavaScriptValue.\(encodeMethod)(self.\(property.name), in: runtime)"
+    case .generic:
+      encode = "try JavaScriptValue.encodeAny(self.\(property.name), in: runtime)"
+    case nil:
+      encode = "try \(exprType).encode(self.\(property.name), in: runtime)"
+    }
+    lines.append("  object.setProperty(\"\(property.name)\", value: \(encode))")
   }
   lines.append("  return object")
   let body = lines.joined(separator: "\n")
