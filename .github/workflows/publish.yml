@@ -70,12 +70,13 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.4.1.app
 
       - name: Cache SwiftPM build
+        # The build embeds absolute checkout paths, which include the repo name.
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: apple/.build
-          key: spm-${{ runner.os }}-${{ hashFiles('apple/Package.resolved') }}
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('apple/Package.resolved') }}
           restore-keys: |
-            spm-${{ runner.os }}-
+            spm-${{ github.repository }}-${{ runner.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
