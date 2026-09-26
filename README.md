@@ -2,12 +2,12 @@
   <a href="https://docs.expo.dev/modules/">
     <img
       src=".github/resources/expo-modules-macros.svg"
-      alt="expo-modules-macros-plugin"
+      alt="expo-modules-macros"
       height="64" />
   </a>
 </p>
 
-`@expo/expo-modules-macros-plugin` is the Swift compiler plugin behind the Expo Modules API. It implements the macros that [`expo-modules-core`](https://github.com/expo/expo/tree/main/packages/expo-modules-core) declares, so a module author writes plain Swift declarations and the plugin synthesizes the code that binds them to JavaScript.
+`expo-modules-macros` is the Swift compiler plugin behind the Expo Modules API. It implements the macros that [`expo-modules-core`](https://github.com/expo/expo/tree/main/packages/expo-modules-core) declares, so a module author writes plain Swift declarations and the plugin synthesizes the code that binds them to JavaScript.
 
 The same executable doubles as a source scanner CLI.
 
@@ -78,7 +78,7 @@ Each path is a `.swift` file or a directory, scanned recursively for `.swift` fi
 Node consumers can call the scanner through this package instead of locating the binary and shelling out themselves:
 
 ```ts
-import { scanModules, scanExports } from '@expo/expo-modules-macros-plugin';
+import { scanModules, scanExports } from 'expo-modules-macros';
 
 const { modules, warnings } = await scanModules(['ios/'], { defines: ['DEBUG'] });
 const { exports } = await scanExports(['ios/']);
