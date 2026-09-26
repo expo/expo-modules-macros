@@ -1,15 +1,15 @@
 {
-  "name": "@expo/expo-modules-macros-plugin",
+  "name": "expo-modules-macros",
   "version": "0.13.1",
   "description": "Swift macro plugin for Expo modules",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "license": "MIT",
   "author": "650 Industries, Inc.",
-  "homepage": "https://github.com/expo/expo-modules-macros-plugin",
+  "homepage": "https://github.com/expo/expo-modules-macros",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/expo/expo-modules-macros-plugin.git"
+    "url": "git+https://github.com/expo/expo-modules-macros.git"
   },
   "scripts": {
     "build": "node apple/build.js",
