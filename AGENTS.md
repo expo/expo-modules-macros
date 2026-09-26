@@ -35,6 +35,12 @@ CI (`.github/workflows/swift.yml`) runs the release build, checks both binary sl
 - `@JS` applies to functions, properties and initializers. Do not write code or comments that assume it marks only functions.
 - Code comments describe the code as it is. Do not refer to open PRs, branches or planned work.
 
+## Changing macros
+
+- The scanner re-implements the macros' naming and member rules on the syntax tree; it does not call the macro code. When a macro changes which members it binds or how it names them (the `@JS` name override, the `on` prefix `@Event` strips, which properties `@Record` treats as fields), change `scan-exports` to match, or generated TypeScript types drift from the runtime.
+- The scanner only parses files that match the pre-filter built by `macroAttributeRegex` in `Core/SourceScan.swift`. A new attribute or conformance the scanner must detect has to be added there, or files that use it are skipped without an error.
+- A new macro needs: the implementation in `apple/Sources/ExpoModulesMacros`, an entry in `providingMacros` in `Plugin.swift`, an expansion test file, the `#externalMacro` declaration in `expo-modules-core`, and an entry in the macro list in `README.md`.
+
 ## Contracts with other packages
 
 - **Macro declarations live in `expo-modules-core`** (`ios/Core/ExpoModulesMacros.swift` in `expo/expo`), as `#externalMacro(module: "ExpoModulesMacros", type: ...)`. Adding a macro, renaming a macro type or changing a macro's signature needs a matching edit there, and the type must be listed in `providingMacros` in `Plugin.swift`.
