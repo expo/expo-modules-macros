@@ -77,7 +77,7 @@ public enum ScannerCLI {
 }
 
 /// The invoked executable's basename, so the usage text matches however the tool was launched
-/// (the `ExpoModulesMacros-tool` shipped in the package, or a locally built copy).
+/// (the `ExpoModulesMacros` shipped in the package, or a locally built `ExpoModulesMacros-tool`).
 private var toolName: String {
   return (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "ExpoModulesScanner"
 }

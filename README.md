@@ -13,7 +13,7 @@ The same executable doubles as a source scanner CLI.
 
 # Installation
 
-This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains a prebuilt universal (arm64 + x86_64) macOS binary at `apple/ExpoModulesMacros-tool`, so consumers never build the plugin themselves.
+This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains a prebuilt universal (arm64 + x86_64) macOS binary at `apple/ExpoModulesMacros`, so consumers never build the plugin themselves.
 
 # Macros
 
@@ -60,7 +60,7 @@ The author-facing documentation for each macro lives next to its declaration in 
 The Swift compiler launches a plugin executable with no arguments and speaks the plugin protocol over stdin, so the binary treats any argument as a scanner invocation instead:
 
 ```
-ExpoModulesMacros-tool <subcommand> [options] <path> [<path> ...]
+ExpoModulesMacros <subcommand> [options] <path> [<path> ...]
 
 subcommands:
   scan-modules   fast scan for top-level @ExpoModule types (autolinking)
@@ -91,7 +91,7 @@ The binary is a compiled executable, so each call still spawns a process. What t
 `expo-modules-core` declares the macro signatures with `#externalMacro(module: "ExpoModulesMacros", type: …)`. During `pod install`, `expo-modules-autolinking` resolves this package from the core package and appends
 
 ```
--Xfrontend -load-plugin-executable -Xfrontend <plugin>/apple/ExpoModulesMacros-tool#ExpoModulesMacros
+-Xfrontend -load-plugin-executable -Xfrontend <plugin>/apple/ExpoModulesMacros#ExpoModulesMacros
 ```
 
 to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and their test specs. Expo's SPM prebuilds pass the same flag when they generate `Package.swift`, so both build systems load the same binary.
@@ -108,7 +108,7 @@ swift build
 swift test
 ```
 
-`npm run build` runs `apple/build.js`, which builds the release binary for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros-tool` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing. The resulting binary is committed to the repository.
+`npm run build` runs `apple/build.js`, which builds the release binary for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing. The resulting binary is committed to the repository.
 
 # Releasing
 

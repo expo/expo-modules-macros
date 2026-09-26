@@ -60,7 +60,7 @@ export class ScannerSchemaVersionError extends Error {
  * executable, so it lives next to the Swift package rather than in a `bin` directory.
  */
 export function getScannerBinaryPath(): string {
-  return path.join(__dirname, '..', 'apple', 'ExpoModulesMacros-tool');
+  return path.join(__dirname, '..', 'apple', 'ExpoModulesMacros');
 }
 
 /**

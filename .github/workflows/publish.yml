@@ -87,7 +87,7 @@ jobs:
 
       - name: Build release tool
         # Runs apple/build.js: builds the release plugin binary,
-        # copies it to apple/ExpoModulesMacros-tool, and strips it.
+        # copies it to apple/ExpoModulesMacros, and strips it.
         run: npm run build
 
       - name: Publish
