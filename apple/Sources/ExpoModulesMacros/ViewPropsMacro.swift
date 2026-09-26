@@ -195,20 +195,10 @@ private func optionalEventDiagnostic(for type: TypeSyntax, name: String) -> Diag
 /// (`(() -> Void)?` unwraps to `() -> Void`, not to a stray `(() -> Void)`). Returns `nil` for a
 /// spelling the fix-it can't rewrite mechanically.
 private func unwrappedOptionalType(_ type: TypeSyntax) -> TypeSyntax? {
-  if let optional = type.as(OptionalTypeSyntax.self) {
-    return innerFunctionType(of: optional.wrappedType) ?? optional.wrappedType
+  guard let wrapped = optionalWrappedType(type) else {
+    return nil
   }
-  if let implicitlyUnwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
-    return innerFunctionType(of: implicitlyUnwrapped.wrappedType) ?? implicitlyUnwrapped.wrappedType
-  }
-  // `Optional<() -> Void>` unwraps to its single generic argument.
-  if let identifier = type.as(IdentifierTypeSyntax.self),
-    identifier.name.text == "Optional",
-    let argument = identifier.genericArgumentClause?.arguments.first,
-    case .type(let wrapped) = argument.argument {
-    return wrapped
-  }
-  return nil
+  return innerFunctionType(of: wrapped) ?? wrapped
 }
 
 /// The function type inside a single-element parenthesized type, so unwrapping `(() -> Void)?`

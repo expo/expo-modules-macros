@@ -915,4 +915,342 @@ struct RecordMacroTests {
         """
     )
   }
+
+  @Test
+  func `Optional free-form dictionary property converts through the dedicated free-form methods on the JS-object paths`() {
+    assertExpansion(
+      """
+      @Record
+      struct Report {
+        var name: String
+        var attributes: [String: Any]?
+      }
+      """,
+      expandedSource: """
+        struct Report {
+          var name: String
+          var attributes: [String: Any]?
+
+          private func _assertTypesConformance() {
+            func attributes<T: AnyArgument>(_: T.Type) {
+            }
+            attributes([String: Any].self)
+          }
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(name: String, attributes: [String: Any]? = nil) {
+            self.name = name
+            self.attributes = attributes
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            let nameJSValue = object.getProperty("name")
+            guard !nameJSValue.isUndefined() else {
+              throw RecordPropertyRequiredException("name")
+            }
+            let name = try String.decode(nameJSValue, in: runtime)
+            let attributesJSValue = object.getProperty("attributes")
+            let attributes = attributesJSValue.isUndefined() || attributesJSValue.isNull() ? nil : try JavaScriptValue.decodeAnyDictionary(attributesJSValue, in: runtime)
+            return Self(name: name, attributes: attributes)
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let nameValue = dictionary["name"]
+            guard let nameValue else {
+              throw RecordPropertyRequiredException("name")
+            }
+            let name = try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
+            let attributesValue = dictionary["attributes"]
+            let attributes: [String: Any]? = (attributesValue == nil || attributesValue! is NSNull) ? nil : try [String: Any]?.getDynamicType().cast(attributesValue, appContext: appContext) as! [String: Any]?
+            return Self(name: name, attributes: attributes)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["name"] = self.name
+            dictionary["attributes"] = self.attributes
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            let runtime = try appContext.runtime
+            let object = runtime.createObject()
+            object.setProperty("name", value: try String.encode(self.name, in: runtime))
+            object.setProperty("attributes", value: self.attributes == nil ? .null : try JavaScriptValue.encodeAnyDictionary(self.attributes!, in: runtime))
+            return object
+          }
+        }
+
+        extension Report: Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Array, defaulted dictionary and nested free-form properties pick the dedicated or the generic free-form methods`() {
+    assertExpansion(
+      """
+      @Record
+      struct Payload {
+        var items: [Any]
+        var meta: [String : Any] = [:]
+        var groups: [String: [Any]]?
+      }
+      """,
+      expandedSource: """
+        struct Payload {
+          var items: [Any]
+          var meta: [String : Any] = [:]
+          var groups: [String: [Any]]?
+
+          private func _assertTypesConformance() {
+            func groups<T: AnyArgument>(_: T.Type) {
+            }
+            groups([String: [Any]].self)
+          }
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(items: [Any], meta: [String : Any], groups: [String: [Any]]? = nil) {
+            self.items = items
+            self.meta = meta
+            self.groups = groups
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            let itemsJSValue = object.getProperty("items")
+            guard !itemsJSValue.isUndefined() else {
+              throw RecordPropertyRequiredException("items")
+            }
+            let items = try JavaScriptValue.decodeAnyArray(itemsJSValue, in: runtime)
+            let metaJSValue = object.getProperty("meta")
+            let meta = metaJSValue.isUndefined() ? [:] : try JavaScriptValue.decodeAnyDictionary(metaJSValue, in: runtime)
+            let groupsJSValue = object.getProperty("groups")
+            let groups = try JavaScriptValue.decodeAny(groupsJSValue, as: [String: [Any]]?.self, in: runtime)
+            return Self(items: items, meta: meta, groups: groups)
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let itemsValue = dictionary["items"]
+            guard let itemsValue else {
+              throw RecordPropertyRequiredException("items")
+            }
+            let items = try [Any].getDynamicType().cast(itemsValue, appContext: appContext) as! [Any]
+            let metaValue = dictionary["meta"]
+            let meta = metaValue == nil ? [:] : try [String : Any].getDynamicType().cast(metaValue, appContext: appContext) as! [String : Any]
+            let groupsValue = dictionary["groups"]
+            let groups: [String: [Any]]? = (groupsValue == nil || groupsValue! is NSNull) ? nil : try [String: [Any]]?.getDynamicType().cast(groupsValue, appContext: appContext) as! [String: [Any]]?
+            return Self(items: items, meta: meta, groups: groups)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["items"] = self.items
+            dictionary["meta"] = self.meta
+            dictionary["groups"] = self.groups
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            let runtime = try appContext.runtime
+            let object = runtime.createObject()
+            object.setProperty("items", value: try JavaScriptValue.encodeAnyArray(self.items, in: runtime))
+            object.setProperty("meta", value: try JavaScriptValue.encodeAnyDictionary(self.meta, in: runtime))
+            object.setProperty("groups", value: try JavaScriptValue.encodeAny(self.groups, in: runtime))
+            return object
+          }
+        }
+
+        extension Payload: Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Bare Any properties pass through the dictionary paths and skip the conformance assertion`() {
+    assertExpansion(
+      """
+      @Record
+      struct Payload {
+        var value: Any
+        var maybe: Any?
+      }
+      """,
+      expandedSource: """
+        struct Payload {
+          var value: Any
+          var maybe: Any?
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(value: Any, maybe: Any? = nil) {
+            self.value = value
+            self.maybe = maybe
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            let valueJSValue = object.getProperty("value")
+            guard !valueJSValue.isUndefined() else {
+              throw RecordPropertyRequiredException("value")
+            }
+            let value = try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
+            let maybeJSValue = object.getProperty("maybe")
+            let maybe = maybeJSValue.isUndefined() || maybeJSValue.isNull() ? nil : try JavaScriptValue.decodeAny(maybeJSValue, in: runtime)
+            return Self(value: value, maybe: maybe)
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let valueValue = dictionary["value"]
+            guard let valueValue else {
+              throw RecordPropertyRequiredException("value")
+            }
+            let value = valueValue
+            let maybeValue = dictionary["maybe"]
+            let maybe: Any? = (maybeValue == nil || maybeValue! is NSNull) ? nil : maybeValue
+            return Self(value: value, maybe: maybe)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["value"] = self.value
+            dictionary["maybe"] = self.maybe
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            let runtime = try appContext.runtime
+            let object = runtime.createObject()
+            object.setProperty("value", value: try JavaScriptValue.encodeAny(self.value, in: runtime))
+            object.setProperty("maybe", value: self.maybe == nil ? .null : try JavaScriptValue.encodeAny(self.maybe!, in: runtime))
+            return object
+          }
+        }
+
+        extension Payload: Record {
+        }
+        """
+    )
+  }
+
+  @Test(arguments: ["[Int: Any]", "Box<Any>", "[String: (Any, Int)]", "Set<[String: Any]>"])
+  func `Free-form type that can't convert produces a diagnostic`(type: String) {
+    assertExpansion(
+      """
+      @Record
+      struct Payload {
+        var value: \(type)
+      }
+      """,
+      expandedSource: """
+        struct Payload {
+          var value: \(type)
+        }
+
+        extension Payload: Record {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Record property 'value' can't be typed '\(type)', because a type holding Any converts to and from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any], or JavaScriptValue to keep the JavaScript value unconverted",
+          line: 1,
+          column: 1
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Swift.Any is recognized as Any`() {
+    assertExpansion(
+      """
+      @Record
+      struct Payload {
+        var value: Swift.Any
+        var list: [Swift.Any]?
+      }
+      """,
+      expandedSource: """
+        struct Payload {
+          var value: Swift.Any
+          var list: [Swift.Any]?
+
+          private func _assertTypesConformance() {
+            func list<T: AnyArgument>(_: T.Type) {
+            }
+            list([Swift.Any].self)
+          }
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(value: Swift.Any, list: [Swift.Any]? = nil) {
+            self.value = value
+            self.list = list
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            let valueJSValue = object.getProperty("value")
+            guard !valueJSValue.isUndefined() else {
+              throw RecordPropertyRequiredException("value")
+            }
+            let value = try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
+            let listJSValue = object.getProperty("list")
+            let list = listJSValue.isUndefined() || listJSValue.isNull() ? nil : try JavaScriptValue.decodeAnyArray(listJSValue, in: runtime)
+            return Self(value: value, list: list)
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let valueValue = dictionary["value"]
+            guard let valueValue else {
+              throw RecordPropertyRequiredException("value")
+            }
+            let value = valueValue
+            let listValue = dictionary["list"]
+            let list: [Swift.Any]? = (listValue == nil || listValue! is NSNull) ? nil : try [Swift.Any]?.getDynamicType().cast(listValue, appContext: appContext) as! [Swift.Any]?
+            return Self(value: value, list: list)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["value"] = self.value
+            dictionary["list"] = self.list
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            let runtime = try appContext.runtime
+            let object = runtime.createObject()
+            object.setProperty("value", value: try JavaScriptValue.encodeAny(self.value, in: runtime))
+            object.setProperty("list", value: self.list == nil ? .null : try JavaScriptValue.encodeAnyArray(self.list!, in: runtime))
+            return object
+          }
+        }
+
+        extension Payload: Record {
+        }
+        """
+    )
+  }
 }

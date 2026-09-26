@@ -81,6 +81,24 @@ internal func isOptionalType(_ type: TypeSyntax) -> Bool {
   return false
 }
 
+/// The type wrapped by one optional layer (`T?`, `T!` or `Optional<T>`), or `nil` when the type isn't
+/// optional.
+internal func optionalWrappedType(_ type: TypeSyntax) -> TypeSyntax? {
+  if let optional = type.as(OptionalTypeSyntax.self) {
+    return optional.wrappedType
+  }
+  if let implicitlyUnwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+    return implicitlyUnwrapped.wrappedType
+  }
+  if let identifier = type.as(IdentifierTypeSyntax.self),
+    identifier.name.text == "Optional",
+    let argument = identifier.genericArgumentClause?.arguments.first,
+    case .type(let wrapped) = argument.argument {
+    return wrapped
+  }
+  return nil
+}
+
 /// True when the modifiers make the member type-level (`static` or `class`). A shared object routes
 /// such members to its constructor (JS-static) and instance members to its prototype; the `@JS`
 /// conformance assertion also uses this to emit its peer in the matching metatype context.
