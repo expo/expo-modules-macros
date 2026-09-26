@@ -100,7 +100,7 @@ async function verifyArchs(binaryPath, archs) {
 }
 
 async function main() {
-  const outputPath = path.join(__dirname, 'ExpoModulesMacros-tool');
+  const outputPath = path.join(__dirname, 'ExpoModulesMacros');
 
   const archs = [];
   for (const arch of ['arm64', 'x86_64']) {

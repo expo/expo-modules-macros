@@ -42,21 +42,21 @@ jobs:
       - name: Build release tool
         # Runs `npm run build` (apple/build.js): builds the universal
         # (arm64 + x86_64) release plugin binary, copies it to
-        # apple/ExpoModulesMacros-tool, and strips it.
+        # apple/ExpoModulesMacros, and strips it.
         working-directory: ${{ github.workspace }}
         run: npm run build
 
       - name: Verify universal binary
         run: |
-          archs="$(lipo -archs ExpoModulesMacros-tool)"
+          archs="$(lipo -archs ExpoModulesMacros)"
           echo "Architectures: $archs"
           case "$archs" in *arm64*) ;; *) echo "Missing arm64 slice"; exit 1;; esac
           case "$archs" in *x86_64*) ;; *) echo "Missing x86_64 slice"; exit 1;; esac
-          arch -arm64 ./ExpoModulesMacros-tool < /dev/null
-          arch -x86_64 ./ExpoModulesMacros-tool < /dev/null
+          arch -arm64 ./ExpoModulesMacros < /dev/null
+          arch -x86_64 ./ExpoModulesMacros < /dev/null
           # With arguments the same binary runs the scanner CLI instead of the plugin server.
-          arch -arm64 ./ExpoModulesMacros-tool --help > /dev/null
-          arch -x86_64 ./ExpoModulesMacros-tool --help > /dev/null
+          arch -arm64 ./ExpoModulesMacros --help > /dev/null
+          arch -x86_64 ./ExpoModulesMacros --help > /dev/null
 
       - name: Test
         run: swift test -v
