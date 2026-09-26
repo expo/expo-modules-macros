@@ -532,7 +532,8 @@ private func toObjectMethod(properties: [RecordProperty], inheritsRecord: Bool) 
         ? "self.\(property.name) == nil ? .null : try JavaScriptValue.\(encodeMethod)(self.\(property.name)!, in: runtime)"
         : "try JavaScriptValue.\(encodeMethod)(self.\(property.name), in: runtime)"
     case .generic:
-      encode = "try JavaScriptValue.encodeAny(self.\(property.name), in: runtime)"
+      // The explicit `as Any` keeps an optional property from warning about its implicit coercion.
+      encode = "try JavaScriptValue.encodeAny(self.\(property.name) as Any, in: runtime)"
     case nil:
       encode = "try \(exprType).encode(self.\(property.name), in: runtime)"
     }

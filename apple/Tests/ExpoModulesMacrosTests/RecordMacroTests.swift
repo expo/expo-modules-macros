@@ -1068,7 +1068,7 @@ struct RecordMacroTests {
             let object = runtime.createObject()
             object.setProperty("items", value: try JavaScriptValue.encodeAnyArray(self.items, in: runtime))
             object.setProperty("meta", value: try JavaScriptValue.encodeAnyDictionary(self.meta, in: runtime))
-            object.setProperty("groups", value: try JavaScriptValue.encodeAny(self.groups, in: runtime))
+            object.setProperty("groups", value: try JavaScriptValue.encodeAny(self.groups as Any, in: runtime))
             return object
           }
         }
