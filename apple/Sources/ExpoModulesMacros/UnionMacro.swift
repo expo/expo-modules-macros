@@ -237,9 +237,10 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
 /// received, and every payload type the union accepts.
 ///
 /// Emitted twice: for an owning `JavaScriptValue` and for a borrowed `JavaScriptUnownedValue`. The
-/// unowned overload forwards the borrowed value to each payload's own unowned `decode`, so a union
-/// argument is read without the copy the protocol's default overload makes. Only its mismatch error
-/// copies the value, to read its kind.
+/// unowned overload forwards the borrowed value to each payload's unowned `decode`, instead of copying
+/// it up front the way the protocol's default overload does. A payload that overrides that overload
+/// reads the borrowed value directly; one that relies on the default (a record, for example) still
+/// copies it. The mismatch error also copies the value, to read its kind.
 private func decodeMethods(union: UnionType) -> [DeclSyntax] {
   var lines: [String] = []
   for unionCase in union.cases {
