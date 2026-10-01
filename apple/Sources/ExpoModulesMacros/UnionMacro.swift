@@ -10,7 +10,8 @@ import SwiftSyntaxMacros
 ///
 /// - `decode(_:in:)`: an ordered decode that tries each case's payload converter in declaration order
 ///   and returns the first case that decodes; when none does, it throws
-///   `Exceptions.UnionCaseMismatch` naming the union, the JS kind received, and the alternatives.
+///   `Exceptions.UnionCaseMismatch` naming the union, the JS kind received, and the alternatives. It is
+///   emitted for both an owning `JavaScriptValue` and a borrowed `JavaScriptUnownedValue`.
 /// - `encode(_:in:)`: a `switch` over the cases, encoding the payload through its own type.
 /// - `as(_:)`: one throwing overload per case, keyed by the payload's metatype, returning that payload
 ///   (`try source.as(String.self)` is `String`; `try? source.as(String.self)` is `String?`). It unwraps
@@ -57,7 +58,7 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
       members.append(assertionMember)
     }
 
-    members.append(decodeMethod(union: union))
+    members.append(contentsOf: decodeMethods(union: union))
     members.append(encodeMethod(union: union))
     members.append(contentsOf: accessorMethods(union: union))
     members.append(payloadTypeNameProperty(union: union))
@@ -234,7 +235,12 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
 /// with several alternatives there is no single failure to surface. When no alternative accepts the
 /// value the factory throws `Exceptions.UnionCaseMismatch`, naming the union, the JS kind of the value
 /// received, and every payload type the union accepts.
-private func decodeMethod(union: UnionType) -> DeclSyntax {
+///
+/// Emitted twice: for an owning `JavaScriptValue` and for a borrowed `JavaScriptUnownedValue`. The
+/// unowned overload forwards the borrowed value to each payload's own unowned `decode`, so a union
+/// argument is read without the copy the protocol's default overload makes. Only its mismatch error
+/// copies the value, to read its kind.
+private func decodeMethods(union: UnionType) -> [DeclSyntax] {
   var lines: [String] = []
   for unionCase in union.cases {
     let payloadType = expressionType(unionCase.payloadType)
@@ -242,16 +248,27 @@ private func decodeMethod(union: UnionType) -> DeclSyntax {
     lines.append("    return \(unionCase.construction)")
     lines.append("  }")
   }
-  let expected = union.cases.map { "\"\($0.payloadType)\"" }.joined(separator: ", ")
-  let mismatch = "(unionName: \"\(union.name)\", received: value.kind.rawValue, expected: [\(expected)])"
-  lines.append("  throw Exceptions.UnionCaseMismatch(\(mismatch))")
   let body = lines.joined(separator: "\n")
-  return """
+  let expected = union.cases.map { "\"\($0.payloadType)\"" }.joined(separator: ", ")
+  let mismatch = { (received: String) in
+    "  throw Exceptions.UnionCaseMismatch((unionName: \"\(union.name)\", received: \(received), expected: [\(expected)]))"
+  }
+  return [
+    """
     @JavaScriptActor
     public static func decode(_ value: borrowing JavaScriptValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
     \(raw: body)
+    \(raw: mismatch("value.kind.rawValue"))
     }
+    """,
     """
+    @JavaScriptActor
+    public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+    \(raw: body)
+    \(raw: mismatch("value.copied(in: runtime).kind.rawValue"))
+    }
+    """,
+  ]
 }
 
 /// `encode(_:in:)`: a `switch` over the cases, each encoding its payload through the payload type's
