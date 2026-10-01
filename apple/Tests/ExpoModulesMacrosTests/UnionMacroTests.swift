@@ -75,13 +75,18 @@ struct UnionMacroTests {
 
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            var ownedValue: JavaScriptValue? = nil
             if let payload = try? String.decode(value, in: runtime) {
               return .text(payload)
             }
-            if let payload = try? SourceOptions.decode(value, in: runtime) {
-              return .options(payload)
+            do {
+              let owned = ownedValue ?? value.copied(in: runtime)
+              ownedValue = owned
+              if let payload = try? SourceOptions.decode(owned, in: runtime) {
+                return .options(payload)
+              }
             }
-            throw Exceptions.UnionCaseMismatch((unionName: "Source", received: value.copied(in: runtime).kind.rawValue, expected: ["String", "SourceOptions"]))
+            throw Exceptions.UnionCaseMismatch((unionName: "Source", received: (ownedValue ?? value.copied(in: runtime)).kind.rawValue, expected: ["String", "SourceOptions"]))
           }
 
           @JavaScriptActor
@@ -251,19 +256,32 @@ struct UnionMacroTests {
 
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
-            if let payload = try? Point.decode(value, in: runtime) {
-              return .single(payload)
+            var ownedValue: JavaScriptValue? = nil
+            do {
+              let owned = ownedValue ?? value.copied(in: runtime)
+              ownedValue = owned
+              if let payload = try? Point.decode(owned, in: runtime) {
+                return .single(payload)
+              }
             }
-            if let payload = try? [Point].decode(value, in: runtime) {
-              return .many(payload)
+            do {
+              let owned = ownedValue ?? value.copied(in: runtime)
+              ownedValue = owned
+              if let payload = try? [Point].decode(owned, in: runtime) {
+                return .many(payload)
+              }
             }
-            if let payload = try? [String: Point].decode(value, in: runtime) {
-              return .keyed(payload)
+            do {
+              let owned = ownedValue ?? value.copied(in: runtime)
+              ownedValue = owned
+              if let payload = try? [String: Point].decode(owned, in: runtime) {
+                return .keyed(payload)
+              }
             }
             if let payload = try? Int?.decode(value, in: runtime) {
               return .maybe(payload)
             }
-            throw Exceptions.UnionCaseMismatch((unionName: "Input", received: value.copied(in: runtime).kind.rawValue, expected: ["Point", "[Point]", "[String: Point]", "Int?"]))
+            throw Exceptions.UnionCaseMismatch((unionName: "Input", received: (ownedValue ?? value.copied(in: runtime)).kind.rawValue, expected: ["Point", "[Point]", "[String: Point]", "Int?"]))
           }
 
           @JavaScriptActor
@@ -509,10 +527,15 @@ struct UnionMacroTests {
 
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
-            if let payload = try? MyRecord?.decode(value, in: runtime) {
-              return .record(payload)
+            var ownedValue: JavaScriptValue? = nil
+            do {
+              let owned = ownedValue ?? value.copied(in: runtime)
+              ownedValue = owned
+              if let payload = try? MyRecord?.decode(owned, in: runtime) {
+                return .record(payload)
+              }
             }
-            throw Exceptions.UnionCaseMismatch((unionName: "Slot", received: value.copied(in: runtime).kind.rawValue, expected: ["MyRecord!"]))
+            throw Exceptions.UnionCaseMismatch((unionName: "Slot", received: (ownedValue ?? value.copied(in: runtime)).kind.rawValue, expected: ["MyRecord!"]))
           }
 
           @JavaScriptActor
@@ -1019,13 +1042,18 @@ struct UnionMacroTests {
 
             @JavaScriptActor
             public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+              var ownedValue: JavaScriptValue? = nil
               if let payload = try? Int.decode(value, in: runtime) {
                 return .leaf(payload)
               }
-              if let payload = try? [Node].decode(value, in: runtime) {
-                return .children(payload)
+              do {
+                let owned = ownedValue ?? value.copied(in: runtime)
+                ownedValue = owned
+                if let payload = try? [Node].decode(owned, in: runtime) {
+                  return .children(payload)
+                }
               }
-              throw Exceptions.UnionCaseMismatch((unionName: "Node", received: value.copied(in: runtime).kind.rawValue, expected: ["Int", "[Node]"]))
+              throw Exceptions.UnionCaseMismatch((unionName: "Node", received: (ownedValue ?? value.copied(in: runtime)).kind.rawValue, expected: ["Int", "[Node]"]))
             }
 
             @JavaScriptActor

@@ -236,40 +236,88 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
 /// value the factory throws `Exceptions.UnionCaseMismatch`, naming the union, the JS kind of the value
 /// received, and every payload type the union accepts.
 ///
-/// Emitted twice: for an owning `JavaScriptValue` and for a borrowed `JavaScriptUnownedValue`. The
-/// unowned overload forwards the borrowed value to each payload's unowned `decode`, instead of copying
-/// it up front the way the protocol's default overload does. A payload that overrides that overload
-/// reads the borrowed value directly; one that relies on the default (a record, for example) still
-/// copies it. The mismatch error also copies the value, to read its kind.
+/// Emitted twice: for an owning `JavaScriptValue` and for a borrowed `JavaScriptUnownedValue`. In the
+/// unowned overload, a case whose payload has its own unowned `decode` (see
+/// `hasOwnUnownedDecode(_:)`) reads the borrowed value directly. Every other case would copy the value
+/// through the protocol's default overload, so they share one owning copy instead, made the first time
+/// such a case runs and reused by the mismatch error. That keeps the overload at one copy at most,
+/// the same as the default overload it replaces, and at none when a borrowing case matches first.
 private func decodeMethods(union: UnionType) -> [DeclSyntax] {
-  var lines: [String] = []
+  var ownedLines: [String] = []
+  var unownedLines: [String] = []
+  let needsOwnedCopy = union.cases.contains { !hasOwnUnownedDecode($0.payloadType) }
+  if needsOwnedCopy {
+    unownedLines.append("  var ownedValue: JavaScriptValue? = nil")
+  }
   for unionCase in union.cases {
     let payloadType = expressionType(unionCase.payloadType)
-    lines.append("  if let payload = try? \(payloadType).decode(value, in: runtime) {")
-    lines.append("    return \(unionCase.construction)")
-    lines.append("  }")
+    ownedLines.append("  if let payload = try? \(payloadType).decode(value, in: runtime) {")
+    ownedLines.append("    return \(unionCase.construction)")
+    ownedLines.append("  }")
+
+    if hasOwnUnownedDecode(unionCase.payloadType) {
+      unownedLines.append("  if let payload = try? \(payloadType).decode(value, in: runtime) {")
+      unownedLines.append("    return \(unionCase.construction)")
+      unownedLines.append("  }")
+    } else {
+      unownedLines.append("  do {")
+      unownedLines.append("    let owned = ownedValue ?? value.copied(in: runtime)")
+      unownedLines.append("    ownedValue = owned")
+      unownedLines.append("    if let payload = try? \(payloadType).decode(owned, in: runtime) {")
+      unownedLines.append("      return \(unionCase.construction)")
+      unownedLines.append("    }")
+      unownedLines.append("  }")
+    }
   }
-  let body = lines.joined(separator: "\n")
   let expected = union.cases.map { "\"\($0.payloadType)\"" }.joined(separator: ", ")
   let mismatch = { (received: String) in
     "  throw Exceptions.UnionCaseMismatch((unionName: \"\(union.name)\", received: \(received), expected: [\(expected)]))"
   }
+  ownedLines.append(mismatch("value.kind.rawValue"))
+  unownedLines.append(
+    mismatch(needsOwnedCopy ? "(ownedValue ?? value.copied(in: runtime)).kind.rawValue" : "value.copied(in: runtime).kind.rawValue")
+  )
   return [
     """
     @JavaScriptActor
     public static func decode(_ value: borrowing JavaScriptValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
-    \(raw: body)
-    \(raw: mismatch("value.kind.rawValue"))
+    \(raw: ownedLines.joined(separator: "\n"))
     }
     """,
     """
     @JavaScriptActor
     public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
-    \(raw: body)
-    \(raw: mismatch("value.copied(in: runtime).kind.rawValue"))
+    \(raw: unownedLines.joined(separator: "\n"))
     }
     """,
   ]
+}
+
+/// The payload types whose `JavaScriptDecodable` conformance in expo-modules-jsi or expo-modules-core
+/// overrides the unowned `decode`, so it reads a borrowed value without copying it: `Bool`, `String`,
+/// the numeric types, `ArrayBuffer`, and an optional of any of them. Matched on the spelling, since a
+/// macro can't resolve types. A type missing from the list, like a typealias or a `SharedObject`
+/// subclass, is decoded from the shared owning copy, which costs that one copy and is still correct.
+private let typesWithOwnUnownedDecode: Set<String> = [
+  "Bool", "String", "Double", "Float", "CGFloat",
+  "Int", "Int8", "Int16", "Int32", "Int64",
+  "UInt", "UInt8", "UInt16", "UInt32", "UInt64",
+  "ArrayBuffer",
+]
+
+private func hasOwnUnownedDecode(_ payloadType: String) -> Bool {
+  var type = payloadType.filter { !$0.isWhitespace }
+  if type.hasSuffix("?") || type.hasSuffix("!") {
+    type.removeLast()
+  } else if type.hasPrefix("Optional<"), type.hasSuffix(">") {
+    type = String(type.dropFirst("Optional<".count).dropLast())
+  }
+  if type.hasPrefix("Swift.") {
+    type = String(type.dropFirst("Swift.".count))
+  } else if type.hasPrefix("ExpoModulesCore.") {
+    type = String(type.dropFirst("ExpoModulesCore.".count))
+  }
+  return typesWithOwnUnownedDecode.contains(type)
 }
 
 /// `encode(_:in:)`: a `switch` over the cases, each encoding its payload through the payload type's
