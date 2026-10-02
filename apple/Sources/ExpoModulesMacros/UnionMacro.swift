@@ -58,6 +58,7 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
     }
 
     members.append(decodeMethod(union: union))
+    members.append(decodableKindsProperty(union: union))
     members.append(encodeMethod(union: union))
     members.append(contentsOf: accessorMethods(union: union))
     members.append(payloadTypeNameProperty(union: union))
@@ -229,16 +230,18 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
 // MARK: - Synthesized members
 
 /// `decode(_:in:)`: tries each case's payload converter in declaration order and returns the first
-/// case that decodes. `try?` turns a candidate's failure into "try the next one" without erasing the
+/// case that decodes. The value's kind is read once, and each candidate is gated on its payload's
+/// `decodableKinds`, so a case that can't accept that kind is skipped with a mask test instead of a
+/// thrown and discarded error. `try?` turns a candidate's failure into "try the next one" without erasing the
 /// payload (each `payload` local keeps its concrete type); the candidate's own error is discarded, since
 /// with several alternatives there is no single failure to surface. When no alternative accepts the
 /// value the factory throws `Exceptions.UnionCaseMismatch`, naming the union, the JS kind of the value
 /// received, and every payload type the union accepts.
 private func decodeMethod(union: UnionType) -> DeclSyntax {
-  var lines: [String] = []
+  var lines: [String] = ["  let kind = JavaScriptValueKinds(of: value)"]
   for unionCase in union.cases {
     let payloadType = expressionType(unionCase.payloadType)
-    lines.append("  if let payload = try? \(payloadType).decode(value, in: runtime) {")
+    lines.append("  if \(payloadType).decodableKinds.contains(kind), let payload = try? \(payloadType).decode(value, in: runtime) {")
     lines.append("    return \(unionCase.construction)")
     lines.append("  }")
   }
@@ -250,6 +253,18 @@ private func decodeMethod(union: UnionType) -> DeclSyntax {
     @JavaScriptActor
     public static func decode(_ value: borrowing JavaScriptValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
     \(raw: body)
+    }
+    """
+}
+
+/// `decodableKinds`: the union of the payloads' kinds, so a union nested in another union, or wrapped
+/// in an optional, is skipped as precisely as its payloads are.
+private func decodableKindsProperty(union: UnionType) -> DeclSyntax {
+  let kinds = union.cases.map { "\(expressionType($0.payloadType)).decodableKinds" }
+  let expression = kinds.dropFirst().reduce(kinds[0]) { "\($0).union(\($1))" }
+  return """
+    public static var decodableKinds: JavaScriptValueKinds {
+      return \(raw: expression)
     }
     """
 }
