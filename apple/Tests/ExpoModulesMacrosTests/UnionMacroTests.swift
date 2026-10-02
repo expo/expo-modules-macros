@@ -63,7 +63,7 @@ struct UnionMacroTests {
           }
 
           public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds.union(SourceOptions.decodableKinds)
+            return [String.decodableKinds, SourceOptions.decodableKinds]
           }
 
           @JavaScriptActor
@@ -134,7 +134,7 @@ struct UnionMacroTests {
           case points(Double)
 
           public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds.union(Double.decodableKinds)
+            return [String.decodableKinds, Double.decodableKinds]
           }
 
           @JavaScriptActor
@@ -221,7 +221,7 @@ struct UnionMacroTests {
           }
 
           public static var decodableKinds: JavaScriptValueKinds {
-            return Point.decodableKinds.union([Point].decodableKinds).union([String: Point].decodableKinds).union(Int?.decodableKinds)
+            return [Point.decodableKinds, [Point].decodableKinds, [String: Point].decodableKinds, Int?.decodableKinds]
           }
 
           @JavaScriptActor
@@ -320,7 +320,7 @@ struct UnionMacroTests {
           case name(_ value: String)
 
           public static var decodableKinds: JavaScriptValueKinds {
-            return Int.decodableKinds.union(String.decodableKinds)
+            return [Int.decodableKinds, String.decodableKinds]
           }
 
           @JavaScriptActor
@@ -389,7 +389,7 @@ struct UnionMacroTests {
           case flag(Bool), count(Int)
 
           public static var decodableKinds: JavaScriptValueKinds {
-            return Bool.decodableKinds.union(Int.decodableKinds)
+            return [Bool.decodableKinds, Int.decodableKinds]
           }
 
           @JavaScriptActor
@@ -956,7 +956,7 @@ struct UnionMacroTests {
             }
 
             public static var decodableKinds: JavaScriptValueKinds {
-              return Int.decodableKinds.union([Node].decodableKinds)
+              return [Int.decodableKinds, [Node].decodableKinds]
             }
 
             @JavaScriptActor

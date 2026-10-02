@@ -268,7 +268,9 @@ private func decodeMethod(union: UnionType) -> DeclSyntax {
 /// in an optional, is skipped as precisely as its payloads are.
 private func decodableKindsProperty(union: UnionType) -> DeclSyntax {
   let kinds = union.cases.map { "\(expressionType($0.payloadType)).decodableKinds" }
-  let expression = kinds.dropFirst().reduce(kinds[0]) { "\($0).union(\($1))" }
+  // An option set's array literal is the union of its elements, which reads like the case list. The
+  // optimizer folds it to a constant after specialization, the same as a chain of `union(_:)` calls.
+  let expression = kinds.count == 1 ? kinds[0] : "[\(kinds.joined(separator: ", "))]"
   return """
     public static var decodableKinds: JavaScriptValueKinds {
       return \(raw: expression)
