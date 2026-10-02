@@ -120,7 +120,7 @@ private func insertAsyncFixIt(for funcDecl: FunctionDeclSyntax) -> FixIt {
 /// `JavaScriptValue.decodeAny…`; there is no free-form encode, so any position that encodes is a hard
 /// error. That means:
 /// - a function/constructor **parameter** typed free-form gets a warning steering to
-///   `[String: JavaScriptValue]` (the type-safe alternative), but compiles;
+///   `JavaScriptValue` (the type-safe alternative), but compiles;
 /// - a function **return** typed free-form is an error (it would need to encode);
 /// - a **property** typed free-form is an error regardless of settability, because its getter always
 ///   encodes.
@@ -156,9 +156,10 @@ private func diagnoseFreeFormTypes(
   }
 }
 
-/// The tail of a free-form encode error: the reshaped `JavaScriptValue` alternative when the type is a
-/// container (`[String: Any]` -> `[String: JavaScriptValue]`), otherwise the passthrough suggestion
-/// for a bare `Any`. Both conform to the codable protocols, so either is a valid fix.
+/// The tail of a free-form encode error: the reshaped alternative when the type-safe replacement differs
+/// from the plain `JavaScriptValue` passthrough, otherwise the passthrough suggestion. `JavaScriptValue`
+/// is non-copyable and cannot be a container element, so today every free-form shape resolves to the
+/// passthrough suggestion.
 private func suggestedAlternative(for freeFormType: String) -> String {
   if let reshaped = typedFreeFormReplacement(for: freeFormType), reshaped != "JavaScriptValue" {
     return "Use '\(reshaped)', or 'JavaScriptValue' to pass a JS value through unchanged."

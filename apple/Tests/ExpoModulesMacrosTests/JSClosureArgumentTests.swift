@@ -73,7 +73,7 @@ struct JSClosureArgumentTests {
                 arg0Callback.invokeDetached(p0)
               }
               self.subscribe(onChange: arg0)
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -120,7 +120,7 @@ struct JSClosureArgumentTests {
                 try arg1Callback.invokeBlocking(p0, p1, returning: Size.self)
               }
               try self.measure(name: arg0, layout: arg1)
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -214,7 +214,7 @@ struct JSClosureArgumentTests {
                 }
               }
               self.run(task: arg0)
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -263,7 +263,7 @@ struct JSClosureArgumentTests {
                 }
                 self.start(onDone: arg0)
               }
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -292,7 +292,7 @@ struct JSClosureArgumentTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Watcher", received: arguments.count, required: 1, maximum: 1))
             }
@@ -345,7 +345,7 @@ struct JSClosureArgumentTests {
                 try arg0Callback.invokeBlocking(p0, p1, p2)
               }
               self.observe(handler: arg0)
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -386,7 +386,7 @@ struct JSClosureArgumentTests {
               }
               return {
                 await _self.download(onProgress: arg0)
-                return .undefined
+                return .undefined()
               }
             }
           }
@@ -490,7 +490,7 @@ struct JSClosureArgumentTests {
                 }
                 self.run(onDone: arg0)
               }
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -532,7 +532,7 @@ struct JSClosureArgumentTests {
                 try arg0Callback.invokeBlocking(p0, p1, returning: Bool.self)
               }
               self.sort(compare: arg0)
-              return .undefined
+              return .undefined()
             }
           }
         }

@@ -529,7 +529,7 @@ private func toObjectMethod(properties: [RecordProperty], inheritsRecord: Bool) 
     switch property.freeForm {
     case .shape(_, let encodeMethod, let isOptional, _):
       encode = isOptional
-        ? "self.\(property.name) == nil ? .null : try JavaScriptValue.\(encodeMethod)(self.\(property.name)!, in: runtime)"
+        ? "self.\(property.name) == nil ? .null() : try JavaScriptValue.\(encodeMethod)(self.\(property.name)!, in: runtime)"
         : "try JavaScriptValue.\(encodeMethod)(self.\(property.name), in: runtime)"
     case .generic:
       // The explicit `as Any` keeps an optional property from warning about its implicit coercion.
