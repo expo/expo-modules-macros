@@ -62,6 +62,10 @@ struct UnionMacroTests {
             options(SourceOptions.self)
           }
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return String.decodableKinds.union(SourceOptions.decodableKinds)
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -72,10 +76,6 @@ struct UnionMacroTests {
               return .options(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: value.copied(in: runtime).kind.rawValue, expected: ["String", "SourceOptions"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds.union(SourceOptions.decodableKinds)
           }
 
           @JavaScriptActor
@@ -133,6 +133,10 @@ struct UnionMacroTests {
           case named(String)
           case points(Double)
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return String.decodableKinds.union(Double.decodableKinds)
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -143,10 +147,6 @@ struct UnionMacroTests {
               return .points(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Size", received: value.copied(in: runtime).kind.rawValue, expected: ["String", "Double"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds.union(Double.decodableKinds)
           }
 
           @JavaScriptActor
@@ -220,6 +220,10 @@ struct UnionMacroTests {
             keyed([String: Point].self)
           }
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return Point.decodableKinds.union([Point].decodableKinds).union([String: Point].decodableKinds).union(Int?.decodableKinds)
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -236,10 +240,6 @@ struct UnionMacroTests {
               return .maybe(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Input", received: value.copied(in: runtime).kind.rawValue, expected: ["Point", "[Point]", "[String: Point]", "Int?"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return Point.decodableKinds.union([Point].decodableKinds).union([String: Point].decodableKinds).union(Int?.decodableKinds)
           }
 
           @JavaScriptActor
@@ -319,6 +319,10 @@ struct UnionMacroTests {
           case id(value: Int)
           case name(_ value: String)
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return Int.decodableKinds.union(String.decodableKinds)
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -329,10 +333,6 @@ struct UnionMacroTests {
               return .name(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Reference", received: value.copied(in: runtime).kind.rawValue, expected: ["Int", "String"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return Int.decodableKinds.union(String.decodableKinds)
           }
 
           @JavaScriptActor
@@ -388,6 +388,10 @@ struct UnionMacroTests {
         enum Scalar {
           case flag(Bool), count(Int)
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return Bool.decodableKinds.union(Int.decodableKinds)
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -398,10 +402,6 @@ struct UnionMacroTests {
               return .count(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Scalar", received: value.copied(in: runtime).kind.rawValue, expected: ["Bool", "Int"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return Bool.decodableKinds.union(Int.decodableKinds)
           }
 
           @JavaScriptActor
@@ -463,6 +463,10 @@ struct UnionMacroTests {
             record(MyRecord.self)
           }
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return MyRecord?.decodableKinds
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -470,10 +474,6 @@ struct UnionMacroTests {
               return .record(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Slot", received: value.copied(in: runtime).kind.rawValue, expected: ["MyRecord!"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return MyRecord?.decodableKinds
           }
 
           @JavaScriptActor
@@ -532,6 +532,10 @@ struct UnionMacroTests {
             return false
           }
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return String.decodableKinds
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -539,10 +543,6 @@ struct UnionMacroTests {
               return .text(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: value.copied(in: runtime).kind.rawValue, expected: ["String"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds
           }
 
           @JavaScriptActor
@@ -587,6 +587,10 @@ struct UnionMacroTests {
         enum Source: JavaScriptDecodable, Sendable {
           case text(String)
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return String.decodableKinds
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -594,10 +598,6 @@ struct UnionMacroTests {
               return .text(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: value.copied(in: runtime).kind.rawValue, expected: ["String"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds
           }
 
           @JavaScriptActor
@@ -642,6 +642,10 @@ struct UnionMacroTests {
         enum Source: JavaScriptDecodable, JavaScriptEncodable {
           case text(String)
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return String.decodableKinds
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -649,10 +653,6 @@ struct UnionMacroTests {
               return .text(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: value.copied(in: runtime).kind.rawValue, expected: ["String"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds
           }
 
           @JavaScriptActor
@@ -854,6 +854,10 @@ struct UnionMacroTests {
         enum Source: ExpoModulesJSI.JavaScriptEncodable {
           case text(String)
 
+          public static var decodableKinds: JavaScriptValueKinds {
+            return String.decodableKinds
+          }
+
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let kind = JavaScriptValueKinds(of: value)
@@ -861,10 +865,6 @@ struct UnionMacroTests {
               return .text(payload)
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: value.copied(in: runtime).kind.rawValue, expected: ["String"]))
-          }
-
-          public static var decodableKinds: JavaScriptValueKinds {
-            return String.decodableKinds
           }
 
           @JavaScriptActor
@@ -955,6 +955,10 @@ struct UnionMacroTests {
               children([Node].self)
             }
 
+            public static var decodableKinds: JavaScriptValueKinds {
+              return Int.decodableKinds.union([Node].decodableKinds)
+            }
+
             @JavaScriptActor
             public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
               let kind = JavaScriptValueKinds(of: value)
@@ -965,10 +969,6 @@ struct UnionMacroTests {
                 return .children(payload)
               }
               throw Exceptions.UnionCaseMismatch((unionName: "Node", received: value.copied(in: runtime).kind.rawValue, expected: ["Int", "[Node]"]))
-            }
-
-            public static var decodableKinds: JavaScriptValueKinds {
-              return Int.decodableKinds.union([Node].decodableKinds)
             }
 
             @JavaScriptActor

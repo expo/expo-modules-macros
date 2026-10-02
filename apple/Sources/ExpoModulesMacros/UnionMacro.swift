@@ -8,6 +8,7 @@ import SwiftSyntaxMacros
 /// level, so the author switches over it exhaustively with each payload keeping its static type, and
 /// the macro synthesizes the conversion surface that makes it a JS boundary type:
 ///
+/// - `decodableKinds`: the union of the payloads' `decodableKinds`, the JS kinds the union can decode.
 /// - `decode(_:in:)`: an ordered decode that tries each case's payload converter in declaration order
 ///   and returns the first case that decodes; when none does, it throws
 ///   `Exceptions.UnionCaseMismatch` naming the union, the JS kind received, and the alternatives.
@@ -60,8 +61,8 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
       members.append(assertionMember)
     }
 
-    members.append(decodeMethod(union: union))
     members.append(decodableKindsProperty(union: union))
+    members.append(decodeMethod(union: union))
     members.append(encodeMethod(union: union))
     members.append(contentsOf: accessorMethods(union: union))
     members.append(payloadTypeNameProperty(union: union))
