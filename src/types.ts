@@ -109,8 +109,25 @@ export interface ExportedModule {
   functions: ExportedFunction[];
   properties: ExportedProperty[];
   events: ExportedEvent[];
+  /**
+   * The classes listed in `@ExpoModule(classes: [...])`, in source order. Each is reachable from JS
+   * as a member of the module.
+   */
+  classes: ExportedClass[];
   /** Absolute source path. */
   file: string;
+}
+
+/** One entry of `@ExpoModule(classes: [...])`. */
+export interface ExportedClass {
+  /** The Swift name as spelled in the argument, e.g. `Database` or `Outer.Statement`. */
+  name: string;
+  /**
+   * The name of the module member JS reads the class from: the matching shared object's `jsName`.
+   * Absent when the scan found no shared object with this name, for example a class defined outside
+   * the scanned paths.
+   */
+  jsName?: string;
 }
 
 /** One `@Event var`: a typed event JS listens for by name, rather than calls. */
@@ -273,4 +290,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 5;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 6;

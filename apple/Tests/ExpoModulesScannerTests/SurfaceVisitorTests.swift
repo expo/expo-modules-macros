@@ -98,6 +98,26 @@ struct ModuleSurfaceTests {
     #expect(surface("@ExpoModule\nfinal class Plain {}").modules.first?.jsName == "Plain")
     #expect(surface("@ExpoModule(\"JS\")\nfinal class Renamed {}").modules.first?.jsName == "JS")
   }
+
+  @Test
+  func `Lists a module's classes in source order, keeping qualified names`() {
+    let module = surface(
+      """
+      @ExpoModule("Store", classes: [Database.self, Outer.Statement.self], views: [StoreView.self])
+      final class StoreModule {}
+      """
+    ).modules.first
+    // The JS names stay empty until the surface's refs are resolved.
+    #expect(
+      module?.classes == [
+        ExportedClass(name: "Database", jsName: nil), ExportedClass(name: "Outer.Statement", jsName: nil),
+      ])
+  }
+
+  @Test
+  func `A module without a classes argument lists no classes`() {
+    #expect(surface("@ExpoModule\nfinal class Plain {}").modules.first?.classes == [])
+  }
 }
 
 @Suite("Exports surface: shared objects")
@@ -1096,5 +1116,32 @@ struct RefResolutionTests {
     // A qualified spelling names the same type; matching the trailing component is how the
     // conformance and raw-type checks already work.
     #expect(types["s"] == .ref(name: "Media.Status", refKind: .enum, jsTypeOverride: .string))
+  }
+
+  @Test
+  func `Fills each module class's JS name from its shared object`() throws {
+    let surface = try resolvedSurface(
+      """
+      @SharedObject("Database")
+      final class NativeDatabase: SharedObject {}
+      @SharedObject
+      final class NativeStatement: SharedObject {}
+      @Record struct Options { var name: String }
+
+      @ExpoModule(classes: [NativeDatabase.self, Store.NativeStatement.self, Options.self, Missing.self])
+      final class M {}
+      """
+    )
+
+    #expect(
+      surface.modules.first?.classes == [
+        // The `@SharedObject` override is the member name JS reads.
+        ExportedClass(name: "NativeDatabase", jsName: "Database"),
+        // A qualified spelling matches its bare declaration.
+        ExportedClass(name: "Store.NativeStatement", jsName: "NativeStatement"),
+        // Only a shared object has a JS name; a record or an unscanned class has none.
+        ExportedClass(name: "Options", jsName: nil),
+        ExportedClass(name: "Missing", jsName: nil),
+      ])
   }
 }
