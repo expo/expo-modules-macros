@@ -1,6 +1,6 @@
 {
   "name": "expo-modules-macros",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Swift macro plugin for Expo modules",
   "main": "build/index.js",
   "types": "build/index.d.ts",
