@@ -8,9 +8,13 @@ import SwiftSyntaxMacros
 /// level, so the author switches over it exhaustively with each payload keeping its static type, and
 /// the macro synthesizes the conversion surface that makes it a JS boundary type:
 ///
+/// - `decodableKinds`: the union of the payloads' `decodableKinds`, the JS kinds the union can decode.
 /// - `decode(_:in:)`: an ordered decode that tries each case's payload converter in declaration order
 ///   and returns the first case that decodes; when none does, it throws
 ///   `Exceptions.UnionCaseMismatch` naming the union, the JS kind received, and the alternatives.
+///   Only the overload taking a borrowed `JavaScriptUnownedValue` is emitted. The overload taking an
+///   owning `JavaScriptValue` comes from the `JavaScriptDecodable` default, which borrows the value
+///   and calls this one.
 /// - `encode(_:in:)`: a `switch` over the cases, encoding the payload through its own type.
 /// - `as(_:)`: one throwing overload per case, keyed by the payload's metatype, returning that payload
 ///   (`try source.as(String.self)` is `String`; `try? source.as(String.self)` is `String?`). It unwraps
@@ -57,6 +61,7 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
       members.append(assertionMember)
     }
 
+    members.append(decodableKindsProperty(union: union))
     members.append(decodeMethod(union: union))
     members.append(encodeMethod(union: union))
     members.append(contentsOf: accessorMethods(union: union))
@@ -229,27 +234,46 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
 // MARK: - Synthesized members
 
 /// `decode(_:in:)`: tries each case's payload converter in declaration order and returns the first
-/// case that decodes. `try?` turns a candidate's failure into "try the next one" without erasing the
+/// case that decodes. Only the overload taking a borrowed `JavaScriptUnownedValue` is emitted; the
+/// overload taking an owning `JavaScriptValue` comes from the `JavaScriptDecodable` default, which
+/// borrows the value and calls this one. Each payload decode receives the same borrowed value. The
+/// value's kind is read once, and each candidate is gated on its payload's `decodableKinds`, so a case
+/// that can't accept that kind is skipped with a mask test instead of a thrown and discarded error. `try?` turns a candidate's failure into "try the next one" without erasing the
 /// payload (each `payload` local keeps its concrete type); the candidate's own error is discarded, since
 /// with several alternatives there is no single failure to surface. When no alternative accepts the
 /// value the factory throws `Exceptions.UnionCaseMismatch`, naming the union, the JS kind of the value
-/// received, and every payload type the union accepts.
+/// received, and every payload type the union accepts. `JavaScriptUnownedValue` has no `kind`, so the
+/// error reads it from an owning copy; the copy is made only on this failure path.
 private func decodeMethod(union: UnionType) -> DeclSyntax {
-  var lines: [String] = []
+  var lines: [String] = ["  let kind = JavaScriptValueKinds(of: value)"]
   for unionCase in union.cases {
     let payloadType = expressionType(unionCase.payloadType)
-    lines.append("  if let payload = try? \(payloadType).decode(value, in: runtime) {")
+    lines.append("  if \(payloadType).decodableKinds.contains(kind), let payload = try? \(payloadType).decode(value, in: runtime) {")
     lines.append("    return \(unionCase.construction)")
     lines.append("  }")
   }
   let expected = union.cases.map { "\"\($0.payloadType)\"" }.joined(separator: ", ")
-  let mismatch = "(unionName: \"\(union.name)\", received: value.kind.rawValue, expected: [\(expected)])"
+  let mismatch = "(unionName: \"\(union.name)\", received: value.copied(in: runtime).kind.rawValue, expected: [\(expected)])"
   lines.append("  throw Exceptions.UnionCaseMismatch(\(mismatch))")
   let body = lines.joined(separator: "\n")
   return """
     @JavaScriptActor
-    public static func decode(_ value: borrowing JavaScriptValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+    public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
     \(raw: body)
+    }
+    """
+}
+
+/// `decodableKinds`: the union of the payloads' kinds, so a union nested in another union, or wrapped
+/// in an optional, is skipped as precisely as its payloads are.
+private func decodableKindsProperty(union: UnionType) -> DeclSyntax {
+  let kinds = union.cases.map { "\(expressionType($0.payloadType)).decodableKinds" }
+  // An option set's array literal is the union of its elements, which reads like the case list. The
+  // optimizer folds it to a constant after specialization, the same as a chain of `union(_:)` calls.
+  let expression = kinds.count == 1 ? kinds[0] : "[\(kinds.joined(separator: ", "))]"
+  return """
+    public static var decodableKinds: JavaScriptValueKinds {
+      return \(raw: expression)
     }
     """
 }
