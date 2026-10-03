@@ -170,12 +170,23 @@ struct ExportedModule: Encodable, Equatable {
   let properties: [ExportedProperty]
   let events: [ExportedEvent]
 
-  /// The classes listed in `@ExpoModule(classes: [...])`, as their Swift names spelled in the
-  /// argument, in source order. Each is reachable from JS as a member of the module.
-  let classes: [String]
+  /// The classes listed in `@ExpoModule(classes: [...])`, in source order. Each is reachable from JS
+  /// as a member of the module.
+  let classes: [ExportedClass]
 
   /// Absolute source path, matching `scan-modules`.
   let file: String
+}
+
+/// One entry of `@ExpoModule(classes: [...])`.
+struct ExportedClass: Encodable, Equatable {
+  /// The Swift name as spelled in the argument, e.g. `Database` or `Outer.Statement`.
+  let name: String
+
+  /// The name of the module member JS reads the class from: the matching `@SharedObject`'s `jsName`.
+  /// `nil` when the scan found no `@SharedObject` with this name, for example a class defined
+  /// outside the scanned paths.
+  let jsName: String?
 }
 
 /// A `@SharedObject` type: a JS class with an optional `@JS init` constructor plus its `@JS` members.

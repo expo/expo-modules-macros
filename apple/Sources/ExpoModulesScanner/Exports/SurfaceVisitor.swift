@@ -78,7 +78,11 @@ final class SurfaceVisitor: SyntaxVisitor {
           functions: functions,
           properties: properties,
           events: events,
-          classes: classListArgument(of: attribute, label: "classes"),
+          // `jsName` is filled in by `ExportedSurface.resolvingRefs()`, since the `@SharedObject` can
+          // be declared in another file.
+          classes: classListArgument(of: attribute, label: "classes").map {
+            ExportedClass(name: $0, jsName: nil)
+          },
           file: file
         ))
       return

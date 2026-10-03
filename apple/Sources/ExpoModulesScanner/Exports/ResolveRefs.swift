@@ -23,12 +23,16 @@ struct RefIndex {
   /// `name` -> the kind declaring it, plus the JS category a ref to it crosses as.
   private var entries: [String: (kind: RefKind, jsType: JSType)] = [:]
 
+  /// A `@SharedObject`'s Swift name -> its JS name.
+  private var sharedObjectJSNames: [String: String] = [:]
+
   init(surface: ExportedSurface) {
     for record in surface.records {
       entries[record.name] = (.record, .object)
     }
     for sharedObject in surface.sharedObjects {
       entries[sharedObject.name] = (.sharedObject, .object)
+      sharedObjectJSNames[sharedObject.name] = sharedObject.jsName
     }
     for union in surface.unions {
       // A union crosses as whichever alternative matched, so its category is only meaningful per
@@ -42,16 +46,26 @@ struct RefIndex {
 
   /// How a ref to `name` should be reported, or `nil` when the scan declares no such type.
   func lookup(_ name: String) -> (kind: RefKind, jsType: JSType)? {
-    if let entry = entries[name] {
-      return entry
-    }
-    // A qualified use site (`Media.Status`) names the same type a bare declaration did. Fall back to
-    // the trailing component, which is how the conformance and raw-type checks already match names.
-    guard let trailing = name.split(separator: ".").last.map(String.init), trailing != name else {
-      return nil
-    }
-    return entries[trailing]
+    lookupQualified(name, in: entries)
   }
+
+  /// The JS name of the `@SharedObject` declared as `name`, or `nil` when the scan declares none.
+  func sharedObjectJSName(_ name: String) -> String? {
+    lookupQualified(name, in: sharedObjectJSNames)
+  }
+}
+
+/// The value for `name` in `table`, falling back to its trailing component. A qualified use site
+/// (`Media.Status`) names the same type a bare declaration did, which is how the conformance and
+/// raw-type checks already match names.
+private func lookupQualified<Value>(_ name: String, in table: [String: Value]) -> Value? {
+  if let value = table[name] {
+    return value
+  }
+  guard let trailing = name.split(separator: ".").last.map(String.init), trailing != name else {
+    return nil
+  }
+  return table[trailing]
 }
 
 /// The JS category a raw-value enum crosses as: its raw value's. A bare `Enumerable` conformance with
@@ -114,7 +128,9 @@ extension ExportedSurface {
           functions: module.functions.map { $0.resolvingRefs(using: index) },
           properties: module.properties.map { $0.resolvingRefs(using: index) },
           events: module.events.map { $0.resolvingRefs(using: index) },
-          classes: module.classes,
+          classes: module.classes.map {
+            ExportedClass(name: $0.name, jsName: index.sharedObjectJSName($0.name))
+          },
           file: module.file
         )
       },
