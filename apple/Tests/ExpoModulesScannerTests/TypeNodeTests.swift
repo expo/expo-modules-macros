@@ -25,6 +25,19 @@ struct TypeNodeTests {
   }
 
   @Test
+  func `Maps the numeric types that cross as a JS number`() {
+    for name in ["Int8", "Int16", "Int32", "UInt", "UInt8", "UInt16", "UInt32", "Float", "CGFloat"] {
+      #expect(node(name) == .primitive(name: name, jsType: .number))
+    }
+  }
+
+  @Test
+  func `Maps the 64-bit fixed-width integers to a JS bigint`() {
+    #expect(node("Int64") == .primitive(name: "Int64", jsType: .bigint))
+    #expect(node("UInt64") == .primitive(name: "UInt64", jsType: .bigint))
+  }
+
+  @Test
   func `A non-primitive nominal type is a ref`() {
     #expect(node("Point") == .ref(name: "Point"))
     // A qualified name keeps its full spelling.
