@@ -8,8 +8,8 @@ import SwiftSyntax
 /// never silently dropped.
 
 /// The runtime category mirroring JavaScript's `typeof`. A coarse companion to `TypeNode.kind`: every
-/// structured object kind (array, dictionary, promise, ref) reports `object`. `bigint`/`symbol` are
-/// included for completeness; the scanner doesn't produce them.
+/// structured object kind (array, dictionary, promise, ref) reports `object`. `symbol` is included for
+/// completeness; the scanner doesn't produce it.
 enum JSType: String, Encodable {
   case undefined
   case object
@@ -37,8 +37,8 @@ enum RefKind: String, Encodable {
 }
 
 indirect enum TypeNode: Equatable {
-  /// `Bool`, `Int`, `Double`, `String`: the types core fast-decodes. `name` is the Swift spelling;
-  /// `jsType` is `boolean`/`number`/`string`.
+  /// A Swift type that crosses as a JS primitive: `Bool`, `String`, or a numeric type. `name` is the
+  /// Swift spelling; `jsType` is `boolean`/`number`/`bigint`/`string`.
   case primitive(name: String, jsType: JSType)
 
   /// `T?` / `T!` / `Optional<T>`.
@@ -148,13 +148,27 @@ extension TypeNode: Encodable {
   }
 }
 
-/// The primitive Swift types with a dedicated JS mapping (the set core fast-decodes), each paired with
-/// its JS primitive. A bare name here is a `.primitive`; anything else is a `.ref`.
+/// The Swift types that cross as a JS primitive, each paired with that primitive. A bare name here is
+/// a `.primitive`; anything else is a `.ref`.
 private let primitiveJSTypes: [String: JSType] = [
   "Bool": .boolean,
-  "Int": .number,
-  "Double": .number,
   "String": .string,
+  // These numeric types encode to a JS `number`.
+  "Int": .number,
+  "Int8": .number,
+  "Int16": .number,
+  "Int32": .number,
+  "UInt": .number,
+  "UInt8": .number,
+  "UInt16": .number,
+  "UInt32": .number,
+  "Double": .number,
+  "Float": .number,
+  "CGFloat": .number,
+  // The 64-bit fixed-width integers decode from a `number` or a `bigint`, and always encode to a
+  // `bigint`. The reported category is the encoded one.
+  "Int64": .bigint,
+  "UInt64": .bigint,
 ]
 
 /// Parses a `TypeSyntax` into a `TypeNode`: the single place Swift type syntax is interpreted.
