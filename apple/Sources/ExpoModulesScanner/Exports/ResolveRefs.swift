@@ -114,6 +114,7 @@ extension ExportedSurface {
           functions: module.functions.map { $0.resolvingRefs(using: index) },
           properties: module.properties.map { $0.resolvingRefs(using: index) },
           events: module.events.map { $0.resolvingRefs(using: index) },
+          classes: module.classes,
           file: module.file
         )
       },

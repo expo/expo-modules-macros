@@ -170,6 +170,10 @@ struct ExportedModule: Encodable, Equatable {
   let properties: [ExportedProperty]
   let events: [ExportedEvent]
 
+  /// The classes listed in `@ExpoModule(classes: [...])`, as their Swift names spelled in the
+  /// argument, in source order. Each is reachable from JS as a member of the module.
+  let classes: [String]
+
   /// Absolute source path, matching `scan-modules`.
   let file: String
 }
@@ -307,8 +311,8 @@ struct ExportedSurface: Encodable, Equatable {
 /// Versioned independently of `scanModulesSchemaVersion`: the two commands serve different consumers
 /// and change for different reasons. Version 2 added `events` to modules and shared objects; version 3
 /// added `enums`; version 4 added `unions`; version 5 resolves refs, adding `refKind` and correcting
-/// an enum ref's `typeof`.
-let scanExportsSchemaVersion = 5
+/// an enum ref's `typeof`; version 6 added `classes` to modules.
+let scanExportsSchemaVersion = 6
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanModulesResult` (different consumer: TS generation vs. autolinking).

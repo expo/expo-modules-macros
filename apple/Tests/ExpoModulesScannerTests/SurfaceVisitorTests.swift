@@ -98,6 +98,22 @@ struct ModuleSurfaceTests {
     #expect(surface("@ExpoModule\nfinal class Plain {}").modules.first?.jsName == "Plain")
     #expect(surface("@ExpoModule(\"JS\")\nfinal class Renamed {}").modules.first?.jsName == "JS")
   }
+
+  @Test
+  func `Lists a module's classes in source order, keeping qualified names`() {
+    let module = surface(
+      """
+      @ExpoModule("Store", classes: [Database.self, Outer.Statement.self], views: [StoreView.self])
+      final class StoreModule {}
+      """
+    ).modules.first
+    #expect(module?.classes == ["Database", "Outer.Statement"])
+  }
+
+  @Test
+  func `A module without a classes argument lists no classes`() {
+    #expect(surface("@ExpoModule\nfinal class Plain {}").modules.first?.classes == [])
+  }
 }
 
 @Suite("Exports surface: shared objects")

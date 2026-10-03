@@ -109,6 +109,11 @@ export interface ExportedModule {
   functions: ExportedFunction[];
   properties: ExportedProperty[];
   events: ExportedEvent[];
+  /**
+   * The classes listed in `@ExpoModule(classes: [...])`, as their Swift names spelled in the
+   * argument, in source order. Each is reachable from JS as a member of the module.
+   */
+  classes: string[];
   /** Absolute source path. */
   file: string;
 }
@@ -273,4 +278,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 5;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 6;
