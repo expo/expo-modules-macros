@@ -74,18 +74,18 @@ internal func argumentDecodeStatements(
 }
 
 /// Binds `name` to a closure that calls the JS function in `valueExpression`. The
-/// `JavaScriptFunctionHandle` keeps the JS function alive and does the thread hops, so the closure
-/// can be stored and called from any thread.
+/// `JavaScriptCallback` keeps the JS function alive and does the thread hops, so the closure can be
+/// stored and called from any thread.
 private func closureArgumentStatements(
   _ closure: JSClosureType,
   into name: String,
   from valueExpression: String
 ) -> [String] {
-  let handle = "\(name)Function"
-  let wrapper = closureLiteralLines(closure, handle: handle)
+  let callback = "\(name)Callback"
+  let wrapper = closureLiteralLines(closure, callback: callback)
 
   guard closure.isOptional else {
-    var lines = ["let \(handle) = try JavaScriptFunctionHandle(\(valueExpression), in: runtime)"]
+    var lines = ["let \(callback) = try JavaScriptCallback(\(valueExpression), in: runtime)"]
     lines.append("let \(name): \(closure.wrapperTypeText) = " + wrapper[0])
     lines.append(contentsOf: wrapper.dropFirst())
     return lines
@@ -93,7 +93,7 @@ private func closureArgumentStatements(
 
   var lines = [
     "let \(name): \(closure.wrapperTypeText)",
-    "if let \(handle) = try JavaScriptFunctionHandle.decodeIfPresent(\(valueExpression), in: runtime) {",
+    "if let \(callback) = try JavaScriptCallback.decodeIfPresent(\(valueExpression), in: runtime) {",
     "  \(name) = " + wrapper[0],
   ]
   lines.append(contentsOf: wrapper.dropFirst().map { "  " + $0 })
@@ -103,24 +103,24 @@ private func closureArgumentStatements(
   return lines
 }
 
-/// The closure literal `{ p0, p1 in … }` that forwards a call to the handle, one line per element.
-/// The closure's effects pick the handle's primitive:
+/// The closure literal `{ p0, p1 in … }` that forwards a call to the `JavaScriptCallback`, one line
+/// per element. The closure's effects pick the callback's primitive:
 /// - a non-throwing `Void` closure doesn't wait for JS (`invokeDetached`);
 /// - a sync closure that throws blocks until JS returns (`invokeBlocking`);
-/// - an `async` closure suspends instead (`invokeAsync`), and the handle awaits a returned promise.
-private func closureLiteralLines(_ closure: JSClosureType, handle: String) -> [String] {
+/// - an `async` closure suspends instead (`invokeAsync`), and the callback awaits a returned promise.
+private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> [String] {
   // `@Sendable` keeps the literal from taking the binding's `@JavaScriptActor` isolation: native code
-  // may call it from any thread, and it captures only the handle.
+  // may call it from any thread, and it captures only the callback.
   let parameters = closure.parameterTypes.indices.map { "p\($0)" }
   let header = parameters.isEmpty ? "{ @Sendable in" : "{ @Sendable \(parameters.joined(separator: ", ")) in"
 
   let call: String
   if closure.isAsync {
-    call = "try await \(handle).invokeAsync"
+    call = "try await \(callback).invokeAsync"
   } else if closure.isThrowing || closure.returnType != nil {
-    call = "try \(handle).invokeBlocking"
+    call = "try \(callback).invokeBlocking"
   } else {
-    call = "\(handle).invokeDetached"
+    call = "\(callback).invokeDetached"
   }
 
   // A single `try` covers every encode in the array; an empty array has nothing that throws.
@@ -137,11 +137,11 @@ private func closureLiteralLines(_ closure: JSClosureType, handle: String) -> [S
 
   var lines = [header]
   if closure.isAsync && !closure.isThrowing {
-    // The closure can't throw, so an error from JS goes to the handle's error reporting.
+    // The closure can't throw, so an error from JS goes to the callback's error reporting.
     lines.append("  do {")
     lines.append(contentsOf: invocation.map { "    " + $0 })
     lines.append("  } catch {")
-    lines.append("    \(handle).reportError(error)")
+    lines.append("    \(callback).reportError(error)")
     lines.append("  }")
   } else {
     lines.append(contentsOf: invocation.map { "  " + $0 })

@@ -68,9 +68,9 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "subscribe", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Function = try JavaScriptFunctionHandle(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int) -> Void = { @Sendable p0 in
-                arg0Function.invokeDetached { runtime in
+                arg0Callback.invokeDetached { runtime in
                   try [Int.encode(p0, in: runtime)]
                 }
               }
@@ -117,9 +117,9 @@ struct JSClosureArgumentTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "measure", received: arguments.count, required: 2, maximum: 2))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let arg1Function = try JavaScriptFunctionHandle(arguments.unownedValue(at: 1), in: runtime)
+              let arg1Callback = try JavaScriptCallback(arguments.unownedValue(at: 1), in: runtime)
               let arg1: (Point, Int) throws -> Size = { @Sendable p0, p1 in
-                try arg1Function.invokeBlocking { runtime in
+                try arg1Callback.invokeBlocking { runtime in
                   try [Point.encode(p0, in: runtime), Int.encode(p1, in: runtime)]
                 } decodeResult: { result, runtime in
                   try Size.decode(result, in: runtime)
@@ -167,9 +167,9 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Function = try JavaScriptFunctionHandle(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: @Sendable (Request) async throws -> Data = { @Sendable p0 in
-                try await arg0Function.invokeAsync { runtime in
+                try await arg0Callback.invokeAsync { runtime in
                   try [Request.encode(p0, in: runtime)]
                 } decodeResult: { result, runtime in
                   try Data.decode(result, in: runtime)
@@ -189,7 +189,7 @@ struct JSClosureArgumentTests {
   }
 
   @Test
-  func `Non-throwing async closure reports a JS error through the handle`() {
+  func `Non-throwing async closure reports a JS error through the callback`() {
     assertExpansion(
       """
       @ExpoModule
@@ -215,14 +215,14 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "run", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Function = try JavaScriptFunctionHandle(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: () async -> Void = { @Sendable in
                 do {
-                  try await arg0Function.invokeAsync { runtime in
+                  try await arg0Callback.invokeAsync { runtime in
                     []
                   }
                 } catch {
-                  arg0Function.reportError(error)
+                  arg0Callback.reportError(error)
                 }
               }
               self.run(task: arg0)
@@ -266,9 +266,9 @@ struct JSClosureArgumentTests {
                 self.start(onDone: nil)
               default:
                 let arg0: ((Bool) throws -> Void)?
-                if let arg0Function = try JavaScriptFunctionHandle.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
+                if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
                   arg0 = { @Sendable p0 in
-                    try arg0Function.invokeBlocking { runtime in
+                    try arg0Callback.invokeBlocking { runtime in
                       try [Bool.encode(p0, in: runtime)]
                     }
                   }
@@ -310,9 +310,9 @@ struct JSClosureArgumentTests {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Watcher", received: arguments.count, required: 1, maximum: 1))
             }
-            let arg0Function = try JavaScriptFunctionHandle(arguments.unownedValue(at: 0), in: runtime)
+            let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
             let arg0: (String) -> Void = { @Sendable p0 in
-              arg0Function.invokeDetached { runtime in
+              arg0Callback.invokeDetached { runtime in
                 try [String.encode(p0, in: runtime)]
               }
             }
@@ -352,9 +352,9 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "sort", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Function = try JavaScriptFunctionHandle(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int, Int) -> Bool = { @Sendable p0, p1 in
-                try arg0Function.invokeBlocking { runtime in
+                try arg0Callback.invokeBlocking { runtime in
                   try [Int.encode(p0, in: runtime), Int.encode(p1, in: runtime)]
                 } decodeResult: { result, runtime in
                   try Bool.decode(result, in: runtime)
