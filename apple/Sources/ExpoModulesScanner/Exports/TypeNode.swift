@@ -197,6 +197,11 @@ func typeNode(from type: TypeSyntax) -> TypeNode {
   if let attributed = type.as(AttributedTypeSyntax.self) {
     return typeNode(from: attributed.baseType)
   }
+  // `(T)`: one unlabeled element in parentheses is the same type as `T`, as in `((Int) -> Void)?`.
+  if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1,
+    let element = tuple.elements.first, element.firstName == nil {
+    return typeNode(from: element.type)
+  }
   // A nominal type, possibly generic: `Int`, `Point`, `Optional<T>`, `Array<T>`, `Promise<T>`.
   if let identifier = type.as(IdentifierTypeSyntax.self) {
     return nominalNode(name: identifier.name.text, generics: identifier.genericArgumentClause)

@@ -104,6 +104,16 @@ struct TypeNodeTests {
   }
 
   @Test
+  func `Single-element parentheses are peeled, so an optional closure parses`() {
+    #expect(node("(Int)") == .primitive(name: "Int", jsType: .number))
+    #expect(
+      node("((Int) -> Void)?")
+        == .optional(
+          wrapped: .function(parameters: [.primitive(name: "Int", jsType: .number)], returns: nil, isAsync: false, isThrowing: false)
+        ))
+  }
+
+  @Test
   func `Composed types nest`() {
     // `[Point]?`, an optional array of refs.
     #expect(node("[Point]?") == .optional(wrapped: .array(element: .ref(name: "Point"))))
