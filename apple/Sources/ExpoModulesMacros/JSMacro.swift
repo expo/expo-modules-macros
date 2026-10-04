@@ -272,8 +272,8 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
         }
         continue
       }
-      for type in closure.functionType.parameters.map(\.type) where !containsFunctionType(type) {
-        callbackArgumentTypes.append(type.trimmedDescription)
+      for parameter in closure.parameters where !containsFunctionType(parameter.type) {
+        callbackArgumentTypes.append(parameter.type.trimmedDescription)
       }
       if let returnType = closure.returnType, !containsFunctionType(closure.functionType.returnClause.type) {
         decodableTypes.append(returnType)

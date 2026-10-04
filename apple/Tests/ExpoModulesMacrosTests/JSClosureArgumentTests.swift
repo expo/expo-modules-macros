@@ -70,8 +70,9 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int) -> Void = { @Sendable p0 in
+                let a0 = JavaScriptCallback.Argument(p0)
                 arg0Callback.invokeDetached { runtime in
-                  try [Int.encode(p0, in: runtime)]
+                  try [Int.encode(a0.value, in: runtime)]
                 }
               }
               self.subscribe(onChange: arg0)
@@ -119,8 +120,10 @@ struct JSClosureArgumentTests {
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg1Callback = try JavaScriptCallback(arguments.unownedValue(at: 1), in: runtime)
               let arg1: (Point, Int) throws -> Size = { @Sendable p0, p1 in
-                try arg1Callback.invokeBlocking { runtime in
-                  try [Point.encode(p0, in: runtime), Int.encode(p1, in: runtime)]
+                let a0 = JavaScriptCallback.Argument(p0)
+                let a1 = JavaScriptCallback.Argument(p1)
+                return try arg1Callback.invokeBlocking { runtime in
+                  try [Point.encode(a0.value, in: runtime), Int.encode(a1.value, in: runtime)]
                 } decodeResult: { result, runtime in
                   try Size.decode(result, in: runtime)
                 }
@@ -169,8 +172,9 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: @Sendable (Request) async throws -> Data = { @Sendable p0 in
-                try await arg0Callback.invokeAsync { runtime in
-                  try [Request.encode(p0, in: runtime)]
+                let a0 = JavaScriptCallback.Argument(p0)
+                return try await arg0Callback.invokeAsync { runtime in
+                  try [Request.encode(a0.value, in: runtime)]
                 } decodeResult: { result, runtime in
                   try Data.decode(result, in: runtime)
                 }
@@ -268,8 +272,9 @@ struct JSClosureArgumentTests {
                 let arg0: ((Bool) throws -> Void)?
                 if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
                   arg0 = { @Sendable p0 in
+                    let a0 = JavaScriptCallback.Argument(p0)
                     try arg0Callback.invokeBlocking { runtime in
-                      try [Bool.encode(p0, in: runtime)]
+                      try [Bool.encode(a0.value, in: runtime)]
                     }
                   }
                 } else {
@@ -312,11 +317,216 @@ struct JSClosureArgumentTests {
             }
             let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
             let arg0: (String) -> Void = { @Sendable p0 in
+              let a0 = JavaScriptCallback.Argument(p0)
               arg0Callback.invokeDetached { runtime in
-                try [String.encode(p0, in: runtime)]
+                try [String.encode(a0.value, in: runtime)]
               }
             }
             return Watcher(onEvent: arg0)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Ownership specifiers on closure parameters are stripped, and borrowed values are copied`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func observe(handler: (borrowing Point, consuming Size, sending Item) throws -> Void) {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func observe(handler: (borrowing Point, consuming Size, sending Item) throws -> Void) {}
+
+          private func _assertTypesConformance_observe() {
+            func observe<E0: JavaScriptEncodable, E1: JavaScriptEncodable, E2: JavaScriptEncodable>(_: E0.Type, _: E1.Type, _: E2.Type) {
+            }
+            observe(Point.self, Size.self, Item.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("observe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "observe", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0: (borrowing Point, consuming Size, sending Item) throws -> Void = { @Sendable p0, p1, p2 in
+                let a0 = JavaScriptCallback.Argument(copy p0)
+                let a1 = JavaScriptCallback.Argument(copy p1)
+                let a2 = JavaScriptCallback.Argument(p2)
+                try arg0Callback.invokeBlocking { runtime in
+                  try [Point.encode(a0.value, in: runtime), Size.encode(a1.value, in: runtime), Item.encode(a2.value, in: runtime)]
+                }
+              }
+              self.observe(handler: arg0)
+              return .undefined
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Shared object method creates the closure after unwrapping the receiver`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Downloader: SharedObject {
+        @JS
+        func download(onProgress: @escaping (Double) async throws -> Void) async {}
+      }
+      """,
+      expandedSource: """
+        final class Downloader: SharedObject {
+          @JavaScriptActor
+          func download(onProgress: @escaping (Double) async throws -> Void) async {}
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Downloader", Downloader.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("download") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Downloader.self)
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "download", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0: (Double) async throws -> Void = { @Sendable p0 in
+                let a0 = JavaScriptCallback.Argument(p0)
+                try await arg0Callback.invokeAsync { runtime in
+                  try [Double.encode(a0.value, in: runtime)]
+                }
+              }
+              return {
+                await _self.download(onProgress: arg0)
+                return .undefined
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Trailing optional closure in an async function gets a body per accepted arity`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func sync(onProgress: ((Double) -> Void)?) async throws -> Bool { true }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func sync(onProgress: ((Double) -> Void)?) async throws -> Bool { true }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("sync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count >= 0 && arguments.count <= 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "sync", received: arguments.count, required: 0, maximum: 1))
+              }
+              switch arguments.count {
+              case 0:
+                return {
+                  let result = try await self.sync(onProgress: nil)
+                  return try await runtime.execute {
+                    return try Bool.encode(result, in: runtime)
+                  }
+                }
+              default:
+                let arg0: ((Double) -> Void)?
+                if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
+                  arg0 = { @Sendable p0 in
+                    let a0 = JavaScriptCallback.Argument(p0)
+                    arg0Callback.invokeDetached { runtime in
+                      try [Double.encode(a0.value, in: runtime)]
+                    }
+                  }
+                } else {
+                  arg0 = nil
+                }
+                return {
+                  let result = try await self.sync(onProgress: arg0)
+                  return try await runtime.execute {
+                    return try Bool.encode(result, in: runtime)
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Defaulted closure parameter is left out of the call when omitted`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func run(onDone: @escaping () -> Void = {}) {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func run(onDone: @escaping () -> Void = {}) {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count >= 0 && arguments.count <= 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "run", received: arguments.count, required: 0, maximum: 1))
+              }
+              switch arguments.count {
+              case 0:
+                self.run()
+              default:
+                let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+                let arg0: () -> Void = { @Sendable in
+                  arg0Callback.invokeDetached { runtime in
+                    []
+                  }
+                }
+                self.run(onDone: arg0)
+              }
+              return .undefined
+            }
           }
         }
         """
@@ -354,8 +564,10 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int, Int) -> Bool = { @Sendable p0, p1 in
-                try arg0Callback.invokeBlocking { runtime in
-                  try [Int.encode(p0, in: runtime), Int.encode(p1, in: runtime)]
+                let a0 = JavaScriptCallback.Argument(p0)
+                let a1 = JavaScriptCallback.Argument(p1)
+                return try arg0Callback.invokeBlocking { runtime in
+                  try [Int.encode(a0.value, in: runtime), Int.encode(a1.value, in: runtime)]
                 } decodeResult: { result, runtime in
                   try Bool.decode(result, in: runtime)
                 }
@@ -521,6 +733,53 @@ struct JSClosureArgumentTests {
           message:
             "A @JS closure argument can't use the free-form 'Any'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
           line: 8,
+          column: 19,
+          severity: .error
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `inout, isolated and variadic closure parameters are errors`() {
+    assertExpansion(
+      """
+      @JS
+      func a(callback: (inout Int) throws -> Void) {}
+      @JS
+      func b(callback: (isolated Worker) throws -> Void) {}
+      @JS
+      func c(callback: (Int...) throws -> Void) {}
+      """,
+      expandedSource: """
+        func a(callback: (inout Int) throws -> Void) {}
+        func b(callback: (isolated Worker) throws -> Void) {}
+
+        private func _assertTypesConformance_b() {
+          func b<E0: JavaScriptEncodable>(_: E0.Type) {
+          }
+          b(Worker.self)
+        }
+        func c(callback: (Int...) throws -> Void) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument can't take an 'inout' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
+          line: 2,
+          column: 25,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument can't take an 'isolated' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
+          line: 4,
+          column: 28,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message: "A @JS closure argument can't take a variadic parameter. Use an array instead.",
+          line: 6,
           column: 19,
           severity: .error
         ),

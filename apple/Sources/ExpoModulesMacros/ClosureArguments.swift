@@ -14,8 +14,8 @@ internal struct JSClosureType {
   let functionType: FunctionTypeSyntax
   /// The attributes written on the function type, such as `@escaping` or `@Sendable`.
   let attributes: [AttributeSyntax]
-  /// The closure's parameter types as written. Each one is encoded to JS when the closure is called.
-  let parameterTypes: [String]
+  /// The closure's parameters. Each one is encoded to JS when the closure is called.
+  let parameters: [Parameter]
   /// The return type as written, or `nil` for `Void`. It is decoded from the JS function's result.
   let returnType: String?
   let isAsync: Bool
@@ -42,7 +42,7 @@ internal struct JSClosureType {
     }
     self.functionType = functionType
     self.attributes = attributes
-    self.parameterTypes = functionType.parameters.map { $0.type.trimmedDescription }
+    self.parameters = functionType.parameters.map(Parameter.init)
     let returnType = functionType.returnClause.type
     self.returnType = isVoidReturnType(returnType) ? nil : returnType.trimmedDescription
     self.isAsync = functionType.effectSpecifiers?.asyncSpecifier != nil
@@ -57,7 +57,48 @@ internal struct JSClosureType {
     let text = kept.joined() + functionType.trimmedDescription
     return isOptional ? "(\(text))?" : text
   }
+
+  /// One parameter of the closure type.
+  struct Parameter {
+    /// The parameter's type without its specifiers, such as `borrowing` or `inout`.
+    let type: TypeSyntax
+    /// The specifiers written before the type, such as `borrowing`, `sending` or `inout`.
+    let specifiers: [String]
+    /// True for a variadic parameter (`Int...`).
+    let isVariadic: Bool
+
+    init(_ element: TupleTypeElementSyntax) {
+      if let attributed = element.type.as(AttributedTypeSyntax.self), !attributed.specifiers.isEmpty {
+        self.specifiers = attributed.specifiers.map(\.trimmedDescription)
+        self.type =
+          attributed.attributes.isEmpty
+          ? attributed.baseType : TypeSyntax(attributed.with(\.specifiers, []))
+      } else {
+        self.specifiers = []
+        self.type = element.type
+      }
+      self.isVariadic = element.ellipsis != nil
+    }
+
+    /// True when the binding can't be copied implicitly (`borrowing` or `consuming`), so the wrapper
+    /// copies it explicitly before handing it to the JS thread.
+    var needsExplicitCopy: Bool {
+      return specifiers.contains { explicitCopySpecifiers.contains($0) }
+    }
+
+    /// The first specifier the wrapper can't support, such as `inout` or `isolated`.
+    var unsupportedSpecifier: String? {
+      return specifiers.first { !supportedParameterSpecifiers.contains($0) }
+    }
+  }
 }
+
+/// The ownership specifiers a closure parameter may carry. The wrapper hands each parameter to the JS
+/// thread as an owned value, so the ownership convention doesn't change what it does.
+private let supportedParameterSpecifiers: Set<String> = ["borrowing", "consuming", "sending", "__shared", "__owned"]
+
+/// The specifiers whose bindings Swift doesn't copy implicitly.
+private let explicitCopySpecifiers: Set<String> = ["borrowing", "consuming", "__shared", "__owned"]
 
 /// The statements that bind `name` to the native value of a `@JS` argument read from
 /// `valueExpression` (a `JavaScriptUnownedValue`). A closure gets a wrapper around the JS function,
@@ -111,8 +152,18 @@ private func closureArgumentStatements(
 private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> [String] {
   // `@Sendable` keeps the literal from taking the binding's `@JavaScriptActor` isolation: native code
   // may call it from any thread, and it captures only the callback.
-  let parameters = closure.parameterTypes.indices.map { "p\($0)" }
+  let parameters = closure.parameters.indices.map { "p\($0)" }
   let header = parameters.isEmpty ? "{ @Sendable in" : "{ @Sendable \(parameters.joined(separator: ", ")) in"
+
+  // Each parameter crosses to the JS thread in a `JavaScriptCallback.Argument`, an unchecked
+  // `Sendable` box, because its type may not be `Sendable`. A blocking or async call keeps the caller
+  // waiting until the arguments are encoded; a detached call doesn't, so a mutable argument can still
+  // change while JS encodes it.
+  let boxes = parameters.indices.map { "a\($0)" }
+  let boxLines = zip(closure.parameters, zip(parameters, boxes)).map { closureParameter, names in
+    let value = closureParameter.needsExplicitCopy ? "copy \(names.0)" : names.0
+    return "let \(names.1) = JavaScriptCallback.Argument(\(value))"
+  }
 
   let call: String
   if closure.isAsync {
@@ -124,11 +175,12 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
   }
 
   // A single `try` covers every encode in the array; an empty array has nothing that throws.
-  let encodes = zip(closure.parameterTypes, parameters).map { type, parameter in
-    "\(expressionType(type)).encode(\(parameter), in: runtime)"
+  let encodes = zip(closure.parameters, boxes).map { closureParameter, box in
+    "\(expressionType(closureParameter.type.trimmedDescription)).encode(\(box).value, in: runtime)"
   }
   let argumentsArray = encodes.isEmpty ? "[]" : "try [\(encodes.joined(separator: ", "))]"
-  var invocation = ["\(call) { runtime in", "  \(argumentsArray)"]
+  let returnKeyword = closure.returnType != nil ? "return " : ""
+  var invocation = ["\(returnKeyword)\(call) { runtime in", "  \(argumentsArray)"]
   if let returnType = closure.returnType {
     invocation.append("} decodeResult: { result, runtime in")
     invocation.append("  try \(expressionType(returnType)).decode(result, in: runtime)")
@@ -136,6 +188,7 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
   invocation.append("}")
 
   var lines = [header]
+  lines.append(contentsOf: boxLines.map { "  " + $0 })
   if closure.isAsync && !closure.isThrowing {
     // The closure can't throw, so an error from JS goes to the callback's error reporting.
     lines.append("  do {")
@@ -237,10 +290,31 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         )))
   }
 
+  for parameter in closure.parameters {
+    if let specifier = parameter.unsupportedSpecifier {
+      context.diagnose(
+        Diagnostic(
+          node: parameter.type,
+          message: ClosureDiagnosticMessage(
+            "A @JS closure argument can't take an '\(specifier)' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
+            id: "js-closure-parameter-specifier"
+          )))
+    }
+    if parameter.isVariadic {
+      context.diagnose(
+        Diagnostic(
+          node: parameter.type,
+          message: ClosureDiagnosticMessage(
+            "A @JS closure argument can't take a variadic parameter. Use an array instead.",
+            id: "js-closure-variadic-parameter"
+          )))
+    }
+  }
+
   // The closure's parameters are encoded and its result is decoded, so neither can be another
   // closure or a free-form type.
   let returnType = functionType.returnClause.type
-  for type in functionType.parameters.map(\.type) + [returnType] {
+  for type in closure.parameters.map(\.type) + [returnType] {
     if let nested = firstFunctionType(in: type) {
       context.diagnose(
         Diagnostic(
