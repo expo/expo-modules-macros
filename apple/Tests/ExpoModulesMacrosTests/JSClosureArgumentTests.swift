@@ -68,7 +68,7 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "subscribe", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int) -> Void = { @Sendable p0 in
                 let a0 = JavaScriptCallback.Argument(p0)
                 arg0Callback.invokeDetached { runtime in
@@ -118,7 +118,7 @@ struct JSClosureArgumentTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "measure", received: arguments.count, required: 2, maximum: 2))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let arg1Callback = try JavaScriptCallback(arguments.unownedValue(at: 1), in: runtime)
+              let arg1Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 1), in: runtime)
               let arg1: (Point, Int) throws -> Size = { @Sendable p0, p1 in
                 let a0 = JavaScriptCallback.Argument(p0)
                 let a1 = JavaScriptCallback.Argument(p1)
@@ -170,7 +170,7 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: @Sendable (Request) async throws -> Data = { @Sendable p0 in
                 let a0 = JavaScriptCallback.Argument(p0)
                 return try await arg0Callback.invokeAsync { runtime in
@@ -219,7 +219,7 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "run", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: () async -> Void = { @Sendable in
                 do {
                   try await arg0Callback.invokeAsync { runtime in
@@ -315,7 +315,7 @@ struct JSClosureArgumentTests {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Watcher", received: arguments.count, required: 1, maximum: 1))
             }
-            let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+            let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
             let arg0: (String) -> Void = { @Sendable p0 in
               let a0 = JavaScriptCallback.Argument(p0)
               arg0Callback.invokeDetached { runtime in
@@ -362,7 +362,7 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "observe", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (borrowing Point, consuming Size, sending Item) throws -> Void = { @Sendable p0, p1, p2 in
                 let a0 = JavaScriptCallback.Argument(copy p0)
                 let a1 = JavaScriptCallback.Argument(copy p1)
@@ -407,7 +407,7 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "download", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Double) async throws -> Void = { @Sendable p0 in
                 let a0 = JavaScriptCallback.Argument(p0)
                 try await arg0Callback.invokeAsync { runtime in
@@ -517,7 +517,7 @@ struct JSClosureArgumentTests {
               case 0:
                 self.run()
               default:
-                let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+                let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
                 let arg0: () -> Void = { @Sendable in
                   arg0Callback.invokeDetached { runtime in
                     []
@@ -562,7 +562,7 @@ struct JSClosureArgumentTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "sort", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0Callback = try JavaScriptCallback(arguments.unownedValue(at: 0), in: runtime)
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int, Int) -> Bool = { @Sendable p0, p1 in
                 let a0 = JavaScriptCallback.Argument(p0)
                 let a1 = JavaScriptCallback.Argument(p1)

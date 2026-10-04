@@ -126,7 +126,7 @@ private func closureArgumentStatements(
   let wrapper = closureLiteralLines(closure, callback: callback)
 
   guard closure.isOptional else {
-    var lines = ["let \(callback) = try JavaScriptCallback(\(valueExpression), in: runtime)"]
+    var lines = ["let \(callback) = try JavaScriptCallback.decode(\(valueExpression), in: runtime)"]
     lines.append("let \(name): \(closure.wrapperTypeText) = " + wrapper[0])
     lines.append(contentsOf: wrapper.dropFirst())
     return lines
