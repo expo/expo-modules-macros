@@ -66,30 +66,40 @@ internal struct ConformanceAssertion {
 /// direction.
 ///
 /// `decodableTypes` are the argument types (and a settable property's value type); `encodableType` is
-/// the single return type (or a property's value type on read), or `nil` when there's none. Primitives
-/// are dropped from each; when nothing is left in either, returns `nil` so the caller emits no peer.
-/// `isStatic` mirrors a `static`/`class` member so the peer sits in the right metatype context.
+/// the single return type (or a property's value type on read), or `nil` when there's none.
+/// `callbackArgumentTypes` are the parameter types of closure arguments, which are encoded when native
+/// code calls the closure. Primitives are dropped from each; when nothing is left in any of them,
+/// returns `nil` so the caller emits no peer. `isStatic` mirrors a `static`/`class` member so the peer
+/// sits in the right metatype context.
 internal func directionalConformanceAssertion(
   name: String,
   decodableTypes: [String],
   encodableType: String?,
+  callbackArgumentTypes: [String] = [],
   isStatic: Bool
 ) -> DeclSyntax? {
   let decodables = distinctAssertableTypes(decodableTypes)
+  let callbackArguments = distinctAssertableTypes(callbackArgumentTypes)
   let encodable = encodableType.flatMap(assertableBoundaryType)
-  guard !decodables.isEmpty || encodable != nil else {
+  guard !decodables.isEmpty || !callbackArguments.isEmpty || encodable != nil else {
     return nil
   }
 
   // Build the generic parameter list and the matching call arguments in lockstep: one `A0…` slot
-  // constrained `JavaScriptDecodable` per argument, and a single `Return` slot constrained
-  // `JavaScriptEncodable` for the return/getter value (there's only ever one, so it isn't indexed).
+  // constrained `JavaScriptDecodable` per argument, one `E0…` slot constrained `JavaScriptEncodable`
+  // per closure-argument parameter, and a single `Return` slot constrained `JavaScriptEncodable` for
+  // the return/getter value (there's only ever one, so it isn't indexed).
   var parameters: [String] = []
   var typeParameters: [String] = []
   var arguments: [String] = []
   for (index, type) in decodables.enumerated() {
     parameters.append("A\(index): \(javaScriptDecodableProtocolName)")
     typeParameters.append("_: A\(index).Type")
+    arguments.append("\(type).self")
+  }
+  for (index, type) in callbackArguments.enumerated() {
+    parameters.append("E\(index): \(javaScriptEncodableProtocolName)")
+    typeParameters.append("_: E\(index).Type")
     arguments.append("\(type).self")
   }
   if let encodable {

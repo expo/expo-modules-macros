@@ -1,0 +1,357 @@
+import SwiftDiagnostics
+import SwiftSyntax
+import SwiftSyntaxMacros
+
+/// A closure parameter of a `@JS` function or initializer, read from its declared type. JS passes a
+/// function for it, and the binding wraps that function in a native closure of the declared type.
+///
+/// A function type can't conform to `JavaScriptDecodable`, so a closure parameter doesn't decode
+/// through `decode` like other arguments. The data also moves the other way: the closure's parameters
+/// are encoded when native code calls it, and its return value is decoded from what the JS function
+/// returns.
+internal struct JSClosureType {
+  /// The function type as written, under any attributes, parentheses and optional wrapper.
+  let functionType: FunctionTypeSyntax
+  /// The attributes written on the function type, such as `@escaping` or `@Sendable`.
+  let attributes: [AttributeSyntax]
+  /// The closure's parameter types as written. Each one is encoded to JS when the closure is called.
+  let parameterTypes: [String]
+  /// The return type as written, or `nil` for `Void`. It is decoded from the JS function's result.
+  let returnType: String?
+  let isAsync: Bool
+  let isThrowing: Bool
+  /// True for an optional closure (`((Int) -> Void)?`): JS `null` and `undefined` become `nil`.
+  let isOptional: Bool
+
+  /// Returns `nil` when the type isn't a closure, or is a closure nested in another type such as an
+  /// array. One optional layer is accepted around the function type.
+  init?(_ type: TypeSyntax) {
+    var type = unparenthesized(type)
+    var isOptional = false
+    if let wrapped = optionalWrappedType(type) {
+      isOptional = true
+      type = unparenthesized(wrapped)
+    }
+    var attributes: [AttributeSyntax] = []
+    if let attributed = type.as(AttributedTypeSyntax.self) {
+      attributes = attributed.attributes.compactMap { $0.as(AttributeSyntax.self) }
+      type = unparenthesized(attributed.baseType)
+    }
+    guard let functionType = type.as(FunctionTypeSyntax.self) else {
+      return nil
+    }
+    self.functionType = functionType
+    self.attributes = attributes
+    self.parameterTypes = functionType.parameters.map { $0.type.trimmedDescription }
+    let returnType = functionType.returnClause.type
+    self.returnType = isVoidReturnType(returnType) ? nil : returnType.trimmedDescription
+    self.isAsync = functionType.effectSpecifiers?.asyncSpecifier != nil
+    self.isThrowing = functionType.effectSpecifiers?.throwsClause != nil
+    self.isOptional = isOptional
+  }
+
+  /// The type of the wrapper closure as the binding declares it. `@escaping` is left out, since it is
+  /// only valid on a parameter.
+  var wrapperTypeText: String {
+    let kept = attributes.filter { attributeName($0) != "escaping" }.map { $0.trimmedDescription + " " }
+    let text = kept.joined() + functionType.trimmedDescription
+    return isOptional ? "(\(text))?" : text
+  }
+}
+
+/// The statements that bind `name` to the native value of a `@JS` argument read from
+/// `valueExpression` (a `JavaScriptUnownedValue`). A closure gets a wrapper around the JS function,
+/// and every other type decodes through `decodeCall`.
+internal func argumentDecodeStatements(
+  type: TypeSyntax,
+  into name: String,
+  from valueExpression: String
+) -> [String] {
+  guard let closure = JSClosureType(type) else {
+    return ["let \(name) = try \(decodeCall(type.trimmedDescription, from: valueExpression))"]
+  }
+  return closureArgumentStatements(closure, into: name, from: valueExpression)
+}
+
+/// Binds `name` to a closure that calls the JS function in `valueExpression`. The
+/// `JavaScriptFunctionHandle` keeps the JS function alive and does the thread hops, so the closure
+/// can be stored and called from any thread.
+private func closureArgumentStatements(
+  _ closure: JSClosureType,
+  into name: String,
+  from valueExpression: String
+) -> [String] {
+  let handle = "\(name)Function"
+  let wrapper = closureLiteralLines(closure, handle: handle)
+
+  guard closure.isOptional else {
+    var lines = ["let \(handle) = try JavaScriptFunctionHandle(\(valueExpression), in: runtime)"]
+    lines.append("let \(name): \(closure.wrapperTypeText) = " + wrapper[0])
+    lines.append(contentsOf: wrapper.dropFirst())
+    return lines
+  }
+
+  var lines = [
+    "let \(name): \(closure.wrapperTypeText)",
+    "if let \(handle) = try JavaScriptFunctionHandle.decodeIfPresent(\(valueExpression), in: runtime) {",
+    "  \(name) = " + wrapper[0],
+  ]
+  lines.append(contentsOf: wrapper.dropFirst().map { "  " + $0 })
+  lines.append("} else {")
+  lines.append("  \(name) = nil")
+  lines.append("}")
+  return lines
+}
+
+/// The closure literal `{ p0, p1 in … }` that forwards a call to the handle, one line per element.
+/// The closure's effects pick the handle's primitive:
+/// - a non-throwing `Void` closure doesn't wait for JS (`invokeDetached`);
+/// - a sync closure that throws blocks until JS returns (`invokeBlocking`);
+/// - an `async` closure suspends instead (`invokeAsync`), and the handle awaits a returned promise.
+private func closureLiteralLines(_ closure: JSClosureType, handle: String) -> [String] {
+  // `@Sendable` keeps the literal from taking the binding's `@JavaScriptActor` isolation: native code
+  // may call it from any thread, and it captures only the handle.
+  let parameters = closure.parameterTypes.indices.map { "p\($0)" }
+  let header = parameters.isEmpty ? "{ @Sendable in" : "{ @Sendable \(parameters.joined(separator: ", ")) in"
+
+  let call: String
+  if closure.isAsync {
+    call = "try await \(handle).invokeAsync"
+  } else if closure.isThrowing || closure.returnType != nil {
+    call = "try \(handle).invokeBlocking"
+  } else {
+    call = "\(handle).invokeDetached"
+  }
+
+  // A single `try` covers every encode in the array; an empty array has nothing that throws.
+  let encodes = zip(closure.parameterTypes, parameters).map { type, parameter in
+    "\(expressionType(type)).encode(\(parameter), in: runtime)"
+  }
+  let argumentsArray = encodes.isEmpty ? "[]" : "try [\(encodes.joined(separator: ", "))]"
+  var invocation = ["\(call) { runtime in", "  \(argumentsArray)"]
+  if let returnType = closure.returnType {
+    invocation.append("} decodeResult: { result, runtime in")
+    invocation.append("  try \(expressionType(returnType)).decode(result, in: runtime)")
+  }
+  invocation.append("}")
+
+  var lines = [header]
+  if closure.isAsync && !closure.isThrowing {
+    // The closure can't throw, so an error from JS goes to the handle's error reporting.
+    lines.append("  do {")
+    lines.append(contentsOf: invocation.map { "    " + $0 })
+    lines.append("  } catch {")
+    lines.append("    \(handle).reportError(error)")
+    lines.append("  }")
+  } else {
+    lines.append(contentsOf: invocation.map { "  " + $0 })
+  }
+  lines.append("}")
+  return lines
+}
+
+// MARK: - Diagnostics
+
+/// Emits the closure diagnostics for a `@JS` declaration. A closure is supported only as a parameter
+/// of a function or initializer, where JS passes a function in. Every other position would need a
+/// native closure encoded to a JS function, which isn't supported.
+internal func diagnoseClosureTypes(
+  in declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
+    diagnoseClosureParameters(funcDecl.signature.parameterClause.parameters, in: context)
+    if let returnType = funcDecl.signature.returnClause?.type, let nested = firstFunctionType(in: returnType) {
+      context.diagnose(
+        Diagnostic(
+          node: nested,
+          message: ClosureDiagnosticMessage(
+            "A @JS function can't return a closure: a native closure can't be encoded to a JavaScript function.",
+            id: "js-closure-return"
+          )))
+    }
+    return
+  }
+  if let initDecl = declaration.as(InitializerDeclSyntax.self) {
+    diagnoseClosureParameters(initDecl.signature.parameterClause.parameters, in: context)
+    return
+  }
+  if let varDecl = declaration.as(VariableDeclSyntax.self),
+    let type = varDecl.bindings.first?.typeAnnotation?.type,
+    let nested = firstFunctionType(in: type) {
+    context.diagnose(
+      Diagnostic(
+        node: nested,
+        message: ClosureDiagnosticMessage(
+          "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function.",
+          id: "js-closure-property"
+        )))
+  }
+}
+
+private func diagnoseClosureParameters(
+  _ parameters: FunctionParameterListSyntax,
+  in context: some MacroExpansionContext
+) {
+  for parameter in parameters {
+    guard let closure = JSClosureType(parameter.type) else {
+      if let nested = firstFunctionType(in: parameter.type) {
+        context.diagnose(
+          Diagnostic(
+            node: nested,
+            message: ClosureDiagnosticMessage(
+              "A closure in a @JS argument must be the argument's own type, optionally wrapped in an optional. Closures inside other types, such as arrays or dictionaries, aren't supported.",
+              id: "js-closure-nested-in-type"
+            )))
+      }
+      continue
+    }
+    diagnoseClosure(closure, in: context)
+  }
+}
+
+private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExpansionContext) {
+  let functionType = closure.functionType
+
+  for attribute in closure.attributes {
+    let name = attributeName(attribute)
+    guard name != "escaping" && name != "Sendable" else {
+      continue
+    }
+    context.diagnose(
+      Diagnostic(
+        node: attribute,
+        message: ClosureDiagnosticMessage(
+          "'@\(name)' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed.",
+          id: "js-closure-attribute"
+        )))
+  }
+
+  if let throwsClause = functionType.effectSpecifiers?.throwsClause, throwsClause.type != nil {
+    context.diagnose(
+      Diagnostic(
+        node: throwsClause,
+        message: ClosureDiagnosticMessage(
+          "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
+          id: "js-closure-typed-throws"
+        )))
+  }
+
+  // The closure's parameters are encoded and its result is decoded, so neither can be another
+  // closure or a free-form type.
+  let returnType = functionType.returnClause.type
+  for type in functionType.parameters.map(\.type) + [returnType] {
+    if let nested = firstFunctionType(in: type) {
+      context.diagnose(
+        Diagnostic(
+          node: nested,
+          message: ClosureDiagnosticMessage(
+            "A @JS closure argument can't take or return another closure.",
+            id: "js-closure-nested"
+          )))
+    } else if isFreeFormBoundaryType(type.trimmedDescription) {
+      context.diagnose(
+        Diagnostic(
+          node: type,
+          message: ClosureDiagnosticMessage(
+            "A @JS closure argument can't use the free-form '\(type.trimmedDescription)'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+            id: "js-closure-free-form"
+          )))
+    }
+  }
+
+  if closure.returnType != nil && !closure.isThrowing {
+    context.diagnose(
+      Diagnostic(
+        node: functionType,
+        message: ClosureDiagnosticMessage(
+          "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return.",
+          id: "js-closure-requires-throws"
+        ),
+        fixIts: [insertThrowsFixIt(for: functionType)]))
+  }
+}
+
+/// The fix-it for a non-throwing closure that returns a value: insert `throws` after the parameter
+/// list, or after `async` when the type has it. The inserted keyword takes over the trivia that
+/// followed the token before it, so `(Int) -> Int` becomes `(Int) throws -> Int`.
+private func insertThrowsFixIt(for functionType: FunctionTypeSyntax) -> FixIt {
+  var newType = functionType
+  if var effectSpecifiers = functionType.effectSpecifiers, let asyncSpecifier = effectSpecifiers.asyncSpecifier {
+    effectSpecifiers.throwsClause = ThrowsClauseSyntax(
+      throwsSpecifier: .keyword(.throws, trailingTrivia: asyncSpecifier.trailingTrivia))
+    effectSpecifiers.asyncSpecifier = asyncSpecifier.with(\.trailingTrivia, .space)
+    newType.effectSpecifiers = effectSpecifiers
+  } else {
+    newType.effectSpecifiers = TypeEffectSpecifiersSyntax(
+      throwsClause: ThrowsClauseSyntax(
+        throwsSpecifier: .keyword(.throws, trailingTrivia: functionType.rightParen.trailingTrivia)))
+    newType.rightParen = functionType.rightParen.with(\.trailingTrivia, .space)
+  }
+  return FixIt(
+    message: ClosureFixItMessage("Mark the closure 'throws'", id: "js-closure-insert-throws"),
+    changes: [.replace(oldNode: Syntax(functionType), newNode: Syntax(newType))]
+  )
+}
+
+// MARK: - Helpers
+
+/// True when `type` is a function type or has one anywhere inside it.
+internal func containsFunctionType(_ type: TypeSyntax) -> Bool {
+  return firstFunctionType(in: type) != nil
+}
+
+/// The first function type in `type` or anywhere inside it, in source order.
+private func firstFunctionType(in type: some SyntaxProtocol) -> FunctionTypeSyntax? {
+  if let functionType = type.as(FunctionTypeSyntax.self) {
+    return functionType
+  }
+  for child in type.children(viewMode: .sourceAccurate) {
+    if let found = firstFunctionType(in: child) {
+      return found
+    }
+  }
+  return nil
+}
+
+/// The type inside any number of single-element, unlabeled parentheses: `((Int) -> Void)` is the
+/// same type as `(Int) -> Void`.
+private func unparenthesized(_ type: TypeSyntax) -> TypeSyntax {
+  if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1,
+    let element = tuple.elements.first, element.firstName == nil {
+    return unparenthesized(element.type)
+  }
+  return type
+}
+
+/// True when a closure's return type is `Void`, `()` or `Swift.Void`, also inside parentheses.
+private func isVoidReturnType(_ type: TypeSyntax) -> Bool {
+  let type = unparenthesized(type)
+  let text = type.trimmedDescription
+  return text == "Void" || text == "()" || text == "Swift.Void"
+}
+
+private func attributeName(_ attribute: AttributeSyntax) -> String {
+  return attribute.attributeName.trimmedDescription
+}
+
+private struct ClosureDiagnosticMessage: DiagnosticMessage {
+  let message: String
+  let diagnosticID: MessageID
+  let severity: DiagnosticSeverity = .error
+
+  init(_ message: String, id: String) {
+    self.message = message
+    self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+  }
+}
+
+private struct ClosureFixItMessage: FixItMessage {
+  let message: String
+  let fixItID: MessageID
+
+  init(_ message: String, id: String) {
+    self.message = message
+    self.fixItID = MessageID(domain: "ExpoModulesMacros", id: id)
+  }
+}

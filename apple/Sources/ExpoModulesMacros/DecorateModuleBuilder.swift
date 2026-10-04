@@ -86,7 +86,7 @@ internal struct JSFunction {
     // Decode the required prefix once — these slots are present in every accepted arity, so the
     // decode is shared rather than repeated per branch.
     for index in 0..<required {
-      lines.append(decodeStatement(at: index))
+      lines.append(contentsOf: decodeLines(at: index))
     }
 
     if required == maximum {
@@ -95,7 +95,7 @@ internal struct JSFunction {
       // body; a sync one calls and encodes directly.
       if isAsync {
         for index in required..<maximum {
-          lines.append(decodeStatement(at: index))
+          lines.append(contentsOf: decodeLines(at: index))
         }
         lines.append(contentsOf: asyncBodyLines(receiver: receiver, arity: maximum))
       } else {
@@ -110,7 +110,7 @@ internal struct JSFunction {
         let label = arity == maximum ? "default:" : "case \(arity):"
         lines.append(label)
         for index in required..<arity {
-          lines.append("  " + decodeStatement(at: index))
+          lines.append(contentsOf: decodeLines(at: index).map { "  " + $0 })
         }
         lines.append(contentsOf: asyncBodyLines(receiver: receiver, arity: arity).map { "  " + $0 })
       }
@@ -127,7 +127,7 @@ internal struct JSFunction {
         let label = arity == maximum ? "default:" : "case \(arity):"
         lines.append(label)
         for index in required..<arity {
-          lines.append("  " + decodeStatement(at: index))
+          lines.append(contentsOf: decodeLines(at: index).map { "  " + $0 })
         }
         let assignment = returnType != nil ? "result = " : ""
         lines.append("  \(assignment)\(callExpression(receiver: receiver, arity: arity))")
@@ -160,14 +160,17 @@ internal struct JSFunction {
     return lines
   }
 
-  /// `let arg<index> = …` decoding the slot at `index` by its static type through
+  /// The lines binding `arg<index>`: a decode of the slot at `index` by its static type through
   /// `JavaScriptDecodable.decode` on the borrowed `JavaScriptUnownedValue` — no owning value, no
   /// `jsi::Value` copy, no `Any` boxing, no force-cast; it returns the concrete type directly. A
   /// primitive's `decode` is `@inlinable` and lowers to the same direct accessor a hand-rolled fast
-  /// path would use.
-  private func decodeStatement(at index: Int) -> String {
-    let type = parameters[index].type.trimmedDescription
-    return "let arg\(index) = try \(decodeCall(type, from: "arguments.unownedValue(at: \(index))"))"
+  /// path would use. A closure parameter takes several lines instead, wrapping the JS function.
+  private func decodeLines(at index: Int) -> [String] {
+    return argumentDecodeStatements(
+      type: parameters[index].type,
+      into: "arg\(index)",
+      from: "arguments.unownedValue(at: \(index))"
+    )
   }
 
   /// The `<callee>.<name>(...)` call for the given arity. Slots `0..<arity` are passed their decoded
@@ -205,7 +208,7 @@ internal struct JSFunction {
   private func callAndEncodeLines(receiver: Receiver, arity: Int, decodingFrom: Int) -> [String] {
     var lines: [String] = []
     for index in decodingFrom..<arity {
-      lines.append(decodeStatement(at: index))
+      lines.append(contentsOf: decodeLines(at: index))
     }
     if returnType != nil {
       lines.append("let result = \(callExpression(receiver: receiver, arity: arity))")

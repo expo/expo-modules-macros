@@ -14,7 +14,7 @@ internal struct JSConstructor {
 
   /// The body statements, indented with `indent`: arity guard, per-argument decode through
   /// `JavaScriptDecodable.decode` on a zero-copy `arguments.unownedValue(at:)` (the arity guard proves
-  /// each index is in bounds), then `return <Type>(label: arg0, …)`.
+  /// each index is in bounds) or a wrapper for a closure argument, then `return <Type>(label: arg0, …)`.
   private func bodyStatements(typeName: String, indent: String) -> String {
     var lines: [String] = []
 
@@ -27,8 +27,12 @@ internal struct JSConstructor {
 
     var callArguments: [String] = []
     for (index, parameter) in parameters.enumerated() {
-      let type = parameter.type.trimmedDescription
-      lines.append("let arg\(index) = try \(decodeCall(type, from: "arguments.unownedValue(at: \(index))"))")
+      lines.append(
+        contentsOf: argumentDecodeStatements(
+          type: parameter.type,
+          into: "arg\(index)",
+          from: "arguments.unownedValue(at: \(index))"
+        ))
 
       let label = parameter.firstName.text
       callArguments.append(label == "_" ? "arg\(index)" : "\(label): arg\(index)")
