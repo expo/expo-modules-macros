@@ -170,8 +170,23 @@ struct ExportedModule: Encodable, Equatable {
   let properties: [ExportedProperty]
   let events: [ExportedEvent]
 
+  /// The classes listed in `@ExpoModule(classes: [...])`, in source order. Each is reachable from JS
+  /// as a member of the module.
+  let classes: [ExportedClass]
+
   /// Absolute source path, matching `scan-modules`.
   let file: String
+}
+
+/// One entry of `@ExpoModule(classes: [...])`.
+struct ExportedClass: Encodable, Equatable {
+  /// The Swift name as spelled in the argument, e.g. `Database` or `Outer.Statement`.
+  let name: String
+
+  /// The name of the module member JS reads the class from: the matching `@SharedObject`'s `jsName`.
+  /// `nil` when the scan found no `@SharedObject` with this name, for example a class defined
+  /// outside the scanned paths.
+  let jsName: String?
 }
 
 /// A `@SharedObject` type: a JS class with an optional `@JS init` constructor plus its `@JS` members.
@@ -307,8 +322,8 @@ struct ExportedSurface: Encodable, Equatable {
 /// Versioned independently of `scanModulesSchemaVersion`: the two commands serve different consumers
 /// and change for different reasons. Version 2 added `events` to modules and shared objects; version 3
 /// added `enums`; version 4 added `unions`; version 5 resolves refs, adding `refKind` and correcting
-/// an enum ref's `typeof`.
-let scanExportsSchemaVersion = 5
+/// an enum ref's `typeof`; version 6 added `classes` to modules.
+let scanExportsSchemaVersion = 6
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanModulesResult` (different consumer: TS generation vs. autolinking).

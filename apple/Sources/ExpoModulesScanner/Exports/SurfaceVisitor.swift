@@ -78,6 +78,11 @@ final class SurfaceVisitor: SyntaxVisitor {
           functions: functions,
           properties: properties,
           events: events,
+          // `jsName` is filled in by `ExportedSurface.resolvingRefs()`, since the `@SharedObject` can
+          // be declared in another file.
+          classes: classListArgument(of: attribute, label: "classes").map {
+            ExportedClass(name: $0, jsName: nil)
+          },
           file: file
         ))
       return
@@ -587,6 +592,25 @@ extension AttributeListSyntax {
       }
     }
     return nil
+  }
+}
+
+/// The type names in an attribute's `label: [A.self, B.self]` argument, in source order. A qualified
+/// `Outer.A.self` keeps its full spelling. Returns an empty array when the argument is absent or isn't
+/// an array literal. A local copy of the macros' helper (the macro target can't be imported here).
+private func classListArgument(of attribute: AttributeSyntax, label: String) -> [String] {
+  guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
+    let array = args.first(where: { $0.label?.text == label })?.expression.as(ArrayExprSyntax.self) else {
+    return []
+  }
+  return array.elements.compactMap { element in
+    guard let memberAccess = element.expression.as(MemberAccessExprSyntax.self),
+      memberAccess.declName.baseName.text == "self",
+      let base = memberAccess.base,
+      base.is(DeclReferenceExprSyntax.self) || base.is(MemberAccessExprSyntax.self) else {
+      return nil
+    }
+    return base.trimmedDescription
   }
 }
 
