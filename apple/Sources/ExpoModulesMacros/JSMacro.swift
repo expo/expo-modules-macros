@@ -32,6 +32,7 @@ public struct JSMacro: PeerMacro {
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
     diagnoseFreeFormTypes(in: declaration, in: context)
+    diagnoseClosureTypes(in: declaration, in: context)
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
 
     guard let member = boundaryMember(of: declaration),
@@ -39,6 +40,7 @@ public struct JSMacro: PeerMacro {
         name: member.name,
         decodableTypes: member.decodableTypes,
         encodableType: member.encodableType,
+        callbackArgumentTypes: member.callbackArgumentTypes,
         isStatic: member.isStatic
       ) else {
       return []
@@ -237,11 +239,14 @@ private struct JSFixItMessage: FixItMessage {
 /// property's outgoing value) are encoded, so each is asserted against the protocol for its direction.
 private struct BoundaryMember {
   let name: String
-  /// Types decoded from JS: function/constructor arguments, and a settable property's value type.
+  /// Types decoded from JS: function/constructor arguments, a settable property's value type, and the
+  /// return types of closure arguments.
   let decodableTypes: [String]
   /// The single type encoded to JS: a function's return type, or a property's value type on read;
   /// `nil` when the member produces nothing JS-visible (a `Void` function).
   let encodableType: String?
+  /// The parameter types of closure arguments, encoded to JS when native code calls the closure.
+  var callbackArgumentTypes: [String] = []
   /// True for `static`/`class` members, so the peer is emitted in the same metatype context.
   let isStatic: Bool
 }
@@ -255,13 +260,34 @@ private struct BoundaryMember {
 /// recover it).
 private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> BoundaryMember? {
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
-    let decodableTypes = funcDecl.signature.parameterClause.parameters.map { $0.type.trimmedDescription }
+    // A closure argument moves data the other way: JS receives its parameters and returns its result.
+    // A closure in any other position is diagnosed by `diagnoseClosureTypes` and left out here, since
+    // its metatype isn't a valid expression in the assertion.
+    var decodableTypes: [String] = []
+    var callbackArgumentTypes: [String] = []
+    for parameter in funcDecl.signature.parameterClause.parameters {
+      guard let closure = JSClosureType(parameter.type) else {
+        if !containsFunctionType(parameter.type) {
+          decodableTypes.append(parameter.type.trimmedDescription)
+        }
+        continue
+      }
+      for parameter in closure.parameters where !containsFunctionType(parameter.type) {
+        callbackArgumentTypes.append(parameter.type.trimmedDescription)
+      }
+      if let returnType = closure.returnType, !containsFunctionType(closure.functionType.returnClause.type) {
+        decodableTypes.append(returnType)
+      }
+    }
     let returnType = funcDecl.signature.returnClause?.type
-    let encodableType = returnType.flatMap { isVoidType($0) ? nil : $0.trimmedDescription }
+    let encodableType = returnType.flatMap {
+      isVoidType($0) || containsFunctionType($0) ? nil : $0.trimmedDescription
+    }
     return BoundaryMember(
       name: funcDecl.name.text,
       decodableTypes: decodableTypes,
       encodableType: encodableType,
+      callbackArgumentTypes: callbackArgumentTypes,
       isStatic: isTypeLevel(funcDecl.modifiers)
     )
   }
@@ -269,7 +295,8 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
   if let varDecl = declaration.as(VariableDeclSyntax.self),
     let binding = varDecl.bindings.first,
     let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
-    let type = binding.typeAnnotation?.type {
+    let type = binding.typeAnnotation?.type,
+    !containsFunctionType(type) {
     // A `let`, or a `var` with no setter, is read-only (encodable only). A settable `var` is also
     // decoded on write, so its value type is asserted in both directions.
     let typeText = type.trimmedDescription

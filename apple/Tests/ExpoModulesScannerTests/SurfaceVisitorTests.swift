@@ -57,6 +57,30 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `Reports closure parameters of a @JS function as function types`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class LoaderModule {
+          @JS
+          func load(fetch: @escaping @Sendable (Point) async throws -> Size, onDone: ((Bool) -> Void)?) {}
+        }
+        """
+      ).modules.first)
+
+    let load = try #require(module.functions.first)
+    #expect(
+      load.parameters.map(\.type) == [
+        .function(parameters: [.ref(name: "Point")], returns: .ref(name: "Size"), isAsync: true, isThrowing: true),
+        .optional(
+          wrapped: .function(
+            parameters: [.primitive(name: "Bool", jsType: .boolean)], returns: nil, isAsync: false, isThrowing: false)),
+      ])
+    #expect(load.parameters.map(\.isOptional) == [false, true])
+  }
+
+  @Test
   func `Extracts @JS properties with type and settability`() throws {
     let module = try #require(
       surface(
