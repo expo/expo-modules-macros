@@ -80,12 +80,6 @@ internal struct JSClosureType {
       self.isVariadic = element.ellipsis != nil
     }
 
-    /// True when the binding can't be copied implicitly (`borrowing` or `consuming`), so the wrapper
-    /// copies it explicitly before handing it to the JS thread.
-    var needsExplicitCopy: Bool {
-      return specifiers.contains { explicitCopySpecifiers.contains($0) }
-    }
-
     /// The first specifier the wrapper can't support, such as `inout` or `isolated`.
     var unsupportedSpecifier: String? {
       return specifiers.first { !supportedParameterSpecifiers.contains($0) }
@@ -93,12 +87,9 @@ internal struct JSClosureType {
   }
 }
 
-/// The ownership specifiers a closure parameter may carry. The wrapper hands each parameter to the JS
-/// thread as an owned value, so the ownership convention doesn't change what it does.
+/// The ownership specifiers a closure parameter may carry. The wrapper passes each parameter on to the
+/// callback, so the ownership convention doesn't change what it does.
 private let supportedParameterSpecifiers: Set<String> = ["borrowing", "consuming", "sending", "__shared", "__owned"]
-
-/// The specifiers whose bindings Swift doesn't copy implicitly.
-private let explicitCopySpecifiers: Set<String> = ["borrowing", "consuming", "__shared", "__owned"]
 
 /// The statements that bind `name` to the native value of a `@JS` argument read from
 /// `valueExpression` (a `JavaScriptUnownedValue`). A closure gets a wrapper around the JS function,
@@ -144,8 +135,9 @@ private func closureArgumentStatements(
   return lines
 }
 
-/// The closure literal `{ p0, p1 in … }` that forwards a call to the `JavaScriptCallback`, one line
-/// per element. The closure's effects pick the callback's primitive:
+/// The closure literal `{ p0, p1 in … }` that passes its parameters to the `JavaScriptCallback`,
+/// which encodes them, calls the function and decodes the result. The closure's effects pick the
+/// method:
 /// - a non-throwing `Void` closure doesn't wait for JS (`invokeDetached`);
 /// - a sync closure that throws blocks until JS returns (`invokeBlocking`);
 /// - an `async` closure suspends instead (`invokeAsync`), and the callback awaits a returned promise.
@@ -155,52 +147,34 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
   let parameters = closure.parameters.indices.map { "p\($0)" }
   let header = parameters.isEmpty ? "{ @Sendable in" : "{ @Sendable \(parameters.joined(separator: ", ")) in"
 
-  // Each parameter crosses to the JS thread in a `JavaScriptCallback.Argument`, an unchecked
-  // `Sendable` box, because its type may not be `Sendable`. A blocking or async call keeps the caller
-  // waiting until the arguments are encoded; a detached call doesn't, so a mutable argument can still
-  // change while JS encodes it.
-  let boxes = parameters.indices.map { "a\($0)" }
-  let boxLines = zip(closure.parameters, zip(parameters, boxes)).map { closureParameter, names in
-    let value = closureParameter.needsExplicitCopy ? "copy \(names.0)" : names.0
-    return "let \(names.1) = JavaScriptCallback.Argument(\(value))"
+  var arguments = parameters
+  if let returnType = closure.returnType {
+    arguments.append("returning: \(expressionType(returnType)).self")
   }
+  let argumentList = arguments.joined(separator: ", ")
 
   let call: String
   if closure.isAsync {
-    call = "try await \(callback).invokeAsync"
+    call = "try await \(callback).invokeAsync(\(argumentList))"
   } else if closure.isThrowing || closure.returnType != nil {
-    call = "try \(callback).invokeBlocking"
+    call = "try \(callback).invokeBlocking(\(argumentList))"
   } else {
-    call = "\(callback).invokeDetached"
+    call = "\(callback).invokeDetached(\(argumentList))"
   }
 
-  // A single `try` covers every encode in the array; an empty array has nothing that throws.
-  let encodes = zip(closure.parameters, boxes).map { closureParameter, box in
-    "\(expressionType(closureParameter.type.trimmedDescription)).encode(\(box).value, in: runtime)"
+  guard closure.isAsync && !closure.isThrowing else {
+    return [header, "  " + call, "}"]
   }
-  let argumentsArray = encodes.isEmpty ? "[]" : "try [\(encodes.joined(separator: ", "))]"
-  let returnKeyword = closure.returnType != nil ? "return " : ""
-  var invocation = ["\(returnKeyword)\(call) { runtime in", "  \(argumentsArray)"]
-  if let returnType = closure.returnType {
-    invocation.append("} decodeResult: { result, runtime in")
-    invocation.append("  try \(expressionType(returnType)).decode(result, in: runtime)")
-  }
-  invocation.append("}")
-
-  var lines = [header]
-  lines.append(contentsOf: boxLines.map { "  " + $0 })
-  if closure.isAsync && !closure.isThrowing {
-    // The closure can't throw, so an error from JS goes to the callback's error reporting.
-    lines.append("  do {")
-    lines.append(contentsOf: invocation.map { "    " + $0 })
-    lines.append("  } catch {")
-    lines.append("    \(callback).reportError(error)")
-    lines.append("  }")
-  } else {
-    lines.append(contentsOf: invocation.map { "  " + $0 })
-  }
-  lines.append("}")
-  return lines
+  // The closure can't throw, so an error from JS goes to the callback's error reporting.
+  return [
+    header,
+    "  do {",
+    "    " + call,
+    "  } catch {",
+    "    \(callback).reportError(error)",
+    "  }",
+    "}",
+  ]
 }
 
 // MARK: - Diagnostics

@@ -70,10 +70,7 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int) -> Void = { @Sendable p0 in
-                let a0 = JavaScriptCallback.Argument(p0)
-                arg0Callback.invokeDetached { runtime in
-                  try [Int.encode(a0.value, in: runtime)]
-                }
+                arg0Callback.invokeDetached(p0)
               }
               self.subscribe(onChange: arg0)
               return .undefined
@@ -120,13 +117,7 @@ struct JSClosureArgumentTests {
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg1Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 1), in: runtime)
               let arg1: (Point, Int) throws -> Size = { @Sendable p0, p1 in
-                let a0 = JavaScriptCallback.Argument(p0)
-                let a1 = JavaScriptCallback.Argument(p1)
-                return try arg1Callback.invokeBlocking { runtime in
-                  try [Point.encode(a0.value, in: runtime), Int.encode(a1.value, in: runtime)]
-                } decodeResult: { result, runtime in
-                  try Size.decode(result, in: runtime)
-                }
+                try arg1Callback.invokeBlocking(p0, p1, returning: Size.self)
               }
               try self.measure(name: arg0, layout: arg1)
               return .undefined
@@ -172,12 +163,7 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: @Sendable (Request) async throws -> Data = { @Sendable p0 in
-                let a0 = JavaScriptCallback.Argument(p0)
-                return try await arg0Callback.invokeAsync { runtime in
-                  try [Request.encode(a0.value, in: runtime)]
-                } decodeResult: { result, runtime in
-                  try Data.decode(result, in: runtime)
-                }
+                try await arg0Callback.invokeAsync(p0, returning: Data.self)
               }
               return {
                 let result = try await self.load(fetch: arg0)
@@ -222,9 +208,7 @@ struct JSClosureArgumentTests {
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: () async -> Void = { @Sendable in
                 do {
-                  try await arg0Callback.invokeAsync { runtime in
-                    []
-                  }
+                  try await arg0Callback.invokeAsync()
                 } catch {
                   arg0Callback.reportError(error)
                 }
@@ -272,10 +256,7 @@ struct JSClosureArgumentTests {
                 let arg0: ((Bool) throws -> Void)?
                 if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
                   arg0 = { @Sendable p0 in
-                    let a0 = JavaScriptCallback.Argument(p0)
-                    try arg0Callback.invokeBlocking { runtime in
-                      try [Bool.encode(a0.value, in: runtime)]
-                    }
+                    try arg0Callback.invokeBlocking(p0)
                   }
                 } else {
                   arg0 = nil
@@ -317,10 +298,7 @@ struct JSClosureArgumentTests {
             }
             let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
             let arg0: (String) -> Void = { @Sendable p0 in
-              let a0 = JavaScriptCallback.Argument(p0)
-              arg0Callback.invokeDetached { runtime in
-                try [String.encode(a0.value, in: runtime)]
-              }
+              arg0Callback.invokeDetached(p0)
             }
             return Watcher(onEvent: arg0)
           }
@@ -330,7 +308,7 @@ struct JSClosureArgumentTests {
   }
 
   @Test
-  func `Ownership specifiers on closure parameters are stripped, and borrowed values are copied`() {
+  func `Ownership specifiers on closure parameters are stripped from the asserted types`() {
     assertExpansion(
       """
       @ExpoModule
@@ -364,12 +342,7 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (borrowing Point, consuming Size, sending Item) throws -> Void = { @Sendable p0, p1, p2 in
-                let a0 = JavaScriptCallback.Argument(copy p0)
-                let a1 = JavaScriptCallback.Argument(copy p1)
-                let a2 = JavaScriptCallback.Argument(p2)
-                try arg0Callback.invokeBlocking { runtime in
-                  try [Point.encode(a0.value, in: runtime), Size.encode(a1.value, in: runtime), Item.encode(a2.value, in: runtime)]
-                }
+                try arg0Callback.invokeBlocking(p0, p1, p2)
               }
               self.observe(handler: arg0)
               return .undefined
@@ -409,10 +382,7 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Double) async throws -> Void = { @Sendable p0 in
-                let a0 = JavaScriptCallback.Argument(p0)
-                try await arg0Callback.invokeAsync { runtime in
-                  try [Double.encode(a0.value, in: runtime)]
-                }
+                try await arg0Callback.invokeAsync(p0)
               }
               return {
                 await _self.download(onProgress: arg0)
@@ -464,10 +434,7 @@ struct JSClosureArgumentTests {
                 let arg0: ((Double) -> Void)?
                 if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
                   arg0 = { @Sendable p0 in
-                    let a0 = JavaScriptCallback.Argument(p0)
-                    arg0Callback.invokeDetached { runtime in
-                      try [Double.encode(a0.value, in: runtime)]
-                    }
+                    arg0Callback.invokeDetached(p0)
                   }
                 } else {
                   arg0 = nil
@@ -519,9 +486,7 @@ struct JSClosureArgumentTests {
               default:
                 let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
                 let arg0: () -> Void = { @Sendable in
-                  arg0Callback.invokeDetached { runtime in
-                    []
-                  }
+                  arg0Callback.invokeDetached()
                 }
                 self.run(onDone: arg0)
               }
@@ -564,13 +529,7 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int, Int) -> Bool = { @Sendable p0, p1 in
-                let a0 = JavaScriptCallback.Argument(p0)
-                let a1 = JavaScriptCallback.Argument(p1)
-                return try arg0Callback.invokeBlocking { runtime in
-                  try [Int.encode(a0.value, in: runtime), Int.encode(a1.value, in: runtime)]
-                } decodeResult: { result, runtime in
-                  try Bool.decode(result, in: runtime)
-                }
+                try arg0Callback.invokeBlocking(p0, p1, returning: Bool.self)
               }
               self.sort(compare: arg0)
               return .undefined
