@@ -574,16 +574,20 @@ struct ScanTests {
       ("TV.swift", "#if os(tvOS)\n@ExpoModule\nfinal class TVModule {}\n#else\n@ExpoModule\nfinal class NonTVModule {}\n#endif"),
       ("UIKit.swift", "#if canImport(UIKit)\n@ExpoModule\nfinal class UIKitModule {}\n#endif"),
       ("Vendored.swift", "#if canImport(SomeVendoredSDK)\n@ExpoModule\nfinal class VendoredModule {}\n#endif"),
+      ("Windows.swift", "#if os(Windows)\n@ExpoModule\nfinal class WindowsModule {}\n#endif"),
+      ("WinSDK.swift", "#if canImport(WinSDK)\n@ExpoModule\nfinal class WinSDKModule {}\n#endif"),
       ("Plain.swift", "@ExpoModule\nfinal class PlainModule {}"),
     ]) { root in
       let result = scanModules(paths: [root.path])
       let byName = Dictionary(uniqueKeysWithValues: result.modules.map { ($0.name, $0.platforms) })
       // An unconditional module is included by every OS.
-      #expect(byName["PlainModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
+      #expect(byName["PlainModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS", "Windows"])
       #expect(byName["TVModule"] == ["tvOS"])
-      #expect(byName["NonTVModule"] == ["iOS", "macOS", "watchOS", "visionOS"])
+      #expect(byName["NonTVModule"] == ["iOS", "macOS", "watchOS", "visionOS", "Windows"])
       // canImport of a curated SDK framework resolves per platform.
       #expect(byName["UIKitModule"] == ["iOS", "tvOS", "watchOS", "visionOS"])
+      #expect(byName["WindowsModule"] == ["Windows"])
+      #expect(byName["WinSDKModule"] == ["Windows"])
       // An unanswerable condition yields no platforms, and one deduplicated warning explains why.
       #expect(byName["VendoredModule"] == [])
       #expect(result.warnings.count == 1)
@@ -603,11 +607,11 @@ struct ScanTests {
       // the modules are still reported, with the platforms of the branches that remain.
       let unset = Dictionary(uniqueKeysWithValues: scanModules(paths: [root.path]).modules.map { ($0.name, $0.platforms) })
       #expect(unset["DevModule"] == [])
-      #expect(unset["ProdModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
+      #expect(unset["ProdModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS", "Windows"])
       #expect(unset["DevIosModule"] == [])
 
       let debug = Dictionary(uniqueKeysWithValues: scanModules(paths: [root.path], defines: ["DEBUG"]).modules.map { ($0.name, $0.platforms) })
-      #expect(debug["DevModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
+      #expect(debug["DevModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS", "Windows"])
       #expect(debug["ProdModule"] == [])
       #expect(debug["DevIosModule"] == ["iOS"])
     }

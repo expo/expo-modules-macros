@@ -245,10 +245,10 @@ export interface ScanStats {
 }
 
 /**
- * An Apple OS the scanner attributes modules to, spelled as `os(...)` spells it. The casing is part
+ * An OS the scanner attributes modules to, spelled as `os(...)` spells it. The casing is part
  * of the output contract, so consumers with a lowercase convention must fold the case themselves.
  */
-export type ScannedPlatform = 'iOS' | 'macOS' | 'tvOS' | 'watchOS' | 'visionOS';
+export type ScannedPlatform = 'iOS' | 'macOS' | 'tvOS' | 'watchOS' | 'visionOS' | 'Windows';
 
 /** One module in the `scan-modules` output. */
 export interface ScannedModule {
@@ -289,5 +289,5 @@ export interface ScanExportsResult {
  * `schemaVersion` in each report and throws on a mismatch, so a binary/wrapper version skew surfaces
  * as a clear error instead of silently misread fields.
  */
-export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
+export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 3;
 export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 6;
