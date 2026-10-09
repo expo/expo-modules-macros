@@ -58,11 +58,171 @@ jobs:
           arch -arm64 ./ExpoModulesMacros --help > /dev/null
           arch -x86_64 ./ExpoModulesMacros --help > /dev/null
 
+      - name: Load the release tool as a compiler plugin
+        run: |
+          swiftc -load-plugin-executable "ExpoModulesMacros#ExpoModulesMacros" MacroConsumer/Declarations.swift MacroConsumer/main.swift -o .build/MacroConsumer
+          .build/MacroConsumer
+
       - name: Test
         run: swift test -v
+
+      - name: Run the macro consumer
+        # SwiftPM builds the plugin as a dependency of MacroConsumer and loads it into the compiler.
+        run: swift run MacroConsumer
 
       - name: Typecheck the TypeScript wrapper
         working-directory: ${{ github.workspace }}
         run: |
           npm install
           npm run typecheck
+
+  windows:
+    name: Build & test (Windows ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            build_arch: amd64
+          - arch: arm64
+            runner: windows-11-arm
+            build_arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Install Swift
+        uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057 # v0.5.0
+        with:
+          swift-version: swift-6.4.0-release
+          swift-build: 6.4.0-RELEASE
+          build_arch: ${{ matrix.build_arch }}
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: apple/.build
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('apple/Package.resolved') }}
+          restore-keys: |
+            spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Run the macro consumer
+        # SwiftPM builds the plugin as a dependency of MacroConsumer and loads it into the compiler.
+        run: swift run MacroConsumer
+
+      - name: Build release tool
+        # Runs `npm run build` (apple/build.js): builds the release plugin binary
+        # for this architecture as apple/ExpoModulesMacros-<arch>.exe.
+        working-directory: ${{ github.workspace }}
+        run: npm run build
+
+      - name: Verify the release tool
+        # Runs it with only the Windows directories on PATH, so it must not need the Swift runtime DLLs.
+        # With no arguments it is the plugin server, which exits when stdin closes; with arguments it
+        # is the scanner CLI.
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "ExpoModulesMacros-${{ matrix.arch }}.exe").Path
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          cmd /c "`"$exe`" < NUL"
+          if ($LASTEXITCODE -ne 0) { throw "The plugin server exited with $LASTEXITCODE" }
+          & $exe --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "The scanner CLI exited with $LASTEXITCODE" }
+
+      - name: Load the release tool as a compiler plugin
+        shell: pwsh
+        run: |
+          swiftc -load-plugin-executable "ExpoModulesMacros-${{ matrix.arch }}.exe#ExpoModulesMacros" MacroConsumer/Declarations.swift MacroConsumer/main.swift -o .build/MacroConsumer.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .build/MacroConsumer.exe
+
+      - name: Scan through the TypeScript wrapper
+        # Checks that the wrapper finds the Windows binary and reads a module gated on `os(Windows)`.
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          npm install
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build:ts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $fixture = Join-Path $env:RUNNER_TEMP "scan-fixture"
+          New-Item -ItemType Directory -Force $fixture | Out-Null
+          Set-Content (Join-Path $fixture "Module.swift") "#if os(Windows)`n@ExpoModule`npublic final class WindowsModule {}`n#endif"
+          @'
+          const path = require('node:path');
+          const { scanModules } = require(path.resolve('build'));
+          scanModules([process.argv[2]]).then((result) => {
+            const module = result.modules.find((candidate) => candidate.name === 'WindowsModule');
+            if (!module || module.platforms.join() !== 'Windows') {
+              console.error(JSON.stringify(result, null, 2));
+              process.exit(1);
+            }
+            console.log(`scanModules reported ${module.name} on ${module.platforms.join(', ')}`);
+          }, (error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP "scan-check.js")
+          node (Join-Path $env:RUNNER_TEMP "scan-check.js") $fixture
+
+      - name: Upload release tool
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ExpoModulesMacros-${{ matrix.arch }}
+          path: apple/ExpoModulesMacros-${{ matrix.arch }}.exe
+          if-no-files-found: error
+
+  package:
+    name: Package contents
+    # Puts the Windows tools next to the committed macOS binary, the way the Publish workflow does,
+    # and checks what `npm pack` would ship.
+    needs: windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Download Windows tools
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ExpoModulesMacros-*
+          path: apple
+          merge-multiple: true
+
+      - name: Check the package contents
+        working-directory: ${{ github.workspace }}
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node - "$RUNNER_TEMP/pack.json" <<'EOF'
+          const [{ files, size, unpackedSize }] = JSON.parse(require('node:fs').readFileSync(process.argv[2], 'utf8'));
+          const paths = files.map((file) => file.path);
+          const required = ['apple/ExpoModulesMacros', 'apple/ExpoModulesMacros-x64.exe', 'apple/ExpoModulesMacros-arm64.exe'];
+          const missing = required.filter((path) => !paths.includes(path));
+          const unexpected = paths.filter((path) => /^apple\/(MacroConsumer|Tests|\.build)\//.test(path));
+          for (const file of files.filter((file) => file.path.startsWith('apple/ExpoModulesMacros'))) {
+            console.log(`${file.path}: ${file.size} bytes`);
+          }
+          console.log(`Package: ${size} bytes packed, ${unpackedSize} bytes unpacked`);
+          if (missing.length || unexpected.length) {
+            console.error({ missing, unexpected });
+            process.exit(1);
+          }
+          EOF
