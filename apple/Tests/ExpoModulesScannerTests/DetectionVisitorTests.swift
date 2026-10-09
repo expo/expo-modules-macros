@@ -420,6 +420,22 @@ struct IfConfigTests {
   }
 
   @Test
+  func `Answers the object file format from the platform`() {
+    let source = """
+      #if objectFormat(COFF)
+      @ExpoModule
+      final class COFFModule {}
+      #elseif objectFormat(MachO)
+      @ExpoModule
+      final class MachOModule {}
+      #endif
+      """
+    #expect(detect(source, platform: "Windows").map(\.name) == ["COFFModule"])
+    #expect(detect(source, platform: "iOS").map(\.name) == ["MachOModule"])
+    #expect(visit(source, platform: "Windows").warnings.isEmpty)
+  }
+
+  @Test
   func `canImport stays unanswerable with a version or for a submodule`() {
     let versioned = visit(
       "#if canImport(UIKit, _version: 2)\n@ExpoModule\nfinal class M {}\n#endif",

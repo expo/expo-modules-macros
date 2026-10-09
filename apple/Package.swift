@@ -9,7 +9,7 @@ let package = Package(
   name: "ExpoModulesMacros",
   platforms: [.macOS(.v13)],
   dependencies: [
-    .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0-latest")
+    .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "603.0.0-latest")
   ],
   targets: [
     // The plugin executable doubles as the scanner CLI: the compiler launches it without arguments

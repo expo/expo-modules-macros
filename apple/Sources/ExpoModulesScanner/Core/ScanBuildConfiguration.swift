@@ -23,6 +23,13 @@ struct ScanBuildConfiguration: BuildConfiguration {
     return name.lowercased() == platform.lowercased()
   }
 
+  /// Answered from the OS, as `objectFormat(...)` spells the formats: Windows builds produce
+  /// COFF, and the Apple OSes produce Mach-O.
+  func isActiveTargetObjectFormat(name: String) throws -> Bool {
+    let format = platform.lowercased() == "windows" ? "COFF" : "MachO"
+    return name == format
+  }
+
   // MARK: - Unanswerable conditions
 
   // These vary within a single platform's build (device vs simulator, arm64 vs x86_64) or depend
