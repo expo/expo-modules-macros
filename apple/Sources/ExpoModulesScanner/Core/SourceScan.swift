@@ -1,4 +1,8 @@
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SwiftParser
 import SwiftSyntax
 
@@ -21,12 +25,12 @@ func scanFiles(
   var filesScanned = 0
   var filesParsed = 0
 
-  // Compile the pre-filter regex once per run, not once per file.
-  let prefilter = macroAttributeRegex(for: macros, conformances: conformances)
+  // Build the pre-filter once per run, not once per file.
+  let prefilter = MacroPrefilter(macros: macros, conformances: conformances)
 
   for file in swiftFiles(in: paths) {
     guard let source = try? String(contentsOfFile: file, encoding: .utf8) else {
-      FileHandle.standardError.write(Data("warning: could not read \(file)\n".utf8))
+      writeToStandardError("warning: could not read \(file)\n")
       continue
     }
     filesScanned += 1
@@ -81,27 +85,57 @@ func detect(
 
 // MARK: - Pre-filter
 
-/// Builds the pre-filter regex for a macro set, e.g. `@(ExpoModule)` for a `modules` scan or
-/// `@(ExpoModule|JS|Record|SharedObject)` for an `exports` scan. A precompiled `NSRegularExpression`
-/// benchmarked ~20x faster over a large source tree than calling `String.contains` once per macro
-/// name, because it scans each file in a single pass. Compiled once per run and reused per file.
+/// The spelled forms whose presence makes a file worth parsing: each macro's attribute right after an
+/// `@` (`@ExpoModule`, `@JS`, …), plus bare names for the types recognized by a conformance rather than
+/// an attribute (`Enumerable` for `scan-exports`). A bare name matches more loosely than an
+/// `@`-prefixed one, which costs a wasted parse and never a miss.
 ///
-/// `conformances` adds bare (unprefixed) alternatives for types recognized by conformance rather than
-/// by an attribute (`Enumerable` for `scan-exports`). They join the same alternation so the scan stays
-/// one pass; a bare name matches more loosely than an `@`-prefixed one, which costs a wasted parse and
-/// never a miss.
-func macroAttributeRegex(
-  for macros: Set<DetectedMacro>,
-  conformances: Set<String> = []
-) -> NSRegularExpression {
-  // Sort for a stable pattern regardless of the set's iteration order.
-  let attributes = macros.map(\.rawValue).sorted().joined(separator: "|")
-  var alternatives: [String] = []
-  if !attributes.isEmpty {
-    alternatives.append("@(\(attributes))")
+/// Matching is a single pass over the UTF-8 bytes, checking the names only where an `@` or a bare
+/// name's first byte occurs, rather than one search per name. It runs on every file a whole-tree scan
+/// reads, far more than it parses, so it has to stay cheap. Built once per run and reused per file.
+struct MacroPrefilter {
+  /// The attribute names matched right after an `@`, as UTF-8.
+  private let attributes: [[UInt8]]
+
+  /// The names matched anywhere, as UTF-8.
+  private let bareNames: [[UInt8]]
+
+  init(macros: Set<DetectedMacro>, conformances: Set<String> = []) {
+    attributes = macros.map { Array($0.rawValue.utf8) }
+    bareNames = conformances.map { Array($0.utf8) }
   }
-  alternatives.append(contentsOf: conformances.sorted())
-  return try! NSRegularExpression(pattern: alternatives.joined(separator: "|"))
+
+  /// True if `source` contains one of the attributes after an `@`, or one of the bare names.
+  func matches(_ source: String) -> Bool {
+    var source = source
+    return source.withUTF8 { bytes in
+      for index in bytes.indices {
+        let byte = bytes[index]
+        if byte == UInt8(ascii: "@") {
+          for name in attributes where bytes.hasBytes(name, at: index + 1) {
+            return true
+          }
+        }
+        for name in bareNames where name.first == byte && bytes.hasBytes(name, at: index) {
+          return true
+        }
+      }
+      return false
+    }
+  }
+}
+
+extension UnsafeBufferPointer<UInt8> {
+  /// True if the bytes starting at `index` begin with `prefix`.
+  fileprivate func hasBytes(_ prefix: [UInt8], at index: Int) -> Bool {
+    guard index + prefix.count <= count else {
+      return false
+    }
+    for offset in prefix.indices where self[index + offset] != prefix[offset] {
+      return false
+    }
+    return true
+  }
 }
 
 /// True if the source text contains one of the pre-filter's spelled macro attributes, so it's worth
@@ -109,9 +143,8 @@ func macroAttributeRegex(
 /// in which case the file is parsed and correctly yields no detections — a wasted parse, never a
 /// missed module. It assumes the attribute is written with no space after `@` (`@ExpoModule`, not
 /// `@ ExpoModule`), which is universal in practice; the rare spaced form would be skipped.
-func mightContainMacro(in source: String, prefilter: NSRegularExpression) -> Bool {
-  let range = NSRange(source.startIndex..., in: source)
-  return prefilter.firstMatch(in: source, range: range) != nil
+func mightContainMacro(in source: String, prefilter: MacroPrefilter) -> Bool {
+  return prefilter.matches(source)
 }
 
 // MARK: - File discovery
@@ -144,13 +177,12 @@ func swiftFiles(in paths: [String]) -> [String] {
   var result: [String] = []
 
   for path in paths {
-    var isDirectory: ObjCBool = false
-    guard fileManager.fileExists(atPath: path, isDirectory: &isDirectory) else {
-      FileHandle.standardError.write(Data("warning: no such path \(path)\n".utf8))
+    guard let isDirectory = isDirectory(atPath: path, fileManager: fileManager) else {
+      writeToStandardError("warning: no such path \(path)\n")
       continue
     }
 
-    if isDirectory.boolValue {
+    if isDirectory {
       result.append(contentsOf: swiftFiles(inDirectory: URL(fileURLWithPath: path), fileManager: fileManager))
     } else if path.hasSuffix(".swift") {
       // A directory walk already yields absolute paths; resolve a directly-passed file the same way
@@ -162,6 +194,54 @@ func swiftFiles(in paths: [String]) -> [String] {
   return result.sorted()
 }
 
+/// Whether `path` is a directory (following symbolic links), or `nil` if nothing exists there.
+private func isDirectory(atPath path: String, fileManager: FileManager) -> Bool? {
+  #if canImport(FoundationEssentials)
+  var isDirectory = false
+  #else
+  var isDirectory: ObjCBool = false
+  #endif
+  guard fileManager.fileExists(atPath: path, isDirectory: &isDirectory) else {
+    return nil
+  }
+  #if canImport(FoundationEssentials)
+  return isDirectory
+  #else
+  return isDirectory.boolValue
+  #endif
+}
+
+#if canImport(FoundationEssentials)
+/// Recursively lists the `.swift` files under a directory, without descending into pruned directories.
+/// `FoundationEssentials`, used outside Apple platforms, has no directory enumerator, so each directory
+/// is listed on its own and the walk recurses into the subdirectories that aren't pruned. Like the
+/// enumerator walk on Apple platforms, it skips names starting with a dot and doesn't follow symbolic
+/// links to directories.
+private func swiftFiles(inDirectory directory: URL, fileManager: FileManager) -> [String] {
+  return swiftFiles(inDirectoryAtPath: directory.path, fileManager: fileManager)
+}
+
+private func swiftFiles(inDirectoryAtPath directory: String, fileManager: FileManager) -> [String] {
+  guard let names = try? fileManager.contentsOfDirectory(atPath: directory) else {
+    return []
+  }
+
+  var result: [String] = []
+  for name in names where !name.hasPrefix(".") {
+    let path = directory + "/" + name
+    // `attributesOfItem` doesn't follow a symbolic link, so a link reads as `.typeSymbolicLink`.
+    let type = (try? fileManager.attributesOfItem(atPath: path))?[.type] as? FileAttributeType
+    if type == .typeDirectory {
+      if !prunedDirectoryNames.contains(name) {
+        result.append(contentsOf: swiftFiles(inDirectoryAtPath: path, fileManager: fileManager))
+      }
+    } else if name.hasSuffix(".swift") {
+      result.append(path)
+    }
+  }
+  return result
+}
+#else
 /// Recursively enumerates `.swift` files under a directory, calling `skipDescendants()` on any
 /// pruned directory so its subtree is never read. Uses the URL enumerator (rather than the
 /// path-based one) precisely because it supports skipping a subtree mid-walk.
@@ -191,3 +271,4 @@ private func swiftFiles(inDirectory directory: URL, fileManager: FileManager) ->
   }
   return result
 }
+#endif

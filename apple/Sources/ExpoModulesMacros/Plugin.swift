@@ -1,7 +1,14 @@
 import ExpoModulesScanner
-import Foundation
 import SwiftCompilerPlugin
 import SwiftSyntaxMacros
+
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif os(Windows)
+import CRT
+#endif
 
 struct ExpoModulesMacrosPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [

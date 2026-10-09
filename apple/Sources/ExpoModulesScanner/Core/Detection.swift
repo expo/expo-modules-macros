@@ -1,5 +1,3 @@
-import Foundation
-
 /// Which Expo macro was found on a declaration. The scanner recognizes the entry-point macros that
 /// mark a type or member as part of a module's JS surface, plus `@Record` for convertible types.
 enum DetectedMacro: String, Codable, CaseIterable {

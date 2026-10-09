@@ -34,10 +34,10 @@ private func visit(
   return visitor
 }
 
-/// Convenience matching the production pre-filter: builds the regex for `macros` (all by default)
+/// Convenience matching the production pre-filter: builds the pre-filter for `macros` (all by default)
 /// and tests whether the source might contain one.
 private func mightContainMacro(in source: String, macros: Set<DetectedMacro> = Set(DetectedMacro.allCases)) -> Bool {
-  return mightContainMacro(in: source, prefilter: macroAttributeRegex(for: macros))
+  return mightContainMacro(in: source, prefilter: MacroPrefilter(macros: macros))
 }
 
 @Suite("Scanner detection")
@@ -274,7 +274,7 @@ struct MacroPrefilterTests {
 
   @Test
   func `Admits a bare conformance name alongside the attributes`() {
-    let prefilter = macroAttributeRegex(for: [.expoModule], conformances: ["Enumerable"])
+    let prefilter = MacroPrefilter(macros: [.expoModule], conformances: ["Enumerable"])
     // The conformance has no `@`, so it must match bare. An enum in a file of its own carries no
     // macro attribute at all, and would otherwise never be parsed.
     #expect(mightContainMacro(in: "enum Status: String, Enumerable { case a }", prefilter: prefilter))
@@ -284,7 +284,7 @@ struct MacroPrefilterTests {
 
   @Test
   func `Matches only the attributes when no conformance is given`() {
-    let prefilter = macroAttributeRegex(for: Set(DetectedMacro.allCases))
+    let prefilter = MacroPrefilter(macros: Set(DetectedMacro.allCases))
     // `scan-modules` passes no conformances, so an Enumerable enum doesn't force a parse there.
     #expect(!mightContainMacro(in: "enum Status: String, Enumerable { case a }", prefilter: prefilter))
   }
@@ -488,8 +488,8 @@ struct ScanTests {
       ("Notes.swift", "// just a comment, no macros here"),
     ]) { result in
       #expect(result.modules.map(\.name) == ["MyModule"])
-      // Reported paths are absolute.
-      #expect(result.modules.first?.file.hasPrefix("/") == true)
+      // Reported paths are absolute: a relative one would get the current directory as its base URL.
+      #expect(result.modules.first.map { URL(filePath: $0.file).baseURL == nil } == true)
       #expect(result.schemaVersion == scanModulesSchemaVersion)
       // All three .swift files are read; only the one mentioning a macro is parsed.
       #expect(result.stats.filesScanned == 3)

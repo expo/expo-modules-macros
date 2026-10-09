@@ -1,5 +1,3 @@
-import Foundation
-
 /// Command-line front end for the scanner: parses the subcommand and paths, then delegates to the
 /// matching `Scanner` entry (which runs the scan and writes its JSON output). Lives in the library
 /// so the macro plugin executable can dispatch into it: the compiler always launches that executable
@@ -16,12 +14,12 @@ public enum ScannerCLI {
   public static func run(arguments: [String]) -> Int32 {
     // `-h`/`--help` anywhere is treated as a help request: print usage to stdout and exit 0.
     if arguments.contains(where: { $0 == "-h" || $0 == "--help" }) {
-      printUsage(to: .standardOutput)
+      writeToStandardOutput(usageText)
       return 0
     }
 
     guard let subcommand = arguments.first else {
-      printUsage()
+      writeToStandardError(usageText)
       return 2
     }
 
@@ -79,7 +77,11 @@ public enum ScannerCLI {
 /// The invoked executable's basename, so the usage text matches however the tool was launched
 /// (the `ExpoModulesMacros` shipped in the package, or a locally built `ExpoModulesMacros-tool`).
 private var toolName: String {
-  return (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "ExpoModulesScanner"
+  guard let path = CommandLine.arguments.first else {
+    return "ExpoModulesScanner"
+  }
+  // Windows paths may use either separator.
+  return String(path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? Substring(path))
 }
 
 private var usageText: String {
@@ -100,15 +102,8 @@ private var usageText: String {
   """
 }
 
-/// Prints the usage text to the given handle. Goes to stdout when help was explicitly requested
-/// (a successful action), stderr when it accompanies a usage error.
-private func printUsage(to handle: FileHandle = .standardError) {
-  handle.write(Data(usageText.utf8))
-}
-
 /// Reports a usage error on stderr, followed by the usage text, and returns the usage exit code.
 private func usageError(_ message: String) -> Int32 {
-  FileHandle.standardError.write(Data("error: \(message)\n".utf8))
-  printUsage()
+  writeToStandardError("error: \(message)\n" + usageText)
   return 2
 }

@@ -986,8 +986,8 @@ struct ScanExportsTests {
       // the bare `Enumerable` conformance.
       #expect(result.exports.enums.map(\.name) == ["E"])
       #expect(result.exports.unions.map(\.name) == ["U"])
-      // Reported paths are absolute.
-      #expect(result.exports.modules.first?.file.hasPrefix("/") == true)
+      // Reported paths are absolute: a relative one would get the current directory as its base URL.
+      #expect(result.exports.modules.first.map { URL(filePath: $0.file).baseURL == nil } == true)
       #expect(result.schemaVersion == scanExportsSchemaVersion)
       // All six files are read; the plain one (no macro, no conformance) isn't parsed.
       #expect(result.stats.filesScanned == 6)
