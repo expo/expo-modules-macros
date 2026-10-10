@@ -9,9 +9,10 @@
 - `apple/Sources/ExpoModulesScanner`: the scanner library. `Modules/` implements `scan-modules` (autolinking), `Exports/` implements `scan-exports` (type generation), `Core/` holds the shared parsing and `#if` evaluation, and `CLI.swift` is the command-line front end.
 - `apple/Sources/ExpoModulesOptimized`: declarations for the `@OptimizedFunction` macro.
 - `apple/Tests`: `ExpoModulesMacrosTests` (expansion tests) and `ExpoModulesScannerTests`.
+- `platforms/`: the Windows packages `@expo/modules-macros-win32-x64` and `-arm64` (a `package.json` with `os` and `cpu`, a README and a copy of `LICENSE`). The Publish workflow runs `scripts/set-platform-versions.js` to give them the version of this package. Their `ExpoModulesMacros.exe` is written there by `npm run build` on Windows and isn't committed.
 - `apple/PodTests`: a stub test so that `expo/expo` native tests can install this package as a pod. Do not add real tests here.
 - `src/`: the TypeScript wrapper around the scanner CLI. `types.ts` mirrors the Swift `Codable` output types by hand.
-- `apple/build.js`: builds the release binaries under `apple/`: the universal macOS `ExpoModulesMacros` (committed and published), and on Windows `ExpoModulesMacros-<arch>.exe` for the host architecture (built and tested in CI, not published yet).
+- `scripts/build.js` (`npm run build`): builds the release binaries: the universal macOS `apple/ExpoModulesMacros` (committed and published), and on Windows `platforms/win32-<arch>/ExpoModulesMacros.exe` for the host architecture (not committed; published in that package).
 
 ## Commands
 
@@ -24,7 +25,7 @@ npm run typecheck            # TypeScript wrapper
 npm run build                # release binary (slow; on macOS uses Rosetta for x86_64)
 ```
 
-CI runs on macOS (`.github/workflows/swift.yml`) and on Windows x64 and arm64 (`.github/workflows/windows.yml`). On macOS it runs the release build, checks both binary slices, then runs `swift test` and `npm run typecheck`. On Windows it builds and tests the package, builds the release binary, checks that it starts without the Swift runtime, and scans through the TypeScript wrapper. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
+CI runs on macOS (`.github/workflows/swift.yml`) and on Windows x64 and arm64 (`.github/workflows/windows.yml`). On macOS it runs the release build, checks both binary slices, then runs `swift test` and `npm run typecheck`. On Windows it builds and tests the package, builds the release binary, checks that it starts without the Swift runtime, packs it into its `platforms/` package (checking the files and the `os`/`cpu` fields), installs that package, and scans through the TypeScript wrapper, which must find the executable there. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
 
 ## Windows
 
@@ -51,14 +52,14 @@ CI runs on macOS (`.github/workflows/swift.yml`) and on Windows x64 and arm64 (`
 - **Macro declarations live in `expo-modules-core`** (`ios/Core/ExpoModulesMacros.swift` in `expo/expo`), as `#externalMacro(module: "ExpoModulesMacros", type: ...)`. Adding a macro, renaming a macro type or changing a macro's signature needs a matching edit there, and the type must be listed in `providingMacros` in `Plugin.swift`.
 - **Generated code calls `expo-modules-core` API.** An expansion that uses a new core symbol only works with a core version that has it.
 - **Scanner output is versioned.** `scanModulesSchemaVersion` (`Modules/ScanModules.swift`) and `scanExportsSchemaVersion` (`Exports/ExportedSurface.swift`) change independently. When the output shape of a command changes, bump its version and update the matching `SUPPORTED_SCAN_*_SCHEMA_VERSION` constant and mirror types in `src/types.ts`. `expo-modules-autolinking` also checks the `scan-modules` version.
-- **The binary path is part of the contract.** `expo-modules-autolinking` resolves this package from `expo-modules-core` and passes `-load-plugin-executable <package>/apple/<binary>#ExpoModulesMacros` to the compiler. The scanner wrapper in autolinking uses the same path, and `expo-modules-cli` uses `getScannerBinaryPath()`. On Windows the binary is `apple/ExpoModulesMacros-<arch>.exe`. Renaming or moving a binary needs a matching change in `expo/expo`.
+- **The binary path is part of the contract.** `expo-modules-autolinking` resolves this package from `expo-modules-core` and passes `-load-plugin-executable <package>/apple/<binary>#ExpoModulesMacros` to the compiler. The scanner wrapper in autolinking uses the same path, and `expo-modules-cli` uses `getScannerBinaryPath()`. On Windows the binary is `ExpoModulesMacros.exe` in `@expo/modules-macros-win32-<arch>`. Renaming or moving a binary needs a matching change in `expo/expo`.
 
 ## Releases
 
-- Do not rebuild or commit the binary under `apple/` in a feature change. Only the **Publish** workflow (`.github/workflows/publish.yml`, manual) rebuilds it, and it commits the result as `Release vX.Y.Z` after the npm publish succeeds.
+- Do not rebuild or commit the binary under `apple/` in a feature change. Only the **Publish** workflow (`.github/workflows/publish.yml`, manual) rebuilds it, and it commits the result as `Release vX.Y.Z` after the npm publish succeeds. It also builds the Windows binaries and publishes them in the `platforms/` packages, with the same version.
 - Do not edit the `version` in `package.json` by hand. The Publish workflow bumps it.
 - Commit and PR titles are short and imperative, with code identifiers in backticks, for example ``Report `@Union` types in `scan-exports` ``.
 
 ## Installed copies
 
-In `node_modules`, the compiler runs the prebuilt binary `apple/ExpoModulesMacros` (on Windows it will be `apple/ExpoModulesMacros-<arch>.exe`, once published); editing the Swift sources there has no effect. Macro and scanner fixes belong in this repository and ship in a new release. The TypeScript wrapper ships compiled in `build/`, since `src/` is not published.
+In `node_modules`, the compiler runs the prebuilt binary `apple/ExpoModulesMacros` (on Windows, `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>`); editing the Swift sources there has no effect. Macro and scanner fixes belong in this repository and ship in a new release. The TypeScript wrapper ships compiled in `build/`, since `src/` is not published.

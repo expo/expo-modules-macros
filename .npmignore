@@ -8,3 +8,9 @@
 /src/**/*
 /tsconfig.json
 /node_modules/**/*
+
+# The Windows binaries ship in their own packages, from /platforms.
+/platforms/**/*
+
+# Build and release scripts, used only in this repository.
+/scripts/**/*

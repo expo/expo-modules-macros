@@ -8,6 +8,12 @@ const { promisify } = require('node:util');
 
 const execFile = promisify(childProcess.execFile);
 
+/** The Swift package, where `swift build` runs and the macOS binary is written. */
+const packageDir = path.join(__dirname, '..', 'apple');
+
+/** The npm packages that ship the Windows binaries, one per architecture. */
+const platformsDir = path.join(__dirname, '..', 'platforms');
+
 /**
  * Runs a command and resolves when it exits successfully.
  */
@@ -54,8 +60,8 @@ const windowsBuildArgs = [
  */
 async function swiftOutput(args, arch) {
   const { stdout } = arch && arch !== os.machine()
-    ? await execFile('arch', [`-${arch}`, 'swift', ...args], { cwd: __dirname })
-    : await execFile('swift', args, { cwd: __dirname });
+    ? await execFile('arch', [`-${arch}`, 'swift', ...args], { cwd: packageDir })
+    : await execFile('swift', args, { cwd: packageDir });
   return stdout;
 }
 
@@ -82,9 +88,9 @@ async function builtToolPath(extraArgs, arch) {
  */
 async function buildForArch(arch) {
   if (arch === os.machine()) {
-    await spawnAsync('swift', releaseBuildArgs, { cwd: __dirname });
+    await spawnAsync('swift', releaseBuildArgs, { cwd: packageDir });
   } else {
-    await spawnAsync('arch', [`-${arch}`, 'swift', ...releaseBuildArgs], { cwd: __dirname });
+    await spawnAsync('arch', [`-${arch}`, 'swift', ...releaseBuildArgs], { cwd: packageDir });
   }
   return builtToolPath([], arch);
 }
@@ -166,18 +172,19 @@ async function verifyWindowsArch(binaryPath, arch) {
 }
 
 /**
- * Builds the Windows tool for the host architecture as `ExpoModulesMacros-<arch>.exe`, named by
- * `process.arch` (`x64` or `arm64`). Unlike on macOS there are no universal binaries, and SwiftPM
- * builds macro tools only for the host, so each architecture is built on a machine of its own.
+ * Builds the Windows tool for the host architecture as `ExpoModulesMacros.exe` in the package for
+ * that architecture, `platforms/win32-<arch>`, named by `process.arch` (`x64` or `arm64`). Unlike on
+ * macOS there are no universal binaries, and SwiftPM builds macro tools only for the host, so each
+ * architecture is built on a machine of its own.
  */
 async function mainWindows() {
   const arch = process.arch;
   if (!(arch in windowsMachineTypes)) {
     throw new Error(`Building on Windows ${arch} is not supported`);
   }
-  const outputPath = path.join(__dirname, `ExpoModulesMacros-${arch}.exe`);
+  const outputPath = path.join(platformsDir, `win32-${arch}`, 'ExpoModulesMacros.exe');
 
-  await spawnAsync('swift', [...releaseBuildArgs, ...windowsBuildArgs], { cwd: __dirname });
+  await spawnAsync('swift', [...releaseBuildArgs, ...windowsBuildArgs], { cwd: packageDir });
   const toolPath = await builtToolPath(windowsBuildArgs);
 
   await fs.rm(outputPath, { force: true });
@@ -190,7 +197,7 @@ async function mainWindows() {
 }
 
 async function mainMacOS() {
-  const outputPath = path.join(__dirname, 'ExpoModulesMacros');
+  const outputPath = path.join(packageDir, 'ExpoModulesMacros');
 
   const archs = [];
   for (const arch of ['arm64', 'x86_64']) {
