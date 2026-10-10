@@ -237,7 +237,7 @@ struct ExpoModuleMacroTests {
                 let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
                 self.tag(name: arg0, note: arg1)
               }
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -531,7 +531,7 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "doReset", received: arguments.count, required: 0, maximum: 0))
               }
               try self.reset()
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -568,7 +568,7 @@ struct ExpoModuleMacroTests {
               }
               return {
                 try await self.performWork()
-                return .undefined
+                return .undefined()
               }
             }
           }
@@ -652,7 +652,7 @@ struct ExpoModuleMacroTests {
               }
               return {
                 await self.performWork()
-                return .undefined
+                return .undefined()
               }
             }
             object.setProperty("fetchValue") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -790,7 +790,7 @@ struct ExpoModuleMacroTests {
             }
             readyDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               self.ready = try Bool.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             object.defineProperty("ready", descriptor: readyDescriptor)
           }
@@ -835,7 +835,7 @@ struct ExpoModuleMacroTests {
             }
             configDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               self.config = try MyRecord.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             object.defineProperty("config", descriptor: configDescriptor)
           }
@@ -880,7 +880,7 @@ struct ExpoModuleMacroTests {
             }
             configDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               self.config = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             object.defineProperty("config", descriptor: configDescriptor)
           }
@@ -1569,7 +1569,7 @@ struct ExpoModuleMacroTests {
               }
               let arg0 = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
               self.store(config: arg0)
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -1577,7 +1577,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Prefer '[String: JavaScriptValue]' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); the 'JavaScriptValue' element keeps each value inspectable without erasing it.",
+            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
           line: 5,
           column: 22,
           severity: .warning
@@ -1629,7 +1629,7 @@ struct ExpoModuleMacroTests {
                 let arg0 = try [String: Any]?.decode(arguments.unownedValue(at: 0), in: runtime)
                 self.keep(config: arg0)
               }
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -1667,7 +1667,7 @@ struct ExpoModuleMacroTests {
               let arg0 = try JavaScriptValue.decodeAnyArray(arguments.unownedValue(at: 0), in: runtime)
               let arg1 = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 1), in: runtime)
               self.inspect(list: arg0, value: arg1)
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -1675,14 +1675,14 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Prefer '[JavaScriptValue]' over the free-form '[Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); the 'JavaScriptValue' element keeps each value inspectable without erasing it.",
+            "Prefer 'JavaScriptArray' over the free-form '[Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptArray' keeps the JS value inspectable without converting it.",
           line: 5,
           column: 22,
           severity: .warning
         ),
         DiagnosticSpec(
           message:
-            "Prefer 'JavaScriptValue' over the free-form 'Any' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); the 'JavaScriptValue' element keeps each value inspectable without erasing it.",
+            "Prefer 'JavaScriptValue' over the free-form 'Any' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptValue' keeps the JS value inspectable without converting it.",
           line: 5,
           column: 36,
           severity: .warning
@@ -1727,7 +1727,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS function can't return the free-form '[String: Any]': there's no way to encode an untyped value back to JavaScript. Use '[String: JavaScriptValue]', or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS function can't return the free-form '[String: Any]': there's no way to encode an untyped value back to JavaScript. Use 'JavaScriptObject', or 'JavaScriptValue' to pass a JS value through unchanged.",
           line: 5,
           column: 18,
           severity: .error
@@ -1811,7 +1811,7 @@ struct ExpoModuleMacroTests {
             }
             metadataDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               self.metadata = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             object.defineProperty("metadata", descriptor: metadataDescriptor)
           }
@@ -1820,7 +1820,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS property can't have the free-form '[String: Any]': its getter would have to encode an untyped value back to JavaScript, which isn't supported. Use '[String: JavaScriptValue]', or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS property can't have the free-form '[String: Any]': its getter would have to encode an untyped value back to JavaScript, which isn't supported. Use 'JavaScriptObject', or 'JavaScriptValue' to pass a JS value through unchanged.",
           line: 5,
           column: 17,
           severity: .error

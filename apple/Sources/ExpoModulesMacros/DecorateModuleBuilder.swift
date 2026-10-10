@@ -154,7 +154,7 @@ internal struct JSFunction {
       lines.append(contentsOf: encodeResultLines().map { "  " + $0 })
     } else {
       lines.append("  \(callExpression(receiver: receiver, arity: arity))")
-      lines.append("  return .undefined")
+      lines.append("  return .undefined()")
     }
     lines.append("}")
     return lines
@@ -204,7 +204,7 @@ internal struct JSFunction {
 
   /// The flat (single-arity) call-and-encode lines used when no trailing parameter is omittable:
   /// `let result = <callee>.f(...)` then the return encode (or the no-return `<callee>.f(...)` +
-  /// `.undefined`).
+  /// `.undefined()`).
   private func callAndEncodeLines(receiver: Receiver, arity: Int, decodingFrom: Int) -> [String] {
     var lines: [String] = []
     for index in decodingFrom..<arity {
@@ -215,7 +215,7 @@ internal struct JSFunction {
       lines.append(contentsOf: encodeResultLines())
     } else {
       lines.append(callExpression(receiver: receiver, arity: arity))
-      lines.append("return .undefined")
+      lines.append("return .undefined()")
     }
     return lines
   }
@@ -225,7 +225,7 @@ internal struct JSFunction {
   /// value as the primitive's `toJavaScriptValue(in:)` except for `Int`/`UInt`, where it range-checks
   /// and throws instead of silently encoding an out-of-safe-range value as a lossy number — the
   /// catchable error is the right behavior, and matches how non-primitive integers already encode. A
-  /// no-return function returns `.undefined` instead.
+  /// no-return function returns `.undefined()` instead.
   ///
   /// For an `async` function the encode must run on the JS thread. An `async` body may suspend and
   /// resume on an arbitrary cooperative-pool thread, and encoding a heap-allocated JS value (a string,
@@ -235,7 +235,7 @@ internal struct JSFunction {
   /// which always run on the JS thread — keep encoding directly without the wrapper.
   private func encodeResultLines() -> [String] {
     guard let returnType else {
-      return ["return .undefined"]
+      return ["return .undefined()"]
     }
     let encode = "try \(expressionType(returnType)).encode(result, in: runtime)"
     if isAsync {
@@ -340,7 +340,7 @@ internal struct JSProperty {
       let setDecode = "\(callee).\(swiftName) = try \(decodeCall(valueType, from: "arguments.unownedValue(at: 0)"))"
       lines.append(
         accessorClosure(
-          descriptorName, "set", receiver: receiver, body: "\(unwrap)\(setDecode)\nreturn .undefined"))
+          descriptorName, "set", receiver: receiver, body: "\(unwrap)\(setDecode)\nreturn .undefined()"))
     }
 
     lines.append("\(object).defineProperty(\"\(jsName)\", descriptor: \(descriptorName))")
@@ -437,7 +437,7 @@ internal func buildDecorateSharedObjectPhase(
 }
 
 /// True when a return clause is absent or written as `Void` / `()` — i.e. the function returns
-/// nothing JS-visible, so the binding returns `.undefined`.
+/// nothing JS-visible, so the binding returns `.undefined()`.
 private func isVoidType(_ type: TypeSyntax?) -> Bool {
   guard let type else {
     return true

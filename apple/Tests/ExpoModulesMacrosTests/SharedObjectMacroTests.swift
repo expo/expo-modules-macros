@@ -167,7 +167,7 @@ struct SharedObjectMacroTests {
               }
               return {
                 try await _self.load()
-                return .undefined
+                return .undefined()
               }
             }
           }
@@ -213,7 +213,7 @@ struct SharedObjectMacroTests {
             ownerDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               _self.owner = try SomeType?.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             prototype.defineProperty("owner", descriptor: ownerDescriptor)
           }
@@ -278,7 +278,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -311,7 +311,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -323,7 +323,7 @@ struct SharedObjectMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Prefer '[String: JavaScriptValue]' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); the 'JavaScriptValue' element keeps each value inspectable without erasing it.",
+            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
           line: 5,
           column: 16,
           severity: .warning
@@ -383,7 +383,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -466,7 +466,7 @@ struct SharedObjectMacroTests {
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
               return {
                 try await Cache.warmUp(arg0)
-                return .undefined
+                return .undefined()
               }
             }
           }
@@ -504,7 +504,7 @@ struct SharedObjectMacroTests {
             }
             sharedDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               Cache.shared = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             constructor.defineProperty("shared", descriptor: sharedDescriptor)
           }
@@ -642,7 +642,7 @@ struct SharedObjectMacroTests {
             nameDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               _self.name = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined
+              return .undefined()
             }
             prototype.defineProperty("name", descriptor: nameDescriptor)
           }
@@ -679,7 +679,7 @@ struct SharedObjectMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "clear", received: arguments.count, required: 0, maximum: 0))
               }
               _self.clear()
-              return .undefined
+              return .undefined()
             }
           }
         }
@@ -708,7 +708,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 0 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 0, maximum: 0))
             }
@@ -740,7 +740,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -773,7 +773,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }

@@ -982,7 +982,7 @@ struct RecordMacroTests {
             let runtime = try appContext.runtime
             let object = runtime.createObject()
             object.setProperty("name", value: try String.encode(self.name, in: runtime))
-            object.setProperty("attributes", value: self.attributes == nil ? .null : try JavaScriptValue.encodeAnyDictionary(self.attributes!, in: runtime))
+            object.setProperty("attributes", value: self.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(self.attributes!, in: runtime))
             return object
           }
         }
@@ -1139,7 +1139,7 @@ struct RecordMacroTests {
             let runtime = try appContext.runtime
             let object = runtime.createObject()
             object.setProperty("value", value: try JavaScriptValue.encodeAny(self.value, in: runtime))
-            object.setProperty("maybe", value: self.maybe == nil ? .null : try JavaScriptValue.encodeAny(self.maybe!, in: runtime))
+            object.setProperty("maybe", value: self.maybe == nil ? .null() : try JavaScriptValue.encodeAny(self.maybe!, in: runtime))
             return object
           }
         }
@@ -1243,7 +1243,7 @@ struct RecordMacroTests {
             let runtime = try appContext.runtime
             let object = runtime.createObject()
             object.setProperty("value", value: try JavaScriptValue.encodeAny(self.value, in: runtime))
-            object.setProperty("list", value: self.list == nil ? .null : try JavaScriptValue.encodeAnyArray(self.list!, in: runtime))
+            object.setProperty("list", value: self.list == nil ? .null() : try JavaScriptValue.encodeAnyArray(self.list!, in: runtime))
             return object
           }
         }

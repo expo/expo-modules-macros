@@ -51,7 +51,7 @@ internal struct JSConstructor {
   func buildConstructor(typeName: String) -> DeclSyntax {
     return """
       @JavaScriptActor
-      public override class func _constructSharedObject(this: JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+      public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
       \(raw: bodyStatements(typeName: typeName, indent: "  "))
       }
       """
