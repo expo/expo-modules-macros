@@ -1,0 +1,122 @@
+name: Windows
+
+# Builds and tests the package on Windows, and checks the release tool there. The Windows binaries
+# aren't published yet, so this runs apart from the macOS workflow.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apple
+
+jobs:
+  windows:
+    name: Build & test (Windows ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            build_arch: amd64
+          - arch: arm64
+            runner: windows-11-arm
+            build_arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Install Swift
+        uses: compnerd/gha-setup-swift@bbae8ce86bac5a3449f3992b3d88bc4ca25f2057 # v0.5.0
+        with:
+          swift-version: swift-6.4.0-release
+          swift-build: 6.4.0-RELEASE
+          build_arch: ${{ matrix.build_arch }}
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: apple/.build
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('apple/Package.resolved') }}
+          restore-keys: |
+            spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Run the macro consumer
+        # SwiftPM builds the plugin as a dependency of MacroConsumer and loads it into the compiler.
+        run: swift run MacroConsumer
+
+      - name: Build release tool
+        # Runs `npm run build` (apple/build.js): builds the release plugin binary
+        # for this architecture as apple/ExpoModulesMacros-<arch>.exe.
+        working-directory: ${{ github.workspace }}
+        run: npm run build
+
+      - name: Verify the release tool
+        # Runs it with only the Windows directories on PATH, so it must not need the Swift runtime DLLs.
+        # With no arguments it is the plugin server, which exits when stdin closes; with arguments it
+        # is the scanner CLI.
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "ExpoModulesMacros-${{ matrix.arch }}.exe").Path
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          cmd /c "`"$exe`" < NUL"
+          if ($LASTEXITCODE -ne 0) { throw "The plugin server exited with $LASTEXITCODE" }
+          & $exe --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "The scanner CLI exited with $LASTEXITCODE" }
+
+      - name: Load the release tool as a compiler plugin
+        shell: pwsh
+        run: |
+          swiftc -load-plugin-executable "ExpoModulesMacros-${{ matrix.arch }}.exe#ExpoModulesMacros" MacroConsumer/Declarations.swift MacroConsumer/main.swift -o .build/MacroConsumer.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .build/MacroConsumer.exe
+
+      - name: Scan through the TypeScript wrapper
+        # Checks that the wrapper finds the Windows binary and reads a module gated on `os(Windows)`.
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          npm install
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build:ts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $fixture = Join-Path $env:RUNNER_TEMP "scan-fixture"
+          New-Item -ItemType Directory -Force $fixture | Out-Null
+          Set-Content (Join-Path $fixture "Module.swift") "#if os(Windows)`n@ExpoModule`npublic final class WindowsModule {}`n#endif"
+          @'
+          const path = require('node:path');
+          const { scanModules } = require(path.resolve('build'));
+          scanModules([process.argv[2]]).then((result) => {
+            const module = result.modules.find((candidate) => candidate.name === 'WindowsModule');
+            if (!module || module.platforms.join() !== 'Windows') {
+              console.error(JSON.stringify(result, null, 2));
+              process.exit(1);
+            }
+            console.log(`scanModules reported ${module.name} on ${module.platforms.join(', ')}`);
+          }, (error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          '@ | Set-Content (Join-Path $env:RUNNER_TEMP "scan-check.js")
+          node (Join-Path $env:RUNNER_TEMP "scan-check.js") $fixture

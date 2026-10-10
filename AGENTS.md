@@ -26,7 +26,7 @@ npm run typecheck                    # TypeScript wrapper
 npm run build                        # release binary (slow; on macOS uses Rosetta for x86_64)
 ```
 
-CI (`.github/workflows/swift.yml`) runs on macOS and on Windows (x64 and arm64). Each job builds and tests the package, runs `MacroConsumer`, builds the release binary, and checks that it starts and that the compiler loads it as a plugin. On Windows it also scans through the TypeScript wrapper. A last job checks which binaries `npm pack` would ship. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
+CI runs on macOS (`.github/workflows/swift.yml`) and on Windows x64 and arm64 (`.github/workflows/windows.yml`). Each job builds and tests the package, runs `MacroConsumer`, builds the release binary, and checks that it starts and that the compiler loads it as a plugin. On Windows it also scans through the TypeScript wrapper. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
 
 ## Windows
 
