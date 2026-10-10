@@ -123,7 +123,7 @@ The macOS binary is committed to the repository. The Windows binaries aren't, un
 
 # Releasing
 
-The **Publish** workflow is manual (`workflow_dispatch`) and takes a release type. It bumps the version, builds the universal macOS binary, and publishes to npm through OIDC trusted publishing. The commit, tag and GitHub release are created only after the publish succeeds, so a failed build leaves the branch untouched. The steps that would also build and ship the Windows binaries are commented out in the workflow for now.
+The **Publish** workflow is manual (`workflow_dispatch`) and takes a release type. It bumps the version, builds the universal binary, and publishes to npm through OIDC trusted publishing. The commit, tag and GitHub release are created only after the publish succeeds, so a failed build leaves the branch untouched.
 
 # Contributing
 
