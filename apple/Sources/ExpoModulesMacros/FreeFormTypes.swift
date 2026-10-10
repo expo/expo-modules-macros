@@ -30,14 +30,16 @@ private let freeFormDecodeMethods: [String: String] = [
   "[String:Any]": "decodeAnyDictionary",
 ]
 
-/// The type-safe alternative a free-form type's diagnostic steers to: `JavaScriptValue`, which
-/// conforms to the codable protocols and keeps the array or object unconverted. It is non-copyable, so
-/// it cannot be an element of a Swift array or dictionary; the same single value stands in for every
-/// free-form shape. Keyed by the free-form type's normalized spelling.
+/// The type-safe alternative a free-form type's diagnostic steers to: the JS wrapper of the same shape
+/// (`JavaScriptArray` for an array, `JavaScriptObject` for a dictionary, `JavaScriptValue` for an
+/// untyped value). The wrappers conform to the codable protocols and keep the value unconverted; a
+/// non-copyable `JavaScriptValue` cannot be an element of a Swift array or dictionary, so the container
+/// shapes map to a wrapper rather than to a container of values. Keyed by the free-form type's
+/// normalized spelling.
 private let typedFreeFormReplacements: [String: String] = [
   "Any": "JavaScriptValue",
-  "[Any]": "JavaScriptValue",
-  "[String:Any]": "JavaScriptValue",
+  "[Any]": "JavaScriptArray",
+  "[String:Any]": "JavaScriptObject",
 ]
 
 /// True when a boundary type (as written) is one of the free-form spellings, ignoring internal
@@ -55,8 +57,8 @@ internal func freeFormDecodeMethod(for type: String) -> String? {
   return freeFormDecodeMethods[normalizedTypeSpelling(type)]
 }
 
-/// The type-safe alternative to suggest in place of a free-form type (its `Any` element replaced by
-/// `JavaScriptValue`), or `nil` when the type isn't free-form.
+/// The type-safe alternative to suggest in place of a free-form type (the JS wrapper of the same shape),
+/// or `nil` when the type isn't free-form.
 internal func typedFreeFormReplacement(for type: String) -> String? {
   return typedFreeFormReplacements[normalizedTypeSpelling(type)]
 }

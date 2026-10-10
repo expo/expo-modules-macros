@@ -323,7 +323,7 @@ struct SharedObjectMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Prefer 'JavaScriptValue' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); the 'JavaScriptValue' element keeps each value inspectable without erasing it.",
+            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
           line: 5,
           column: 16,
           severity: .warning

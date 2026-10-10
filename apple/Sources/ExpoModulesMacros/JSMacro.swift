@@ -156,10 +156,8 @@ private func diagnoseFreeFormTypes(
   }
 }
 
-/// The tail of a free-form encode error: the reshaped alternative when the type-safe replacement differs
-/// from the plain `JavaScriptValue` passthrough, otherwise the passthrough suggestion. `JavaScriptValue`
-/// is non-copyable and cannot be a container element, so today every free-form shape resolves to the
-/// passthrough suggestion.
+/// The tail of a free-form encode error: the typed wrapper of the same shape (`JavaScriptArray`,
+/// `JavaScriptObject`) when there is one, otherwise the plain `JavaScriptValue` passthrough suggestion.
 private func suggestedAlternative(for freeFormType: String) -> String {
   if let reshaped = typedFreeFormReplacement(for: freeFormType), reshaped != "JavaScriptValue" {
     return "Use '\(reshaped)', or 'JavaScriptValue' to pass a JS value through unchanged."
@@ -190,7 +188,7 @@ private func freeFormArgumentWarning(
   suggesting suggestedType: String
 ) -> JSDiagnosticMessage {
   return JSDiagnosticMessage(
-    "Prefer '\(suggestedType)' over the free-form '\(freeFormType)' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); the 'JavaScriptValue' element keeps each value inspectable without erasing it.",
+    "Prefer '\(suggestedType)' over the free-form '\(freeFormType)' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); '\(suggestedType)' keeps the JS value inspectable without converting it.",
     id: "js-free-form-argument",
     severity: .warning
   )
