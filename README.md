@@ -124,6 +124,8 @@ The **Publish** workflow is manual (`workflow_dispatch`) and takes a release typ
 
 Windows jobs (x64 and arm64) build the `.exe` files first. After the version bump, `scripts/set-platform-versions.js` gives the packages in `platforms/` the same version and lists them in this package's `optionalDependencies` with that exact version. The workflow publishes the two Windows packages before `expo-modules-macros`, so this package is never on npm without them. Each package needs trusted publishing configured on npmjs.com for the Publish workflow.
 
+Prerelease versions (`prepatch`, `preminor`, `premajor`, `prerelease`) are published with the `next` dist-tag, and the others with `latest`. With **Dry run** checked, the workflow builds everything and runs `npm publish --dry-run` for the three packages, but doesn't publish, commit, tag or create a release. Use it to check a change to the workflow.
+
 # Contributing
 
 Contributions are very welcome! Please refer to the guidelines described in the [contributing guide](https://github.com/expo/expo#contributing).
