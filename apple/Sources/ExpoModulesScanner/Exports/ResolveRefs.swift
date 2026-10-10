@@ -1,5 +1,3 @@
-import Foundation
-
 /// Fills in each `.ref`'s `refKind` once the whole scan is done.
 ///
 /// A `TypeNode` is parsed from one `TypeSyntax` in isolation, so at parse time a name like `Status` is

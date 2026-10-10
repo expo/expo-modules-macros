@@ -56,11 +56,16 @@ export class ScannerSchemaVersionError extends Error {
 }
 
 /**
- * Absolute path to the scanner binary shipped with this package. It doubles as the macro plugin
- * executable, so it lives next to the Swift package rather than in a `bin` directory.
+ * Absolute path to the scanner binary shipped with this package for the current platform. It doubles
+ * as the macro plugin executable, so it lives next to the Swift package rather than in a `bin`
+ * directory. macOS has one universal binary. On Windows it is the executable for the current
+ * architecture (`ExpoModulesMacros-x64.exe` or `ExpoModulesMacros-arm64.exe`), which `npm run build`
+ * builds locally: the published package doesn't include the Windows binaries yet.
  */
 export function getScannerBinaryPath(): string {
-  return path.join(__dirname, '..', 'apple', 'ExpoModulesMacros');
+  const binaryName =
+    process.platform === 'win32' ? `ExpoModulesMacros-${process.arch}.exe` : 'ExpoModulesMacros';
+  return path.join(__dirname, '..', 'apple', binaryName);
 }
 
 /**

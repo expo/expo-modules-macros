@@ -1,5 +1,3 @@
-import Foundation
-
 /// The deep-scan surface: the full JS-exported shape of every `@ExpoModule`, `@SharedObject`, and
 /// `@Record` type, with the per-member detail a TypeScript type generator needs. Read syntactically
 /// (like the macros): each boundary type becomes a structured `TypeNode` tree so the consumer walks a

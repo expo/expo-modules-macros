@@ -23,6 +23,11 @@ struct ScanBuildConfiguration: BuildConfiguration {
     return name.lowercased() == platform.lowercased()
   }
 
+  /// The scan evaluates only Apple OSes, which all produce Mach-O, as `objectFormat(...)` spells it.
+  func isActiveTargetObjectFormat(name: String) throws -> Bool {
+    return name == "MachO"
+  }
+
   // MARK: - Unanswerable conditions
 
   // These vary within a single platform's build (device vs simulator, arm64 vs x86_64) or depend

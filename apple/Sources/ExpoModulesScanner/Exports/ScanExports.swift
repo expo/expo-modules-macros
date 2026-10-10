@@ -1,4 +1,8 @@
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SwiftParser
 import SwiftSyntax
 
@@ -12,11 +16,10 @@ extension Scanner {
       let encoder = JSONEncoder()
       encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
       let data = try encoder.encode(result)
-      FileHandle.standardOutput.write(data)
-      FileHandle.standardOutput.write(Data("\n".utf8))
+      writeToStandardOutput(String(decoding: data, as: UTF8.self) + "\n")
       return 0
     } catch {
-      FileHandle.standardError.write(Data("error: failed to encode results: \(error)\n".utf8))
+      writeToStandardError("error: failed to encode results: \(error)\n")
       return 1
     }
   }

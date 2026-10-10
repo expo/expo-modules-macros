@@ -1,4 +1,3 @@
-import Foundation
 import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
@@ -248,8 +247,20 @@ private struct ViewProp {
   /// The name with any escaping backticks removed: the JS-visible key, so the enum's raw value and
   /// `_eventNames` both read `"default"`, never `` "`default`" ``.
   var wireName: String {
-    return name.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
+    return withoutBackticks(name)
   }
+}
+
+/// `name` without the backticks that escape it: `` `default` `` becomes `default`.
+private func withoutBackticks(_ name: String) -> String {
+  var name = Substring(name)
+  while name.first == "`" {
+    name.removeFirst()
+  }
+  while name.last == "`" {
+    name.removeLast()
+  }
+  return String(name)
 }
 
 private struct ViewPropsModel {
@@ -344,7 +355,7 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       // `PropSet` stores its mask in `rawValue`, so a value prop of that name would emit a static
       // member shadowing it and the option set would not compile ("circular reference"). The error
       // would point at generated code, so catch it here and name the property.
-      if !isEvent && name.trimmingCharacters(in: CharacterSet(charactersIn: "`")) == "rawValue" {
+      if !isEvent && withoutBackticks(name) == "rawValue" {
         throw MacroExpansionErrorMessage(
           "'rawValue' can't be used as a prop name — it collides with the synthesized PropSet's storage. Rename the property"
         )
