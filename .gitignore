@@ -1,5 +1,7 @@
 .claude
 apple/.build
+# Built by `npm run build` on Windows, not published yet
+apple/ExpoModulesMacros-*.exe
 apple/.swiftpm
 build
 node_modules
