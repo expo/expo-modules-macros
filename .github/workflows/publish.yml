@@ -110,7 +110,7 @@ jobs:
           echo "Bumping to $version"
           # The platform packages get the same version, and `expo-modules-macros` lists them as
           # optional dependencies with that exact version.
-          node platforms/set-version.js
+          node scripts/set-platform-versions.js
 
       - name: Select Xcode
         # Pin to an Xcode that ships Swift 6.2 (required by Package.swift).

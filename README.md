@@ -122,7 +122,7 @@ The macOS binary is committed to the repository. The Windows binaries aren't: th
 
 The **Publish** workflow is manual (`workflow_dispatch`) and takes a release type. It bumps the version, builds the universal binary, and publishes to npm through OIDC trusted publishing. The commit, tag and GitHub release are created only after the publish succeeds, so a failed build leaves the branch untouched.
 
-Windows jobs (x64 and arm64) build the `.exe` files first. After the version bump, `platforms/set-version.js` gives the packages in `platforms/` the same version and lists them in this package's `optionalDependencies` with that exact version. The workflow publishes the two Windows packages before `expo-modules-macros`, so this package is never on npm without them. Each package needs trusted publishing configured on npmjs.com for the Publish workflow.
+Windows jobs (x64 and arm64) build the `.exe` files first. After the version bump, `scripts/set-platform-versions.js` gives the packages in `platforms/` the same version and lists them in this package's `optionalDependencies` with that exact version. The workflow publishes the two Windows packages before `expo-modules-macros`, so this package is never on npm without them. Each package needs trusted publishing configured on npmjs.com for the Publish workflow.
 
 # Contributing
 

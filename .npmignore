@@ -11,3 +11,4 @@
 
 # The Windows binaries ship in their own packages, from /platforms.
 /platforms/**/*
+/scripts/**/*

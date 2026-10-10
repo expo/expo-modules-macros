@@ -9,7 +9,7 @@
 - `apple/Sources/ExpoModulesScanner`: the scanner library. `Modules/` implements `scan-modules` (autolinking), `Exports/` implements `scan-exports` (type generation), `Core/` holds the shared parsing and `#if` evaluation, and `CLI.swift` is the command-line front end.
 - `apple/Sources/ExpoModulesOptimized`: declarations for the `@OptimizedFunction` macro.
 - `apple/Tests`: `ExpoModulesMacrosTests` (expansion tests) and `ExpoModulesScannerTests`.
-- `platforms/`: the Windows packages `@expo/modules-macros-win32-x64` and `-arm64` (a `package.json` with `os` and `cpu`, and a README), and `set-version.js`, which the Publish workflow runs to give them the version of this package. Their `ExpoModulesMacros.exe` is added at publish time and isn't committed.
+- `platforms/`: the Windows packages `@expo/modules-macros-win32-x64` and `-arm64` (a `package.json` with `os` and `cpu`, and a README). The Publish workflow runs `scripts/set-platform-versions.js` to give them the version of this package. Their `ExpoModulesMacros.exe` is added at publish time and isn't committed.
 - `apple/PodTests`: a stub test so that `expo/expo` native tests can install this package as a pod. Do not add real tests here.
 - `src/`: the TypeScript wrapper around the scanner CLI. `types.ts` mirrors the Swift `Codable` output types by hand.
 - `apple/build.js`: builds the release binaries under `apple/`: the universal macOS `ExpoModulesMacros` (committed and published), and on Windows `ExpoModulesMacros-<arch>.exe` for the host architecture (not committed; published in the packages from `platforms/`).
