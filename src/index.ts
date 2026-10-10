@@ -56,16 +56,50 @@ export class ScannerSchemaVersionError extends Error {
 }
 
 /**
- * Absolute path to the scanner binary shipped with this package for the current platform. It doubles
- * as the macro plugin executable, so it lives next to the Swift package rather than in a `bin`
- * directory. macOS has one universal binary. On Windows it is the executable for the current
- * architecture (`ExpoModulesMacros-x64.exe` or `ExpoModulesMacros-arm64.exe`), which `npm run build`
- * builds locally: the published package doesn't include the Windows binaries yet.
+ * The package with the Windows binary for the current architecture, for example
+ * `@expo/modules-macros-win32-x64`. It is an optional dependency of this package, and its `os` and
+ * `cpu` fields make package managers install it only on a matching Windows machine.
+ */
+function windowsBinaryPackageName(): string {
+  return `@expo/modules-macros-win32-${process.arch}`;
+}
+
+/**
+ * Absolute path to the scanner binary for the current platform. It doubles as the macro plugin
+ * executable.
+ *
+ * - macOS: the universal binary shipped in this package, next to the Swift package rather than in a
+ *   `bin` directory.
+ * - Windows: `ExpoModulesMacros.exe` from the package for the current architecture (see
+ *   `windowsBinaryPackageName`). When that package isn't installed, for example in this repository,
+ *   it falls back to the executable that `npm run build` writes to `apple/`.
+ *
+ * The path isn't checked here; running a missing binary fails with a `ScannerError` that says how to
+ * get it.
  */
 export function getScannerBinaryPath(): string {
-  const binaryName =
-    process.platform === 'win32' ? `ExpoModulesMacros-${process.arch}.exe` : 'ExpoModulesMacros';
-  return path.join(__dirname, '..', 'apple', binaryName);
+  if (process.platform !== 'win32') {
+    return path.join(__dirname, '..', 'apple', 'ExpoModulesMacros');
+  }
+  try {
+    const packageJson = require.resolve(`${windowsBinaryPackageName()}/package.json`);
+    return path.join(path.dirname(packageJson), 'ExpoModulesMacros.exe');
+  } catch {
+    return path.join(__dirname, '..', 'apple', `ExpoModulesMacros-${process.arch}.exe`);
+  }
+}
+
+/** The message for a scanner binary that doesn't exist at `binaryPath`. */
+function missingBinaryMessage(binaryPath: string): string {
+  if (process.platform === 'win32') {
+    return (
+      `The scanner binary is missing at ${binaryPath}. On Windows it comes from the optional package ` +
+      `${windowsBinaryPackageName()}, which your package manager installs only on Windows x64 and arm64. ` +
+      'Reinstall dependencies without skipping optional ones (for example without `--omit=optional`), ' +
+      'or run `npm run build` in this package to build it locally.'
+    );
+  }
+  return `The scanner binary is missing at ${binaryPath}. Run \`npm run build\` in this package to build it.`;
 }
 
 /**
@@ -112,7 +146,7 @@ function runScanner<T>(binaryPath: string, args: string[]): Promise<T> {
           if (error.code === 'ENOENT') {
             reject(
               new ScannerError(
-                `The scanner binary is missing at ${binaryPath}. Run \`npm run build\` in this package to build it.`,
+                missingBinaryMessage(binaryPath),
                 null,
                 stderr
               )

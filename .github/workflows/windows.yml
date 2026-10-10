@@ -84,13 +84,37 @@ jobs:
           & $exe --help | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "The scanner CLI exited with $LASTEXITCODE" }
 
+      - name: Pack the platform package
+        # Puts the release tool into `platforms/win32-<arch>` the way the Publish workflow does, and
+        # checks what `npm pack` would publish: the executable, the README and the manifest, with the
+        # `os` and `cpu` fields for this machine.
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          $package = "platforms/win32-${{ matrix.arch }}"
+          Copy-Item "apple/ExpoModulesMacros-${{ matrix.arch }}.exe" "$package/ExpoModulesMacros.exe"
+          $pack = npm pack $package --pack-destination $env:RUNNER_TEMP --json | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "npm pack failed" }
+          $files = ($pack[0].files | ForEach-Object { $_.path } | Sort-Object) -join ","
+          Write-Host "$($pack[0].filename): $files ($($pack[0].size) bytes packed)"
+          if ($files -ne "ExpoModulesMacros.exe,package.json,README.md") { throw "Unexpected files: $files" }
+          $manifest = Get-Content "$package/package.json" -Raw | ConvertFrom-Json
+          if (($manifest.os -join ",") -ne "win32" -or ($manifest.cpu -join ",") -ne "${{ matrix.arch }}") {
+            throw "Unexpected os/cpu: $($manifest.os) / $($manifest.cpu)"
+          }
+          "PLATFORM_PACKAGE_TARBALL=$(Join-Path $env:RUNNER_TEMP $pack[0].filename)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Scan through the TypeScript wrapper
-        # Checks that the wrapper finds the Windows binary and reads its output.
+        # Installs the packed platform package and removes the local build, so the wrapper must find
+        # the executable in `@expo/modules-macros-win32-<arch>`, as it would in a project.
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
           npm install
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --no-save $env:PLATFORM_PACKAGE_TARBALL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item "apple/ExpoModulesMacros-${{ matrix.arch }}.exe"
           npm run build:ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $fixture = Join-Path $env:RUNNER_TEMP "scan-fixture"
@@ -98,7 +122,14 @@ jobs:
           Set-Content (Join-Path $fixture "Module.swift") "@ExpoModule`npublic final class WindowsModule {}"
           @'
           const path = require('node:path');
-          const { scanModules } = require(path.resolve('build'));
+          const { getScannerBinaryPath, scanModules } = require(path.resolve('build'));
+          const binaryPath = getScannerBinaryPath();
+          const expected = path.join('node_modules', '@expo', `modules-macros-win32-${process.arch}`, 'ExpoModulesMacros.exe');
+          if (!binaryPath.endsWith(expected)) {
+            console.error(`getScannerBinaryPath() returned ${binaryPath}, not a path ending in ${expected}`);
+            process.exit(1);
+          }
+          console.log(`getScannerBinaryPath() returned ${binaryPath}`);
           scanModules([process.argv[2]]).then((result) => {
             const module = result.modules.find((candidate) => candidate.name === 'WindowsModule');
             if (!module) {
