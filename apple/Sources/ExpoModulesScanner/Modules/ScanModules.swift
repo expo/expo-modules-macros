@@ -54,7 +54,7 @@ struct ScannedModule: Codable, Equatable {
   /// classes with a diagnostic instead of emitting a provider that fails to compile.
   let accessLevel: String
 
-  /// The OSes whose builds include this class, spelled as `os(...)` spells them and compared
+  /// The Apple OSes whose builds include this class, spelled as `os(...)` spells them and compared
   /// case-sensitively. An unconditional module lists every OS. Empty means no build is known to
   /// include it, because the enclosing conditions depend on flags not asserted with `--define` or
   /// on conditions a static scan cannot answer (those are reported in `warnings`). The consumer
@@ -68,9 +68,8 @@ struct ScannedModule: Codable, Equatable {
 /// Version of the `scan-modules` output shape. Bumped on any breaking change to the envelope or to
 /// `ScannedModule`, so `expo-modules-autolinking` can verify it understands the output before
 /// trusting it (and fall back to config-declared modules when it doesn't). Version 2 added the
-/// per-module `platforms` list and made the module list platform-agnostic. Version 3 added `Windows`
-/// to the platforms.
-let scanModulesSchemaVersion = 3
+/// per-module `platforms` list and made the module list platform-agnostic.
+let scanModulesSchemaVersion = 2
 
 /// The `scan-modules` result: the detected modules plus the stats describing the run. Encoded as the
 /// command's JSON output. (`scan-exports` returns its own `ScanExportsResult` shape; the two commands
@@ -86,7 +85,7 @@ struct ScanModulesResult: Codable, Equatable {
   let stats: ScanStats
 }
 
-/// The OSes a scan attributes modules to: the Apple OSes and Windows. `condition` is what `os(...)` matches; `reported`
+/// The Apple OSes a scan attributes modules to. `condition` is what `os(...)` matches; `reported`
 /// is what the JSON carries. They are identical today, but stated separately so the output
 /// contract cannot drift if the matcher's spelling changes.
 private let platformUniverse: [(condition: String, reported: String)] = [
@@ -95,7 +94,6 @@ private let platformUniverse: [(condition: String, reported: String)] = [
   (condition: "tvOS", reported: "tvOS"),
   (condition: "watchOS", reported: "watchOS"),
   (condition: "visionOS", reported: "visionOS"),
-  (condition: "Windows", reported: "Windows"),
 ]
 
 /// Scans the given paths for top-level `@ExpoModule` types and returns every module found in any

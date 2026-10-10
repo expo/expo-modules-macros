@@ -72,7 +72,7 @@ options (scan-modules only):
   --define <flag>   treat a conditional compilation flag as set; repeatable
 ```
 
-Each path is a `.swift` file or a directory, scanned recursively for `.swift` files. `scan-modules` reports each module's `platforms` from the `#if os(...)` conditions around it: the Apple OSes and `Windows`. Both subcommands print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
+Each path is a `.swift` file or a directory, scanned recursively for `.swift` files. Both subcommands print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
 
 # TypeScript wrapper
 

@@ -8,7 +8,7 @@ import SwiftSyntax
 /// its declarations and surfaces a warning instead of guessing.
 struct ScanBuildConfiguration: BuildConfiguration {
   /// The target OS name to answer `os(...)` with, as spelled in the condition (`iOS`, `macOS`,
-  /// `tvOS`, `watchOS`, `visionOS`, `Windows`; compared case-insensitively). A scan without a target OS runs
+  /// `tvOS`, `watchOS`, `visionOS`; compared case-insensitively). A scan without a target OS runs
   /// without a configuration at all (the platform-agnostic union scan), so this is always known.
   let platform: String
 
@@ -23,11 +23,9 @@ struct ScanBuildConfiguration: BuildConfiguration {
     return name.lowercased() == platform.lowercased()
   }
 
-  /// Answered from the OS, as `objectFormat(...)` spells the formats: Windows builds produce
-  /// COFF, and the Apple OSes produce Mach-O.
+  /// The scan evaluates only Apple OSes, which all produce Mach-O, as `objectFormat(...)` spells it.
   func isActiveTargetObjectFormat(name: String) throws -> Bool {
-    let format = platform.lowercased() == "windows" ? "COFF" : "MachO"
-    return name == format
+    return name == "MachO"
   }
 
   // MARK: - Unanswerable conditions
@@ -76,8 +74,8 @@ struct ScanBuildConfiguration: BuildConfiguration {
 
   // MARK: - Fixed answers
 
-  // Non-throwing protocol requirements, so they need a value. These are constant across the 64-bit
-  // Apple and Windows targets Expo modules compile for, except the versions, which assume a current
+  // Non-throwing protocol requirements, so they need a value. These are constant across Apple
+  // targets (the only ones Expo modules compile for), except the versions, which assume a current
   // toolchain; a module class gated on a *lower* Swift version would be wrongly included, which is
   // rare enough to accept for a scan.
 
@@ -89,7 +87,7 @@ struct ScanBuildConfiguration: BuildConfiguration {
 }
 
 /// The platforms (lowercased, as compared against `--platform`) that ship each of a curated set of
-/// SDK frameworks, so `canImport` of one is answerable from the platform alone. The list is
+/// Apple SDK frameworks, so `canImport` of one is answerable from the platform alone. The list is
 /// deliberately small and high-confidence: it covers the frameworks realistically used to gate a
 /// module class, and a framework missing here degrades to the skip-with-warning path rather than a
 /// wrong answer.
@@ -109,7 +107,6 @@ private let sdkFrameworkPlatforms: [String: Set<String>] = [
   "HealthKit": ["ios", "watchos", "visionos"],
   "HomeKit": ["ios", "tvos", "watchos", "visionos"],
   "WidgetKit": ["ios", "macos", "watchos", "visionos"],
-  "WinSDK": ["windows"],
 ]
 
 /// An unanswerable `#if` condition. SwiftIfConfig converts the thrown error into a diagnostic on
