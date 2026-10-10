@@ -12,7 +12,7 @@
 - `apple/MacroConsumer`: a small program that uses the macros, built by SwiftPM with the plugin loaded (`swift run MacroConsumer`) and, in CI, by `swiftc -load-plugin-executable` against the release binary. Its `Declarations.swift` stubs the `expo-modules-core` declarations it needs. Like the tests, its target is declared only when the directory exists, and it isn't published.
 - `apple/PodTests`: a stub test so that `expo/expo` native tests can install this package as a pod. Do not add real tests here.
 - `src/`: the TypeScript wrapper around the scanner CLI. `types.ts` mirrors the Swift `Codable` output types by hand.
-- `apple/build.js`: builds the release binaries committed under `apple/`: the universal macOS `ExpoModulesMacros`, and on Windows `ExpoModulesMacros-<arch>.exe` for the host architecture.
+- `apple/build.js`: builds the release binaries under `apple/`: the universal macOS `ExpoModulesMacros` (committed and published), and on Windows `ExpoModulesMacros-<arch>.exe` for the host architecture (built and tested in CI, not published yet).
 
 ## Commands
 
@@ -57,10 +57,10 @@ CI (`.github/workflows/swift.yml`) runs on macOS and on Windows (x64 and arm64).
 
 ## Releases
 
-- Do not rebuild or commit the binaries under `apple/` in a feature change. Only the **Publish** workflow (`.github/workflows/publish.yml`, manual) rebuilds them: Windows jobs build the `.exe` files, the macOS job builds the universal binary, and it commits all of them as `Release vX.Y.Z` after the npm publish succeeds.
+- Do not rebuild or commit the binaries under `apple/` in a feature change. Only the **Publish** workflow (`.github/workflows/publish.yml`, manual) rebuilds them: the macOS job builds the universal binary and commits it as `Release vX.Y.Z` after the npm publish succeeds. Its Windows parts (a job per architecture that builds the `.exe` files, and the steps that add them to the package) are commented out until the Windows binaries ship.
 - Do not edit the `version` in `package.json` by hand. The Publish workflow bumps it.
 - Commit and PR titles are short and imperative, with code identifiers in backticks, for example ``Report `@Union` types in `scan-exports` ``.
 
 ## Installed copies
 
-In `node_modules`, the compiler runs the prebuilt binary `apple/ExpoModulesMacros` (or `apple/ExpoModulesMacros-<arch>.exe` on Windows); editing the Swift sources there has no effect. Macro and scanner fixes belong in this repository and ship in a new release. The TypeScript wrapper ships compiled in `build/`, since `src/` is not published.
+In `node_modules`, the compiler runs the prebuilt binary `apple/ExpoModulesMacros` (on Windows it will be `apple/ExpoModulesMacros-<arch>.exe`, once published); editing the Swift sources there has no effect. Macro and scanner fixes belong in this repository and ship in a new release. The TypeScript wrapper ships compiled in `build/`, since `src/` is not published.

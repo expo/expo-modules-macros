@@ -13,10 +13,9 @@ The same executable doubles as a source scanner CLI.
 
 # Installation
 
-This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains prebuilt binaries, so consumers never build the plugin themselves:
+This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains a prebuilt universal (arm64 + x86_64) macOS binary at `apple/ExpoModulesMacros`, so consumers never build the plugin themselves.
 
-- `apple/ExpoModulesMacros`: a universal (arm64 + x86_64) macOS binary.
-- `apple/ExpoModulesMacros-x64.exe` and `apple/ExpoModulesMacros-arm64.exe`: Windows binaries. The Swift runtime is linked in statically, so they run without a Swift toolchain; they need only Windows system libraries and the Microsoft Visual C++ runtime.
+The Windows binaries (`apple/ExpoModulesMacros-x64.exe` and `apple/ExpoModulesMacros-arm64.exe`) build and are tested in CI, but aren't published yet. The Swift runtime is linked in statically, so they run without a Swift toolchain; they need only Windows system libraries and the Microsoft Visual C++ runtime.
 
 # Macros
 
@@ -98,7 +97,7 @@ The binary is a compiled executable, so each call still spawns a process. What t
 
 to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and their test specs. Expo's SPM prebuilds pass the same flag when they generate `Package.swift`, so both build systems load the same binary.
 
-On Windows, the compiler loads `apple/ExpoModulesMacros-<arch>.exe` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture.
+On Windows, the compiler loads `apple/ExpoModulesMacros-<arch>.exe` with the same flag, once the package ships it. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture.
 
 The module and type names in `#externalMacro` must stay in sync with `apple/Sources/ExpoModulesMacros/Plugin.swift`.
 
@@ -120,11 +119,11 @@ swift run MacroConsumer
 - On macOS, it builds for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing.
 - On Windows, it builds for the host architecture only, with the Swift runtime linked in statically and without debug info, and writes `apple/ExpoModulesMacros-<arch>.exe` (`x64` or `arm64`, as Node's `process.arch` names them). It strips the executable with `llvm-strip` from the Swift toolchain and checks the architecture in its header.
 
-The resulting binaries are committed to the repository.
+The macOS binary is committed to the repository. The Windows binaries aren't, until they are published.
 
 # Releasing
 
-The **Publish** workflow is manual (`workflow_dispatch`) and takes a release type. It builds the Windows binaries on a Windows runner per architecture, then bumps the version, builds the universal macOS binary, and publishes to npm through OIDC trusted publishing. The commit, tag and GitHub release are created only after the publish succeeds, so a failed build leaves the branch untouched.
+The **Publish** workflow is manual (`workflow_dispatch`) and takes a release type. It bumps the version, builds the universal macOS binary, and publishes to npm through OIDC trusted publishing. The commit, tag and GitHub release are created only after the publish succeeds, so a failed build leaves the branch untouched. The steps that would also build and ship the Windows binaries are commented out in the workflow for now.
 
 # Contributing
 

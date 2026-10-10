@@ -187,8 +187,9 @@ jobs:
 
   package:
     name: Package contents
-    # Puts the Windows tools next to the committed macOS binary, the way the Publish workflow does,
-    # and checks what `npm pack` would ship.
+    # Puts the Windows tools next to the committed macOS binary, the way the Publish workflow will
+    # once it ships them (its Windows steps are commented out for now), and checks what `npm pack`
+    # would ship.
     needs: windows
     runs-on: ubuntu-latest
     steps:
