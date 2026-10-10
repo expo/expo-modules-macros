@@ -3,7 +3,6 @@
 
 /apple/.build/**/*
 /apple/Tests/**/*
-/apple/MacroConsumer/**/*
 
 # The TypeScript wrapper ships compiled, from /build.
 /src/**/*

@@ -109,10 +109,7 @@ Requires a toolchain with Swift 6.2 or newer: on macOS 13 or newer that means Xc
 cd apple
 swift build
 swift test
-swift run MacroConsumer
 ```
-
-`MacroConsumer` is a small program that uses the macros like a client target does: SwiftPM builds the plugin as its dependency and loads it into the compiler. CI also compiles it with `swiftc -load-plugin-executable` against the release binary.
 
 `npm run build` runs `apple/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
 

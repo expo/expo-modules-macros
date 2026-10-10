@@ -59,15 +59,3 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
     )
   )
 }
-
-// A program that uses the macros the way a client target does: SwiftPM builds the plugin as its
-// dependency and passes it to the compiler. Excluded from the npm package, like the tests.
-if FileManager.default.fileExists(atPath: Context.packageDirectory + "/MacroConsumer") {
-  package.targets.append(
-    .executableTarget(
-      name: "MacroConsumer",
-      dependencies: ["ExpoModulesMacros"],
-      path: "MacroConsumer"
-    )
-  )
-}

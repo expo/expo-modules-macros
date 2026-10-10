@@ -9,7 +9,6 @@
 - `apple/Sources/ExpoModulesScanner`: the scanner library. `Modules/` implements `scan-modules` (autolinking), `Exports/` implements `scan-exports` (type generation), `Core/` holds the shared parsing and `#if` evaluation, and `CLI.swift` is the command-line front end.
 - `apple/Sources/ExpoModulesOptimized`: declarations for the `@OptimizedFunction` macro.
 - `apple/Tests`: `ExpoModulesMacrosTests` (expansion tests) and `ExpoModulesScannerTests`.
-- `apple/MacroConsumer`: a small program that uses the macros, built by SwiftPM with the plugin loaded (`swift run MacroConsumer`) and, in CI, by `swiftc -load-plugin-executable` against the release binary. Its `Declarations.swift` stubs the `expo-modules-core` declarations it needs. Like the tests, its target is declared only when the directory exists, and it isn't published.
 - `apple/PodTests`: a stub test so that `expo/expo` native tests can install this package as a pod. Do not add real tests here.
 - `src/`: the TypeScript wrapper around the scanner CLI. `types.ts` mirrors the Swift `Codable` output types by hand.
 - `apple/build.js`: builds the release binaries under `apple/`: the universal macOS `ExpoModulesMacros` (committed and published), and on Windows `ExpoModulesMacros-<arch>.exe` for the host architecture (built and tested in CI, not published yet).
@@ -19,14 +18,13 @@
 Swift 6.2 is required (Xcode 26 or newer on macOS).
 
 ```sh
-cd apple && swift build              # debug build
-cd apple && swift test               # all Swift tests
-cd apple && swift run MacroConsumer  # build and run a client of the macros
-npm run typecheck                    # TypeScript wrapper
-npm run build                        # release binary (slow; on macOS uses Rosetta for x86_64)
+cd apple && swift build      # debug build
+cd apple && swift test       # all Swift tests
+npm run typecheck            # TypeScript wrapper
+npm run build                # release binary (slow; on macOS uses Rosetta for x86_64)
 ```
 
-CI runs on macOS (`.github/workflows/swift.yml`) and on Windows x64 and arm64 (`.github/workflows/windows.yml`). Each job builds and tests the package, runs `MacroConsumer`, builds the release binary, and checks that it starts and that the compiler loads it as a plugin. On Windows it also scans through the TypeScript wrapper. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
+CI runs on macOS (`.github/workflows/swift.yml`) and on Windows x64 and arm64 (`.github/workflows/windows.yml`). On macOS it runs the release build, checks both binary slices, then runs `swift test` and `npm run typecheck`. On Windows it builds and tests the package, builds the release binary, checks that it starts without the Swift runtime, and scans through the TypeScript wrapper. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
 
 ## Windows
 

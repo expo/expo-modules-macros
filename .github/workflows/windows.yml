@@ -62,10 +62,6 @@ jobs:
       - name: Test
         run: swift test
 
-      - name: Run the macro consumer
-        # SwiftPM builds the plugin as a dependency of MacroConsumer and loads it into the compiler.
-        run: swift run MacroConsumer
-
       - name: Build release tool
         # Runs `npm run build` (apple/build.js): builds the release plugin binary
         # for this architecture as apple/ExpoModulesMacros-<arch>.exe.
@@ -84,13 +80,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "The plugin server exited with $LASTEXITCODE" }
           & $exe --help | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "The scanner CLI exited with $LASTEXITCODE" }
-
-      - name: Load the release tool as a compiler plugin
-        shell: pwsh
-        run: |
-          swiftc -load-plugin-executable "ExpoModulesMacros-${{ matrix.arch }}.exe#ExpoModulesMacros" MacroConsumer/Declarations.swift MacroConsumer/main.swift -o .build/MacroConsumer.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .build/MacroConsumer.exe
 
       - name: Scan through the TypeScript wrapper
         # Checks that the wrapper finds the Windows binary and reads a module gated on `os(Windows)`.

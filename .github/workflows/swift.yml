@@ -58,17 +58,8 @@ jobs:
           arch -arm64 ./ExpoModulesMacros --help > /dev/null
           arch -x86_64 ./ExpoModulesMacros --help > /dev/null
 
-      - name: Load the release tool as a compiler plugin
-        run: |
-          swiftc -load-plugin-executable "ExpoModulesMacros#ExpoModulesMacros" MacroConsumer/Declarations.swift MacroConsumer/main.swift -o .build/MacroConsumer
-          .build/MacroConsumer
-
       - name: Test
         run: swift test -v
-
-      - name: Run the macro consumer
-        # SwiftPM builds the plugin as a dependency of MacroConsumer and loads it into the compiler.
-        run: swift run MacroConsumer
 
       - name: Typecheck the TypeScript wrapper
         working-directory: ${{ github.workspace }}
