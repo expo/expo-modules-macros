@@ -47,12 +47,12 @@ jobs:
           build_arch: ${{ matrix.build_arch }}
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Cache SwiftPM build
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apple/.build
           key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('apple/Package.resolved') }}
