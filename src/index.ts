@@ -72,7 +72,7 @@ function windowsBinaryPackageName(): string {
  *   `bin` directory.
  * - Windows: `ExpoModulesMacros.exe` from the package for the current architecture (see
  *   `windowsBinaryPackageName`). When that package isn't installed, for example in this repository,
- *   it falls back to the executable that `npm run build` writes to `apple/`.
+ *   it falls back to the executable that `npm run build` writes to `platforms/win32-<arch>`.
  *
  * The path isn't checked here; running a missing binary fails with a `ScannerError` that says how to
  * get it.
@@ -85,7 +85,7 @@ export function getScannerBinaryPath(): string {
     const packageJson = require.resolve(`${windowsBinaryPackageName()}/package.json`);
     return path.join(path.dirname(packageJson), 'ExpoModulesMacros.exe');
   } catch {
-    return path.join(__dirname, '..', 'apple', `ExpoModulesMacros-${process.arch}.exe`);
+    return path.join(__dirname, '..', 'platforms', `win32-${process.arch}`, 'ExpoModulesMacros.exe');
   }
 }
 

@@ -66,8 +66,8 @@ jobs:
         run: swift test
 
       - name: Build release tool
-        # Runs `npm run build` (apple/build.js): builds the release plugin binary
-        # for this architecture as apple/ExpoModulesMacros-<arch>.exe.
+        # Runs `npm run build` (scripts/build.js): builds the release plugin binary for this
+        # architecture as platforms/win32-<arch>/ExpoModulesMacros.exe.
         working-directory: ${{ github.workspace }}
         run: npm run build
 
@@ -77,7 +77,7 @@ jobs:
         # is the scanner CLI.
         shell: pwsh
         run: |
-          $exe = (Resolve-Path "ExpoModulesMacros-${{ matrix.arch }}.exe").Path
+          $exe = (Resolve-Path "../platforms/win32-${{ matrix.arch }}/ExpoModulesMacros.exe").Path
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           cmd /c "`"$exe`" < NUL"
           if ($LASTEXITCODE -ne 0) { throw "The plugin server exited with $LASTEXITCODE" }
@@ -85,14 +85,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "The scanner CLI exited with $LASTEXITCODE" }
 
       - name: Pack the platform package
-        # Puts the release tool into `platforms/win32-<arch>` the way the Publish workflow does, and
-        # checks what `npm pack` would publish: the executable, the README and the manifest, with the
-        # `os` and `cpu` fields for this machine.
+        # Checks what `npm pack` would publish from `platforms/win32-<arch>`, where the release build
+        # put the tool: the executable, the README and the manifest, with the `os` and `cpu` fields
+        # for this machine.
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
           $package = "platforms/win32-${{ matrix.arch }}"
-          Copy-Item "apple/ExpoModulesMacros-${{ matrix.arch }}.exe" "$package/ExpoModulesMacros.exe"
           $pack = npm pack $package --pack-destination $env:RUNNER_TEMP --json | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw "npm pack failed" }
           $files = ($pack[0].files | ForEach-Object { $_.path } | Sort-Object) -join ","
@@ -105,8 +104,8 @@ jobs:
           "PLATFORM_PACKAGE_TARBALL=$(Join-Path $env:RUNNER_TEMP $pack[0].filename)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Scan through the TypeScript wrapper
-        # Installs the packed platform package and removes the local build, so the wrapper must find
-        # the executable in `@expo/modules-macros-win32-<arch>`, as it would in a project.
+        # Installs the packed platform package. The wrapper must find the executable in
+        # `@expo/modules-macros-win32-<arch>`, as it would in a project, not the local build.
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
@@ -114,7 +113,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm install --no-save $env:PLATFORM_PACKAGE_TARBALL
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Remove-Item "apple/ExpoModulesMacros-${{ matrix.arch }}.exe"
           npm run build:ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $fixture = Join-Path $env:RUNNER_TEMP "scan-fixture"

@@ -1,11 +1,9 @@
 .claude
 apple/.build
-# Built by `npm run build` on Windows. The published copies go into `platforms/`.
-apple/ExpoModulesMacros-*.exe
 apple/.swiftpm
 build
 node_modules
 package-lock.json
 
-# Placed here by the Publish workflow and the Windows CI, not committed
+# Built by `npm run build` on Windows, and published in its package, not committed
 platforms/*/ExpoModulesMacros.exe

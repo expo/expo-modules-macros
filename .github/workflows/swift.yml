@@ -40,7 +40,7 @@ jobs:
         run: swift package resolve
 
       - name: Build release tool
-        # Runs `npm run build` (apple/build.js): builds the universal
+        # Runs `npm run build` (scripts/build.js): builds the universal
         # (arm64 + x86_64) release plugin binary, copies it to
         # apple/ExpoModulesMacros, and strips it.
         working-directory: ${{ github.workspace }}

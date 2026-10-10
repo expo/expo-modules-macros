@@ -97,7 +97,7 @@ The binary is a compiled executable, so each call still spawns a process. What t
 
 to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and their test specs. Expo's SPM prebuilds pass the same flag when they generate `Package.swift`, so both build systems load the same binary.
 
-On Windows, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows it falls back to the local `npm run build` output in `apple/` when the platform package isn't installed, for example in this repository.
+On Windows, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows it falls back to the local `npm run build` output in `platforms/win32-<arch>` when the platform package isn't installed, for example in this repository.
 
 The module and type names in `#externalMacro` must stay in sync with `apple/Sources/ExpoModulesMacros/Plugin.swift`.
 
@@ -111,10 +111,10 @@ swift build
 swift test
 ```
 
-`npm run build` runs `apple/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
+`npm run build` runs `scripts/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
 
 - On macOS, it builds for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing.
-- On Windows, it builds for the host architecture only, with the Swift runtime linked in statically and without debug info, and writes `apple/ExpoModulesMacros-<arch>.exe` (`x64` or `arm64`, as Node's `process.arch` names them). It strips the executable with `llvm-strip` from the Swift toolchain and checks the architecture in its header.
+- On Windows, it builds for the host architecture only, with the Swift runtime linked in statically and without debug info, and writes `platforms/win32-<arch>/ExpoModulesMacros.exe` (`x64` or `arm64`, as Node's `process.arch` names them), the file that the package for that architecture publishes. It strips the executable with `llvm-strip` from the Swift toolchain and checks the architecture in its header.
 
 The macOS binary is committed to the repository. The Windows binaries aren't: the Publish workflow builds them and puts them into the packages in `platforms/`.
 
