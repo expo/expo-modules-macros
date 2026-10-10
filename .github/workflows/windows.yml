@@ -91,7 +91,8 @@ jobs:
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
-          $package = "platforms/win32-${{ matrix.arch }}"
+          # The `./` matters: npm reads `platforms/win32-<arch>` as a GitHub repository.
+          $package = "./platforms/win32-${{ matrix.arch }}"
           $pack = npm pack $package --pack-destination $env:RUNNER_TEMP --json | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw "npm pack failed" }
           $files = ($pack[0].files | ForEach-Object { $_.path } | Sort-Object) -join ","
