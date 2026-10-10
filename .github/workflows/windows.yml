@@ -86,8 +86,8 @@ jobs:
 
       - name: Pack the platform package
         # Checks what `npm pack` would publish from `platforms/win32-<arch>`, where the release build
-        # put the tool: the executable, the README and the manifest, with the `os` and `cpu` fields
-        # for this machine.
+        # put the tool: the executable, the README, the license and the manifest, with the `os` and
+        # `cpu` fields for this machine.
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
@@ -97,7 +97,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "npm pack failed" }
           $files = ($pack[0].files | ForEach-Object { $_.path } | Sort-Object) -join ","
           Write-Host "$($pack[0].filename): $files ($($pack[0].size) bytes packed)"
-          if ($files -ne "ExpoModulesMacros.exe,package.json,README.md") { throw "Unexpected files: $files" }
+          if ($files -ne "ExpoModulesMacros.exe,LICENSE,package.json,README.md") { throw "Unexpected files: $files" }
           $manifest = Get-Content "$package/package.json" -Raw | ConvertFrom-Json
           if (($manifest.os -join ",") -ne "win32" -or ($manifest.cpu -join ",") -ne "${{ matrix.arch }}") {
             throw "Unexpected os/cpu: $($manifest.os) / $($manifest.cpu)"

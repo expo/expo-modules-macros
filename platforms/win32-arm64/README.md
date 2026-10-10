@@ -1,3 +1,12 @@
+<p>
+  <a href="https://docs.expo.dev/modules/">
+    <img
+      src="https://raw.githubusercontent.com/expo/expo-modules-macros/main/.github/resources/expo-modules-macros.svg"
+      alt="expo-modules-macros"
+      height="64" />
+  </a>
+</p>
+
 # @expo/modules-macros-win32-arm64
 
 The Windows arm64 build of the `expo-modules-macros` compiler plugin and scanner (`ExpoModulesMacros.exe`).
