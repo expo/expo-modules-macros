@@ -1,6 +1,6 @@
 {
   "name": "@expo/modules-macros-win32-arm64",
-  "version": "0.16.0",
+  "version": "0.17.0-0",
   "description": "The Windows arm64 binary of expo-modules-macros",
   "license": "MIT",
   "author": "650 Industries, Inc.",
