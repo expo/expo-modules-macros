@@ -1933,6 +1933,8 @@ struct ExpoModuleMacroTests {
         func find() -> [String: Any]? { nil }
         @JS
         func groups() -> [String: [Any]] { [:] }
+        @JS
+        func peek() -> Any? { nil }
       }
       """,
       expandedSource: """
@@ -1941,6 +1943,8 @@ struct ExpoModuleMacroTests {
           func find() -> [String: Any]? { nil }
           @JavaScriptActor
           func groups() -> [String: [Any]] { [:] }
+          @JavaScriptActor
+          func peek() -> Any? { nil }
 
           public static let _jsName = "MyModule"
 
@@ -1962,6 +1966,13 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "groups", received: arguments.count, required: 0, maximum: 0))
               }
               let result = self.groups()
+              return try JavaScriptValue.encodeAny(result as Any, in: runtime)
+            }
+            object.setProperty("peek") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "peek", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.peek()
               return try JavaScriptValue.encodeAny(result as Any, in: runtime)
             }
           }
