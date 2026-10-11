@@ -204,7 +204,7 @@ func typeNode(from type: TypeSyntax) -> TypeNode {
   }
   // A nominal type, possibly generic: `Int`, `Point`, `Optional<T>`, `Array<T>`, `Promise<T>`.
   if let identifier = type.as(IdentifierTypeSyntax.self) {
-    return nominalNode(name: identifier.name.text, generics: identifier.genericArgumentClause)
+    return nominalNode(name: identifier.name.identifierName, generics: identifier.genericArgumentClause)
   }
   // A qualified nominal type: `Foo.Bar`. Kept as a ref under its full spelling.
   if let member = type.as(MemberTypeSyntax.self) {

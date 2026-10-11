@@ -948,6 +948,75 @@ struct SurfaceScopingTests {
   }
 }
 
+@Suite("Exports surface: backticked names")
+struct BacktickedNameTests {
+  @Test
+  func `Reports backticked function, parameter, and property names without the backticks`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class M {
+          @JS
+          func `default`(`in` value: Int, `for`: String, _ `class`: Bool) {}
+
+          @JS
+          var `class`: Int = 0
+
+          @Event
+          var `onClass`: () -> Void
+        }
+        """
+      ).modules.first)
+
+    let function = try #require(module.functions.first)
+    #expect(function.name == "default")
+    #expect(function.jsName == "default")
+    #expect(function.parameters.map(\.label) == ["in", "for", "_"])
+    #expect(function.parameters.map(\.name) == ["value", "for", "class"])
+
+    let property = try #require(module.properties.first)
+    #expect(property.name == "class")
+    #expect(property.jsName == "class")
+
+    // The `on` prefix is read from the name, not from its spelling.
+    let event = try #require(module.events.first)
+    #expect(event.name == "onClass")
+    #expect(event.jsName == "class")
+  }
+
+  @Test
+  func `Derives a String raw value from a backticked case name without the backticks`() throws {
+    let enumeration = try #require(
+      surface(
+        """
+        enum Kind: String, Enumerable {
+          case `class`
+          case `default` = "`default`"
+        }
+        """
+      ).enums.first)
+
+    #expect(enumeration.cases.map(\.name) == ["class", "default"])
+    // A written raw value is the literal's content, so its backticks are part of the value.
+    #expect(enumeration.cases.map(\.rawValue) == ["class", "`default`"])
+  }
+
+  @Test
+  func `Reports backticked type, record property, and union member names without the backticks`() {
+    let visitor = surface(
+      """
+      @Record struct `Type` { var `default`: Int = 0 }
+      @Union enum `Self` { case `struct`(Int) }
+      """
+    )
+    #expect(visitor.records.map(\.name) == ["Type"])
+    #expect(visitor.records.first?.properties.map(\.name) == ["default"])
+    #expect(visitor.unions.map(\.name) == ["Self"])
+    #expect(visitor.unions.first?.members.map(\.name) == ["struct"])
+  }
+}
+
 @Suite("scan-exports over a directory")
 struct ScanExportsTests {
   /// Writes `files` (relative path, contents) into a fresh temp tree, runs `scanExports` over its
@@ -1039,6 +1108,23 @@ struct RefResolutionTests {
     // A name the scan never declared stays unresolved: a platform convertible the consumer resolves
     // against its own catalog, not an error.
     #expect(types["x"] == .ref(name: "CGPoint"))
+  }
+
+  @Test
+  func `Resolves a backticked use site to its declaration`() throws {
+    let surface = try resolvedSurface(
+      """
+      @Record struct `Type` { var name: String }
+
+      @ExpoModule
+      final class M {
+        @JS func f(t: `Type`) {}
+      }
+      """
+    )
+    let types = try parameterTypes(surface)
+
+    #expect(types["t"] == .ref(name: "Type", refKind: .record))
   }
 
   @Test

@@ -20,7 +20,7 @@ final class SurfaceVisitor: SyntaxVisitor {
 
   override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
     if isTopLevel(node) {
-      classify(name: node.name.text, attributes: node.attributes, members: node.memberBlock.members)
+      classify(name: node.name.identifierName, attributes: node.attributes, members: node.memberBlock.members)
     }
     // The member walk reads the body itself; nested types aren't part of this surface (matching
     // `DetectionVisitor`'s top-level-only scope), so there's no reason to descend.
@@ -29,7 +29,7 @@ final class SurfaceVisitor: SyntaxVisitor {
 
   override func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
     if isTopLevel(node) {
-      classify(name: node.name.text, attributes: node.attributes, members: node.memberBlock.members)
+      classify(name: node.name.identifierName, attributes: node.attributes, members: node.memberBlock.members)
     }
     return .skipChildren
   }
@@ -48,7 +48,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     if node.attributes.firstAttribute(named: DetectedMacro.union.rawValue) != nil {
       unions.append(
         ExportedUnion(
-          name: node.name.text,
+          name: node.name.identifierName,
           members: collectUnionMembers(node.memberBlock.members),
           file: file
         ))
@@ -56,7 +56,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       let rawType = rawValueType(of: node.inheritanceClause)
       enums.append(
         ExportedEnum(
-          name: node.name.text,
+          name: node.name.identifierName,
           rawType: rawType,
           cases: collectEnumCases(node.memberBlock.members, rawType: rawType),
           file: file
@@ -178,7 +178,7 @@ final class SurfaceVisitor: SyntaxVisitor {
         functionType.parameters.count <= 1 else {
         continue
       }
-      let name = ident.identifier.text
+      let name = ident.identifier.identifierName
       result.append(
         ExportedEvent(
           name: name,
@@ -196,8 +196,8 @@ final class SurfaceVisitor: SyntaxVisitor {
     let effects = funcDecl.signature.effectSpecifiers
     let returnType = funcDecl.signature.returnClause?.type
     return ExportedFunction(
-      name: funcDecl.name.text,
-      jsName: stringArgument(of: attribute) ?? funcDecl.name.text,
+      name: funcDecl.name.identifierName,
+      jsName: stringArgument(of: attribute) ?? funcDecl.name.identifierName,
       parameters: parameters(of: funcDecl.signature.parameterClause),
       returns: isVoidType(returnType) ? nil : returnType.map { typeNode(from: $0) },
       isAsync: effects?.asyncSpecifier != nil,
@@ -219,7 +219,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
         continue
       }
-      let name = ident.identifier.text
+      let name = ident.identifier.identifierName
       let type = valueTypeNode(annotation: binding.typeAnnotation?.type, initializer: binding.initializer?.value)
       result.append(
         ExportedProperty(
@@ -284,7 +284,7 @@ final class SurfaceVisitor: SyntaxVisitor {
         }
         properties.append(
           ExportedRecordProperty(
-            name: ident.identifier.text,
+            name: ident.identifier.identifierName,
             type: type,
             isOptional: annotation.map { isOptionalType($0) } ?? false,
             hasDefault: binding.initializer != nil
@@ -312,7 +312,7 @@ final class SurfaceVisitor: SyntaxVisitor {
         continue
       }
       for element in caseDecl.elements where element.parameterClause == nil {
-        let name = element.name.text
+        let name = element.name.identifierName
         cases.append(
           ExportedEnumCase(
             name: name,
@@ -343,7 +343,7 @@ final class SurfaceVisitor: SyntaxVisitor {
           continue
         }
         result.append(
-          ExportedUnionMember(name: element.name.text, type: typeNode(from: parameter.type)))
+          ExportedUnionMember(name: element.name.identifierName, type: typeNode(from: parameter.type)))
       }
     }
     return result
@@ -353,8 +353,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// first), and `optional` when it has a default value or an optional type.
   private func parameters(of clause: FunctionParameterClauseSyntax) -> [ExportedParameter] {
     clause.parameters.map { parameter in
-      let label = parameter.firstName.text
-      let name = parameter.secondName?.text ?? label
+      let label = parameter.firstName.identifierName
+      let name = parameter.secondName?.identifierName ?? label
       return ExportedParameter(
         label: label,
         name: name,
@@ -375,6 +375,15 @@ final class SurfaceVisitor: SyntaxVisitor {
 }
 
 // MARK: - Syntactic helpers (shared spelling with the macros)
+
+extension TokenSyntax {
+  /// The name a token spells, without the backticks Swift requires around a reserved word used as
+  /// a name: `` `default` `` reads as `default`. Tokens that aren't identifiers, such as the `_`
+  /// wildcard label, read as written.
+  var identifierName: String {
+    identifier?.name ?? text
+  }
+}
 
 /// True when the modifiers make a member type-level (`static` or `class`).
 // MARK: - `@Event` helpers
