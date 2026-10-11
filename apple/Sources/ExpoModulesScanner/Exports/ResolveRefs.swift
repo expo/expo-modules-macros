@@ -5,65 +5,88 @@
 /// enum, or nothing at all. Resolution is therefore a second pass over the collected surface, run once
 /// every file has been walked.
 ///
-/// Two things change on a resolved ref:
+/// A name is looked up the way Swift looks it up: from the type the use site is written in, outward to
+/// file scope. In `Options`, `Encoding` names `Options.Encoding` when the scan declares one, else a
+/// file-scope `Encoding`.
+///
+/// Three things change on a resolved ref:
+/// - `name` becomes the declaration's qualified name, so a consumer can match it to the declaration
+///   without repeating the scoped lookup.
 /// - `refKind` names which kind declares it, so a consumer doesn't repeat this lookup.
 /// - the `typeof` category is corrected for an enum, which crosses as its raw value rather than as an
 ///   object. That correction is the reason this can't be left to the consumer: the scanner is the only
 ///   side that knows the enum's `rawType`.
 ///
-/// A name the scan never declared keeps `refKind: nil` and its `object` category. Not an error: it is
-/// a platform convertible (`CGPoint`, `URL`) or a type from another module, and the consumer's own
-/// catalog decides.
+/// A name the scan never declared keeps its spelling, `refKind: nil`, and its `object` category. Not
+/// an error: it is a platform convertible (`CGPoint`, `URL`) or a type from another module, and the
+/// consumer's own catalog decides.
 
 /// The declared names of a scanned surface, each mapped to how it should be reported at a use site.
 /// Built once per scan and used for every ref lookup.
 struct RefIndex {
-  /// `name` -> the kind declaring it, plus the JS category a ref to it crosses as.
-  private var entries: [String: (kind: RefKind, jsType: JSType)] = [:]
+  /// The declaration a ref resolves to.
+  struct Entry: Equatable {
+    /// The declaration's qualified name.
+    let name: String
+    let kind: RefKind
+    /// The JS category a ref to the declaration crosses as.
+    let jsType: JSType
+    /// A `@SharedObject`'s JS name, `nil` for every other kind.
+    var jsName: String? = nil
+  }
 
-  /// A `@SharedObject`'s Swift name -> its JS name.
-  private var sharedObjectJSNames: [String: String] = [:]
+  /// A declaration's qualified name -> its entry.
+  private var entries: [String: Entry] = [:]
 
   init(surface: ExportedSurface) {
     for record in surface.records {
-      entries[record.name] = (.record, .object)
+      entries[record.name] = Entry(name: record.name, kind: .record, jsType: .object)
     }
     for sharedObject in surface.sharedObjects {
-      entries[sharedObject.name] = (.sharedObject, .object)
-      sharedObjectJSNames[sharedObject.name] = sharedObject.jsName
+      entries[sharedObject.name] = Entry(
+        name: sharedObject.name, kind: .sharedObject, jsType: .object, jsName: sharedObject.jsName)
     }
     for union in surface.unions {
       // A union crosses as whichever alternative matched, so its category is only meaningful per
       // member. `object` is the honest coarse answer; the consumer reads `members` for the real shape.
-      entries[union.name] = (.union, .object)
+      entries[union.name] = Entry(name: union.name, kind: .union, jsType: .object)
     }
     for enumeration in surface.enums {
-      entries[enumeration.name] = (.enum, jsType(ofRawType: enumeration.rawType))
+      entries[enumeration.name] = Entry(
+        name: enumeration.name, kind: .enum, jsType: jsType(ofRawType: enumeration.rawType))
     }
   }
 
-  /// How a ref to `name` should be reported, or `nil` when the scan declares no such type.
-  func lookup(_ name: String) -> (kind: RefKind, jsType: JSType)? {
-    lookupQualified(name, in: entries)
-  }
-
-  /// The JS name of the `@SharedObject` declared as `name`, or `nil` when the scan declares none.
-  func sharedObjectJSName(_ name: String) -> String? {
-    lookupQualified(name, in: sharedObjectJSNames)
-  }
-}
-
-/// The value for `name` in `table`, falling back to its trailing component. A qualified use site
-/// (`Media.Status`) names the same type a bare declaration did, which is how the conformance and
-/// raw-type checks already match names.
-private func lookupQualified<Value>(_ name: String, in table: [String: Value]) -> Value? {
-  if let value = table[name] {
-    return value
-  }
-  guard let trailing = name.split(separator: ".").last.map(String.init), trailing != name else {
+  /// The declaration a ref to `name` written inside the type `scope` resolves to, or `nil` when the
+  /// scan declares no such type. `scope` is the qualified name of the type the use site is written
+  /// in.
+  ///
+  /// The name is first looked up in `scope` and then in each enclosing scope out to file scope, so the
+  /// innermost declaration wins, as in Swift. A leading `Self.` names `scope` itself, so it is dropped
+  /// before the lookup. When that finds nothing, the leading components of a qualified spelling are
+  /// dropped one at a time (`Media.Status` -> `Status`): a use site may qualify a name with a module
+  /// the scan doesn't see, which is how the conformance and raw-type checks already match names.
+  func lookup(_ name: String, in scope: String) -> Entry? {
+    let name = name.hasPrefix("Self.") ? String(name.dropFirst("Self.".count)) : name
+    var components = scope.split(separator: ".").map(String.init)
+    while true {
+      if let entry = entries[(components + [name]).joined(separator: ".")] {
+        return entry
+      }
+      if components.isEmpty {
+        break
+      }
+      components.removeLast()
+    }
+    var suffix = name.split(separator: ".").map(String.init).dropFirst()
+    while !suffix.isEmpty {
+      if let entry = entries[suffix.joined(separator: ".")] {
+        return entry
+      }
+      suffix = suffix.dropFirst()
+    }
     return nil
   }
-  return table[trailing]
 }
 
 /// The JS category a raw-value enum crosses as: its raw value's. A bare `Enumerable` conformance with
@@ -76,32 +99,35 @@ private func jsType(ofRawType rawType: TypeNode?) -> JSType {
 }
 
 extension TypeNode {
-  /// This node with every `.ref` in it resolved against `index`, recursively. Returns an unchanged
-  /// node when nothing in it resolves.
-  func resolvingRefs(using index: RefIndex) -> TypeNode {
+  /// This node with every `.ref` in it resolved against `index` from the type `scope`, recursively.
+  /// Returns an unchanged node when nothing in it resolves.
+  func resolvingRefs(using index: RefIndex, in scope: String) -> TypeNode {
     switch self {
     case .primitive, .unknown:
       return self
     case .ref(let name, _, _):
-      guard let entry = index.lookup(name) else {
+      guard let entry = index.lookup(name, in: scope) else {
         return self
       }
       // Only an enum crosses as something other than an object, so only it carries an override.
       return .ref(
-        name: name, refKind: entry.kind, jsTypeOverride: entry.jsType == .object ? nil : entry.jsType)
+        name: entry.name,
+        refKind: entry.kind,
+        jsTypeOverride: entry.jsType == .object ? nil : entry.jsType)
     case .optional(let wrapped):
-      return .optional(wrapped: wrapped.resolvingRefs(using: index))
+      return .optional(wrapped: wrapped.resolvingRefs(using: index, in: scope))
     case .array(let element):
-      return .array(element: element.resolvingRefs(using: index))
+      return .array(element: element.resolvingRefs(using: index, in: scope))
     case .dictionary(let key, let value):
       return .dictionary(
-        key: key.resolvingRefs(using: index), value: value.resolvingRefs(using: index))
+        key: key.resolvingRefs(using: index, in: scope),
+        value: value.resolvingRefs(using: index, in: scope))
     case .promise(let value):
-      return .promise(value: value.resolvingRefs(using: index))
+      return .promise(value: value.resolvingRefs(using: index, in: scope))
     case .function(let parameters, let returns, let isAsync, let isThrowing):
       return .function(
-        parameters: parameters.map { $0.resolvingRefs(using: index) },
-        returns: returns?.resolvingRefs(using: index),
+        parameters: parameters.map { $0.resolvingRefs(using: index, in: scope) },
+        returns: returns?.resolvingRefs(using: index, in: scope),
         isAsync: isAsync,
         isThrowing: isThrowing
       )
@@ -113,9 +139,10 @@ extension ExportedSurface {
   /// This surface with every `.ref` in every reported type resolved against its own declarations. The
   /// second pass `scanExports` runs once the walk is done.
   ///
-  /// Only the boundary types are rewritten; names, flags, and ordering are untouched. The declared
-  /// types (a record's own name, a union's members) are not themselves refs, so they carry no
-  /// `refKind`: it is the *use sites* that gain one.
+  /// Each type's refs are looked up from that type, so a ref resolves to a type nested in it before
+  /// one at file scope. Only the boundary types are rewritten; names, flags, and ordering are
+  /// untouched. The declared types (a record's own name, a union's members) are not themselves refs,
+  /// so they carry no `refKind`: it is the *use sites* that gain one.
   func resolvingRefs() -> ExportedSurface {
     let index = RefIndex(surface: self)
     return ExportedSurface(
@@ -123,11 +150,15 @@ extension ExportedSurface {
         ExportedModule(
           name: module.name,
           jsName: module.jsName,
-          functions: module.functions.map { $0.resolvingRefs(using: index) },
-          properties: module.properties.map { $0.resolvingRefs(using: index) },
-          events: module.events.map { $0.resolvingRefs(using: index) },
-          classes: module.classes.map {
-            ExportedClass(name: $0.name, jsName: index.sharedObjectJSName($0.name))
+          functions: module.functions.map { $0.resolvingRefs(using: index, in: module.name) },
+          properties: module.properties.map { $0.resolvingRefs(using: index, in: module.name) },
+          events: module.events.map { $0.resolvingRefs(using: index, in: module.name) },
+          classes: module.classes.map { exportedClass in
+            guard let entry = index.lookup(exportedClass.name, in: module.name),
+              entry.kind == .sharedObject else {
+              return exportedClass
+            }
+            return ExportedClass(name: entry.name, jsName: entry.jsName)
           },
           file: module.file
         )
@@ -136,10 +167,12 @@ extension ExportedSurface {
         ExportedSharedObject(
           name: sharedObject.name,
           jsName: sharedObject.jsName,
-          constructorParameters: sharedObject.constructorParameters?.map { $0.resolvingRefs(using: index) },
-          functions: sharedObject.functions.map { $0.resolvingRefs(using: index) },
-          properties: sharedObject.properties.map { $0.resolvingRefs(using: index) },
-          events: sharedObject.events.map { $0.resolvingRefs(using: index) },
+          constructorParameters: sharedObject.constructorParameters?.map {
+            $0.resolvingRefs(using: index, in: sharedObject.name)
+          },
+          functions: sharedObject.functions.map { $0.resolvingRefs(using: index, in: sharedObject.name) },
+          properties: sharedObject.properties.map { $0.resolvingRefs(using: index, in: sharedObject.name) },
+          events: sharedObject.events.map { $0.resolvingRefs(using: index, in: sharedObject.name) },
           file: sharedObject.file
         )
       },
@@ -149,7 +182,7 @@ extension ExportedSurface {
           properties: record.properties.map { property in
             ExportedRecordProperty(
               name: property.name,
-              type: property.type.resolvingRefs(using: index),
+              type: property.type.resolvingRefs(using: index, in: record.name),
               isOptional: property.isOptional,
               hasDefault: property.hasDefault
             )
@@ -164,7 +197,8 @@ extension ExportedSurface {
         ExportedUnion(
           name: union.name,
           members: union.members.map { member in
-            ExportedUnionMember(name: member.name, type: member.type.resolvingRefs(using: index))
+            ExportedUnionMember(
+              name: member.name, type: member.type.resolvingRefs(using: index, in: union.name))
           },
           file: union.file
         )
@@ -174,19 +208,19 @@ extension ExportedSurface {
 }
 
 extension ExportedParameter {
-  fileprivate func resolvingRefs(using index: RefIndex) -> ExportedParameter {
+  fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedParameter {
     return ExportedParameter(
-      label: label, name: name, type: type.resolvingRefs(using: index), isOptional: isOptional)
+      label: label, name: name, type: type.resolvingRefs(using: index, in: scope), isOptional: isOptional)
   }
 }
 
 extension ExportedFunction {
-  fileprivate func resolvingRefs(using index: RefIndex) -> ExportedFunction {
+  fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedFunction {
     return ExportedFunction(
       name: name,
       jsName: jsName,
-      parameters: parameters.map { $0.resolvingRefs(using: index) },
-      returns: returns?.resolvingRefs(using: index),
+      parameters: parameters.map { $0.resolvingRefs(using: index, in: scope) },
+      returns: returns?.resolvingRefs(using: index, in: scope),
       isAsync: isAsync,
       isThrowing: isThrowing,
       isStatic: isStatic
@@ -195,11 +229,11 @@ extension ExportedFunction {
 }
 
 extension ExportedProperty {
-  fileprivate func resolvingRefs(using index: RefIndex) -> ExportedProperty {
+  fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedProperty {
     return ExportedProperty(
       name: name,
       jsName: jsName,
-      type: type?.resolvingRefs(using: index),
+      type: type?.resolvingRefs(using: index, in: scope),
       isSettable: isSettable,
       isStatic: isStatic
     )
@@ -207,8 +241,8 @@ extension ExportedProperty {
 }
 
 extension ExportedEvent {
-  fileprivate func resolvingRefs(using index: RefIndex) -> ExportedEvent {
+  fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedEvent {
     return ExportedEvent(
-      name: name, jsName: jsName, payload: payload?.resolvingRefs(using: index), isSync: isSync)
+      name: name, jsName: jsName, payload: payload?.resolvingRefs(using: index, in: scope), isSync: isSync)
   }
 }

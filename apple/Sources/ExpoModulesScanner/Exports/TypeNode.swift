@@ -58,7 +58,9 @@ indirect enum TypeNode: Equatable {
   case function(parameters: [TypeNode], returns: TypeNode?, isAsync: Bool, isThrowing: Bool)
 
   /// Any other named type (record, shared object, enum, union, …). `name` is the possibly-qualified
-  /// spelling.
+  /// spelling until resolution. A resolved ref takes the qualified name of its declaration instead,
+  /// so `Encoding` written in `Options` becomes `Options.Encoding`, and a consumer finds the
+  /// declaration by an exact match.
   ///
   /// `refKind` says which scanned kind declares that name, filled in after the scan by
   /// `ExportedSurface.resolvingRefs()`; it is `nil` until then, and stays `nil` for a name the scan

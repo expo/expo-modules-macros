@@ -313,7 +313,7 @@ struct EnumSurfaceTests {
   }
 
   @Test
-  func `Ignores a nested Enumerable enum`() {
+  func `Reports a nested Enumerable enum under its qualified name`() {
     let visitor = surface(
       """
       @ExpoModule
@@ -324,8 +324,8 @@ struct EnumSurfaceTests {
       }
       """
     )
-    // Top-level only, matching how every other type in the surface is collected.
-    #expect(visitor.enums.isEmpty)
+    #expect(visitor.enums.map(\.name) == ["M.Status"])
+    #expect(visitor.enums.first?.cases == [ExportedEnumCase(name: "active", rawValue: "active")])
   }
 
   @Test
@@ -645,7 +645,7 @@ struct UnionSurfaceTests {
   }
 
   @Test
-  func `Ignores a nested @Union`() {
+  func `Reports a nested @Union under its qualified name`() {
     let visitor = surface(
       """
       @ExpoModule
@@ -657,8 +657,8 @@ struct UnionSurfaceTests {
       }
       """
     )
-    // Top-level only, matching how every other type in the surface is collected.
-    #expect(visitor.unions.isEmpty)
+    #expect(visitor.unions.map(\.name) == ["M.Source"])
+    #expect(visitor.unions.first?.members.map(\.name) == ["text"])
   }
 
   @Test
@@ -908,7 +908,7 @@ struct EventSurfaceTests {
 @Suite("Exports surface: scoping")
 struct SurfaceScopingTests {
   @Test
-  func `Ignores non-Expo types and nested types`() {
+  func `Ignores non-Expo types and nested modules`() {
     let visitor = surface(
       """
       final class Plain {
@@ -924,9 +924,114 @@ struct SurfaceScopingTests {
       }
       """
     )
-    // A plain class contributes nothing, and a nested @ExpoModule isn't descended into.
+    // A plain class contributes nothing. A nested @ExpoModule isn't reported either: autolinking
+    // registers file-scope modules only, so it never loads.
     #expect(visitor.modules.map(\.name) == ["Outer"])
     #expect(visitor.modules.first?.functions.map(\.name) == ["exported"])
+  }
+
+  @Test
+  func `Reports a nested module as no other kind`() {
+    let visitor = surface(
+      """
+      enum Namespace {
+        @ExpoModule
+        @SharedObject
+        final class Nested: SharedObject {}
+      }
+      """
+    )
+    #expect(visitor.modules.isEmpty)
+    #expect(visitor.sharedObjects.isEmpty)
+  }
+
+  @Test
+  func `Reports nested types under their qualified names`() {
+    let visitor = surface(
+      """
+      @Record
+      struct Options {
+        enum Encoding: String, Enumerable { case hex }
+        @Record
+        struct Inner {
+          @Union enum Value { case text(String) }
+        }
+        var encoding: Encoding = .hex
+      }
+      enum Namespace {
+        @SharedObject("Image")
+        final class NativeImage: SharedObject {}
+      }
+      final class Plain {
+        @Record struct Point { var x: Double }
+      }
+      """
+    )
+    // The fields of a record don't include its nested types, which are reported on their own.
+    #expect(visitor.records.map(\.name) == ["Options", "Options.Inner", "Plain.Point"])
+    #expect(visitor.records.first?.properties.map(\.name) == ["encoding"])
+    #expect(visitor.enums.map(\.name) == ["Options.Encoding"])
+    #expect(visitor.unions.map(\.name) == ["Options.Inner.Value"])
+    // The default JS name is the declared name, as the macro spells it; only `name` is qualified.
+    #expect(visitor.sharedObjects.map(\.name) == ["Namespace.NativeImage"])
+    #expect(visitor.sharedObjects.map(\.jsName) == ["Image"])
+  }
+
+  @Test
+  func `Qualifies a type declared in an extension with the extended type`() {
+    let visitor = surface(
+      """
+      extension Options {
+        enum Encoding: String, Enumerable { case hex }
+      }
+      extension Media.Player {
+        @Record struct Settings { var volume: Double }
+      }
+      """
+    )
+    #expect(visitor.enums.map(\.name) == ["Options.Encoding"])
+    #expect(visitor.records.map(\.name) == ["Media.Player.Settings"])
+  }
+
+  @Test
+  func `Qualifies a nested type without the backticks of its enclosing types`() {
+    let visitor = surface(
+      """
+      struct `Type` {
+        enum Mode: String, Enumerable { case a }
+      }
+      extension `Default` {
+        enum Mode: String, Enumerable { case a }
+      }
+      """
+    )
+    #expect(visitor.enums.map(\.name) == ["Type.Mode", "Default.Mode"])
+  }
+
+  @Test
+  func `Ignores types local to a function body or a closure`() {
+    let visitor = surface(
+      """
+      @ExpoModule
+      final class M {
+        @JS func f() {
+          enum Local: String, Enumerable { case a }
+        }
+        @JS var g: Int {
+          @Record struct Local { var x: Int }
+          return 0
+        }
+      }
+      func free() {
+        @Record struct Local { var x: Int }
+      }
+      let closure = {
+        enum Local: String, Enumerable { case a }
+      }
+      """
+    )
+    #expect(visitor.enums.isEmpty)
+    #expect(visitor.records.isEmpty)
   }
 
   @Test
@@ -1210,7 +1315,7 @@ struct RefResolutionTests {
   }
 
   @Test
-  func `Resolves a qualified use site to its bare declaration`() throws {
+  func `Resolves a module-qualified use site to its declaration`() throws {
     let surface = try resolvedSurface(
       """
       enum Status: String, Enumerable { case playing }
@@ -1223,9 +1328,129 @@ struct RefResolutionTests {
     )
     let types = try parameterTypes(surface)
 
-    // A qualified spelling names the same type; matching the trailing component is how the
-    // conformance and raw-type checks already work.
-    #expect(types["s"] == .ref(name: "Media.Status", refKind: .enum, jsTypeOverride: .string))
+    // A qualifier the scan doesn't declare is dropped, as the conformance and raw-type checks already
+    // do. The resolved ref takes the declaration's name, so a consumer can match the two exactly.
+    #expect(types["s"] == .ref(name: "Status", refKind: .enum, jsTypeOverride: .string))
+  }
+
+  @Test
+  func `Resolves a ref to a type nested in the type that uses it`() throws {
+    let surface = try resolvedSurface(
+      """
+      @Record
+      struct Options {
+        enum Encoding: String, Enumerable {
+          case hex
+        }
+        var encoding: Encoding = .hex
+      }
+      """
+    )
+
+    let options = try #require(surface.records.first)
+    #expect(
+      options.properties.first?.type
+        == .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string))
+  }
+
+  @Test
+  func `Resolves refs to a module's nested types from its members`() throws {
+    let surface = try resolvedSurface(
+      """
+      @ExpoModule
+      final class HapticsModule {
+        enum NotificationType: String, Enumerable { case success }
+        enum ImpactStyle: String, Enumerable { case light }
+
+        @JS func notification(type: NotificationType, style: [ImpactStyle]) {}
+      }
+      """
+    )
+    let types = try parameterTypes(surface)
+
+    #expect(
+      types["type"] == .ref(name: "HapticsModule.NotificationType", refKind: .enum, jsTypeOverride: .string))
+    #expect(
+      types["style"]
+        == .array(element: .ref(name: "HapticsModule.ImpactStyle", refKind: .enum, jsTypeOverride: .string)))
+  }
+
+  @Test
+  func `Looks a name up from the innermost scope outward`() throws {
+    let surface = try resolvedSurface(
+      """
+      enum Encoding: Int, Enumerable { case utf8 }
+      @Record struct Shared { var x: Int }
+
+      @Record
+      struct Options {
+        enum Encoding: String, Enumerable { case hex }
+        @Record
+        struct Inner {
+          var encoding: Encoding
+          var shared: Shared
+        }
+      }
+
+      @Record
+      struct Other {
+        var encoding: Encoding
+        var nested: Options.Encoding
+      }
+      """
+    )
+
+    // From `Options.Inner`, the sibling in `Options` shadows the file-scope `Encoding`, and a name
+    // declared only at file scope is still found.
+    let inner = try #require(surface.records.first { $0.name == "Options.Inner" })
+    #expect(
+      inner.properties.map(\.type) == [
+        .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string),
+        .ref(name: "Shared", refKind: .record),
+      ])
+
+    // Outside `Options`, the bare name is the file-scope enum, and the nested one needs its qualifier.
+    let other = try #require(surface.records.first { $0.name == "Other" })
+    #expect(
+      other.properties.map(\.type) == [
+        .ref(name: "Encoding", refKind: .enum, jsTypeOverride: .number),
+        .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string),
+      ])
+  }
+
+  @Test
+  func `Fills a module class's JS name from a shared object nested in the module`() throws {
+    let surface = try resolvedSurface(
+      """
+      @ExpoModule(classes: [Statement.self])
+      final class M {
+        @SharedObject("SQLiteStatement")
+        final class Statement: SharedObject {}
+      }
+      """
+    )
+
+    // The class takes the shared object's qualified name, so a consumer can match the two.
+    #expect(surface.sharedObjects.map(\.name) == ["M.Statement"])
+    #expect(surface.modules.first?.classes == [ExportedClass(name: "M.Statement", jsName: "SQLiteStatement")])
+  }
+
+  @Test
+  func `Resolves a Self-qualified ref to the type nested in the use site`() throws {
+    let surface = try resolvedSurface(
+      """
+      enum Mode: Int, Enumerable { case off }
+
+      @ExpoModule
+      final class M {
+        enum Mode: String, Enumerable { case on }
+        @JS func f(mode: Self.Mode) {}
+      }
+      """
+    )
+    let types = try parameterTypes(surface)
+
+    #expect(types["mode"] == .ref(name: "M.Mode", refKind: .enum, jsTypeOverride: .string))
   }
 
   @Test
@@ -1247,8 +1472,8 @@ struct RefResolutionTests {
       surface.modules.first?.classes == [
         // The `@SharedObject` override is the member name JS reads.
         ExportedClass(name: "NativeDatabase", jsName: "Database"),
-        // A qualified spelling matches its bare declaration.
-        ExportedClass(name: "Store.NativeStatement", jsName: "NativeStatement"),
+        // A qualifier the scan doesn't declare is dropped, and the class takes the declaration's name.
+        ExportedClass(name: "NativeStatement", jsName: "NativeStatement"),
         // Only a shared object has a JS name; a record or an unscanned class has none.
         ExportedClass(name: "Options", jsName: nil),
         ExportedClass(name: "Missing", jsName: nil),
