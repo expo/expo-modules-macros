@@ -97,7 +97,7 @@ struct JSClosureArgumentTests {
           func measure(name: String, layout: (Point, Int) throws -> Size) throws {}
 
           private func _assertTypesConformance_measure() {
-            func measure<A0: JavaScriptDecodable, E0: JavaScriptEncodable>(_: A0.Type, _: E0.Type) {
+            func measure<A0: JavaScriptDecodable & ~Copyable, E0: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: E0.Type) {
             }
             measure(Size.self, Point.self)
           }
@@ -144,7 +144,7 @@ struct JSClosureArgumentTests {
           func load(fetch: @escaping @Sendable (Request) async throws -> Data) async throws -> Int { 0 }
 
           private func _assertTypesConformance_load() {
-            func load<A0: JavaScriptDecodable, E0: JavaScriptEncodable>(_: A0.Type, _: E0.Type) {
+            func load<A0: JavaScriptDecodable & ~Copyable, E0: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: E0.Type) {
             }
             load(Data.self, Request.self)
           }
@@ -323,7 +323,7 @@ struct JSClosureArgumentTests {
           func observe(handler: (borrowing Point, consuming Size, sending Item) throws -> Void) {}
 
           private func _assertTypesConformance_observe() {
-            func observe<E0: JavaScriptEncodable, E1: JavaScriptEncodable, E2: JavaScriptEncodable>(_: E0.Type, _: E1.Type, _: E2.Type) {
+            func observe<E0: JavaScriptEncodable & ~Copyable, E1: JavaScriptEncodable & ~Copyable, E2: JavaScriptEncodable & ~Copyable>(_: E0.Type, _: E1.Type, _: E2.Type) {
             }
             observe(Point.self, Size.self, Item.self)
           }
@@ -732,7 +732,7 @@ struct JSClosureArgumentTests {
         func b(callback: (isolated Worker) throws -> Void) {}
 
         private func _assertTypesConformance_b() {
-          func b<E0: JavaScriptEncodable>(_: E0.Type) {
+          func b<E0: JavaScriptEncodable & ~Copyable>(_: E0.Type) {
           }
           b(Worker.self)
         }

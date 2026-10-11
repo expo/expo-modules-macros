@@ -88,22 +88,23 @@ internal func directionalConformanceAssertion(
   // Build the generic parameter list and the matching call arguments in lockstep: one `A0…` slot
   // constrained `JavaScriptDecodable` per argument, one `E0…` slot constrained `JavaScriptEncodable`
   // per closure-argument parameter, and a single `Return` slot constrained `JavaScriptEncodable` for
-  // the return/getter value (there's only ever one, so it isn't indexed).
+  // the return/getter value (there's only ever one, so it isn't indexed). Every slot suppresses
+  // `Copyable`, so a non-copyable boundary type such as `JavaScriptValue` can fill it.
   var parameters: [String] = []
   var typeParameters: [String] = []
   var arguments: [String] = []
   for (index, type) in decodables.enumerated() {
-    parameters.append("A\(index): \(javaScriptDecodableProtocolName)")
+    parameters.append("A\(index): \(javaScriptDecodableProtocolName) & ~Copyable")
     typeParameters.append("_: A\(index).Type")
     arguments.append("\(type).self")
   }
   for (index, type) in callbackArguments.enumerated() {
-    parameters.append("E\(index): \(javaScriptEncodableProtocolName)")
+    parameters.append("E\(index): \(javaScriptEncodableProtocolName) & ~Copyable")
     typeParameters.append("_: E\(index).Type")
     arguments.append("\(type).self")
   }
   if let encodable {
-    parameters.append("Return: \(javaScriptEncodableProtocolName)")
+    parameters.append("Return: \(javaScriptEncodableProtocolName) & ~Copyable")
     typeParameters.append("_: Return.Type")
     arguments.append("\(encodable).self")
   }
