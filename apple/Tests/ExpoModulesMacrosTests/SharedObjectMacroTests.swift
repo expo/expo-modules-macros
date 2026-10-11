@@ -833,6 +833,42 @@ struct SharedObjectMacroTests {
         """
     )
   }
+
+  @Test
+  func `Escaped class name registers the bare JS class name`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class `Type`: SharedObject {
+        @JS
+        func `default`() {}
+      }
+      """,
+      expandedSource: """
+        final class `Type`: SharedObject {
+          @JavaScriptActor
+          func `default`() {}
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Type", `Type`.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: `Type`.self)
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "default", received: arguments.count, required: 0, maximum: 0))
+              }
+              _self.`default`()
+              return .undefined()
+            }
+          }
+        }
+        """
+    )
+  }
 }
 
 @Suite("@ExpoModule classes: argument")

@@ -91,9 +91,10 @@ extension EventMacro: PeerMacro {
       ? "func \(name)<P: \(jsConvertibleProtocolName), E: \(eventEmitterProtocolName)>(_: P.Type, _: E.Type) {}"
       : "func \(name)<E: \(eventEmitterProtocolName)>(_: E.Type) {}"
     let call = payload.map { "\(name)(\($0).self, \(owner).self)" } ?? "\(name)(\(owner).self)"
+    let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
     return [
       """
-      private func _assertTypesConformance_\(raw: name)() {
+      private func \(raw: peerName)() {
       \(raw: helper)
       \(raw: call)
       }
@@ -172,7 +173,7 @@ private func validatedEvent(
   let swiftName = identifier.identifier.text
   return EventMember(
     swiftName: swiftName,
-    jsName: jsNameArgument(of: node) ?? defaultEventName(for: swiftName),
+    jsName: jsNameArgument(of: node) ?? defaultEventName(for: withoutBackticks(swiftName)),
     payloadType: functionType.parameters.first?.type.trimmedDescription,
     isSync: boolArgument(of: node, label: "sync") == true
   )

@@ -24,7 +24,7 @@ internal struct JSFunction {
 
   init(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) {
     self.swiftName = funcDecl.name.text
-    self.jsName = jsNameArgument(of: attribute) ?? funcDecl.name.text
+    self.jsName = jsNameArgument(of: attribute) ?? withoutBackticks(funcDecl.name.text)
     self.parameters = Array(funcDecl.signature.parameterClause.parameters)
 
     let declaredReturnType = funcDecl.signature.returnClause?.type
@@ -309,7 +309,7 @@ internal struct JSProperty {
   /// function bindings: a module captures `self` strong, a shared object captures nothing of the
   /// instance. Getter and setter are gated independently.
   func decorateStatements(object: String, receiver: Receiver) -> String {
-    let descriptorName = "\(swiftName)Descriptor"
+    let descriptorName = derivedIdentifier(from: swiftName, suffix: "Descriptor")
     let callee = receiver.callee
     // A shared object's accessors unwrap the JS `this` into `_self` before reading/writing; a module
     // reads `self` directly. The unwrap leads each accessor body. Property accessors are synchronous, so

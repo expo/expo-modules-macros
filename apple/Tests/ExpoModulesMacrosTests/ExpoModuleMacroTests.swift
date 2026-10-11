@@ -1943,4 +1943,72 @@ struct ExpoModuleMacroTests {
         """
     )
   }
+
+  @Test
+  func `Escaped member names bind under the bare JS name and keep the backticks in Swift`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func `default`(`in` value: Int) -> Int { value }
+
+        @JS
+        var `class`: Int = 1
+
+        @Event
+        var `onClass`: () -> Void
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func `default`(`in` value: Int) -> Int { value }
+          @JavaScriptActor
+          var `class`: Int = 1
+          var `onClass`: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "class")
+              }
+            }
+          }
+
+          private func `_assertTypesConformance_onClass`() {
+            func `onClass`<E: EventEmitter>(_: E.Type) {
+            }
+            `onClass`(MyModule.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("default") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "default", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = self.`default`(`in`: arg0)
+              return try Int.encode(result, in: runtime)
+            }
+            let `classDescriptor` = runtime.createObject()
+            `classDescriptor`.setProperty("enumerable", value: true)
+            `classDescriptor`.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              return try Int.encode(self.`class`, in: runtime)
+            }
+            `classDescriptor`.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              self.`class` = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+              return .undefined()
+            }
+            object.defineProperty("class", descriptor: `classDescriptor`)
+          }
+        }
+        """
+    )
+  }
 }

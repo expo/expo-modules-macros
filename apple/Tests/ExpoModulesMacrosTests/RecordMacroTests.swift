@@ -917,6 +917,65 @@ struct RecordMacroTests {
   }
 
   @Test
+  func `Author-declared memberwise init matches an escaped property name by its bare label`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var `default`: Int = 0
+
+        init(default: Int) {
+          self.default = `default`
+        }
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var `default`: Int = 0
+
+          init(default: Int) {
+            self.default = `default`
+          }
+
+          public init() {
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            let `defaultJSValue` = object.getProperty("default")
+            let `default` = `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
+            return Self(`default`: `default`)
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let `defaultValue` = dictionary["default"]
+            let `default` = `defaultValue` == nil ? 0 : try Int.getDynamicType().cast(`defaultValue`, appContext: appContext) as! Int
+            return Self(`default`: `default`)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["default"] = self.`default`
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            let runtime = try appContext.runtime
+            let object = runtime.createObject()
+            object.setProperty("default", value: try Int.encode(self.`default`, in: runtime))
+            return object
+          }
+        }
+
+        extension Options: Record {
+        }
+        """
+    )
+  }
+
+  @Test
   func `Optional free-form dictionary property converts through the dedicated free-form methods on the JS-object paths`() {
     assertExpansion(
       """
@@ -1249,6 +1308,77 @@ struct RecordMacroTests {
         }
 
         extension Payload: Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Escaped property names read and write the bare key`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var `default`: Int = 0
+        var `class`: String
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var `default`: Int = 0
+          var `class`: String
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(`default`: Int, `class`: String) {
+            self.`default` = `default`
+            self.`class` = `class`
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            let `defaultJSValue` = object.getProperty("default")
+            let `default` = `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
+            let `classJSValue` = object.getProperty("class")
+            guard !`classJSValue`.isUndefined() else {
+              throw RecordPropertyRequiredException("class")
+            }
+            let `class` = try String.decode(`classJSValue`, in: runtime)
+            return Self(`default`: `default`, `class`: `class`)
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let `defaultValue` = dictionary["default"]
+            let `default` = `defaultValue` == nil ? 0 : try Int.getDynamicType().cast(`defaultValue`, appContext: appContext) as! Int
+            let `classValue` = dictionary["class"]
+            guard let `classValue` else {
+              throw RecordPropertyRequiredException("class")
+            }
+            let `class` = try String.getDynamicType().cast(`classValue`, appContext: appContext) as! String
+            return Self(`default`: `default`, `class`: `class`)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["default"] = self.`default`
+            dictionary["class"] = self.`class`
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            let runtime = try appContext.runtime
+            let object = runtime.createObject()
+            object.setProperty("default", value: try Int.encode(self.`default`, in: runtime))
+            object.setProperty("class", value: try String.encode(self.`class`, in: runtime))
+            return object
+          }
+        }
+
+        extension Options: Record {
         }
         """
     )

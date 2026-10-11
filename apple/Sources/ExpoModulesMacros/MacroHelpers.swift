@@ -341,6 +341,32 @@ internal func decodeCall(_ type: String, from valueExpression: String) -> String
   return "\(expressionType(type)).decode(\(valueExpression), in: runtime)"
 }
 
+// MARK: - Escaped names
+
+/// `name` without the backticks that escape it: `` `default` `` becomes `default`. Swift needs the
+/// backticks in every identifier position, but a name JavaScript sees (a JS member name, an event
+/// name, a record key) is the bare name.
+internal func withoutBackticks(_ name: String) -> String {
+  var name = Substring(name)
+  while name.first == "`" {
+    name.removeFirst()
+  }
+  while name.last == "`" {
+    name.removeLast()
+  }
+  return String(name)
+}
+
+/// A generated identifier built from a member's name, such as `countDescriptor` from `count`. The
+/// affixes join the bare name, and an escaped name keeps the backticks around the whole result
+/// (`` `class` `` gives `` `classDescriptor` ``), since the bare name may not be an identifier on
+/// its own.
+internal func derivedIdentifier(from name: String, prefix: String = "", suffix: String = "") -> String {
+  let bareName = withoutBackticks(name)
+  let identifier = prefix + bareName + suffix
+  return bareName == name ? identifier : "`\(identifier)`"
+}
+
 // MARK: - @JS property collection
 
 /// Collects the `@JS var` bindings of a declaration into `JSProperty` values for direct JSI binding.
@@ -365,7 +391,7 @@ internal func collectProperties(
       ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
     return JSProperty(
       swiftName: swiftName,
-      jsName: jsNameOverride ?? swiftName,
+      jsName: jsNameOverride ?? withoutBackticks(swiftName),
       valueType: valueType,
       isSettable: isVar && bindingIsSettable(binding)
     )
