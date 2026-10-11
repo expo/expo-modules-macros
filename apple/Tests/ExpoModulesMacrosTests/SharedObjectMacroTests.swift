@@ -324,7 +324,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `@JS init with a free-form argument decodes through decodeAnyDictionary and warns`() {
+  func `@JS init with a free-form argument decodes through decodeAnyDictionary`() {
     assertExpansion(
       """
       @SharedObject
@@ -352,16 +352,7 @@ struct SharedObjectMacroTests {
             return Cache(config: arg0)
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 16,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 

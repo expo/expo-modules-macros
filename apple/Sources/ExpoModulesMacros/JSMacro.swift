@@ -152,10 +152,8 @@ private func diagnoseParameterSpecifiers(
 ///
 /// A type built from `Any`, arrays, `String`-keyed dictionaries and optionals converts through the
 /// `JavaScriptValue` free-form methods in every position (see `FreeFormConversion`). That means:
-/// - a function/constructor **parameter** typed exactly `Any`, `[Any]` or `[String: Any]` gets a
-///   warning steering to the JS wrapper of the same shape, but compiles;
-/// - a free-form return value or property needs no diagnostic: it encodes through `encodeAny…`, and a
-///   settable property decodes through `decodeAny…`;
+/// - a free-form argument, return value or property needs no diagnostic: it decodes through
+///   `decodeAny…` and encodes through `encodeAny…`;
 /// - a type that holds `Any` in any other shape (`[Int: Any]`, `Set<[String: Any]>`) is an error in
 ///   every position, since the free-form methods never produce or accept it.
 ///
@@ -167,17 +165,13 @@ private func diagnoseFreeFormTypes(
 ) {
   var types: [TypeSyntax] = []
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
-    let parameters = funcDecl.signature.parameterClause.parameters
-    warnFreeFormArguments(parameters, in: context)
-    types = parameters.map { SpecifiedType($0.type).type }
+    types = funcDecl.signature.parameterClause.parameters.map { SpecifiedType($0.type).type }
     if let returnType = funcDecl.signature.returnClause?.type {
       types.append(returnType)
     }
   } else if let initDecl = declaration.as(InitializerDeclSyntax.self) {
     // A constructor decodes its arguments exactly like a function and has no return value.
-    let parameters = initDecl.signature.parameterClause.parameters
-    warnFreeFormArguments(parameters, in: context)
-    types = parameters.map { SpecifiedType($0.type).type }
+    types = initDecl.signature.parameterClause.parameters.map { SpecifiedType($0.type).type }
   } else if let varDecl = declaration.as(VariableDeclSyntax.self),
     let type = varDecl.bindings.first?.typeAnnotation?.type {
     types = [type]
@@ -188,36 +182,6 @@ private func diagnoseFreeFormTypes(
     context.diagnose(
       Diagnostic(node: type, message: unconvertibleFreeFormError(for: type.trimmedDescription)))
   }
-}
-
-/// Emits the steering warning for each free-form parameter in a list. Shared by the function and
-/// constructor cases, which both decode their arguments through the same path.
-private func warnFreeFormArguments(
-  _ parameters: FunctionParameterListSyntax,
-  in context: some MacroExpansionContext
-) {
-  for parameter in parameters {
-    // Matched on the bare type: `borrowing [String: Any]` decodes as free-form too.
-    let type = SpecifiedType(parameter.type).type.trimmedDescription
-    guard let suggested = typedFreeFormReplacement(for: type) else {
-      continue
-    }
-    context.diagnose(
-      Diagnostic(
-        node: parameter.type,
-        message: freeFormArgumentWarning(for: type, suggesting: suggested)))
-  }
-}
-
-private func freeFormArgumentWarning(
-  for freeFormType: String,
-  suggesting suggestedType: String
-) -> JSDiagnosticMessage {
-  return JSDiagnosticMessage(
-    "Prefer '\(suggestedType)' over the free-form '\(freeFormType)' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); '\(suggestedType)' keeps the JS value inspectable without converting it.",
-    id: "js-free-form-argument",
-    severity: .warning
-  )
 }
 
 private func unconvertibleFreeFormError(for type: String) -> JSDiagnosticMessage {

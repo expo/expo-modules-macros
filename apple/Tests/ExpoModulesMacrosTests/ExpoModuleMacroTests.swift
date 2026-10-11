@@ -1629,7 +1629,7 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Ownership specifier on a free-form parameter still reroutes the decode and warns`() {
+  func `Ownership specifier on a free-form parameter still reroutes the decode`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1661,16 +1661,7 @@ struct ExpoModuleMacroTests {
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 22,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 
@@ -1715,7 +1706,7 @@ struct ExpoModuleMacroTests {
   // MARK: - Free-form (Any) types
 
   @Test
-  func `Free-form dictionary argument decodes through JavaScriptValue.decodeAnyDictionary and warns`() {
+  func `Free-form dictionary argument decodes through JavaScriptValue.decodeAnyDictionary`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1747,22 +1738,12 @@ struct ExpoModuleMacroTests {
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 22,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 
   @Test
   func `Optional free-form argument maps undefined and null to nil around decodeAnyDictionary`() {
-    // Only the exact free-form shapes get the steering warning, so `[String: Any]?` compiles quietly.
     assertExpansion(
       """
       @ExpoModule
@@ -1847,7 +1828,7 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Free-form array and bare Any arguments each reroute to their decodeAny entry point and warn`() {
+  func `Free-form array and bare Any arguments each reroute to their decodeAny entry point`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1880,23 +1861,7 @@ struct ExpoModuleMacroTests {
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptArray' over the free-form '[Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptArray' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 22,
-          severity: .warning
-        ),
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptValue' over the free-form 'Any' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptValue' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 36,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 
