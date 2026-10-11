@@ -31,21 +31,20 @@ struct RefIndex {
     let kind: RefKind
     /// The JS category a ref to the declaration crosses as.
     let jsType: JSType
+    /// A `@SharedObject`'s JS name, `nil` for every other kind.
+    var jsName: String? = nil
   }
 
   /// A declaration's qualified name -> its entry.
   private var entries: [String: Entry] = [:]
-
-  /// A `@SharedObject`'s Swift name -> its JS name.
-  private var sharedObjectJSNames: [String: String] = [:]
 
   init(surface: ExportedSurface) {
     for record in surface.records {
       entries[record.name] = Entry(name: record.name, kind: .record, jsType: .object)
     }
     for sharedObject in surface.sharedObjects {
-      entries[sharedObject.name] = Entry(name: sharedObject.name, kind: .sharedObject, jsType: .object)
-      sharedObjectJSNames[sharedObject.name] = sharedObject.jsName
+      entries[sharedObject.name] = Entry(
+        name: sharedObject.name, kind: .sharedObject, jsType: .object, jsName: sharedObject.jsName)
     }
     for union in surface.unions {
       // A union crosses as whichever alternative matched, so its category is only meaningful per
@@ -61,45 +60,33 @@ struct RefIndex {
   /// The declaration a ref to `name` written inside the type `scope` resolves to, or `nil` when the
   /// scan declares no such type. `scope` is the qualified name of the type the use site is written
   /// in.
+  ///
+  /// The name is first looked up in `scope` and then in each enclosing scope out to file scope, so the
+  /// innermost declaration wins, as in Swift. A leading `Self.` names `scope` itself, so it is dropped
+  /// before the lookup. When that finds nothing, the leading components of a qualified spelling are
+  /// dropped one at a time (`Media.Status` -> `Status`): a use site may qualify a name with a module
+  /// the scan doesn't see, which is how the conformance and raw-type checks already match names.
   func lookup(_ name: String, in scope: String) -> Entry? {
-    resolvedKey(name, in: scope, table: entries).flatMap { entries[$0] }
-  }
-
-  /// The JS name of the `@SharedObject` a ref to `name` written inside `scope` resolves to, or `nil`
-  /// when the scan declares none.
-  func sharedObjectJSName(_ name: String, in scope: String) -> String? {
-    resolvedKey(name, in: scope, table: sharedObjectJSNames).flatMap { sharedObjectJSNames[$0] }
-  }
-}
-
-/// The key in `table` that `name`, written inside `scope`, refers to.
-///
-/// The name is first looked up in `scope` and then in each enclosing scope out to file scope, so the
-/// innermost declaration wins, as in Swift. When that finds nothing, the leading components of a
-/// qualified spelling are dropped one at a time (`Media.Status` -> `Status`): a use site may qualify
-/// a name with a module the scan doesn't see, which is how the conformance and raw-type checks
-/// already match names.
-private func resolvedKey<Value>(_ name: String, in scope: String, table: [String: Value]) -> String? {
-  var components = scope.split(separator: ".").map(String.init)
-  while true {
-    let key = (components + [name]).joined(separator: ".")
-    if table[key] != nil {
-      return key
+    let name = name.hasPrefix("Self.") ? String(name.dropFirst("Self.".count)) : name
+    var components = scope.split(separator: ".").map(String.init)
+    while true {
+      if let entry = entries[(components + [name]).joined(separator: ".")] {
+        return entry
+      }
+      if components.isEmpty {
+        break
+      }
+      components.removeLast()
     }
-    if components.isEmpty {
-      break
+    var suffix = name.split(separator: ".").map(String.init).dropFirst()
+    while !suffix.isEmpty {
+      if let entry = entries[suffix.joined(separator: ".")] {
+        return entry
+      }
+      suffix = suffix.dropFirst()
     }
-    components.removeLast()
+    return nil
   }
-  var suffix = name.split(separator: ".").map(String.init).dropFirst()
-  while !suffix.isEmpty {
-    let key = suffix.joined(separator: ".")
-    if table[key] != nil {
-      return key
-    }
-    suffix = suffix.dropFirst()
-  }
-  return nil
 }
 
 /// The JS category a raw-value enum crosses as: its raw value's. A bare `Enumerable` conformance with
@@ -166,8 +153,12 @@ extension ExportedSurface {
           functions: module.functions.map { $0.resolvingRefs(using: index, in: module.name) },
           properties: module.properties.map { $0.resolvingRefs(using: index, in: module.name) },
           events: module.events.map { $0.resolvingRefs(using: index, in: module.name) },
-          classes: module.classes.map {
-            ExportedClass(name: $0.name, jsName: index.sharedObjectJSName($0.name, in: module.name))
+          classes: module.classes.map { exportedClass in
+            guard let entry = index.lookup(exportedClass.name, in: module.name),
+              entry.kind == .sharedObject else {
+              return exportedClass
+            }
+            return ExportedClass(name: entry.name, jsName: entry.jsName)
           },
           file: module.file
         )

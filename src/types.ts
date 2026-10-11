@@ -123,7 +123,11 @@ export interface ExportedModule {
 
 /** One entry of `@ExpoModule(classes: [...])`. */
 export interface ExportedClass {
-  /** The Swift name as spelled in the argument, e.g. `Database` or `Outer.Statement`. */
+  /**
+   * The `name` of the matching shared object, which is qualified when the class is nested
+   * (`Outer.Statement`). The Swift name as spelled in the argument when the scan found no shared
+   * object with this name.
+   */
   name: string;
   /**
    * The name of the module member JS reads the class from: the matching shared object's `jsName`.

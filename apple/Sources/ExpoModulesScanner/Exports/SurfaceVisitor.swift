@@ -52,6 +52,21 @@ final class SurfaceVisitor: SyntaxVisitor {
     enclosingTypes(of: node) == nil ? .skipChildren : .visitChildren
   }
 
+  // A type declared in a function or accessor body or in a closure is local and never reported, so
+  // these are not walked.
+
+  override func visit(_ node: CodeBlockSyntax) -> SyntaxVisitorContinueKind {
+    .skipChildren
+  }
+
+  override func visit(_ node: AccessorBlockSyntax) -> SyntaxVisitorContinueKind {
+    .skipChildren
+  }
+
+  override func visit(_ node: ClosureExprSyntax) -> SyntaxVisitorContinueKind {
+    .skipChildren
+  }
+
   /// The two kinds of enum the surface reports: a `@Union` by its attribute, an `Enumerable` enum by
   /// its conformance (core converts it with no macro involved, so there is no attribute to key on).
   ///
@@ -97,9 +112,12 @@ final class SurfaceVisitor: SyntaxVisitor {
   ) {
     let qualified = qualifiedName(name, in: scope)
 
-    // Only a file-scope module is reported. Autolinking registers no other (`DetectionVisitor` reads
-    // file scope only), so a nested one never loads.
-    if scope.isEmpty, let attribute = attributes.firstAttribute(named: DetectedMacro.expoModule.rawValue) {
+    if let attribute = attributes.firstAttribute(named: DetectedMacro.expoModule.rawValue) {
+      // Only a file-scope module is reported. Autolinking registers no other (`DetectionVisitor`
+      // reads file scope only), so a nested one never loads.
+      guard scope.isEmpty else {
+        return
+      }
       let (functions, properties, events, _) = collectJSMembers(members)
       modules.append(
         ExportedModule(
@@ -411,24 +429,15 @@ final class SurfaceVisitor: SyntaxVisitor {
       let scope = enclosingTypes(of: parent) else {
       return nil
     }
-    if let decl = parent.as(ClassDeclSyntax.self) {
-      return scope + [decl.name.identifierName]
-    }
-    if let decl = parent.as(StructDeclSyntax.self) {
-      return scope + [decl.name.identifierName]
-    }
-    if let decl = parent.as(EnumDeclSyntax.self) {
-      return scope + [decl.name.identifierName]
-    }
-    if let decl = parent.as(ActorDeclSyntax.self) {
-      return scope + [decl.name.identifierName]
-    }
     if let decl = parent.as(ExtensionDeclSyntax.self) {
       // Without backticks, like every other reported name.
       return scope + [String(decl.extendedType.trimmedDescription.filter { $0 != "`" })]
     }
-    // A protocol body cannot declare types.
-    return nil
+    // A class, struct, enum, or actor. A protocol body cannot declare types.
+    guard !parent.is(ProtocolDeclSyntax.self), let decl = parent.asProtocol(NamedDeclSyntax.self) else {
+      return nil
+    }
+    return scope + [decl.name.identifierName]
   }
 }
 

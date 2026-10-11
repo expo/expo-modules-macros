@@ -931,6 +931,21 @@ struct SurfaceScopingTests {
   }
 
   @Test
+  func `Reports a nested module as no other kind`() {
+    let visitor = surface(
+      """
+      enum Namespace {
+        @ExpoModule
+        @SharedObject
+        final class Nested: SharedObject {}
+      }
+      """
+    )
+    #expect(visitor.modules.isEmpty)
+    #expect(visitor.sharedObjects.isEmpty)
+  }
+
+  @Test
   func `Reports nested types under their qualified names`() {
     let visitor = surface(
       """
@@ -976,6 +991,21 @@ struct SurfaceScopingTests {
     )
     #expect(visitor.enums.map(\.name) == ["Options.Encoding"])
     #expect(visitor.records.map(\.name) == ["Media.Player.Settings"])
+  }
+
+  @Test
+  func `Qualifies a nested type without the backticks of its enclosing types`() {
+    let visitor = surface(
+      """
+      struct `Type` {
+        enum Mode: String, Enumerable { case a }
+      }
+      extension `Default` {
+        enum Mode: String, Enumerable { case a }
+      }
+      """
+    )
+    #expect(visitor.enums.map(\.name) == ["Type.Mode", "Default.Mode"])
   }
 
   @Test
@@ -1400,8 +1430,27 @@ struct RefResolutionTests {
       """
     )
 
+    // The class takes the shared object's qualified name, so a consumer can match the two.
     #expect(surface.sharedObjects.map(\.name) == ["M.Statement"])
-    #expect(surface.modules.first?.classes == [ExportedClass(name: "Statement", jsName: "SQLiteStatement")])
+    #expect(surface.modules.first?.classes == [ExportedClass(name: "M.Statement", jsName: "SQLiteStatement")])
+  }
+
+  @Test
+  func `Resolves a Self-qualified ref to the type nested in the use site`() throws {
+    let surface = try resolvedSurface(
+      """
+      enum Mode: Int, Enumerable { case off }
+
+      @ExpoModule
+      final class M {
+        enum Mode: String, Enumerable { case on }
+        @JS func f(mode: Self.Mode) {}
+      }
+      """
+    )
+    let types = try parameterTypes(surface)
+
+    #expect(types["mode"] == .ref(name: "M.Mode", refKind: .enum, jsTypeOverride: .string))
   }
 
   @Test
@@ -1423,8 +1472,8 @@ struct RefResolutionTests {
       surface.modules.first?.classes == [
         // The `@SharedObject` override is the member name JS reads.
         ExportedClass(name: "NativeDatabase", jsName: "Database"),
-        // A qualified spelling matches its bare declaration.
-        ExportedClass(name: "Store.NativeStatement", jsName: "NativeStatement"),
+        // A qualifier the scan doesn't declare is dropped, and the class takes the declaration's name.
+        ExportedClass(name: "NativeStatement", jsName: "NativeStatement"),
         // Only a shared object has a JS name; a record or an unscanned class has none.
         ExportedClass(name: "Options", jsName: nil),
         ExportedClass(name: "Missing", jsName: nil),
