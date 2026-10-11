@@ -39,7 +39,7 @@ public struct SharedObjectMacro: MemberMacro {
     }
 
     let typeName = classDecl.name.text
-    let jsName = jsNameArgument(of: node) ?? typeName
+    let jsName = jsNameArgument(of: node) ?? withoutBackticks(typeName)
 
     // `@JS func`s/`var`s and the `@JS init` are bound directly into the shared object's JS object by
     // the synthesized `_decorateSharedObject(prototype:)` / `_decorateSharedObject(constructor:)` / `_constructSharedObject`

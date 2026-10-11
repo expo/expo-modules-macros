@@ -95,7 +95,7 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
         members.append(defaultInit)
       }
     }
-    if !existingInitLabels.contains(properties.map { $0.name }) {
+    if !existingInitLabels.contains(properties.map { $0.key }) {
       members.append(memberwiseInit(properties: properties))
     }
     members.append(fromJSObjectFactory(properties: properties))
@@ -195,10 +195,11 @@ private enum FreeFormConversion {
 
 /**
  A single record property discovered on the type, paired with everything the synthesized
- conversions need: its property name (also the JS key), its written type, and how the
- source may omit it.
+ conversions need: its property name, its written type, and how the source may omit it.
  */
 private struct RecordProperty {
+  /// The property name as written, backticks included for an escaped name (`` `default` ``), since
+  /// every identifier position in the generated code needs them.
   let name: String
   /// The property's declared type, verbatim (e.g. `String`, `Int`, `String?`). Used to build the
   /// memberwise-init parameter and as the receiver of the per-property `decode`/`encode` (and, on the
@@ -221,6 +222,12 @@ private struct RecordProperty {
   /// Required properties must be present in the source; omission throws.
   var isRequired: Bool {
     return !hasDefault && !isOptional
+  }
+
+  /// The key the property reads from and writes to, in both the JS object and the dictionary: the
+  /// name without escaping backticks.
+  var key: String {
+    return withoutBackticks(name)
   }
 }
 
@@ -414,7 +421,7 @@ private func factoryBody(properties: [RecordProperty], readLines: [String]) -> S
 private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
   for property in properties {
-    let valueVar = "\(property.name)JSValue"
+    let valueVar = derivedIdentifier(from: property.name, suffix: "JSValue")
     let exprType = expressionType(property.type)
     let decode: String
     switch property.freeForm {
@@ -426,10 +433,10 @@ private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
     case nil:
       decode = "try \(exprType).decode(\(valueVar), in: runtime)"
     }
-    lines.append("  let \(valueVar) = object.getProperty(\"\(property.name)\")")
+    lines.append("  let \(valueVar) = object.getProperty(\"\(property.key)\")")
     if property.isRequired {
       lines.append("  guard !\(valueVar).isUndefined() else {")
-      lines.append("    throw RecordPropertyRequiredException(\"\(property.name)\")")
+      lines.append("    throw RecordPropertyRequiredException(\"\(property.key)\")")
       lines.append("  }")
       lines.append("  let \(property.name) = \(decode)")
     } else if property.isOptional {
@@ -449,16 +456,16 @@ private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
 private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
   for property in properties {
-    let valueVar = "\(property.name)Value"
+    let valueVar = derivedIdentifier(from: property.name, suffix: "Value")
     let exprType = expressionType(property.type)
     let isBareAny = property.freeForm?.isBareAny == true
     let cast = isBareAny
       ? valueVar
       : "try \(exprType).getDynamicType().cast(\(valueVar), appContext: appContext) as! \(exprType)"
-    lines.append("  let \(valueVar) = dictionary[\"\(property.name)\"]")
+    lines.append("  let \(valueVar) = dictionary[\"\(property.key)\"]")
     if property.isRequired {
       lines.append("  guard let \(valueVar) else {")
-      lines.append("    throw RecordPropertyRequiredException(\"\(property.name)\")")
+      lines.append("    throw RecordPropertyRequiredException(\"\(property.key)\")")
       lines.append("  }")
       lines.append("  let \(property.name) = \(cast)")
     } else if property.isOptional {
@@ -483,7 +490,7 @@ private func toDictionaryMethod(properties: [RecordProperty], inheritsRecord: Bo
     lines.append("  var dictionary: [String: Any] = [:]")
   }
   for property in properties {
-    lines.append("  dictionary[\"\(property.name)\"] = self.\(property.name)")
+    lines.append("  dictionary[\"\(property.key)\"] = self.\(property.name)")
   }
   lines.append("  return dictionary")
   let body = lines.joined(separator: "\n")
@@ -537,7 +544,7 @@ private func toObjectMethod(properties: [RecordProperty], inheritsRecord: Bool) 
     case nil:
       encode = "try \(exprType).encode(self.\(property.name), in: runtime)"
     }
-    lines.append("  object.setProperty(\"\(property.name)\", value: \(encode))")
+    lines.append("  object.setProperty(\"\(property.key)\", value: \(encode))")
   }
   lines.append("  return object")
   let body = lines.joined(separator: "\n")
@@ -567,7 +574,7 @@ private func initializerParameterLabels(of declaration: some DeclGroupSyntax) ->
     }
     let labels = initDecl.signature.parameterClause.parameters.map { parameter in
       // `firstName` is the external label (or `_`); fall back to the internal name when omitted.
-      let label = parameter.firstName.text
+      let label = withoutBackticks(parameter.firstName.text)
       return label == "_" ? "" : label
     }
     signatures.append(labels)

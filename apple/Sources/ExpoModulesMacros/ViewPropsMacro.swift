@@ -251,18 +251,6 @@ private struct ViewProp {
   }
 }
 
-/// `name` without the backticks that escape it: `` `default` `` becomes `default`.
-private func withoutBackticks(_ name: String) -> String {
-  var name = Substring(name)
-  while name.first == "`" {
-    name.removeFirst()
-  }
-  while name.last == "`" {
-    name.removeLast()
-  }
-  return String(name)
-}
-
 private struct ViewPropsModel {
   /// Value props, in declaration order. The order is the bit order, so it is part of the ABI
   /// between a compiled view and the runtime that fills the mask.

@@ -111,8 +111,9 @@ internal func directionalConformanceAssertion(
   let helper = "func \(name)<\(parameters.joined(separator: ", "))>(\(typeParameters.joined(separator: ", "))) {}"
   let call = "\(name)(\(arguments.joined(separator: ", ")))"
   let staticKeyword = isStatic ? "static " : ""
+  let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
   return """
-    private \(raw: staticKeyword)func _assertTypesConformance_\(raw: name)() {
+    private \(raw: staticKeyword)func \(raw: peerName)() {
     \(raw: helper)
     \(raw: call)
     }

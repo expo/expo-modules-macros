@@ -45,7 +45,7 @@ public struct ExpoModuleMacro: MemberMacro {
     // class name) and emitted as a non-optional `_jsName` static below — so the
     // macro no longer emits a `Name(…)` DSL entry. Core reads the static for the module name,
     // ahead of its type-name fallback (which then only applies to non-macro DSL modules).
-    let moduleName = jsNameArgument(of: node) ?? classDecl.name.text
+    let moduleName = jsNameArgument(of: node) ?? withoutBackticks(classDecl.name.text)
     var entries: [String] = []
 
     // `@JS func`s (sync and async) and `@JS var`s are bound directly into the JS object by the
