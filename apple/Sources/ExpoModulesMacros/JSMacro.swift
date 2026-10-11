@@ -260,10 +260,14 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
         }
         continue
       }
-      for parameter in closure.parameters where !containsFunctionType(parameter.type) {
+      // A closure type that mentions `Any` is reported by `diagnoseClosureTypes` instead.
+      for parameter in closure.parameters
+      where !containsFunctionType(parameter.type) && !mentionsFreeFormAny(parameter.type) {
         callbackArgumentTypes.append(parameter.type.trimmedDescription)
       }
-      if let returnType = closure.returnType, !containsFunctionType(closure.functionType.returnClause.type) {
+      let closureReturnType = closure.functionType.returnClause.type
+      if let returnType = closure.returnType,
+        !containsFunctionType(closureReturnType) && !mentionsFreeFormAny(closureReturnType) {
         decodableTypes.append(returnType)
       }
     }

@@ -280,7 +280,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
   }
 
   // The closure's parameters are encoded and its result is decoded, so neither can be another
-  // closure or a free-form type.
+  // closure or a type that mentions `Any`, in any shape.
   let returnType = functionType.returnClause.type
   for type in closure.parameters.map(\.type) + [returnType] {
     if let nested = firstFunctionType(in: type) {
@@ -291,7 +291,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
             "A @JS closure argument can't take or return another closure.",
             id: "js-closure-nested"
           )))
-    } else if isFreeFormBoundaryType(type.trimmedDescription) {
+    } else if mentionsFreeFormAny(type) {
       context.diagnose(
         Diagnostic(
           node: type,
