@@ -660,12 +660,15 @@ struct JSClosureArgumentTests {
       func c(callback: ((Int) -> Void) throws -> Void) {}
       @JS
       func d(callback: (Any) -> Void) {}
+      @JS
+      func e(callback: ([String: Any]?) throws -> [String: [Any]]) {}
       """,
       expandedSource: """
         func a(callback: @MainActor (Int) -> Void) {}
         func b(callback: (Int) throws(MyError) -> Void) {}
         func c(callback: ((Int) -> Void) throws -> Void) {}
         func d(callback: (Any) -> Void) {}
+        func e(callback: ([String: Any]?) throws -> [String: [Any]]) {}
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -693,6 +696,20 @@ struct JSClosureArgumentTests {
             "A @JS closure argument can't use the free-form 'Any'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
           line: 8,
           column: 19,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument can't use the free-form '[String: Any]?'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+          line: 10,
+          column: 19,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument can't use the free-form '[String: [Any]]'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+          line: 10,
+          column: 45,
           severity: .error
         ),
       ]

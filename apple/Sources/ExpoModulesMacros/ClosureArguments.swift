@@ -93,7 +93,8 @@ internal func argumentDecodeStatements(
   // A specifier such as `borrowing` belongs to the parameter, not to the type that decodes.
   let type = SpecifiedType(type).type
   guard let closure = JSClosureType(type) else {
-    return ["let \(name) = try \(decodeCall(type.trimmedDescription, from: valueExpression))"]
+    let decode = decodeCall(type.trimmedDescription, freeForm: freeFormConversion(of: type), from: valueExpression)
+    return ["let \(name) = try \(decode)"]
   }
   return closureArgumentStatements(closure, into: name, from: valueExpression)
 }
@@ -279,7 +280,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
   }
 
   // The closure's parameters are encoded and its result is decoded, so neither can be another
-  // closure or a free-form type.
+  // closure or a type that mentions `Any`, in any shape.
   let returnType = functionType.returnClause.type
   for type in closure.parameters.map(\.type) + [returnType] {
     if let nested = firstFunctionType(in: type) {
@@ -290,7 +291,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
             "A @JS closure argument can't take or return another closure.",
             id: "js-closure-nested"
           )))
-    } else if isFreeFormBoundaryType(type.trimmedDescription) {
+    } else if mentionsFreeFormAny(type) {
       context.diagnose(
         Diagnostic(
           node: type,

@@ -1629,7 +1629,7 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Ownership specifier on a free-form parameter still reroutes the decode and warns`() {
+  func `Ownership specifier on a free-form parameter still reroutes the decode`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1661,16 +1661,7 @@ struct ExpoModuleMacroTests {
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 22,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 
@@ -1715,7 +1706,7 @@ struct ExpoModuleMacroTests {
   // MARK: - Free-form (Any) types
 
   @Test
-  func `Free-form dictionary argument decodes through JavaScriptValue.decodeAnyDictionary and warns`() {
+  func `Free-form dictionary argument decodes through JavaScriptValue.decodeAnyDictionary`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1747,24 +1738,12 @@ struct ExpoModuleMacroTests {
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 22,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 
   @Test
-  func `Optional free-form argument isn't rerouted: it's asserted (and fails) like any non-conforming type`() {
-    // `[String: Any]?` isn't rerouted (only exact free-form is), so it decodes through
-    // `Optional.decode` and gets a normal conformance-assertion peer that fails cleanly, rather than
-    // a warning.
+  func `Optional free-form argument maps undefined and null to nil around decodeAnyDictionary`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1777,12 +1756,6 @@ struct ExpoModuleMacroTests {
         final class MyModule: Module {
           @JavaScriptActor
           func keep(config: [String: Any]?) { }
-
-          private func _assertTypesConformance_keep() {
-            func keep<A0: JavaScriptDecodable>(_: A0.Type) {
-            }
-            keep([String: Any].self)
-          }
 
           public static let _jsName = "MyModule"
 
@@ -1800,7 +1773,7 @@ struct ExpoModuleMacroTests {
               case 0:
                 self.keep(config: nil)
               default:
-                let arg0 = try [String: Any]?.decode(arguments.unownedValue(at: 0), in: runtime)
+                let arg0 = try arguments.unownedValue(at: 0).isUndefined() || arguments.unownedValue(at: 0).isNull() ? nil : JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
                 self.keep(config: arg0)
               }
               return .undefined()
@@ -1812,7 +1785,50 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Free-form array and bare Any arguments each reroute to their decodeAny entry point and warn`() {
+  func `Nested free-form argument decodes through the generic decodeAny from a copied value`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func store(groups: [String: [Any]], rows: [[String: Any]]?) { }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func store(groups: [String: [Any]], rows: [[String: Any]]?) { }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count >= 1 && arguments.count <= 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 2))
+              }
+              let arg0 = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 0).copied(in: runtime), as: [String: [Any]].self, in: runtime)
+              switch arguments.count {
+              case 1:
+                self.store(groups: arg0, rows: nil)
+              default:
+                let arg1 = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 1).copied(in: runtime), as: [[String: Any]]?.self, in: runtime)
+                self.store(groups: arg0, rows: arg1)
+              }
+              return .undefined()
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Free-form array and bare Any arguments each reroute to their decodeAny entry point`() {
     assertExpansion(
       """
       @ExpoModule
@@ -1845,40 +1861,32 @@ struct ExpoModuleMacroTests {
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptArray' over the free-form '[Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptArray' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 22,
-          severity: .warning
-        ),
-        DiagnosticSpec(
-          message:
-            "Prefer 'JavaScriptValue' over the free-form 'Any' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptValue' keeps the JS value inspectable without converting it.",
-          line: 5,
-          column: 36,
-          severity: .warning
-        )
-      ]
+        """
     )
   }
 
   @Test
-  func `Free-form return type is an error`() {
+  func `Free-form return values encode through the matching encodeAny method`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
         @JS
         func load() -> [String: Any] { [:] }
+        @JS
+        func list() -> [Any] { [] }
+        @JS
+        func raw() -> Any { 0 }
       }
       """,
       expandedSource: """
         final class MyModule: Module {
           @JavaScriptActor
           func load() -> [String: Any] { [:] }
+          @JavaScriptActor
+          func list() -> [Any] { [] }
+          @JavaScriptActor
+          func raw() -> Any { 0 }
 
           public static let _jsName = "MyModule"
 
@@ -1893,37 +1901,50 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
               }
               let result = self.load()
-              return try [String: Any].encode(result, in: runtime)
+              return try JavaScriptValue.encodeAnyDictionary(result, in: runtime)
+            }
+            object.setProperty("list") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "list", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.list()
+              return try JavaScriptValue.encodeAnyArray(result, in: runtime)
+            }
+            object.setProperty("raw") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "raw", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.raw()
+              return try JavaScriptValue.encodeAny(result, in: runtime)
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "A @JS function can't return the free-form '[String: Any]': there's no way to encode an untyped value back to JavaScript. Use 'JavaScriptObject', or 'JavaScriptValue' to pass a JS value through unchanged.",
-          line: 5,
-          column: 18,
-          severity: .error
-        )
-      ]
+        """
     )
   }
 
   @Test
-  func `Bare Any return type is an error suggesting a concrete type`() {
+  func `Optional and nested free-form return values encode through the generic encodeAny`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
         @JS
-        func raw() -> Any { 0 }
+        func find() -> [String: Any]? { nil }
+        @JS
+        func groups() -> [String: [Any]] { [:] }
+        @JS
+        func peek() -> Any? { nil }
       }
       """,
       expandedSource: """
         final class MyModule: Module {
           @JavaScriptActor
-          func raw() -> Any { 0 }
+          func find() -> [String: Any]? { nil }
+          @JavaScriptActor
+          func groups() -> [String: [Any]] { [:] }
+          @JavaScriptActor
+          func peek() -> Any? { nil }
 
           public static let _jsName = "MyModule"
 
@@ -1933,42 +1954,91 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("raw") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("find") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               guard arguments.count == 0 else {
-                throw Exceptions.ArgumentsRangeMismatch((functionName: "raw", received: arguments.count, required: 0, maximum: 0))
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "find", received: arguments.count, required: 0, maximum: 0))
               }
-              let result = self.raw()
-              return try Any.encode(result, in: runtime)
+              let result = self.find()
+              return try JavaScriptValue.encodeAny(result as Any, in: runtime)
+            }
+            object.setProperty("groups") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "groups", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.groups()
+              return try JavaScriptValue.encodeAny(result as Any, in: runtime)
+            }
+            object.setProperty("peek") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "peek", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.peek()
+              return try JavaScriptValue.encodeAny(result as Any, in: runtime)
             }
           }
         }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message:
-            "A @JS function can't return the free-form 'Any': there's no way to encode an untyped value back to JavaScript. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
-          line: 5,
-          column: 17,
-          severity: .error
-        )
-      ]
+        """
     )
   }
 
   @Test
-  func `Free-form property type is an error`() {
+  func `Async free-form return value encodes on the JavaScript thread`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func fetch() async throws -> [String: Any] { [:] }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func fetch() async throws -> [String: Any] { [:] }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("fetch") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "fetch", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                let result = try await self.fetch()
+                return try await runtime.execute {
+                  return try JavaScriptValue.encodeAnyDictionary(result, in: runtime)
+                }
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Free-form property encodes in its getter and decodes in its setter`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
         @JS
         var metadata: [String: Any] = [:]
+        @JS
+        var groups: [String: [Any]]? = nil
       }
       """,
       expandedSource: """
         final class MyModule: Module {
           @JavaScriptActor
           var metadata: [String: Any] = [:]
+          @JavaScriptActor
+          var groups: [String: [Any]]? = nil
 
           public static let _jsName = "MyModule"
 
@@ -1981,24 +2051,78 @@ struct ExpoModuleMacroTests {
             let metadataDescriptor = runtime.createObject()
             metadataDescriptor.setProperty("enumerable", value: true)
             metadataDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
-              return try [String: Any].encode(self.metadata, in: runtime)
+              return try JavaScriptValue.encodeAnyDictionary(self.metadata, in: runtime)
             }
             metadataDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               self.metadata = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
               return .undefined()
             }
             object.defineProperty("metadata", descriptor: metadataDescriptor)
+            let groupsDescriptor = runtime.createObject()
+            groupsDescriptor.setProperty("enumerable", value: true)
+            groupsDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              return try JavaScriptValue.encodeAny(self.groups as Any, in: runtime)
+            }
+            groupsDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              self.groups = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 0).copied(in: runtime), as: [String: [Any]]?.self, in: runtime)
+              return .undefined()
+            }
+            object.defineProperty("groups", descriptor: groupsDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A type holding Any in an unconvertible shape is an error and isn't asserted`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func keyed(map: [Int: Any]) -> Set<[String: Any]> { [] }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func keyed(map: [Int: Any]) -> Set<[String: Any]> { [] }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("keyed") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "keyed", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try [Int: Any].decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = self.keyed(map: arg0)
+              return try Set<[String: Any]>.encode(result, in: runtime)
+            }
           }
         }
         """,
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS property can't have the free-form '[String: Any]': its getter would have to encode an untyped value back to JavaScript, which isn't supported. Use 'JavaScriptObject', or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS member can't use the type '[Int: Any]': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted.",
           line: 5,
-          column: 17,
+          column: 19,
           severity: .error
-        )
+        ),
+        DiagnosticSpec(
+          message:
+            "A @JS member can't use the type 'Set<[String: Any]>': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted.",
+          line: 5,
+          column: 34,
+          severity: .error
+        ),
       ]
     )
   }

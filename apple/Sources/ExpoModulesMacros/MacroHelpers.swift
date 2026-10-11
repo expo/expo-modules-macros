@@ -366,15 +366,25 @@ internal func expressionType(_ type: String) -> String {
 }
 
 /// The decode expression for a boundary type read from `valueExpression` (a `JavaScriptUnownedValue`),
-/// as it appears after `try`. A free-form type (`Any`, `[Any]`, `[String: Any]`) can't conform to
-/// `JavaScriptDecodable`, so it decodes through the dedicated `JavaScriptValue.decodeAny…` entry point
-/// keyed to its shape; every other type decodes through its own static `decode`, spelled in expression
-/// position (`T!` rewritten to `T?`).
-internal func decodeCall(_ type: String, from valueExpression: String) -> String {
-  if let method = freeFormDecodeMethod(for: type) {
-    return "JavaScriptValue.\(method)(\(valueExpression), in: runtime)"
+/// as it appears after `try`. A type that mentions `Any` can't conform to `JavaScriptDecodable`, so it
+/// decodes through the `JavaScriptValue` free-form methods its `freeForm` conversion names; every other
+/// type decodes through its own static `decode`, spelled in expression position (`T!` rewritten to
+/// `T?`).
+internal func decodeCall(_ type: String, freeForm: FreeFormConversion?, from valueExpression: String) -> String {
+  if let freeForm {
+    return freeForm.decodeExpression(of: valueExpression, as: expressionType(type))
   }
   return "\(expressionType(type)).decode(\(valueExpression), in: runtime)"
+}
+
+/// The encode expression for the native value `valueExpression` of a boundary type, as it appears
+/// after `try`. The counterpart of `decodeCall`: a type that mentions `Any` encodes through the
+/// `JavaScriptValue` free-form methods, and every other type through its own static `encode`.
+internal func encodeCall(_ type: String, freeForm: FreeFormConversion?, of valueExpression: String) -> String {
+  if let freeForm {
+    return freeForm.encodeExpression(of: valueExpression)
+  }
+  return "\(expressionType(type)).encode(\(valueExpression), in: runtime)"
 }
 
 // MARK: - Escaped names
@@ -429,6 +439,8 @@ internal func collectProperties(
       swiftName: swiftName,
       jsName: jsNameOverride ?? withoutBackticks(swiftName),
       valueType: valueType,
+      // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
+      freeForm: binding.typeAnnotation.flatMap { freeFormConversion(of: $0.type) },
       isSettable: isVar && bindingIsSettable(binding)
     )
   }

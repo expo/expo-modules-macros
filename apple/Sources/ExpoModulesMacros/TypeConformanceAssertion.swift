@@ -143,10 +143,11 @@ internal func typeConformanceAssertions(
 }
 
 /// The type to assert for a boundary type as written, or `nil` when nothing needs asserting: an
-/// exactly-free-form type (handled by the binding's `decodeAny…` reroute) and a known-conforming
-/// primitive both return `nil`; everything else is unwrapped of trailing optionals and asserted. An
-/// *optional* free-form (`[String: Any]?`) isn't rerouted and doesn't conform, so it's kept and
-/// asserted for a clean diagnostic. Shared with `@Event`.
+/// exactly-free-form type (converted through the `JavaScriptValue` free-form methods) and a
+/// known-conforming primitive both return `nil`; everything else is unwrapped of trailing optionals
+/// and asserted. Shared with `@Event`, where an *optional* free-form type (`[String: Any]?`) is kept
+/// and asserted for a clean diagnostic. `@JS` leaves out every type that mentions `Any` before it gets
+/// here.
 internal func assertableBoundaryType(_ type: String) -> String? {
   guard !isFreeFormBoundaryType(type) else {
     return nil

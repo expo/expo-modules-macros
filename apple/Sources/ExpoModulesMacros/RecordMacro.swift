@@ -144,56 +144,6 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
 // MARK: - Property model
 
 /**
- How a property whose type mentions `Any` converts on the JS-value paths. Such a type can't conform to
- the JS codable protocols, so the property converts through the `JavaScriptValue` free-form methods.
- */
-private enum FreeFormConversion {
-  /// `Any`, `[Any]` or `[String: Any]`, wrapped in at most one optional: the dedicated methods for
-  /// that shape, named by `decodeMethod` and `encodeMethod`. The optional is handled around them.
-  case shape(decodeMethod: String, encodeMethod: String, isOptional: Bool, isBareAny: Bool)
-  /// Any other type that mentions `Any`: the generic `decodeAny(_:as:in:)` and `encodeAny(_:in:)`.
-  case generic
-
-  /// Classifies a type that mentions `Any`; the caller checks `isConvertibleFreeFormType` first.
-  init(type: TypeSyntax) {
-    let wrapped = optionalWrappedType(type)
-    switch freeFormShape(of: wrapped ?? type) {
-    case .any:
-      self = .shape(
-        decodeMethod: "decodeAny",
-        encodeMethod: "encodeAny",
-        isOptional: wrapped != nil,
-        isBareAny: true
-      )
-    case .array:
-      self = .shape(
-        decodeMethod: "decodeAnyArray",
-        encodeMethod: "encodeAnyArray",
-        isOptional: wrapped != nil,
-        isBareAny: false
-      )
-    case .dictionary:
-      self = .shape(
-        decodeMethod: "decodeAnyDictionary",
-        encodeMethod: "encodeAnyDictionary",
-        isOptional: wrapped != nil,
-        isBareAny: false
-      )
-    case nil:
-      self = .generic
-    }
-  }
-
-  /// True for `Any` itself, optional or not.
-  var isBareAny: Bool {
-    guard case .shape(_, _, _, let isBareAny) = self else {
-      return false
-    }
-    return isBareAny
-  }
-}
-
-/**
  A single record property discovered on the type, paired with everything the synthesized
  conversions need: its property name, its written type, and how the source may omit it.
  */
