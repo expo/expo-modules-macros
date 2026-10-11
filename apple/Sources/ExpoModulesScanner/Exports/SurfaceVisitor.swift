@@ -1,10 +1,14 @@
 import SwiftSyntax
 
-/// Extracts the full JS-exported surface of every top-level `@ExpoModule`, `@SharedObject`, and
-/// `@Record` type: their `@JS` members and record properties. The deep counterpart to
-/// `DetectionVisitor`. Recognition is purely syntactic and re-reads what the macros read (the macro
-/// target can't be imported), so it stays in step with `JSFunction` / `JSProperty` / `JSConstructor` /
+/// Extracts the full JS-exported surface of every `@ExpoModule`, `@SharedObject`, and `@Record` type:
+/// their `@JS` members and record properties. The deep counterpart to `DetectionVisitor`.
+/// Recognition is purely syntactic and re-reads what the macros read (the macro target can't be
+/// imported), so it stays in step with `JSFunction` / `JSProperty` / `JSConstructor` /
 /// `RecordProperty`.
+///
+/// Types nested in another type's body, or in a file-scope `extension`, are reported under their
+/// qualified Swift name (`Options.Encoding`), so a ref to one can be resolved from the scope it is
+/// written in. A type declared in a function body or a closure is local and is not reported.
 final class SurfaceVisitor: SyntaxVisitor {
   private let file: String
   private(set) var modules: [ExportedModule] = []
@@ -19,19 +23,33 @@ final class SurfaceVisitor: SyntaxVisitor {
   }
 
   override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
-    if isTopLevel(node) {
-      classify(name: node.name.identifierName, attributes: node.attributes, members: node.memberBlock.members)
+    guard let scope = enclosingTypes(of: node) else {
+      return .skipChildren
     }
-    // The member walk reads the body itself; nested types aren't part of this surface (matching
-    // `DetectionVisitor`'s top-level-only scope), so there's no reason to descend.
-    return .skipChildren
+    classify(
+      name: node.name.identifierName, scope: scope, attributes: node.attributes, members: node.memberBlock.members)
+    // The member walk reads the body itself; the children are visited only to find nested types.
+    return .visitChildren
   }
 
   override func visit(_ node: StructDeclSyntax) -> SyntaxVisitorContinueKind {
-    if isTopLevel(node) {
-      classify(name: node.name.identifierName, attributes: node.attributes, members: node.memberBlock.members)
+    guard let scope = enclosingTypes(of: node) else {
+      return .skipChildren
     }
-    return .skipChildren
+    classify(
+      name: node.name.identifierName, scope: scope, attributes: node.attributes, members: node.memberBlock.members)
+    return .visitChildren
+  }
+
+  override func visit(_ node: ActorDeclSyntax) -> SyntaxVisitorContinueKind {
+    // No macro the surface reports applies to an actor, but its body can declare types that do.
+    enclosingTypes(of: node) == nil ? .skipChildren : .visitChildren
+  }
+
+  override func visit(_ node: ExtensionDeclSyntax) -> SyntaxVisitorContinueKind {
+    // Only for the types declared in its body. Members an extension adds to a module, shared object,
+    // or record are not part of the surface, since the macros only read the type's own body.
+    enclosingTypes(of: node) == nil ? .skipChildren : .visitChildren
   }
 
   /// The two kinds of enum the surface reports: a `@Union` by its attribute, an `Enumerable` enum by
@@ -41,14 +59,15 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// would be nothing to report as an enum, and listing it in both arrays would describe two
   /// contradictory JS types for one declaration.
   override func visit(_ node: EnumDeclSyntax) -> SyntaxVisitorContinueKind {
-    guard isTopLevel(node) else {
+    guard let scope = enclosingTypes(of: node) else {
       return .skipChildren
     }
+    let name = qualifiedName(node.name.identifierName, in: scope)
 
     if node.attributes.firstAttribute(named: DetectedMacro.union.rawValue) != nil {
       unions.append(
         ExportedUnion(
-          name: node.name.identifierName,
+          name: name,
           members: collectUnionMembers(node.memberBlock.members),
           file: file
         ))
@@ -56,24 +75,35 @@ final class SurfaceVisitor: SyntaxVisitor {
       let rawType = rawValueType(of: node.inheritanceClause)
       enums.append(
         ExportedEnum(
-          name: node.name.identifierName,
+          name: name,
           rawType: rawType,
           cases: collectEnumCases(node.memberBlock.members, rawType: rawType),
           file: file
         ))
     }
-    return .skipChildren
+    // An enum is often a namespace for other types, so its body is searched too.
+    return .visitChildren
   }
 
-  /// Routes a top-level type to the right collector based on which Expo macro it carries. A type
+  /// Routes a class or struct to the right collector based on which Expo macro it carries. A type
   /// carrying none of them is ignored. `@Record` and `@ExpoModule`/`@SharedObject` are mutually
   /// exclusive in practice, so the first match wins.
-  private func classify(name: String, attributes: AttributeListSyntax, members: MemberBlockItemListSyntax) {
-    if let attribute = attributes.firstAttribute(named: DetectedMacro.expoModule.rawValue) {
+  ///
+  /// `name` is the declared name and `scope` the names of the types enclosing it. The reported `name`
+  /// is qualified with the scope, while a default `jsName` is the declared name alone, as the macros
+  /// spell it.
+  private func classify(
+    name: String, scope: [String], attributes: AttributeListSyntax, members: MemberBlockItemListSyntax
+  ) {
+    let qualified = qualifiedName(name, in: scope)
+
+    // Only a file-scope module is reported. Autolinking registers no other (`DetectionVisitor` reads
+    // file scope only), so a nested one never loads.
+    if scope.isEmpty, let attribute = attributes.firstAttribute(named: DetectedMacro.expoModule.rawValue) {
       let (functions, properties, events, _) = collectJSMembers(members)
       modules.append(
         ExportedModule(
-          name: name,
+          name: qualified,
           jsName: stringArgument(of: attribute) ?? name,
           functions: functions,
           properties: properties,
@@ -92,7 +122,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       let (functions, properties, events, constructor) = collectJSMembers(members)
       sharedObjects.append(
         ExportedSharedObject(
-          name: name,
+          name: qualified,
           jsName: stringArgument(of: attribute) ?? name,
           constructorParameters: constructor,
           functions: functions,
@@ -104,7 +134,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
 
     if attributes.firstAttribute(named: DetectedMacro.record.rawValue) != nil {
-      records.append(ExportedRecord(name: name, properties: collectRecordProperties(members), file: file))
+      records.append(ExportedRecord(name: qualified, properties: collectRecordProperties(members), file: file))
     }
   }
 
@@ -364,14 +394,47 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
   }
 
-  /// True when the declaration sits at file scope. Same rule as `DetectionVisitor.isTopLevel`: its
-  /// parent is a `CodeBlockItemSyntax` directly under the source file's top-level item list.
-  private func isTopLevel(_ node: some SyntaxProtocol) -> Bool {
-    guard let item = node.parent?.as(CodeBlockItemSyntax.self) else {
-      return false
+  /// The names of the types enclosing a declaration, outermost first: empty at file scope, and `nil`
+  /// when the declaration is local to a function body or a closure, or sits in a `#if` block.
+  ///
+  /// File scope uses the same rule as `DetectionVisitor.isTopLevel`, except that `#if` is not looked
+  /// through: the parent is a `CodeBlockItemSyntax` directly under the source file's top-level item
+  /// list. A member is reached from its type through `MemberBlockItemSyntax`; an `extension`
+  /// contributes its extended type as written (without backticks), so its spelling may already be
+  /// qualified.
+  private func enclosingTypes(of node: some SyntaxProtocol) -> [String]? {
+    if let item = node.parent?.as(CodeBlockItemSyntax.self) {
+      return item.parent?.parent?.is(SourceFileSyntax.self) == true ? [] : nil
     }
-    return item.parent?.parent?.is(SourceFileSyntax.self) == true
+    guard let item = node.parent?.as(MemberBlockItemSyntax.self),
+      let parent = item.parent?.parent?.parent,
+      let scope = enclosingTypes(of: parent) else {
+      return nil
+    }
+    if let decl = parent.as(ClassDeclSyntax.self) {
+      return scope + [decl.name.identifierName]
+    }
+    if let decl = parent.as(StructDeclSyntax.self) {
+      return scope + [decl.name.identifierName]
+    }
+    if let decl = parent.as(EnumDeclSyntax.self) {
+      return scope + [decl.name.identifierName]
+    }
+    if let decl = parent.as(ActorDeclSyntax.self) {
+      return scope + [decl.name.identifierName]
+    }
+    if let decl = parent.as(ExtensionDeclSyntax.self) {
+      // Without backticks, like every other reported name.
+      return scope + [String(decl.extendedType.trimmedDescription.filter { $0 != "`" })]
+    }
+    // A protocol body cannot declare types.
+    return nil
   }
+}
+
+/// A declared name qualified with the names of its enclosing types: `Options.Encoding`.
+private func qualifiedName(_ name: String, in scope: [String]) -> String {
+  (scope + [name]).joined(separator: ".")
 }
 
 // MARK: - Syntactic helpers (shared spelling with the macros)

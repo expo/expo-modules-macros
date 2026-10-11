@@ -158,7 +158,8 @@ struct ExportedEvent: Encodable, Equatable {
 
 /// A `@ExpoModule` type and its `@JS` surface.
 struct ExportedModule: Encodable, Equatable {
-  /// The Swift class name.
+  /// The Swift class name. A module is always declared at file scope, since autolinking registers no
+  /// other.
   let name: String
 
   /// The JS module name: `@ExpoModule("Foo")` override, else the class name.
@@ -189,10 +190,11 @@ struct ExportedClass: Encodable, Equatable {
 
 /// A `@SharedObject` type: a JS class with an optional `@JS init` constructor plus its `@JS` members.
 struct ExportedSharedObject: Encodable, Equatable {
-  /// The Swift class name.
+  /// The Swift class name, qualified with the types it is nested in (`Outer.Player`).
   let name: String
 
-  /// The JS class name: `@SharedObject("Foo")` override, else the class name.
+  /// The JS class name: `@SharedObject("Foo")` override, else the class name without the enclosing
+  /// types.
   let jsName: String
 
   /// The `@JS init` parameters, or `nil` when there's none. A shared object has at most one.
@@ -207,7 +209,8 @@ struct ExportedSharedObject: Encodable, Equatable {
 
 /// A `@Record` type and its properties (data only: no functions, accessors, or constructor).
 struct ExportedRecord: Encodable, Equatable {
-  /// The Swift type name (struct or class).
+  /// The Swift type name (struct or class), qualified with the types it is nested in
+  /// (`Outer.Options`).
   let name: String
 
   let properties: [ExportedRecordProperty]
@@ -247,8 +250,9 @@ struct ExportedEnumCase: Encodable, Equatable {
 /// Detected by conformance, not by a macro attribute, because core converts it through its
 /// `RawRepresentable`/`Enumerable` conformance (`Coding/…+Enumerable`) with no macro involved.
 struct ExportedEnum: Encodable, Equatable {
-  /// The Swift enum name. No `jsName`: an enum carries no macro to spell an override on, and it
-  /// reaches JS as its raw values, not under a bound name.
+  /// The Swift enum name, qualified with the types it is nested in (`Options.Encoding`). No `jsName`:
+  /// an enum carries no macro to spell an override on, and it reaches JS as its raw values, not under
+  /// a bound name.
   let name: String
 
   /// The raw value type as written (`String`, `Int`, …), or `nil` for a bare `Enumerable` conformance
@@ -296,8 +300,9 @@ struct ExportedUnionMember: Encodable, Equatable {
 /// `Double`, two compatible records) the earlier case wins. Reordering them describes a different
 /// union than the one the module runs.
 struct ExportedUnion: Encodable, Equatable {
-  /// The Swift enum name. No `jsName`: `@Union` takes no arguments, and a union reaches JS as its
-  /// payload types rather than under a bound name.
+  /// The Swift enum name, qualified with the types it is nested in (`Options.Value`). No `jsName`:
+  /// `@Union` takes no arguments, and a union reaches JS as its payload types rather than under a bound
+  /// name.
   let name: String
 
   let members: [ExportedUnionMember]
@@ -320,8 +325,9 @@ struct ExportedSurface: Encodable, Equatable {
 /// Versioned independently of `scanModulesSchemaVersion`: the two commands serve different consumers
 /// and change for different reasons. Version 2 added `events` to modules and shared objects; version 3
 /// added `enums`; version 4 added `unions`; version 5 resolves refs, adding `refKind` and correcting
-/// an enum ref's `typeof`; version 6 added `classes` to modules.
-let scanExportsSchemaVersion = 6
+/// an enum ref's `typeof`; version 6 added `classes` to modules; version 7 reports nested types under
+/// qualified names and gives a resolved ref the name of its declaration.
+let scanExportsSchemaVersion = 7
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanModulesResult` (different consumer: TS generation vs. autolinking).

@@ -39,7 +39,9 @@ export type TypeNode =
       throws: boolean;
     }
   /**
-   * Any other named type; `name` may be qualified.
+   * Any other named type. When `refKind` is present, `name` is the declaration's qualified name,
+   * equal to the `name` of the matching entry in the surface (`Encoding` written in `Options` reports
+   * `Options.Encoding`). Otherwise it is the spelling as written, which may be qualified.
    *
    * `refKind` says which of this surface's arrays declares that name, so you don't have to look it
    * up. It is absent when the scan declares no such type: a platform convertible (`CGPoint`, `URL`)
@@ -103,6 +105,7 @@ export interface ExportedRecordProperty {
 
 /** An `@ExpoModule` type and its `@JS` surface. */
 export interface ExportedModule {
+  /** The Swift class name. A module is always declared at file scope. */
   name: string;
   /** The JS module name: `@ExpoModule("Foo")` override, else the class name. */
   jsName: string;
@@ -147,7 +150,12 @@ export interface ExportedEvent {
 
 /** A `@SharedObject` type: a JS class with an optional constructor plus its `@JS` members. */
 export interface ExportedSharedObject {
+  /** The Swift class name, qualified with the types it is nested in (`Outer.Player`). */
   name: string;
+  /**
+   * The JS class name: `@SharedObject("Foo")` override, else the class name without the enclosing
+   * types.
+   */
   jsName: string;
   /** The `@JS init` parameters, or absent when there's none. At most one constructor. */
   constructorParameters?: ExportedParameter[];
@@ -159,6 +167,7 @@ export interface ExportedSharedObject {
 
 /** A `@Record` type and its properties. */
 export interface ExportedRecord {
+  /** The Swift type name, qualified with the types it is nested in (`Outer.Options`). */
   name: string;
   properties: ExportedRecordProperty[];
   file: string;
@@ -187,6 +196,7 @@ export interface ExportedEnumCase {
  * Detected by conformance, not by a macro attribute, so it carries no `jsName`.
  */
 export interface ExportedEnum {
+  /** The Swift enum name, qualified with the types it is nested in (`Options.Encoding`). */
   name: string;
   /** The raw value type as written, absent for a bare `Enumerable` conformance with no raw type. */
   rawType?: TypeNode;
@@ -213,6 +223,7 @@ export interface ExportedUnionMember {
  * wins. Reordering them describes a different union than the one the module runs.
  */
 export interface ExportedUnion {
+  /** The Swift enum name, qualified with the types it is nested in (`Options.Value`). */
   name: string;
   members: ExportedUnionMember[];
   file: string;
@@ -290,4 +301,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 6;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 7;
