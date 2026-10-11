@@ -1538,6 +1538,180 @@ struct ExpoModuleMacroTests {
     )
   }
 
+  // MARK: - Parameter specifiers
+
+  @Test
+  func `Ownership specifiers on @JS parameters are left off the decode and the assertion`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
+
+          private func _assertTypesConformance_move() {
+            func move<A0: JavaScriptDecodable, A1: JavaScriptDecodable, A2: JavaScriptDecodable>(_: A0.Type, _: A1.Type, _: A2.Type) {
+            }
+            move(Point.self, Delta.self, Tag.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("move") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 3 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "move", received: arguments.count, required: 3, maximum: 3))
+              }
+              let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg1 = try Delta.decode(arguments.unownedValue(at: 1), in: runtime)
+              let arg2 = try Tag.decode(arguments.unownedValue(at: 2), in: runtime)
+              self.move(point: arg0, by: arg1, tag: arg2)
+              return .undefined()
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Ownership specifier keeps a trailing optional parameter omittable`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func tag(name: String, note: borrowing String?) { }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func tag(name: String, note: borrowing String?) { }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count >= 1 && arguments.count <= 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              switch arguments.count {
+              case 1:
+                self.tag(name: arg0, note: nil)
+              default:
+                let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
+                self.tag(name: arg0, note: arg1)
+              }
+              return .undefined()
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Ownership specifier on a free-form parameter still reroutes the decode and warns`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func store(config: borrowing [String: Any]) { }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func store(config: borrowing [String: Any]) { }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
+              self.store(config: arg0)
+              return .undefined()
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Prefer 'JavaScriptObject' over the free-form '[String: Any]' for a @JS argument. Free-form decoding boxes every value as 'Any' (slower, no static typing); 'JavaScriptObject' keeps the JS value inspectable without converting it.",
+          line: 5,
+          column: 22,
+          severity: .warning
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `inout and isolated @JS parameters are errors`() {
+    assertExpansion(
+      """
+      @JS
+      func a(value: inout Int) {}
+      @JS
+      func b(worker: isolated Worker, name: Name) {}
+      """,
+      expandedSource: """
+        func a(value: inout Int) {}
+        func b(worker: isolated Worker, name: Name) {}
+
+        private func _assertTypesConformance_b() {
+          func b<A0: JavaScriptDecodable>(_: A0.Type) {
+          }
+          b(Name.self)
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS parameter can't be 'inout': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
+          line: 2,
+          column: 15,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message:
+            "A @JS parameter can't be 'isolated': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
+          line: 4,
+          column: 16,
+          severity: .error
+        ),
+      ]
+    )
+  }
+
   // MARK: - Free-form (Any) types
 
   @Test

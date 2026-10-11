@@ -72,6 +72,9 @@ internal func isConcurrentJSMember(_ decl: DeclSyntaxProtocol) -> Bool {
 /// True if the type is written as an optional: `T?`, `T!`, or the explicit `Optional<T>`. Used to
 /// decide argument requiredness (an optional parameter may be omitted) and record-field nullability.
 internal func isOptionalType(_ type: TypeSyntax) -> Bool {
+  if let attributed = type.as(AttributedTypeSyntax.self) {
+    return isOptionalType(attributed.baseType)
+  }
   if type.is(OptionalTypeSyntax.self) || type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
     return true
   }
@@ -80,6 +83,39 @@ internal func isOptionalType(_ type: TypeSyntax) -> Bool {
   }
   return false
 }
+
+/// A parameter's type split from the specifiers written in front of it (`borrowing`, `consuming`,
+/// `sending`, `inout`, `isolated`, ...). The specifiers aren't part of the type: the decode call and
+/// the conformance assertion need the bare type (`borrowing Point.decode(...)` isn't valid Swift), and
+/// a decoded argument is a fresh owned value, so it can be passed under any ownership convention.
+internal struct SpecifiedType {
+  /// The type without its specifiers.
+  let type: TypeSyntax
+  /// The specifiers written before the type, in source order.
+  let specifiers: [String]
+
+  init(_ type: TypeSyntax) {
+    if let attributed = type.as(AttributedTypeSyntax.self), !attributed.specifiers.isEmpty {
+      self.specifiers = attributed.specifiers.map(\.trimmedDescription)
+      self.type =
+        attributed.attributes.isEmpty
+        ? attributed.baseType : TypeSyntax(attributed.with(\.specifiers, []))
+    } else {
+      self.specifiers = []
+      self.type = type
+    }
+  }
+
+  /// The first specifier a decoded argument can't honor: `inout` (JavaScript can't observe a write
+  /// back) or `isolated` (the argument doesn't carry an isolation).
+  var unsupportedSpecifier: String? {
+    return specifiers.first { !ownershipSpecifiers.contains($0) }
+  }
+}
+
+/// The ownership specifiers a parameter may carry. They only change how the argument is passed, which
+/// a fresh decoded value satisfies either way.
+internal let ownershipSpecifiers: Set<String> = ["borrowing", "consuming", "sending", "__shared", "__owned"]
 
 /// The type wrapped by one optional layer (`T?`, `T!` or `Optional<T>`), or `nil` when the type isn't
 /// optional.

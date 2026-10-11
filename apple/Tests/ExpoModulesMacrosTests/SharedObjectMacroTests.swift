@@ -291,6 +291,39 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `@JS init with an ownership specifier decodes the bare type`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Cache: SharedObject {
+        @JS
+        init(origin: borrowing Point) {}
+      }
+      """,
+      expandedSource: """
+        final class Cache: SharedObject {
+          @JavaScriptActor
+          init(origin: borrowing Point) {}
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Cache", Cache.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+            guard arguments.count == 1 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
+            }
+            let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
+            return Cache(origin: arg0)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `@JS init with a free-form argument decodes through decodeAnyDictionary and warns`() {
     assertExpansion(
       """
