@@ -68,28 +68,19 @@ internal struct JSClosureType {
     let isVariadic: Bool
 
     init(_ element: TupleTypeElementSyntax) {
-      if let attributed = element.type.as(AttributedTypeSyntax.self), !attributed.specifiers.isEmpty {
-        self.specifiers = attributed.specifiers.map(\.trimmedDescription)
-        self.type =
-          attributed.attributes.isEmpty
-          ? attributed.baseType : TypeSyntax(attributed.with(\.specifiers, []))
-      } else {
-        self.specifiers = []
-        self.type = element.type
-      }
+      let specified = SpecifiedType(element.type)
+      self.specifiers = specified.specifiers
+      self.type = specified.type
       self.isVariadic = element.ellipsis != nil
     }
 
-    /// The first specifier the wrapper can't support, such as `inout` or `isolated`.
+    /// The first specifier the wrapper can't support, such as `inout` or `isolated`. The wrapper passes
+    /// each parameter on to the callback, so an ownership convention doesn't change what it does.
     var unsupportedSpecifier: String? {
-      return specifiers.first { !supportedParameterSpecifiers.contains($0) }
+      return specifiers.first { !ownershipSpecifiers.contains($0) }
     }
   }
 }
-
-/// The ownership specifiers a closure parameter may carry. The wrapper passes each parameter on to the
-/// callback, so the ownership convention doesn't change what it does.
-private let supportedParameterSpecifiers: Set<String> = ["borrowing", "consuming", "sending", "__shared", "__owned"]
 
 /// The statements that bind `name` to the native value of a `@JS` argument read from
 /// `valueExpression` (a `JavaScriptUnownedValue`). A closure gets a wrapper around the JS function,
@@ -99,6 +90,8 @@ internal func argumentDecodeStatements(
   into name: String,
   from valueExpression: String
 ) -> [String] {
+  // A specifier such as `borrowing` belongs to the parameter, not to the type that decodes.
+  let type = SpecifiedType(type).type
   guard let closure = JSClosureType(type) else {
     return ["let \(name) = try \(decodeCall(type.trimmedDescription, from: valueExpression))"]
   }

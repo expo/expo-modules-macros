@@ -31,6 +31,7 @@ public struct JSMacro: PeerMacro {
     providingPeersOf declaration: some DeclSyntaxProtocol,
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
+    diagnoseParameterSpecifiers(in: declaration, in: context)
     diagnoseFreeFormTypes(in: declaration, in: context)
     diagnoseClosureTypes(in: declaration, in: context)
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
@@ -114,6 +115,39 @@ private func insertAsyncFixIt(for funcDecl: FunctionDeclSyntax) -> FixIt {
   )
 }
 
+/// Reports a function or constructor parameter whose specifier a decoded argument can't honor: an
+/// `inout` parameter expects its writes to reach the caller, and an `isolated` one expects an actor,
+/// while a `@JS` argument is a fresh value decoded from JavaScript. Ownership specifiers (`borrowing`,
+/// `consuming`, `sending`) are fine: the binding passes the decoded value under whichever convention
+/// the parameter asks for. The specifier is left off the decode and the assertion (see
+/// `SpecifiedType`); a parameter reported here is also left out of the assertion.
+private func diagnoseParameterSpecifiers(
+  in declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  let parameters: FunctionParameterListSyntax
+  if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
+    parameters = funcDecl.signature.parameterClause.parameters
+  } else if let initDecl = declaration.as(InitializerDeclSyntax.self) {
+    parameters = initDecl.signature.parameterClause.parameters
+  } else {
+    return
+  }
+  for parameter in parameters {
+    guard let specifier = SpecifiedType(parameter.type).unsupportedSpecifier else {
+      continue
+    }
+    context.diagnose(
+      Diagnostic(
+        node: parameter.type,
+        message: JSDiagnosticMessage(
+          "A @JS parameter can't be '\(specifier)': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
+          id: "js-parameter-specifier",
+          severity: .error
+        )))
+  }
+}
+
 /// Emits the free-form (`Any` / `[Any]` / `[String: Any]`) diagnostics for a `@JS` declaration.
 ///
 /// A free-form type is only supported crossing the boundary as an **argument**, decoded through
@@ -172,7 +206,8 @@ private func warnFreeFormArguments(
   in context: some MacroExpansionContext
 ) {
   for parameter in parameters {
-    let type = parameter.type.trimmedDescription
+    // Matched on the bare type: `borrowing [String: Any]` decodes as free-form too.
+    let type = SpecifiedType(parameter.type).type.trimmedDescription
     guard let suggested = typedFreeFormReplacement(for: type) else {
       continue
     }
@@ -265,9 +300,15 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
     var decodableTypes: [String] = []
     var callbackArgumentTypes: [String] = []
     for parameter in funcDecl.signature.parameterClause.parameters {
-      guard let closure = JSClosureType(parameter.type) else {
-        if !containsFunctionType(parameter.type) {
-          decodableTypes.append(parameter.type.trimmedDescription)
+      // The specifier isn't part of the asserted type, and a parameter with one the binding can't honor
+      // is reported by `diagnoseParameterSpecifiers` and not asserted.
+      let specified = SpecifiedType(parameter.type)
+      guard specified.unsupportedSpecifier == nil else {
+        continue
+      }
+      guard let closure = JSClosureType(specified.type) else {
+        if !containsFunctionType(specified.type) {
+          decodableTypes.append(specified.type.trimmedDescription)
         }
         continue
       }
