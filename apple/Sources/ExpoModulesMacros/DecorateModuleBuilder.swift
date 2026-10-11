@@ -19,6 +19,8 @@ internal struct JSFunction {
   let parameters: [FunctionParameterSyntax]
   /// The declared return type as written, or `nil` when the function returns `Void`/nothing.
   let returnType: String?
+  /// How the return value encodes when its type mentions `Any`, or `nil` for any other type.
+  let returnFreeForm: FreeFormConversion?
   let isThrowing: Bool
   let isAsync: Bool
 
@@ -29,6 +31,7 @@ internal struct JSFunction {
 
     let declaredReturnType = funcDecl.signature.returnClause?.type
     self.returnType = isVoidType(declaredReturnType) ? nil : declaredReturnType?.trimmedDescription
+    self.returnFreeForm = declaredReturnType.flatMap(freeFormConversion(of:))
 
     let effectSpecifiers = funcDecl.signature.effectSpecifiers
     self.isThrowing = effectSpecifiers?.throwsClause?.throwsSpecifier != nil
@@ -220,9 +223,10 @@ internal struct JSFunction {
     return lines
   }
 
-  /// Encode the `result` local back to JS and return it through `JavaScriptEncodable.encode`, the same
-  /// for every type. Unlike the decode side there's no primitive fast path: `encode` produces the same
-  /// value as the primitive's `toJavaScriptValue(in:)` except for `Int`/`UInt`, where it range-checks
+  /// Encode the `result` local back to JS and return it through `JavaScriptEncodable.encode` (or, for a
+  /// type that mentions `Any`, the matching `JavaScriptValue` free-form method). Unlike the decode side
+  /// there's no primitive fast path: `encode` produces the same value as the primitive's
+  /// `toJavaScriptValue(in:)` except for `Int`/`UInt`, where it range-checks
   /// and throws instead of silently encoding an out-of-safe-range value as a lossy number — the
   /// catchable error is the right behavior, and matches how non-primitive integers already encode. A
   /// no-return function returns `.undefined()` instead.
@@ -237,7 +241,7 @@ internal struct JSFunction {
     guard let returnType else {
       return ["return .undefined()"]
     }
-    let encode = "try \(expressionType(returnType)).encode(result, in: runtime)"
+    let encode = "try \(encodeCall(returnType, freeForm: returnFreeForm, of: "result"))"
     if isAsync {
       return [
         "return try await runtime.execute {",
@@ -290,7 +294,8 @@ internal struct JSFunction {
 /// The receiver (see `Receiver`) is the module's `self` for a module binding, or the per-call `_self`
 /// unwrapped from the JS `this` for a shared object. The getter reads `<callee>.<name>` and the setter
 /// writes `<callee>.<name> = …`. Decode/encode of the value go through `JavaScriptDecodable.decode` /
-/// `JavaScriptEncodable.encode`, the same uniform path as functions.
+/// `JavaScriptEncodable.encode` (or the free-form methods for a type that mentions `Any`), the same
+/// path as functions.
 internal struct JSProperty {
   let swiftName: String
   let jsName: String
@@ -298,6 +303,8 @@ internal struct JSProperty {
   /// no literal default). When `nil` the getter still works (the encode infers from `self.<name>`)
   /// but the setter uses an untyped closure parameter.
   let valueType: String?
+  /// How the value converts when its type mentions `Any`, or `nil` for any other type.
+  let freeForm: FreeFormConversion?
   /// Whether the property is settable from JS: `true` for a stored `var` or a computed `var` with an
   /// explicit `set` accessor; `false` for a getter-only computed `var` or a `let`.
   let isSettable: Bool
@@ -325,7 +332,7 @@ internal struct JSProperty {
     // no static type to call `encode` on, so the value's own `toJavaScriptValue(in:)` is the fallback.
     let getEncode: String
     if let valueType {
-      getEncode = "return try \(expressionType(valueType)).encode(\(callee).\(swiftName), in: runtime)"
+      getEncode = "return try \(encodeCall(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)"))"
     } else {
       getEncode = "return \(callee).\(swiftName).toJavaScriptValue(in: runtime)"
     }
@@ -337,7 +344,8 @@ internal struct JSProperty {
     // getter-only (a settable var with neither an annotation nor a literal default is rare and can't
     // be decoded).
     if isSettable, let valueType {
-      let setDecode = "\(callee).\(swiftName) = try \(decodeCall(valueType, from: "arguments.unownedValue(at: 0)"))"
+      let decode = decodeCall(valueType, freeForm: freeForm, from: "arguments.unownedValue(at: 0)")
+      let setDecode = "\(callee).\(swiftName) = try \(decode)"
       lines.append(
         accessorClosure(
           descriptorName, "set", receiver: receiver, body: "\(unwrap)\(setDecode)\nreturn .undefined()"))

@@ -148,55 +148,46 @@ private func diagnoseParameterSpecifiers(
   }
 }
 
-/// Emits the free-form (`Any` / `[Any]` / `[String: Any]`) diagnostics for a `@JS` declaration.
+/// Emits the free-form (`Any`-bearing) diagnostics for a `@JS` declaration.
 ///
-/// A free-form type is only supported crossing the boundary as an **argument**, decoded through
-/// `JavaScriptValue.decodeAny…`; there is no free-form encode, so any position that encodes is a hard
-/// error. That means:
-/// - a function/constructor **parameter** typed free-form gets a warning steering to
-///   `JavaScriptValue` (the type-safe alternative), but compiles;
-/// - a function **return** typed free-form is an error (it would need to encode);
-/// - a **property** typed free-form is an error regardless of settability, because its getter always
-///   encodes.
+/// A type built from `Any`, arrays, `String`-keyed dictionaries and optionals converts through the
+/// `JavaScriptValue` free-form methods in every position (see `FreeFormConversion`). That means:
+/// - a function/constructor **parameter** typed exactly `Any`, `[Any]` or `[String: Any]` gets a
+///   warning steering to the JS wrapper of the same shape, but compiles;
+/// - a free-form return value or property needs no diagnostic: it encodes through `encodeAny…`, and a
+///   settable property decodes through `decodeAny…`;
+/// - a type that holds `Any` in any other shape (`[Int: Any]`, `Set<[String: Any]>`) is an error in
+///   every position, since the free-form methods never produce or accept it.
 ///
-/// Types are matched by their written spelling on the type node, so the diagnostic points at the
-/// offending type in the user's source.
+/// Types are matched on the type node, so the diagnostic points at the offending type in the user's
+/// source. A closure type is left to `diagnoseClosureTypes`.
 private func diagnoseFreeFormTypes(
   in declaration: some DeclSyntaxProtocol,
   in context: some MacroExpansionContext
 ) {
+  var types: [TypeSyntax] = []
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
-    warnFreeFormArguments(funcDecl.signature.parameterClause.parameters, in: context)
-    if let returnType = funcDecl.signature.returnClause?.type,
-      isFreeFormBoundaryType(returnType.trimmedDescription) {
-      context.diagnose(
-        Diagnostic(node: returnType, message: freeFormReturnError(for: returnType.trimmedDescription)))
+    let parameters = funcDecl.signature.parameterClause.parameters
+    warnFreeFormArguments(parameters, in: context)
+    types = parameters.map { SpecifiedType($0.type).type }
+    if let returnType = funcDecl.signature.returnClause?.type {
+      types.append(returnType)
     }
-    return
+  } else if let initDecl = declaration.as(InitializerDeclSyntax.self) {
+    // A constructor decodes its arguments exactly like a function and has no return value.
+    let parameters = initDecl.signature.parameterClause.parameters
+    warnFreeFormArguments(parameters, in: context)
+    types = parameters.map { SpecifiedType($0.type).type }
+  } else if let varDecl = declaration.as(VariableDeclSyntax.self),
+    let type = varDecl.bindings.first?.typeAnnotation?.type {
+    types = [type]
   }
 
-  // A constructor decodes its arguments exactly like a function; it has no return value to encode, so
-  // only the argument warning applies.
-  if let initDecl = declaration.as(InitializerDeclSyntax.self) {
-    warnFreeFormArguments(initDecl.signature.parameterClause.parameters, in: context)
-    return
-  }
-
-  if let varDecl = declaration.as(VariableDeclSyntax.self),
-    let type = varDecl.bindings.first?.typeAnnotation?.type,
-    isFreeFormBoundaryType(type.trimmedDescription) {
+  for type in types
+  where mentionsFreeFormAny(type) && !isConvertibleFreeFormType(type) && !containsFunctionType(type) {
     context.diagnose(
-      Diagnostic(node: type, message: freeFormPropertyError(for: type.trimmedDescription)))
+      Diagnostic(node: type, message: unconvertibleFreeFormError(for: type.trimmedDescription)))
   }
-}
-
-/// The tail of a free-form encode error: the typed wrapper of the same shape (`JavaScriptArray`,
-/// `JavaScriptObject`) when there is one, otherwise the plain `JavaScriptValue` passthrough suggestion.
-private func suggestedAlternative(for freeFormType: String) -> String {
-  if let reshaped = typedFreeFormReplacement(for: freeFormType), reshaped != "JavaScriptValue" {
-    return "Use '\(reshaped)', or 'JavaScriptValue' to pass a JS value through unchanged."
-  }
-  return "Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged."
 }
 
 /// Emits the steering warning for each free-form parameter in a list. Shared by the function and
@@ -229,18 +220,10 @@ private func freeFormArgumentWarning(
   )
 }
 
-private func freeFormReturnError(for freeFormType: String) -> JSDiagnosticMessage {
+private func unconvertibleFreeFormError(for type: String) -> JSDiagnosticMessage {
   return JSDiagnosticMessage(
-    "A @JS function can't return the free-form '\(freeFormType)': there's no way to encode an untyped value back to JavaScript. \(suggestedAlternative(for: freeFormType))",
-    id: "js-free-form-return",
-    severity: .error
-  )
-}
-
-private func freeFormPropertyError(for freeFormType: String) -> JSDiagnosticMessage {
-  return JSDiagnosticMessage(
-    "A @JS property can't have the free-form '\(freeFormType)': its getter would have to encode an untyped value back to JavaScript, which isn't supported. \(suggestedAlternative(for: freeFormType))",
-    id: "js-free-form-property",
+    "A @JS member can't use the type '\(type)': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted.",
+    id: "js-free-form-unsupported",
     severity: .error
   )
 }
@@ -289,9 +272,10 @@ private struct BoundaryMember {
 /// function contributes its parameter types (decodable) and its return type when non-Void (encodable);
 /// a property contributes its value type as encodable (the getter) and also as decodable when settable
 /// (the setter). Composed types (`[Int]`, `String?`, …) are kept verbatim, their conditional
-/// conformances transitively constraining the elements. Returns `nil` for declaration kinds `@JS`
-/// doesn't read types from, or a property whose type isn't spelled out (a syntactic macro can't
-/// recover it).
+/// conformances transitively constraining the elements. A type that mentions `Any` is left out: it
+/// converts through the free-form methods, or is diagnosed by `diagnoseFreeFormTypes`. Returns `nil`
+/// for declaration kinds `@JS` doesn't read types from, a property whose type isn't spelled out (a
+/// syntactic macro can't recover it), or one whose type mentions `Any`.
 private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> BoundaryMember? {
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
     // A closure argument moves data the other way: JS receives its parameters and returns its result.
@@ -307,7 +291,7 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
         continue
       }
       guard let closure = JSClosureType(specified.type) else {
-        if !containsFunctionType(specified.type) {
+        if !containsFunctionType(specified.type) && !mentionsFreeFormAny(specified.type) {
           decodableTypes.append(specified.type.trimmedDescription)
         }
         continue
@@ -321,7 +305,7 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
     }
     let returnType = funcDecl.signature.returnClause?.type
     let encodableType = returnType.flatMap {
-      isVoidType($0) || containsFunctionType($0) ? nil : $0.trimmedDescription
+      isVoidType($0) || containsFunctionType($0) || mentionsFreeFormAny($0) ? nil : $0.trimmedDescription
     }
     return BoundaryMember(
       name: funcDecl.name.text,
@@ -338,7 +322,11 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
     let type = binding.typeAnnotation?.type,
     !containsFunctionType(type) {
     // A `let`, or a `var` with no setter, is read-only (encodable only). A settable `var` is also
-    // decoded on write, so its value type is asserted in both directions.
+    // decoded on write, so its value type is asserted in both directions. A type that mentions `Any`
+    // converts through the free-form methods instead, so it isn't asserted at all.
+    guard !mentionsFreeFormAny(type) else {
+      return nil
+    }
     let typeText = type.trimmedDescription
     let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
     let isSettable = isVar && bindingIsSettable(binding)

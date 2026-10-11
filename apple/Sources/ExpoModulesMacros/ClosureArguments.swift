@@ -93,7 +93,8 @@ internal func argumentDecodeStatements(
   // A specifier such as `borrowing` belongs to the parameter, not to the type that decodes.
   let type = SpecifiedType(type).type
   guard let closure = JSClosureType(type) else {
-    return ["let \(name) = try \(decodeCall(type.trimmedDescription, from: valueExpression))"]
+    let decode = decodeCall(type.trimmedDescription, freeForm: freeFormConversion(of: type), from: valueExpression)
+    return ["let \(name) = try \(decode)"]
   }
   return closureArgumentStatements(closure, into: name, from: valueExpression)
 }
