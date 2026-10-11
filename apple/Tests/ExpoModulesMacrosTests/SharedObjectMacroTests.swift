@@ -192,7 +192,7 @@ struct SharedObjectMacroTests {
           var owner: SomeType!
 
           private func _assertTypesConformance_owner() {
-            func owner<A0: JavaScriptDecodable, Return: JavaScriptEncodable>(_: A0.Type, _: Return.Type) {
+            func owner<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
             }
             owner(SomeType.self, SomeType.self)
           }
@@ -435,7 +435,7 @@ struct SharedObjectMacroTests {
           static func open(_ path: String) -> Cache { Cache() }
 
           private static func _assertTypesConformance_open() {
-            func open<Return: JavaScriptEncodable>(_: Return.Type) {
+            func open<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
             }
             open(Cache.self)
           }
@@ -825,7 +825,7 @@ struct SharedObjectMacroTests {
           func resolve(_ input: MyRecord!) -> MyRecord! { input }
 
           private func _assertTypesConformance_resolve() {
-            func resolve<A0: JavaScriptDecodable, Return: JavaScriptEncodable>(_: A0.Type, _: Return.Type) {
+            func resolve<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
             }
             resolve(MyRecord.self, MyRecord.self)
           }

@@ -304,7 +304,7 @@ struct ExpoModuleMacroTests {
           func transform(value: MyRecord, count: Int) -> [MyRecord] { [] }
 
           private func _assertTypesConformance_transform() {
-            func transform<A0: JavaScriptDecodable, Return: JavaScriptEncodable>(_: A0.Type, _: Return.Type) {
+            func transform<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
             }
             transform(MyRecord.self, [MyRecord].self)
           }
@@ -348,7 +348,7 @@ struct ExpoModuleMacroTests {
           func merge(primary: MyRecord, secondary: OtherRecord) -> MyRecord { primary }
 
           private func _assertTypesConformance_merge() {
-            func merge<A0: JavaScriptDecodable, A1: JavaScriptDecodable, Return: JavaScriptEncodable>(_: A0.Type, _: A1.Type, _: Return.Type) {
+            func merge<A0: JavaScriptDecodable & ~Copyable, A1: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: A1.Type, _: Return.Type) {
             }
             merge(MyRecord.self, OtherRecord.self, MyRecord.self)
           }
@@ -392,7 +392,7 @@ struct ExpoModuleMacroTests {
           var cache: MyRecord { MyRecord() }
 
           private func _assertTypesConformance_cache() {
-            func cache<Return: JavaScriptEncodable>(_: Return.Type) {
+            func cache<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
             }
             cache(MyRecord.self)
           }
@@ -433,7 +433,7 @@ struct ExpoModuleMacroTests {
           func make(count: Int) -> MyRecord! { nil }
 
           private func _assertTypesConformance_make() {
-            func make<Return: JavaScriptEncodable>(_: Return.Type) {
+            func make<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
             }
             make(MyRecord.self)
           }
@@ -476,7 +476,7 @@ struct ExpoModuleMacroTests {
           static func describe(_ value: MyRecord) -> String { "" }
 
           private static func _assertTypesConformance_describe() {
-            func describe<A0: JavaScriptDecodable>(_: A0.Type) {
+            func describe<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
             }
             describe(MyRecord.self)
           }
@@ -815,7 +815,7 @@ struct ExpoModuleMacroTests {
           var config: MyRecord
 
           private func _assertTypesConformance_config() {
-            func config<A0: JavaScriptDecodable, Return: JavaScriptEncodable>(_: A0.Type, _: Return.Type) {
+            func config<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
             }
             config(MyRecord.self, MyRecord.self)
           }
@@ -860,7 +860,7 @@ struct ExpoModuleMacroTests {
           var config: MyRecord!
 
           private func _assertTypesConformance_config() {
-            func config<A0: JavaScriptDecodable, Return: JavaScriptEncodable>(_: A0.Type, _: Return.Type) {
+            func config<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
             }
             config(MyRecord.self, MyRecord.self)
           }
@@ -1556,7 +1556,7 @@ struct ExpoModuleMacroTests {
           func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
 
           private func _assertTypesConformance_move() {
-            func move<A0: JavaScriptDecodable, A1: JavaScriptDecodable, A2: JavaScriptDecodable>(_: A0.Type, _: A1.Type, _: A2.Type) {
+            func move<A0: JavaScriptDecodable & ~Copyable, A1: JavaScriptDecodable & ~Copyable, A2: JavaScriptDecodable & ~Copyable>(_: A0.Type, _: A1.Type, _: A2.Type) {
             }
             move(Point.self, Delta.self, Tag.self)
           }
@@ -1679,7 +1679,7 @@ struct ExpoModuleMacroTests {
         func b(worker: isolated Worker, name: Name) {}
 
         private func _assertTypesConformance_b() {
-          func b<A0: JavaScriptDecodable>(_: A0.Type) {
+          func b<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
           }
           b(Name.self)
         }
