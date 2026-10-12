@@ -17,12 +17,18 @@ export interface ScanModulesOptions {
 
   /** Overrides the scanner binary path. Defaults to the one shipped with this package. */
   binaryPath?: string;
+
+  /** Milliseconds after which the scanner is killed and the scan fails. No limit by default. */
+  timeout?: number;
 }
 
 /** Options accepted by `scanExports`. The deep scan doesn't evaluate `#if`, so it takes no flags. */
 export interface ScanExportsOptions {
   /** Overrides the scanner binary path. Defaults to the one shipped with this package. */
   binaryPath?: string;
+
+  /** Milliseconds after which the scanner is killed and the scan fails. No limit by default. */
+  timeout?: number;
 }
 
 /**
@@ -132,12 +138,14 @@ function assertRepresentablePaths(command: string, paths: string[]): void {
   }
 }
 
-function runScanner<T>(binaryPath: string, args: string[]): Promise<T> {
+function runScanner<T>(binaryPath: string, args: string[], timeout = 0): Promise<T> {
+  // The error messages name only the subcommand: the paths can be hundreds of package roots.
+  const command = `${path.basename(binaryPath)} ${args[0]}`;
   return new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       binaryPath,
       args,
-      { maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' },
+      { maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', timeout },
       (error, stdout, stderr) => {
         if (error) {
           // A spawn failure reports a string `code` (e.g. 'ENOENT'); a non-zero exit reports a
@@ -153,9 +161,13 @@ function runScanner<T>(binaryPath: string, args: string[]): Promise<T> {
             );
             return;
           }
+          if (timeout > 0 && error.killed) {
+            reject(new ScannerError(`\`${command}\` timed out after ${timeout} ms.`, null, stderr));
+            return;
+          }
           reject(
             new ScannerError(
-              `\`${path.basename(binaryPath)} ${args.join(' ')}\` failed: ${stderr.trim() || error.message}`,
+              `\`${command}\` failed: ${stderr.trim() || error.message}`,
               exitCode,
               stderr
             )
@@ -176,6 +188,9 @@ function runScanner<T>(binaryPath: string, args: string[]): Promise<T> {
         }
       }
     );
+    // The scanner never reads stdin. An executable without the scanner CLI would start the macro
+    // plugin server instead and wait on stdin forever.
+    child.stdin?.end();
   });
 }
 
@@ -203,7 +218,8 @@ export async function scanModules(
 
   const result = await runScanner<ScanModulesResult>(
     options.binaryPath ?? getScannerBinaryPath(),
-    args
+    args,
+    options.timeout
   );
 
   if (result.schemaVersion !== SUPPORTED_SCAN_MODULES_SCHEMA_VERSION) {
@@ -232,10 +248,11 @@ export async function scanExports(
   }
   assertRepresentablePaths('scanExports', paths);
 
-  const result = await runScanner<ScanExportsResult>(options.binaryPath ?? getScannerBinaryPath(), [
-    'scan-exports',
-    ...paths,
-  ]);
+  const result = await runScanner<ScanExportsResult>(
+    options.binaryPath ?? getScannerBinaryPath(),
+    ['scan-exports', ...paths],
+    options.timeout
+  );
 
   if (result.schemaVersion !== SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION) {
     throw new ScannerSchemaVersionError(
