@@ -81,11 +81,11 @@ Node consumers can call the scanner through this package instead of locating the
 ```ts
 import { scanModules, scanExports } from 'expo-modules-macros';
 
-const { modules, warnings } = await scanModules(['ios/'], { defines: ['DEBUG'] });
+const { modules, warnings } = await scanModules(['ios/'], { defines: ['DEBUG'], timeout: 30_000 });
 const { exports } = await scanExports(['ios/']);
 ```
 
-The binary is a compiled executable, so each call still spawns a process. What the wrapper owns is the part consumers would otherwise duplicate: resolving the shipped binary, building the arguments, parsing the JSON, checking `schemaVersion`, and turning a non-zero exit into a `ScannerError`. The result types are hand-written mirrors of the Swift `Codable` types, which is what the version check guards against drifting.
+The binary is a compiled executable, so each call still spawns a process. What the wrapper owns is the part consumers would otherwise duplicate: resolving the shipped binary, building the arguments, parsing the JSON, checking `schemaVersion`, and turning a non-zero exit or an exceeded `timeout` into a `ScannerError`. The result types are hand-written mirrors of the Swift `Codable` types, which is what the version check guards against drifting.
 
 # How the plugin reaches the compiler
 
