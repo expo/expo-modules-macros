@@ -541,13 +541,13 @@ private func declaration(owning item: MemberBlockItemSyntax) -> Syntax? {
 
 /// The `#if` declaration whose clause holds `elements`, or `nil` when they are not in a clause.
 private func enclosingIfConfig(of elements: some SyntaxProtocol) -> IfConfigDeclSyntax? {
-  elements.parent?.as(IfConfigClauseSyntax.self)?.parent?.parent?.as(IfConfigDeclSyntax.self)
+  return elements.parent?.as(IfConfigClauseSyntax.self)?.parent?.parent?.as(IfConfigDeclSyntax.self)
 }
 
 /// The members of a type body in source order, with the members of every clause of each `#if` in
 /// place of the `#if`. Whether a platform builds a member is left to `PlatformResolver`.
 private func flattened(_ members: MemberBlockItemListSyntax) -> [MemberBlockItemSyntax] {
-  members.flatMap { member -> [MemberBlockItemSyntax] in
+  return members.flatMap { member -> [MemberBlockItemSyntax] in
     guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
       return [member]
     }

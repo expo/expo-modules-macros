@@ -81,7 +81,7 @@ private struct Availability {
   }
 
   func isUnavailable(on platform: String) -> Bool {
-    isUnavailableEverywhere || unavailable.contains(platform)
+    return isUnavailableEverywhere || unavailable.contains(platform)
   }
 
   /// The deprecation on `platform`: the platform's own, with any field it leaves out taken from the
@@ -177,7 +177,7 @@ private struct Availability {
 extension ExportedDeprecation {
   /// This deprecation with each field it leaves out taken from `other`.
   fileprivate func filling(from other: ExportedDeprecation) -> ExportedDeprecation {
-    ExportedDeprecation(
+    return ExportedDeprecation(
       since: since ?? other.since,
       obsoleted: obsoleted ?? other.obsoleted,
       message: message ?? other.message,
@@ -205,7 +205,7 @@ private func isVersion(_ lhs: String, laterThan rhs: String) -> Bool {
 /// `fileprivate`, `private`), or `nil` when none is written. A modifier with a detail, like the
 /// `private` in `private(set)`, limits only the setter, so it is not the declaration's.
 func spelledAccessLevel(of modifiers: DeclModifierListSyntax) -> String? {
-  modifiers.first { modifier in
+  return modifiers.first { modifier in
     modifier.detail == nil && accessModifierNames.contains(modifier.name.text)
   }?.name.text
 }

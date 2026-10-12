@@ -15,7 +15,7 @@ private let everyPlatform = applePlatforms.map { ExportedPlatform(name: $0, intr
 
 /// The platforms named in `names`, none with an introduced version.
 private func platforms(_ names: String...) -> [ExportedPlatform] {
-  names.map { ExportedPlatform(name: $0, introduced: nil) }
+  return names.map { ExportedPlatform(name: $0, introduced: nil) }
 }
 
 @Suite("Exports surface: access levels")
@@ -380,7 +380,7 @@ struct DefaultValueTests {
 struct DeprecationTests {
   /// The deprecation each platform of a function reports, keyed by platform name.
   private func deprecations(_ function: ExportedFunction) -> [String: ExportedDeprecation?] {
-    Dictionary(uniqueKeysWithValues: function.platforms.map { ($0.name, $0.deprecated) })
+    return Dictionary(uniqueKeysWithValues: function.platforms.map { ($0.name, $0.deprecated) })
   }
 
   @Test
