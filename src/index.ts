@@ -22,7 +22,10 @@ export interface ScanModulesOptions {
   timeout?: number;
 }
 
-/** Options accepted by `scanExports`. The deep scan doesn't evaluate `#if`, so it takes no flags. */
+/**
+ * Options accepted by `scanExports`. The deep scan evaluates `#if` per platform with no flags set, so
+ * it takes no define option.
+ */
 export interface ScanExportsOptions {
   /** Overrides the scanner binary path. Defaults to the one shipped with this package. */
   binaryPath?: string;
@@ -236,8 +239,10 @@ export async function scanModules(
  * Deep scan of the full JS-exported surface, for TypeScript type generation. Each path is a `.swift`
  * file or a directory, scanned recursively.
  *
- * Unlike `scanModules`, this doesn't evaluate `#if` blocks, so it takes no define option:
- * conditional declarations are reported as if their conditions held.
+ * Each declaration and member reports the Apple OSes whose `#if` conditions and `@available`
+ * attributes include it. `#if` is read only where the runtime sees what it holds: around types,
+ * `@Event` members, and enum cases. No define option is taken: a condition on a custom flag never holds, so
+ * what it guards is not reported.
  */
 export async function scanExports(
   paths: string[],

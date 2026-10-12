@@ -9,16 +9,25 @@ import SwiftSyntax
 /// Types nested in another type's body, or in a file-scope `extension`, are reported under their
 /// qualified Swift name (`Options.Encoding`), so a ref to one can be resolved from the scope it is
 /// written in. A type declared in a function body or a closure is local and is not reported.
+///
+/// Each declaration and member reports the platforms that build it (see `PlatformResolver`), and one
+/// that no platform builds is not reported. `#if` is read only where the runtime sees what it holds:
+/// around types, `@Event` members, and enum cases. `@ExpoModule`, `@SharedObject`, `@Record`, and
+/// `@Union` read only the members written directly in the type body, so `@JS` members, record
+/// properties, and union cases in a `#if` clause are never bound and are not reported. An `@Event`
+/// expands on its own declaration, and the compiler reads enum cases itself.
 final class SurfaceVisitor: SyntaxVisitor {
   private let file: String
+  private let platformResolver: PlatformResolver
   private(set) var modules: [ExportedModule] = []
   private(set) var sharedObjects: [ExportedSharedObject] = []
   private(set) var records: [ExportedRecord] = []
   private(set) var enums: [ExportedEnum] = []
   private(set) var unions: [ExportedUnion] = []
 
-  init(file: String) {
+  init(file: String, tree: SourceFileSyntax) {
     self.file = file
+    self.platformResolver = PlatformResolver(tree: tree)
     super.init(viewMode: .sourceAccurate)
   }
 
@@ -26,8 +35,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     guard let scope = enclosingTypes(of: node) else {
       return .skipChildren
     }
-    classify(
-      name: node.name.identifierName, scope: scope, attributes: node.attributes, members: node.memberBlock.members)
+    classify(node, name: node.name.identifierName, scope: scope)
     // The member walk reads the body itself; the children are visited only to find nested types.
     return .visitChildren
   }
@@ -36,8 +44,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     guard let scope = enclosingTypes(of: node) else {
       return .skipChildren
     }
-    classify(
-      name: node.name.identifierName, scope: scope, attributes: node.attributes, members: node.memberBlock.members)
+    classify(node, name: node.name.identifierName, scope: scope)
     return .visitChildren
   }
 
@@ -78,12 +85,20 @@ final class SurfaceVisitor: SyntaxVisitor {
       return .skipChildren
     }
     let name = qualifiedName(node.name.identifierName, in: scope)
+    let platforms = platformResolver.platforms(of: node)
+    // An enum is often a namespace for other types, so its body is searched too, even when this
+    // enum is not reported.
+    guard !platforms.isEmpty else {
+      return .visitChildren
+    }
 
     if node.attributes.firstAttribute(named: DetectedMacro.union.rawValue) != nil {
       unions.append(
         ExportedUnion(
           name: name,
           members: collectUnionMembers(node.memberBlock.members),
+          accessLevel: spelledAccessLevel(of: node.modifiers),
+          platforms: platforms,
           file: file
         ))
     } else if inherits(from: enumerableConformanceName, in: node.inheritanceClause) {
@@ -93,6 +108,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           name: name,
           rawType: rawType,
           cases: collectEnumCases(node.memberBlock.members, rawType: rawType),
+          accessLevel: spelledAccessLevel(of: node.modifiers),
+          platforms: platforms,
           file: file
         ))
     }
@@ -107,10 +124,15 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// `name` is the declared name and `scope` the names of the types enclosing it. The reported `name`
   /// is qualified with the scope, while a default `jsName` is the declared name alone, as the macros
   /// spell it.
-  private func classify(
-    name: String, scope: [String], attributes: AttributeListSyntax, members: MemberBlockItemListSyntax
-  ) {
+  private func classify(_ node: some DeclGroupSyntax, name: String, scope: [String]) {
     let qualified = qualifiedName(name, in: scope)
+    let attributes = node.attributes
+    let members = node.memberBlock.members
+    let accessLevel = spelledAccessLevel(of: node.modifiers)
+    let platforms = platformResolver.platforms(of: node)
+    guard !platforms.isEmpty else {
+      return
+    }
 
     if let attribute = attributes.firstAttribute(named: DetectedMacro.expoModule.rawValue) {
       // Only a file-scope module is reported. Autolinking registers no other (`DetectionVisitor`
@@ -131,82 +153,111 @@ final class SurfaceVisitor: SyntaxVisitor {
           classes: classListArgument(of: attribute, label: "classes").map {
             ExportedClass(name: $0, jsName: nil)
           },
+          accessLevel: accessLevel,
+          platforms: platforms,
           file: file
         ))
       return
     }
 
     if let attribute = attributes.firstAttribute(named: DetectedMacro.sharedObject.rawValue) {
-      let (functions, properties, events, constructor) = collectJSMembers(members)
+      let (functions, properties, events, initializer) = collectJSMembers(members)
       sharedObjects.append(
         ExportedSharedObject(
           name: qualified,
           jsName: stringArgument(of: attribute) ?? name,
-          constructorParameters: constructor,
+          initializer: initializer,
           functions: functions,
           properties: properties,
           events: events,
+          accessLevel: accessLevel,
+          platforms: platforms,
           file: file
         ))
       return
     }
 
     if attributes.firstAttribute(named: DetectedMacro.record.rawValue) != nil {
-      records.append(ExportedRecord(name: qualified, properties: collectRecordProperties(members), file: file))
+      records.append(
+        ExportedRecord(
+          name: qualified,
+          properties: collectRecordProperties(members),
+          accessLevel: accessLevel,
+          platforms: platforms,
+          file: file
+        ))
     }
   }
 
   /// The exported members of a module / shared-object body: `@JS` functions and properties, `@Event`
-  /// events, and the single `@JS init` constructor parameters (`nil` when absent).
+  /// events, and the single `@JS init` (`nil` when absent).
   private func collectJSMembers(
     _ members: MemberBlockItemListSyntax
   ) -> (
     functions: [ExportedFunction], properties: [ExportedProperty], events: [ExportedEvent],
-    constructor: [ExportedParameter]?
+    initializer: ExportedInitializer?
   ) {
     var functions: [ExportedFunction] = []
     var properties: [ExportedProperty] = []
     var events: [ExportedEvent] = []
-    var constructor: [ExportedParameter]?
+    var initializer: ExportedInitializer?
 
-    for member in members {
+    // The macros bind only the `@JS` members written directly in the body.
+    let directMembers = Set(members.map(\.id))
+
+    for member in flattened(members) {
       let decl = member.decl
+      let platforms = platformResolver.platforms(of: decl)
+      guard !platforms.isEmpty else {
+        continue
+      }
+
+      if let varDecl = decl.as(VariableDeclSyntax.self),
+        varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) == nil,
+        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.event.rawValue) {
+        events.append(contentsOf: makeEvents(varDecl: varDecl, attribute: attribute, platforms: platforms))
+        continue
+      }
+
+      guard directMembers.contains(member.id) else {
+        continue
+      }
 
       if let initDecl = decl.as(InitializerDeclSyntax.self),
         initDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) != nil {
         // At most one `@JS init`; keep the first if a malformed source has more (the macro errors).
-        if constructor == nil {
-          constructor = parameters(of: initDecl.signature.parameterClause)
+        if initializer == nil {
+          initializer = ExportedInitializer(
+            parameters: parameters(of: initDecl.signature.parameterClause),
+            accessLevel: spelledAccessLevel(of: initDecl.modifiers),
+            platforms: platforms
+          )
         }
         continue
       }
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
         let attribute = funcDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) {
-        functions.append(makeFunction(funcDecl: funcDecl, attribute: attribute))
+        functions.append(makeFunction(funcDecl: funcDecl, attribute: attribute, platforms: platforms))
         continue
       }
 
       if let varDecl = decl.as(VariableDeclSyntax.self),
         let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) {
-        properties.append(contentsOf: makeProperties(varDecl: varDecl, attribute: attribute))
-        continue
-      }
-
-      if let varDecl = decl.as(VariableDeclSyntax.self),
-        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.event.rawValue) {
-        events.append(contentsOf: makeEvents(varDecl: varDecl, attribute: attribute))
+        properties.append(contentsOf: makeProperties(varDecl: varDecl, attribute: attribute, platforms: platforms))
       }
     }
 
-    return (functions, properties, events, constructor)
+    return (functions, properties, events, initializer)
   }
 
   /// Builds the `ExportedEvent` entries for an `@Event var`, applying the same checks
   /// `EventMacro.validatedEvent(of:on:)` does. A rejected declaration expands to no event, so
   /// reporting one would describe a surface that does not exist. `@JS` on the same property is
   /// caught by the caller, which reaches the `@JS` branch first.
-  private func makeEvents(varDecl: VariableDeclSyntax, attribute: AttributeSyntax) -> [ExportedEvent] {
+  private func makeEvents(
+    varDecl: VariableDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
+  ) -> [ExportedEvent] {
     guard varDecl.bindingSpecifier.tokenKind != .keyword(.let),
       !isTypeLevel(varDecl.modifiers) else {
       return []
@@ -232,7 +283,9 @@ final class SurfaceVisitor: SyntaxVisitor {
           name: name,
           jsName: override ?? defaultEventName(for: name),
           payload: functionType.parameters.first.map { typeNode(from: $0.type) },
-          isSync: isSync
+          isSync: isSync,
+          accessLevel: spelledAccessLevel(of: varDecl.modifiers),
+          platforms: platforms
         ))
     }
     return result
@@ -240,7 +293,9 @@ final class SurfaceVisitor: SyntaxVisitor {
 
   /// Builds an `ExportedFunction` from a `@JS func`: JS-name fallback, parameters, a `Void` return as
   /// `nil`, and the effect/static flags.
-  private func makeFunction(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) -> ExportedFunction {
+  private func makeFunction(
+    funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
+  ) -> ExportedFunction {
     let effects = funcDecl.signature.effectSpecifiers
     let returnType = funcDecl.signature.returnClause?.type
     return ExportedFunction(
@@ -250,14 +305,18 @@ final class SurfaceVisitor: SyntaxVisitor {
       returns: isVoidType(returnType) ? nil : returnType.map { typeNode(from: $0) },
       isAsync: effects?.asyncSpecifier != nil,
       isThrowing: effects?.throwsClause?.throwsSpecifier != nil,
-      isStatic: isTypeLevel(funcDecl.modifiers)
+      isStatic: isTypeLevel(funcDecl.modifiers),
+      accessLevel: spelledAccessLevel(of: funcDecl.modifiers),
+      platforms: platforms
     )
   }
 
   /// Builds the `ExportedProperty` entries for a `@JS var`/`let`. One declaration can introduce several
   /// bindings (`var a, b: Int`), so this returns an array. The value type is the annotation, else the
   /// literal default's inferred type, else `nil`.
-  private func makeProperties(varDecl: VariableDeclSyntax, attribute: AttributeSyntax) -> [ExportedProperty] {
+  private func makeProperties(
+    varDecl: VariableDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
+  ) -> [ExportedProperty] {
     let isLet = varDecl.bindingSpecifier.tokenKind == .keyword(.let)
     let isStatic = isTypeLevel(varDecl.modifiers)
     let override = stringArgument(of: attribute)
@@ -275,7 +334,11 @@ final class SurfaceVisitor: SyntaxVisitor {
           jsName: override ?? name,
           type: type,
           isSettable: isSettable(binding: binding, isLet: isLet),
-          isStatic: isStatic
+          isStatic: isStatic,
+          // Only a stored property has an initializer; a computed one has none to report.
+          defaultValue: binding.initializer?.value.trimmedDescription,
+          accessLevel: spelledAccessLevel(of: varDecl.modifiers),
+          platforms: platforms
         ))
     }
     return result
@@ -314,9 +377,14 @@ final class SurfaceVisitor: SyntaxVisitor {
   private func collectRecordProperties(_ members: MemberBlockItemListSyntax) -> [ExportedRecordProperty] {
     var properties: [ExportedRecordProperty] = []
 
+    // `@Record` reads only the properties written directly in the body, so `#if` is not looked into.
     for member in members {
       guard let varDecl = member.decl.as(VariableDeclSyntax.self),
         !isExcludedRecordModifier(varDecl.modifiers) else {
+        continue
+      }
+      let platforms = platformResolver.platforms(of: varDecl)
+      guard !platforms.isEmpty else {
         continue
       }
       for binding in varDecl.bindings {
@@ -335,7 +403,9 @@ final class SurfaceVisitor: SyntaxVisitor {
             name: ident.identifier.identifierName,
             type: type,
             isOptional: annotation.map { isOptionalType($0) } ?? false,
-            hasDefault: binding.initializer != nil
+            defaultValue: binding.initializer?.value.trimmedDescription,
+            accessLevel: spelledAccessLevel(of: varDecl.modifiers),
+            platforms: platforms
           ))
       }
     }
@@ -355,8 +425,12 @@ final class SurfaceVisitor: SyntaxVisitor {
   ) -> [ExportedEnumCase] {
     var cases: [ExportedEnumCase] = []
 
-    for member in members {
+    for member in flattened(members) {
       guard let caseDecl = member.decl.as(EnumCaseDeclSyntax.self) else {
+        continue
+      }
+      let platforms = platformResolver.platforms(of: caseDecl)
+      guard !platforms.isEmpty else {
         continue
       }
       for element in caseDecl.elements where element.parameterClause == nil {
@@ -364,7 +438,8 @@ final class SurfaceVisitor: SyntaxVisitor {
         cases.append(
           ExportedEnumCase(
             name: name,
-            rawValue: writtenRawValue(of: element) ?? derivedStringRawValue(for: name, rawType: rawType)
+            rawValue: writtenRawValue(of: element) ?? derivedStringRawValue(for: name, rawType: rawType),
+            platforms: platforms
           ))
       }
     }
@@ -380,8 +455,13 @@ final class SurfaceVisitor: SyntaxVisitor {
   private func collectUnionMembers(_ members: MemberBlockItemListSyntax) -> [ExportedUnionMember] {
     var result: [ExportedUnionMember] = []
 
+    // `@Union` reads only the cases written directly in the body, so `#if` is not looked into.
     for member in members {
       guard let caseDecl = member.decl.as(EnumCaseDeclSyntax.self) else {
+        continue
+      }
+      let platforms = platformResolver.platforms(of: caseDecl)
+      guard !platforms.isEmpty else {
         continue
       }
       for element in caseDecl.elements {
@@ -391,14 +471,15 @@ final class SurfaceVisitor: SyntaxVisitor {
           continue
         }
         result.append(
-          ExportedUnionMember(name: element.name.identifierName, type: typeNode(from: parameter.type)))
+          ExportedUnionMember(
+            name: element.name.identifierName, type: typeNode(from: parameter.type), platforms: platforms))
       }
     }
     return result
   }
 
   /// Projects a parameter clause into `ExportedParameter`s: label = first name, name = second (else
-  /// first), and `optional` when it has a default value or an optional type.
+  /// first), `optional` when it has a default value or an optional type, and the default as written.
   private func parameters(of clause: FunctionParameterClauseSyntax) -> [ExportedParameter] {
     clause.parameters.map { parameter in
       let label = parameter.firstName.identifierName
@@ -407,25 +488,26 @@ final class SurfaceVisitor: SyntaxVisitor {
         label: label,
         name: name,
         type: typeNode(from: parameter.type),
-        isOptional: parameter.defaultValue != nil || isOptionalType(parameter.type)
+        isOptional: parameter.defaultValue != nil || isOptionalType(parameter.type),
+        defaultValue: parameter.defaultValue?.value.trimmedDescription
       )
     }
   }
 
   /// The names of the types enclosing a declaration, outermost first: empty at file scope, and `nil`
-  /// when the declaration is local to a function body or a closure, or sits in a `#if` block.
+  /// when the declaration is local to a function body or a closure.
   ///
-  /// File scope uses the same rule as `DetectionVisitor.isTopLevel`, except that `#if` is not looked
-  /// through: the parent is a `CodeBlockItemSyntax` directly under the source file's top-level item
-  /// list. A member is reached from its type through `MemberBlockItemSyntax`; an `extension`
-  /// contributes its extended type as written (without backticks), so its spelling may already be
-  /// qualified.
+  /// File scope uses the same rule as `DetectionVisitor.isTopLevel`: the declaration's item sits in
+  /// the source file's top-level item list, directly or through `#if` clauses. A member is reached
+  /// from its type through `MemberBlockItemSyntax`, also directly or through `#if` clauses; an
+  /// `extension` contributes its extended type as written (without backticks), so its spelling may
+  /// already be qualified.
   private func enclosingTypes(of node: some SyntaxProtocol) -> [String]? {
     if let item = node.parent?.as(CodeBlockItemSyntax.self) {
-      return item.parent?.parent?.is(SourceFileSyntax.self) == true ? [] : nil
+      return isAtFileScope(item) ? [] : nil
     }
     guard let item = node.parent?.as(MemberBlockItemSyntax.self),
-      let parent = item.parent?.parent?.parent,
+      let parent = declaration(owning: item),
       let scope = enclosingTypes(of: parent) else {
       return nil
     }
@@ -438,6 +520,57 @@ final class SurfaceVisitor: SyntaxVisitor {
       return nil
     }
     return scope + [decl.name.identifierName]
+  }
+}
+
+/// True when a code block item is in the source file's top-level item list, directly or in a clause
+/// of a top-level `#if`.
+private func isAtFileScope(_ item: CodeBlockItemSyntax) -> Bool {
+  guard let list = item.parent?.as(CodeBlockItemListSyntax.self) else {
+    return false
+  }
+  if list.parent?.is(SourceFileSyntax.self) == true {
+    return true
+  }
+  guard let ifConfigItem = enclosingIfConfig(of: list)?.parent?.as(CodeBlockItemSyntax.self) else {
+    return false
+  }
+  return isAtFileScope(ifConfigItem)
+}
+
+/// The type or extension whose body holds a member, looking through the `#if` clauses the member may
+/// be written in.
+private func declaration(owning item: MemberBlockItemSyntax) -> Syntax? {
+  guard let list = item.parent?.as(MemberBlockItemListSyntax.self) else {
+    return nil
+  }
+  if let block = list.parent?.as(MemberBlockSyntax.self) {
+    return block.parent
+  }
+  guard let ifConfigItem = enclosingIfConfig(of: list)?.parent?.as(MemberBlockItemSyntax.self) else {
+    return nil
+  }
+  return declaration(owning: ifConfigItem)
+}
+
+/// The `#if` declaration whose clause holds `elements`, or `nil` when they are not in a clause.
+private func enclosingIfConfig(of elements: some SyntaxProtocol) -> IfConfigDeclSyntax? {
+  return elements.parent?.as(IfConfigClauseSyntax.self)?.parent?.parent?.as(IfConfigDeclSyntax.self)
+}
+
+/// The members of a type body in source order, with the members of every clause of each `#if` in
+/// place of the `#if`. Whether a platform builds a member is left to `PlatformResolver`.
+private func flattened(_ members: MemberBlockItemListSyntax) -> [MemberBlockItemSyntax] {
+  return members.flatMap { member -> [MemberBlockItemSyntax] in
+    guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
+      return [member]
+    }
+    return ifConfig.clauses.flatMap { clause -> [MemberBlockItemSyntax] in
+      guard case .decls(let decls) = clause.elements else {
+        return []
+      }
+      return flattened(decls)
+    }
   }
 }
 

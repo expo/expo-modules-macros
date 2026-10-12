@@ -147,61 +147,51 @@ extension ExportedSurface {
     let index = RefIndex(surface: self)
     return ExportedSurface(
       modules: modules.map { module in
-        ExportedModule(
-          name: module.name,
-          jsName: module.jsName,
-          functions: module.functions.map { $0.resolvingRefs(using: index, in: module.name) },
-          properties: module.properties.map { $0.resolvingRefs(using: index, in: module.name) },
-          events: module.events.map { $0.resolvingRefs(using: index, in: module.name) },
-          classes: module.classes.map { exportedClass in
-            guard let entry = index.lookup(exportedClass.name, in: module.name),
-              entry.kind == .sharedObject else {
-              return exportedClass
-            }
-            return ExportedClass(name: entry.name, jsName: entry.jsName)
-          },
-          file: module.file
-        )
+        var resolved = module
+        resolved.functions = module.functions.map { $0.resolvingRefs(using: index, in: module.name) }
+        resolved.properties = module.properties.map { $0.resolvingRefs(using: index, in: module.name) }
+        resolved.events = module.events.map { $0.resolvingRefs(using: index, in: module.name) }
+        resolved.classes = module.classes.map { exportedClass in
+          guard let entry = index.lookup(exportedClass.name, in: module.name),
+            entry.kind == .sharedObject else {
+            return exportedClass
+          }
+          return ExportedClass(name: entry.name, jsName: entry.jsName)
+        }
+        return resolved
       },
       sharedObjects: sharedObjects.map { sharedObject in
-        ExportedSharedObject(
-          name: sharedObject.name,
-          jsName: sharedObject.jsName,
-          constructorParameters: sharedObject.constructorParameters?.map {
+        var resolved = sharedObject
+        if let initializer = sharedObject.initializer {
+          resolved.initializer?.parameters = initializer.parameters.map {
             $0.resolvingRefs(using: index, in: sharedObject.name)
-          },
-          functions: sharedObject.functions.map { $0.resolvingRefs(using: index, in: sharedObject.name) },
-          properties: sharedObject.properties.map { $0.resolvingRefs(using: index, in: sharedObject.name) },
-          events: sharedObject.events.map { $0.resolvingRefs(using: index, in: sharedObject.name) },
-          file: sharedObject.file
-        )
+          }
+        }
+        resolved.functions = sharedObject.functions.map { $0.resolvingRefs(using: index, in: sharedObject.name) }
+        resolved.properties = sharedObject.properties.map { $0.resolvingRefs(using: index, in: sharedObject.name) }
+        resolved.events = sharedObject.events.map { $0.resolvingRefs(using: index, in: sharedObject.name) }
+        return resolved
       },
       records: records.map { record in
-        ExportedRecord(
-          name: record.name,
-          properties: record.properties.map { property in
-            ExportedRecordProperty(
-              name: property.name,
-              type: property.type.resolvingRefs(using: index, in: record.name),
-              isOptional: property.isOptional,
-              hasDefault: property.hasDefault
-            )
-          },
-          file: record.file
-        )
+        var resolved = record
+        resolved.properties = record.properties.map { property in
+          var resolvedProperty = property
+          resolvedProperty.type = property.type.resolvingRefs(using: index, in: record.name)
+          return resolvedProperty
+        }
+        return resolved
       },
       // An enum's raw type is a primitive or an unscanned spelling, never a ref to another scanned
       // type, so there is nothing in one to resolve.
       enums: enums,
       unions: unions.map { union in
-        ExportedUnion(
-          name: union.name,
-          members: union.members.map { member in
-            ExportedUnionMember(
-              name: member.name, type: member.type.resolvingRefs(using: index, in: union.name))
-          },
-          file: union.file
-        )
+        var resolved = union
+        resolved.members = union.members.map { member in
+          var resolvedMember = member
+          resolvedMember.type = member.type.resolvingRefs(using: index, in: union.name)
+          return resolvedMember
+        }
+        return resolved
       }
     )
   }
@@ -209,40 +199,33 @@ extension ExportedSurface {
 
 extension ExportedParameter {
   fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedParameter {
-    return ExportedParameter(
-      label: label, name: name, type: type.resolvingRefs(using: index, in: scope), isOptional: isOptional)
+    var resolved = self
+    resolved.type = type.resolvingRefs(using: index, in: scope)
+    return resolved
   }
 }
 
 extension ExportedFunction {
   fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedFunction {
-    return ExportedFunction(
-      name: name,
-      jsName: jsName,
-      parameters: parameters.map { $0.resolvingRefs(using: index, in: scope) },
-      returns: returns?.resolvingRefs(using: index, in: scope),
-      isAsync: isAsync,
-      isThrowing: isThrowing,
-      isStatic: isStatic
-    )
+    var resolved = self
+    resolved.parameters = parameters.map { $0.resolvingRefs(using: index, in: scope) }
+    resolved.returns = returns?.resolvingRefs(using: index, in: scope)
+    return resolved
   }
 }
 
 extension ExportedProperty {
   fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedProperty {
-    return ExportedProperty(
-      name: name,
-      jsName: jsName,
-      type: type?.resolvingRefs(using: index, in: scope),
-      isSettable: isSettable,
-      isStatic: isStatic
-    )
+    var resolved = self
+    resolved.type = type?.resolvingRefs(using: index, in: scope)
+    return resolved
   }
 }
 
 extension ExportedEvent {
   fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedEvent {
-    return ExportedEvent(
-      name: name, jsName: jsName, payload: payload?.resolvingRefs(using: index, in: scope), isSync: isSync)
+    var resolved = self
+    resolved.payload = payload?.resolvingRefs(using: index, in: scope)
+    return resolved
   }
 }

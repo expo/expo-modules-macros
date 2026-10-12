@@ -59,6 +59,70 @@ export type TypeNode =
   /** A type the scanner couldn't interpret; `text` is its source spelling. */
   | { kind: 'unknown'; text: string };
 
+/**
+ * An Apple OS the scanner attributes declarations to, spelled as `os(...)` spells it. The casing is
+ * part of the output contract, so consumers with a lowercase convention must fold the case themselves.
+ */
+export type ScannedPlatform = 'iOS' | 'macOS' | 'tvOS' | 'watchOS' | 'visionOS';
+
+/** One Apple OS that builds a declaration in the `scan-exports` output. */
+export interface ExportedPlatform {
+  name: ScannedPlatform;
+  /**
+   * The version spelled in `@available` (`17.0` in `@available(iOS 17.0, *)`), or absent when no
+   * attribute on the declaration or its enclosing types names one. The latest version wins when
+   * several do.
+   */
+  introduced?: string;
+  /**
+   * How the declaration's own `@available` attributes deprecate it on this OS, or absent when they
+   * don't. Enclosing types are not read: a member of a deprecated type is not itself reported as
+   * deprecated.
+   */
+  deprecated?: ExportedDeprecation;
+}
+
+/**
+ * A deprecation from `@available`: `@available(*, deprecated, ...)` on every OS, or
+ * `@available(iOS, deprecated: 16, obsoleted: 18, ...)` on one. Each field is absent when not
+ * written. When a platform has its own attribute and a `*` one also applies, they combine and the
+ * platform's fields win.
+ */
+export interface ExportedDeprecation {
+  /** The version from `deprecated: 16`; absent for a bare `deprecated`. */
+  since?: string;
+  /**
+   * The version from `obsoleted: 18`, from which the declaration is no longer available. A
+   * declaration that is only obsoleted is still reported as deprecated.
+   */
+  obsoleted?: string;
+  /** The `message:` text. */
+  message?: string;
+  /**
+   * The `renamed:` text: the Swift name of the replacement, as written (`newName`,
+   * `other(value:)`). It is not resolved to a JS name.
+   */
+  renamed?: string;
+}
+
+/**
+ * The parts of a declaration or member that say where and to whom it is available. A declaration no
+ * platform builds is not reported, so `platforms` is never empty.
+ */
+export interface ExportedAvailability {
+  /** The OSes that build it: its `#if` conditions hold and no `@available` makes it unavailable. */
+  platforms: ExportedPlatform[];
+}
+
+/** The spelled Swift access modifier of a declaration. */
+export interface ExportedAccess {
+  /**
+   * `open`, `public`, `package`, `internal`, `fileprivate`, or `private`, or absent when none is
+   * written. A setter-only modifier like `private(set)` is not reported.
+   */
+  accessLevel?: string;
+}
+
 /** One parameter of a `@JS` function or `@JS init`. */
 export interface ExportedParameter {
   /** The argument label, or `_` when unlabeled. */
@@ -68,10 +132,12 @@ export interface ExportedParameter {
   type: TypeNode;
   /** True when the caller may omit it: a default value or an optional type. */
   optional: boolean;
+  /** The default value as Swift source text (`1`, `"x"`, `.fast`), absent when none is written. */
+  defaultValue?: string;
 }
 
 /** One `@JS func` on a module or shared object. */
-export interface ExportedFunction {
+export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
   name: string;
   /** The JS name it binds under: the `@JS("x")` override, else `name`. */
   jsName: string;
@@ -84,27 +150,31 @@ export interface ExportedFunction {
 }
 
 /** One `@JS var` on a module or shared object. */
-export interface ExportedProperty {
+export interface ExportedProperty extends ExportedAccess, ExportedAvailability {
   name: string;
   jsName: string;
   /** Absent when the type isn't determinable syntactically; the macro binds it getter-only. */
   type?: TypeNode;
   readonly: boolean;
   static: boolean;
+  /** The initial value of a stored property as Swift source text, absent when none is written. */
+  defaultValue?: string;
 }
 
 /** One `@Record` property: a data slot, not a JS accessor. */
-export interface ExportedRecordProperty {
+export interface ExportedRecordProperty extends ExportedAccess, ExportedAvailability {
   name: string;
   type: TypeNode;
   /** Optional-typed. */
   optional: boolean;
   /** Whether JS must supply it: neither defaulted nor optional. */
   required: boolean;
+  /** The default value as Swift source text, absent when none is written. */
+  defaultValue?: string;
 }
 
 /** An `@ExpoModule` type and its `@JS` surface. */
-export interface ExportedModule {
+export interface ExportedModule extends ExportedAccess, ExportedAvailability {
   /** The Swift class name. A module is always declared at file scope. */
   name: string;
   /** The JS module name: `@ExpoModule("Foo")` override, else the class name. */
@@ -138,7 +208,7 @@ export interface ExportedClass {
 }
 
 /** One `@Event var`: a typed event JS listens for by name, rather than calls. */
-export interface ExportedEvent {
+export interface ExportedEvent extends ExportedAccess, ExportedAvailability {
   /** The Swift property name, e.g. `onStatusChange`. */
   name: string;
   /**
@@ -152,8 +222,13 @@ export interface ExportedEvent {
   sync: boolean;
 }
 
+/** The `@JS init` of a shared object: the constructor JS calls with `new`. */
+export interface ExportedInitializer extends ExportedAccess, ExportedAvailability {
+  parameters: ExportedParameter[];
+}
+
 /** A `@SharedObject` type: a JS class with an optional constructor plus its `@JS` members. */
-export interface ExportedSharedObject {
+export interface ExportedSharedObject extends ExportedAccess, ExportedAvailability {
   /** The Swift class name, qualified with the types it is nested in (`Outer.Player`). */
   name: string;
   /**
@@ -161,8 +236,11 @@ export interface ExportedSharedObject {
    * types.
    */
   jsName: string;
-  /** The `@JS init` parameters, or absent when there's none. At most one constructor. */
-  constructorParameters?: ExportedParameter[];
+  /**
+   * The `@JS init`, or absent when there's none. At most one constructor. Not named `constructor`,
+   * which every JS object inherits.
+   */
+  initializer?: ExportedInitializer;
   functions: ExportedFunction[];
   properties: ExportedProperty[];
   events: ExportedEvent[];
@@ -170,7 +248,7 @@ export interface ExportedSharedObject {
 }
 
 /** A `@Record` type and its properties. */
-export interface ExportedRecord {
+export interface ExportedRecord extends ExportedAccess, ExportedAvailability {
   /** The Swift type name, qualified with the types it is nested in (`Outer.Options`). */
   name: string;
   properties: ExportedRecordProperty[];
@@ -188,7 +266,7 @@ export interface ExportedRecord {
  *   value (`case a = 1; case b` makes `b` 2), and that carry is yours to apply.
  * - no raw type: always absent, since the enum has no raw values.
  */
-export interface ExportedEnumCase {
+export interface ExportedEnumCase extends ExportedAvailability {
   /** The case name as declared. */
   name: string;
   /** The raw value, decoded for a string and verbatim source text otherwise, or absent per the rule above. */
@@ -199,7 +277,7 @@ export interface ExportedEnumCase {
  * An `Enumerable` enum: a type crossing the boundary as its raw value rather than as an object.
  * Detected by conformance, not by a macro attribute, so it carries no `jsName`.
  */
-export interface ExportedEnum {
+export interface ExportedEnum extends ExportedAccess, ExportedAvailability {
   /** The Swift enum name, qualified with the types it is nested in (`Options.Encoding`). */
   name: string;
   /** The raw value type as written, absent for a bare `Enumerable` conformance with no raw type. */
@@ -212,7 +290,7 @@ export interface ExportedEnum {
  * One alternative a `@Union` may hold. Not a member in the sense a module or shared object has members
  * (functions, properties, events).
  */
-export interface ExportedUnionMember {
+export interface ExportedUnionMember extends ExportedAvailability {
   /** The Swift case name. Swift-side only: discrimination is structural, so it never reaches JS. */
   name: string;
   /** The associated value's type: what this alternative decodes from. */
@@ -226,7 +304,7 @@ export interface ExportedUnionMember {
  * succeeds, so where two shapes overlap (`Int` and `Double`, two compatible records) the earlier one
  * wins. Reordering them describes a different union than the one the module runs.
  */
-export interface ExportedUnion {
+export interface ExportedUnion extends ExportedAccess, ExportedAvailability {
   /** The Swift enum name, qualified with the types it is nested in (`Options.Value`). */
   name: string;
   members: ExportedUnionMember[];
@@ -258,12 +336,6 @@ export interface ScanStats {
   /** Wall-clock duration of the scan, in milliseconds. */
   durationMs: number;
 }
-
-/**
- * An Apple OS the scanner attributes modules to, spelled as `os(...)` spells it. The casing is part
- * of the output contract, so consumers with a lowercase convention must fold the case themselves.
- */
-export type ScannedPlatform = 'iOS' | 'macOS' | 'tvOS' | 'watchOS' | 'visionOS';
 
 /** One module in the `scan-modules` output. */
 export interface ScannedModule {
@@ -305,4 +377,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 7;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 8;

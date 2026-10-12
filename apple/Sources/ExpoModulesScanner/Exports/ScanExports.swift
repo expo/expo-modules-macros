@@ -46,7 +46,7 @@ func scanExports(paths: [String]) -> ScanExportsResult {
     conformances: [enumerableConformanceName]
   ) { source, file in
     let tree = Parser.parse(source: source)
-    let visitor = SurfaceVisitor(file: file)
+    let visitor = SurfaceVisitor(file: file, tree: tree)
     visitor.walk(tree)
     modules.append(contentsOf: visitor.modules)
     sharedObjects.append(contentsOf: visitor.sharedObjects)
