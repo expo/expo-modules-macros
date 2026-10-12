@@ -224,7 +224,8 @@ export async function scanModules(
  * file or a directory, scanned recursively.
  *
  * Each declaration and member reports the Apple OSes whose `#if` conditions and `@available`
- * attributes include it. No define option is taken: a condition on a custom flag never holds, so
+ * attributes include it. `#if` is read only where the runtime sees what it holds: around types,
+ * `@Event` members, and enum cases. No define option is taken: a condition on a custom flag never holds, so
  * what it guards is not reported.
  */
 export async function scanExports(

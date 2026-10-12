@@ -146,9 +146,9 @@ private struct Availability {
           isDeprecated = true
           deprecation.obsoleted = version.trimmedDescription
         case ("message", .string(let literal)):
-          deprecation.message = literal.segments.map(\.content.text).joined()
+          deprecation.message = decodedText(of: literal)
         case ("renamed", .string(let literal)):
-          deprecation.renamed = literal.segments.map(\.content.text).joined()
+          deprecation.renamed = decodedText(of: literal)
         default:
           continue
         }
@@ -184,6 +184,52 @@ extension ExportedDeprecation {
       renamed: renamed ?? other.renamed
     )
   }
+}
+
+/// The value of a string literal in an attribute, with its escape sequences decoded: `\"` reads as
+/// `"`, `\n` as a line break, and `\u{2192}` as `→`. An escaped line break in a multi-line literal
+/// joins the lines, as in Swift. An escape that isn't valid is kept as written.
+private func decodedText(of literal: SimpleStringLiteralExprSyntax) -> String {
+  let text = literal.segments.map(\.content.text).joined()
+  var result = ""
+  var index = text.startIndex
+  while index < text.endIndex {
+    let character = text[index]
+    index = text.index(after: index)
+    guard character == "\\", index < text.endIndex else {
+      result.append(character)
+      continue
+    }
+    let escaped = text[index]
+    index = text.index(after: index)
+    switch escaped {
+    case "0":
+      result.append("\0")
+    case "n":
+      result.append("\n")
+    case "r":
+      result.append("\r")
+    case "t":
+      result.append("\t")
+    case "\"", "'", "\\":
+      result.append(escaped)
+    case "\n", "\r\n":
+      continue
+    case "u":
+      if text[index...].hasPrefix("{"), let close = text[index...].firstIndex(of: "}"),
+        let scalarValue = UInt32(text[text.index(after: index)..<close], radix: 16),
+        let scalar = Unicode.Scalar(scalarValue) {
+        result.unicodeScalars.append(scalar)
+        index = text.index(after: close)
+      } else {
+        result.append("\\u")
+      }
+    default:
+      result.append("\\")
+      result.append(escaped)
+    }
+  }
+  return result
 }
 
 /// Compares two dotted version spellings component by component, treating a missing component as

@@ -288,8 +288,8 @@ struct ExportedSharedObject: Encodable, Equatable {
   /// types.
   let jsName: String
 
-  /// The `@JS init`, or `nil` when there's none. A shared object has at most one that a platform
-  /// builds; the first one is reported. Not named `constructor`, which every JS object inherits.
+  /// The `@JS init`, or `nil` when there's none. A shared object has at most one; the first is kept
+  /// if a malformed source has more. Not named `constructor`, which every JS object inherits.
   var initializer: ExportedInitializer?
 
   var functions: [ExportedFunction]

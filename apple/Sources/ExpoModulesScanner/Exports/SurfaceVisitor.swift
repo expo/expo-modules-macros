@@ -10,8 +10,12 @@ import SwiftSyntax
 /// qualified Swift name (`Options.Encoding`), so a ref to one can be resolved from the scope it is
 /// written in. A type declared in a function body or a closure is local and is not reported.
 ///
-/// Every clause of a `#if` is read, and each declaration and member reports the platforms that
-/// build it (see `PlatformResolver`). One that no platform builds is not reported.
+/// Each declaration and member reports the platforms that build it (see `PlatformResolver`), and one
+/// that no platform builds is not reported. `#if` is read only where the runtime sees what it holds:
+/// around types, `@Event` members, and enum cases. `@ExpoModule`, `@SharedObject`, `@Record`, and
+/// `@Union` read only the members written directly in the type body, so `@JS` members, record
+/// properties, and union cases in a `#if` clause are never bound and are not reported. An `@Event`
+/// expands on its own declaration, and the compiler reads enum cases itself.
 final class SurfaceVisitor: SyntaxVisitor {
   private let file: String
   private let platformResolver: PlatformResolver
@@ -198,10 +202,24 @@ final class SurfaceVisitor: SyntaxVisitor {
     var events: [ExportedEvent] = []
     var initializer: ExportedInitializer?
 
+    // The macros bind only the `@JS` members written directly in the body.
+    let directMembers = Set(members.map(\.id))
+
     for member in flattened(members) {
       let decl = member.decl
       let platforms = platformResolver.platforms(of: decl)
       guard !platforms.isEmpty else {
+        continue
+      }
+
+      if let varDecl = decl.as(VariableDeclSyntax.self),
+        varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) == nil,
+        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.event.rawValue) {
+        events.append(contentsOf: makeEvents(varDecl: varDecl, attribute: attribute, platforms: platforms))
+        continue
+      }
+
+      guard directMembers.contains(member.id) else {
         continue
       }
 
@@ -227,12 +245,6 @@ final class SurfaceVisitor: SyntaxVisitor {
       if let varDecl = decl.as(VariableDeclSyntax.self),
         let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) {
         properties.append(contentsOf: makeProperties(varDecl: varDecl, attribute: attribute, platforms: platforms))
-        continue
-      }
-
-      if let varDecl = decl.as(VariableDeclSyntax.self),
-        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.event.rawValue) {
-        events.append(contentsOf: makeEvents(varDecl: varDecl, attribute: attribute, platforms: platforms))
       }
     }
 
@@ -365,7 +377,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   private func collectRecordProperties(_ members: MemberBlockItemListSyntax) -> [ExportedRecordProperty] {
     var properties: [ExportedRecordProperty] = []
 
-    for member in flattened(members) {
+    // `@Record` reads only the properties written directly in the body, so `#if` is not looked into.
+    for member in members {
       guard let varDecl = member.decl.as(VariableDeclSyntax.self),
         !isExcludedRecordModifier(varDecl.modifiers) else {
         continue
@@ -442,7 +455,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   private func collectUnionMembers(_ members: MemberBlockItemListSyntax) -> [ExportedUnionMember] {
     var result: [ExportedUnionMember] = []
 
-    for member in flattened(members) {
+    // `@Union` reads only the cases written directly in the body, so `#if` is not looked into.
+    for member in members {
       guard let caseDecl = member.decl.as(EnumCaseDeclSyntax.self) else {
         continue
       }

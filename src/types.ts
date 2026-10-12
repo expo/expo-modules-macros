@@ -237,8 +237,8 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
    */
   jsName: string;
   /**
-   * The `@JS init`, or absent when there's none. When several are built, the first one is reported.
-   * Not named `constructor`, which every JS object inherits.
+   * The `@JS init`, or absent when there's none. At most one constructor. Not named `constructor`,
+   * which every JS object inherits.
    */
   initializer?: ExportedInitializer;
   functions: ExportedFunction[];

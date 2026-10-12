@@ -117,17 +117,17 @@ struct PlatformTests {
   }
 
   @Test
-  func `Reports members in each branch of an #if with the platforms that build it`() throws {
+  func `Reports events in each branch of an #if with the platforms that build them`() throws {
     let module = try #require(
       surface(
         """
         @ExpoModule
         final class M {
-          @JS func everywhere() {}
+          @Event var onEverywhere: () -> Void
           #if os(iOS)
-          @JS func onIOS() {}
+          @Event var onIOS: () -> Void
           #elseif os(macOS) || os(tvOS)
-          @JS var onMacOrTV = 0
+          @Event var onMacOrTV: () -> Void
           #else
           @Event var onOther: () -> Void
           #endif
@@ -135,12 +135,54 @@ struct PlatformTests {
         """
       ).modules.first)
 
-    #expect(module.functions.map(\.name) == ["everywhere", "onIOS"])
-    #expect(module.functions.last?.platforms == platforms("iOS"))
-    #expect(module.properties.map(\.name) == ["onMacOrTV"])
-    #expect(module.properties.first?.platforms == platforms("macOS", "tvOS"))
-    #expect(module.events.map(\.name) == ["onOther"])
-    #expect(module.events.first?.platforms == platforms("watchOS", "visionOS"))
+    #expect(module.events.map(\.name) == ["onEverywhere", "onIOS", "onMacOrTV", "onOther"])
+    #expect(
+      module.events.map(\.platforms) == [
+        everyPlatform, platforms("iOS"), platforms("macOS", "tvOS"), platforms("watchOS", "visionOS"),
+      ])
+  }
+
+  @Test
+  func `Leaves out the @JS members and record and union fields that the macros skip in #if`() throws {
+    // `@ExpoModule`, `@SharedObject`, `@Record`, and `@Union` read only the members written directly
+    // in the type body, so a member in a `#if` clause is never bound.
+    let visitor = surface(
+      """
+      @ExpoModule
+      final class M {
+        @JS func kept() {}
+        #if os(iOS)
+        @JS func f() {}
+        @JS var p = 0
+        #endif
+      }
+      @SharedObject
+      final class S: SharedObject {
+        #if os(iOS)
+        @JS init(a: Int) {}
+        #else
+        @JS init(b: String) {}
+        #endif
+      }
+      @Record struct R {
+        var a: Int
+        #if os(iOS)
+        var b: Int
+        #endif
+      }
+      @Union enum U {
+        case a(Int)
+        #if os(macOS)
+        case b(String)
+        #endif
+      }
+      """
+    )
+    #expect(visitor.modules.first?.functions.map(\.name) == ["kept"])
+    #expect(visitor.modules.first?.properties.isEmpty == true)
+    #expect(visitor.sharedObjects.first?.initializer == nil)
+    #expect(visitor.records.first?.properties.map(\.name) == ["a"])
+    #expect(visitor.unions.first?.members.map(\.name) == ["a"])
   }
 
   @Test
@@ -151,7 +193,7 @@ struct PlatformTests {
       @ExpoModule
       final class M {
         #if canImport(UIKit)
-        @JS func f() {}
+        @Event var onChange: () -> Void
         #endif
 
         #if os(iOS)
@@ -164,39 +206,25 @@ struct PlatformTests {
     let module = try #require(visitor.modules.first)
     #expect(module.platforms == platforms("iOS", "macOS", "tvOS", "visionOS"))
     // UIKit is on iOS, tvOS, watchOS, and visionOS; the enclosing `#if` already excludes watchOS.
-    #expect(module.functions.first?.platforms == platforms("iOS", "tvOS", "visionOS"))
+    #expect(module.events.first?.platforms == platforms("iOS", "tvOS", "visionOS"))
     #expect(visitor.records.map(\.name) == ["M.Options"])
     #expect(visitor.records.first?.platforms == platforms("iOS"))
     #expect(visitor.records.first?.properties.first?.platforms == platforms("iOS"))
   }
 
   @Test
-  func `Reports record properties, enum cases, and union members in #if blocks`() throws {
+  func `Reports enum cases in #if blocks`() throws {
     let visitor = surface(
       """
-      @Record struct R {
-        var a: Int
-        #if os(iOS)
-        var b: Int
-        #endif
-      }
       enum E: String, Enumerable {
         case a
         #if os(tvOS)
         case b
         #endif
       }
-      @Union enum U {
-        case a(Int)
-        #if os(macOS)
-        case b(String)
-        #endif
-      }
       """
     )
-    #expect(visitor.records.first?.properties.map(\.platforms) == [everyPlatform, platforms("iOS")])
     #expect(visitor.enums.first?.cases.map(\.platforms) == [everyPlatform, platforms("tvOS")])
-    #expect(visitor.unions.first?.members.map(\.platforms) == [everyPlatform, platforms("macOS")])
   }
 
   @Test
@@ -210,7 +238,7 @@ struct PlatformTests {
       @ExpoModule
       final class M {
         #if targetEnvironment(simulator)
-        @JS func simulatorOnly() {}
+        @Event var onSimulatorOnly: () -> Void
         #endif
         @JS func kept() {}
         @JS @available(*, unavailable) func gone() {}
@@ -219,6 +247,7 @@ struct PlatformTests {
     )
     #expect(visitor.records.isEmpty)
     #expect(visitor.modules.first?.functions.map(\.name) == ["kept"])
+    #expect(visitor.modules.first?.events.isEmpty == true)
   }
 
   @Test
@@ -449,6 +478,21 @@ struct DeprecationTests {
     let byPlatform = deprecations(try #require(module.functions.first))
     #expect(byPlatform["iOS"] == ExportedDeprecation(since: "15", message: "Do not use."))
     #expect(byPlatform["macOS"] == ExportedDeprecation(message: "Do not use."))
+  }
+
+  @Test
+  func `Decodes escapes in the message and renamed strings`() throws {
+    let module = try #require(
+      surface(
+        #"""
+        @ExpoModule
+        final class M {
+          @JS @available(*, deprecated, message: "Use \"play\" or \\ instead.\nSee \u{2192} docs.") func f() {}
+        }
+        """#
+      ).modules.first)
+    let message = module.functions.first?.platforms.first?.deprecated?.message
+    #expect(message == "Use \"play\" or \\ instead.\nSee \u{2192} docs.")
   }
 
   @Test
