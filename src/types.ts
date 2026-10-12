@@ -74,6 +74,35 @@ export interface ExportedPlatform {
    * several do.
    */
   introduced?: string;
+  /**
+   * How the declaration's own `@available` attributes deprecate it on this OS, or absent when they
+   * don't. Enclosing types are not read: a member of a deprecated type is not itself reported as
+   * deprecated.
+   */
+  deprecated?: ExportedDeprecation;
+}
+
+/**
+ * A deprecation from `@available`: `@available(*, deprecated, ...)` on every OS, or
+ * `@available(iOS, deprecated: 16, obsoleted: 18, ...)` on one. Each field is absent when not
+ * written. When a platform has its own attribute and a `*` one also applies, they combine and the
+ * platform's fields win.
+ */
+export interface ExportedDeprecation {
+  /** The version from `deprecated: 16`; absent for a bare `deprecated`. */
+  since?: string;
+  /**
+   * The version from `obsoleted: 18`, from which the declaration is no longer available. A
+   * declaration that is only obsoleted is still reported as deprecated.
+   */
+  obsoleted?: string;
+  /** The `message:` text. */
+  message?: string;
+  /**
+   * The `renamed:` text: the Swift name of the replacement, as written (`newName`,
+   * `other(value:)`). It is not resolved to a JS name.
+   */
+  renamed?: string;
 }
 
 /**

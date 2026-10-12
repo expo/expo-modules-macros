@@ -19,7 +19,8 @@ private let availabilityPlatformNames: [String: String] = [
 
 /// Answers which platforms build a declaration in one file: those whose `#if` evaluation keeps it,
 /// less those an `@available` attribute on it or on an enclosing type makes unavailable. The `#if`
-/// regions are evaluated once per platform for the whole file.
+/// regions are evaluated once per platform for the whole file. Each platform also carries the
+/// deprecation the declaration's own `@available` attributes give it there.
 ///
 /// A condition the scan cannot answer (`#if DEBUG`, `targetEnvironment`, a non-SDK `canImport`)
 /// makes its region inactive on every platform, so a declaration under one is built nowhere.
@@ -39,7 +40,11 @@ struct PlatformResolver {
       guard regions.isActive(node) == .active, !availability.isUnavailable(on: platform) else {
         return nil
       }
-      return ExportedPlatform(name: platform, introduced: availability.introduced[platform])
+      return ExportedPlatform(
+        name: platform,
+        introduced: availability.introduced[platform],
+        deprecated: availability.deprecation(on: platform)
+      )
     }
   }
 }
@@ -47,23 +52,30 @@ struct PlatformResolver {
 /// What the `@available` attributes on a declaration and its enclosing declarations say. A member
 /// cannot be more available than the type it is declared in, so the attributes combine: a platform
 /// any of them makes unavailable is unavailable, and the latest introduced version wins.
+/// Deprecations are read from the declaration's own attributes only.
 private struct Availability {
   private var unavailable: Set<String> = []
   private var isUnavailableEverywhere = false
   private(set) var introduced: [String: String] = [:]
+  /// The deprecation from `@available(*, deprecated, ...)`, which applies on every platform.
+  private var deprecatedEverywhere: ExportedDeprecation?
+  /// The deprecations from attributes that name a platform.
+  private var deprecated: [String: ExportedDeprecation] = [:]
 
   init(of node: some SyntaxProtocol) {
     var current: Syntax? = Syntax(node)
+    var isOwn = true
     while let decl = current {
       if let attributes = decl.asProtocol(WithAttributesSyntax.self)?.attributes {
         for element in attributes {
           if let attribute = element.as(AttributeSyntax.self),
             attribute.attributeName.trimmedDescription == "available",
             case .availability(let arguments) = attribute.arguments {
-            read(arguments)
+            read(arguments, readsDeprecation: isOwn)
           }
         }
       }
+      isOwn = false
       current = decl.parent
     }
   }
@@ -72,10 +84,28 @@ private struct Availability {
     isUnavailableEverywhere || unavailable.contains(platform)
   }
 
+  /// The deprecation on `platform`: the platform's own, with any field it leaves out taken from the
+  /// `*` one.
+  func deprecation(on platform: String) -> ExportedDeprecation? {
+    switch (deprecated[platform], deprecatedEverywhere) {
+    case (nil, let everywhere):
+      return everywhere
+    case (let own?, nil):
+      return own
+    case (let own?, let everywhere?):
+      return own.filling(from: everywhere)
+    }
+  }
+
   /// Reads one attribute. The long form names one platform (or `*`) first and then what applies to
-  /// it: `@available(iOS, introduced: 16)`, `@available(tvOS, unavailable)`. The shorthand lists
-  /// platforms with versions: `@available(iOS 17, macOS 14, *)`.
-  private mutating func read(_ arguments: AvailabilityArgumentListSyntax) {
+  /// it: `@available(iOS, introduced: 16)`, `@available(tvOS, unavailable)`,
+  /// `@available(*, deprecated, renamed: "other")`. The shorthand lists platforms with versions:
+  /// `@available(iOS 17, macOS 14, *)`.
+  ///
+  /// A long-form attribute deprecates its platform when it writes `deprecated` (bare or with a
+  /// version) or `obsoleted:`. `message:` and `renamed:` describe that deprecation, and are ignored
+  /// when the attribute deprecates nothing.
+  private mutating func read(_ arguments: AvailabilityArgumentListSyntax, readsDeprecation: Bool) {
     guard case .token(let first) = arguments.first?.argument else {
       for argument in arguments {
         if case .availabilityVersionRestriction(let restriction) = argument.argument,
@@ -91,6 +121,8 @@ private struct Availability {
     guard isWildcard || platform != nil else {
       return
     }
+    var deprecation = ExportedDeprecation()
+    var isDeprecated = false
     for argument in arguments.dropFirst() {
       switch argument.argument {
       case .token(let token) where token.text == "unavailable":
@@ -99,13 +131,38 @@ private struct Availability {
         } else {
           isUnavailableEverywhere = true
         }
-      case .availabilityLabeledArgument(let labeled) where labeled.label.text == "introduced":
-        if let platform, case .version(let version) = labeled.value {
-          raiseIntroduced(on: platform, to: version.trimmedDescription)
+      case .token(let token) where token.text == "deprecated":
+        isDeprecated = true
+      case .availabilityLabeledArgument(let labeled):
+        switch (labeled.label.text, labeled.value) {
+        case ("introduced", .version(let version)):
+          if let platform {
+            raiseIntroduced(on: platform, to: version.trimmedDescription)
+          }
+        case ("deprecated", .version(let version)):
+          isDeprecated = true
+          deprecation.since = version.trimmedDescription
+        case ("obsoleted", .version(let version)):
+          isDeprecated = true
+          deprecation.obsoleted = version.trimmedDescription
+        case ("message", .string(let literal)):
+          deprecation.message = literal.segments.map(\.content.text).joined()
+        case ("renamed", .string(let literal)):
+          deprecation.renamed = literal.segments.map(\.content.text).joined()
+        default:
+          continue
         }
       default:
         continue
       }
+    }
+    guard readsDeprecation, isDeprecated else {
+      return
+    }
+    if let platform {
+      deprecated[platform] = deprecated[platform].map { deprecation.filling(from: $0) } ?? deprecation
+    } else {
+      deprecatedEverywhere = deprecatedEverywhere.map { deprecation.filling(from: $0) } ?? deprecation
     }
   }
 
@@ -114,6 +171,18 @@ private struct Availability {
       return
     }
     introduced[platform] = version
+  }
+}
+
+extension ExportedDeprecation {
+  /// This deprecation with each field it leaves out taken from `other`.
+  fileprivate func filling(from other: ExportedDeprecation) -> ExportedDeprecation {
+    ExportedDeprecation(
+      since: since ?? other.since,
+      obsoleted: obsoleted ?? other.obsoleted,
+      message: message ?? other.message,
+      renamed: renamed ?? other.renamed
+    )
   }
 }
 

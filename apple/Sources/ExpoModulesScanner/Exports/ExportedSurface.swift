@@ -16,6 +16,29 @@ struct ExportedPlatform: Encodable, Equatable {
   /// attribute on the declaration or its enclosing types names one. The latest version wins when
   /// several do.
   let introduced: String?
+
+  /// How the declaration's own `@available` attributes deprecate it on this OS, or `nil` when they
+  /// don't. Enclosing types are not read: a member of a deprecated type is not itself reported as
+  /// deprecated.
+  var deprecated: ExportedDeprecation? = nil
+}
+
+/// A deprecation from `@available`: `@available(*, deprecated, ...)` on every OS, or
+/// `@available(iOS, deprecated: 16, obsoleted: 18, ...)` on one. Each field is `nil` when not written.
+struct ExportedDeprecation: Encodable, Equatable {
+  /// The version from `deprecated: 16`; `nil` for a bare `deprecated`.
+  var since: String? = nil
+
+  /// The version from `obsoleted: 18`, from which the declaration is no longer available. A
+  /// declaration that is only obsoleted is still reported as deprecated.
+  var obsoleted: String? = nil
+
+  /// The `message:` text.
+  var message: String? = nil
+
+  /// The `renamed:` text: the Swift name of the replacement, as written (`newName`,
+  /// `other(value:)`). It is not resolved to a JS name.
+  var renamed: String? = nil
 }
 
 /// One parameter of a `@JS` function or `@JS init`.
@@ -423,8 +446,8 @@ struct ExportedSurface: Encodable, Equatable {
 /// added `enums`; version 4 added `unions`; version 5 resolves refs, adding `refKind` and correcting
 /// an enum ref's `typeof`; version 6 added `classes` to modules; version 7 reports nested types under
 /// qualified names and gives a resolved ref the name of its declaration; version 8 reports
-/// declarations in `#if` blocks, adds `platforms`, `accessLevel`, and `defaultValue`, and replaces
-/// `constructorParameters` with `initializer`.
+/// declarations in `#if` blocks, adds `platforms` (with deprecations), `accessLevel`, and
+/// `defaultValue`, and replaces `constructorParameters` with `initializer`.
 let scanExportsSchemaVersion = 8
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from

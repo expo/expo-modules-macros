@@ -233,7 +233,7 @@ struct PlatformTests {
           @JS @available(tvOS, unavailable) @available(watchOS, unavailable) func notOnTVOrWatch() {}
           @JS @available(macOS, unavailable) @available(iOS 15, *) func combined() {}
           @JS @available(OSX 13, *) func legacyName() {}
-          @JS @available(*, deprecated) @available(iOSApplicationExtension, unavailable) func ignored() {}
+          @JS @available(macCatalyst, unavailable) @available(iOSApplicationExtension, unavailable) func ignored() {}
         }
         """
       ).modules.first)
@@ -373,5 +373,112 @@ struct DefaultValueTests {
         """
       ).sharedObjects.first)
     #expect(shared.initializer?.parameters.map(\.defaultValue) == ["10"])
+  }
+}
+
+@Suite("Exports surface: deprecation")
+struct DeprecationTests {
+  /// The deprecation each platform of a function reports, keyed by platform name.
+  private func deprecations(_ function: ExportedFunction) -> [String: ExportedDeprecation?] {
+    Dictionary(uniqueKeysWithValues: function.platforms.map { ($0.name, $0.deprecated) })
+  }
+
+  @Test
+  func `Reports a deprecation on every platform for the * form`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class M {
+          @JS @available(*, deprecated) func bare() {}
+          @JS @available(*, deprecated, message: "Use the async variant.") func withMessage() {}
+          @JS @available(*, deprecated, renamed: "newName") func renamed() {}
+          @JS func current() {}
+        }
+        """
+      ).modules.first)
+
+    #expect(module.functions[0].platforms.allSatisfy { $0.deprecated == ExportedDeprecation() })
+    #expect(
+      module.functions[1].platforms.allSatisfy {
+        $0.deprecated == ExportedDeprecation(message: "Use the async variant.")
+      })
+    #expect(module.functions[2].platforms.allSatisfy { $0.deprecated == ExportedDeprecation(renamed: "newName") })
+    #expect(module.functions[3].platforms.allSatisfy { $0.deprecated == nil })
+  }
+
+  @Test
+  func `Reports per-platform deprecated and obsoleted versions`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class M {
+          @JS
+          @available(iOS, introduced: 13, deprecated: 16, obsoleted: 18, message: "Gone soon.")
+          @available(macOS, deprecated, renamed: "other(value:)")
+          @available(tvOS, obsoleted: 17)
+          func f() {}
+        }
+        """
+      ).modules.first)
+
+    let byPlatform = deprecations(try #require(module.functions.first))
+    #expect(byPlatform["iOS"] == ExportedDeprecation(since: "16", obsoleted: "18", message: "Gone soon."))
+    #expect(byPlatform["macOS"] == ExportedDeprecation(renamed: "other(value:)"))
+    #expect(byPlatform["tvOS"] == ExportedDeprecation(obsoleted: "17"))
+    #expect(byPlatform["watchOS"] == .some(nil))
+    #expect(module.functions.first?.platforms.first?.introduced == "13")
+  }
+
+  @Test
+  func `Merges a platform deprecation into the * one`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class M {
+          @JS
+          @available(*, deprecated, message: "Do not use.")
+          @available(iOS, deprecated: 15)
+          func f() {}
+        }
+        """
+      ).modules.first)
+
+    let byPlatform = deprecations(try #require(module.functions.first))
+    #expect(byPlatform["iOS"] == ExportedDeprecation(since: "15", message: "Do not use."))
+    #expect(byPlatform["macOS"] == ExportedDeprecation(message: "Do not use."))
+  }
+
+  @Test
+  func `Reads deprecation from the declaration itself, not from enclosing types`() throws {
+    let visitor = surface(
+      """
+      @available(*, deprecated)
+      @SharedObject
+      final class S: SharedObject {
+        @JS func f() {}
+      }
+      @Record struct R {
+        @available(iOS, deprecated: 17, message: "Unused.")
+        var x: Int
+      }
+      enum E: String, Enumerable {
+        @available(*, deprecated, renamed: "b")
+        case a
+        case b
+      }
+      """
+    )
+    #expect(visitor.sharedObjects.first?.platforms.allSatisfy { $0.deprecated == ExportedDeprecation() } == true)
+    #expect(visitor.sharedObjects.first?.functions.first?.platforms.allSatisfy { $0.deprecated == nil } == true)
+    #expect(
+      visitor.records.first?.properties.first?.platforms.first?.deprecated
+        == ExportedDeprecation(since: "17", message: "Unused."))
+    #expect(
+      visitor.enums.first?.cases.map { $0.platforms.first?.deprecated } == [
+        ExportedDeprecation(renamed: "b"), nil,
+      ])
   }
 }
