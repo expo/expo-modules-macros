@@ -7,7 +7,7 @@ import Testing
 /// fixed so any per-type `file` field is stable across runs.
 private func surface(_ source: String) -> SurfaceVisitor {
   let tree = Parser.parse(source: source)
-  let visitor = SurfaceVisitor(file: "Test.swift")
+  let visitor = SurfaceVisitor(file: "Test.swift", tree: tree)
   visitor.walk(tree)
   return visitor
 }
@@ -167,9 +167,9 @@ struct SharedObjectSurfaceTests {
 
     #expect(shared.name == "Cache")
     #expect(shared.jsName == "Cache")
-    #expect(shared.constructorParameters?.map(\.name) == ["name", "size"])
+    #expect(shared.initializer?.parameters.map(\.name) == ["name", "size"])
     // An optional-typed parameter is omittable.
-    #expect(shared.constructorParameters?.map(\.isOptional) == [false, true])
+    #expect(shared.initializer?.parameters.map(\.isOptional) == [false, true])
     #expect(shared.functions.map(\.name) == ["clear"])
     #expect(shared.properties.map(\.name) == ["id"])
     #expect(shared.properties.first?.isSettable == false)
@@ -186,7 +186,7 @@ struct SharedObjectSurfaceTests {
         }
         """
       ).sharedObjects.first)
-    #expect(shared.constructorParameters == nil)
+    #expect(shared.initializer == nil)
   }
 }
 
@@ -216,15 +216,15 @@ struct RecordSurfaceTests {
     let byName = Dictionary(uniqueKeysWithValues: record.properties.map { ($0.name, $0) })
     // A property is required only when it has no default and isn't optional.
     #expect(byName["name"]?.isOptional == false)
-    #expect(byName["name"]?.hasDefault == false)
+    #expect(byName["name"]?.defaultValue == nil)
     #expect(byName["name"]?.isRequired == true)
     // A defaulted property is not required.
-    #expect(byName["retries"]?.hasDefault == true)
+    #expect(byName["retries"]?.defaultValue == "3")
     #expect(byName["retries"]?.isOptional == false)
     #expect(byName["retries"]?.isRequired == false)
     // An optional property is not required (decodes to nil when omitted), even with no written default.
     #expect(byName["note"]?.isOptional == true)
-    #expect(byName["note"]?.hasDefault == false)
+    #expect(byName["note"]?.defaultValue == nil)
     #expect(byName["note"]?.isRequired == false)
   }
 }
@@ -325,7 +325,8 @@ struct EnumSurfaceTests {
       """
     )
     #expect(visitor.enums.map(\.name) == ["M.Status"])
-    #expect(visitor.enums.first?.cases == [ExportedEnumCase(name: "active", rawValue: "active")])
+    #expect(visitor.enums.first?.cases.map(\.name) == ["active"])
+    #expect(visitor.enums.first?.cases.map(\.rawValue) == ["active"])
   }
 
   @Test
