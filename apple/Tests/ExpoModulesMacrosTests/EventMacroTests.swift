@@ -591,4 +591,54 @@ struct EventMacroTests {
       ]
     )
   }
+
+  @Test
+  func `A closure payload produces a diagnostic on the closure type`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onTap: ((Int) -> Void) -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onTap: ((Int) -> Void) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+          line: 3,
+          column: 15
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A closure nested in a payload type produces a diagnostic on the closure type`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onChange: ([@Sendable () -> Void]) -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onChange: ([@Sendable () -> Void]) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+          line: 3,
+          column: 29
+        )
+      ]
+    )
+  }
 }

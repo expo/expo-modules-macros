@@ -1054,4 +1054,39 @@ struct UnionMacroTests {
       ]
     )
   }
+
+  @Test
+  func `A closure payload produces a diagnostic on the closure type`() {
+    assertExpansion(
+      """
+      @Union
+      enum Source {
+        case text(String)
+        case callback((Int) -> Void)
+        case callbacks([() -> Void])
+      }
+      """,
+      expandedSource: """
+        enum Source {
+          case text(String)
+          case callback((Int) -> Void)
+          case callbacks([() -> Void])
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Union case 'callback' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
+          line: 4,
+          column: 17
+        ),
+        DiagnosticSpec(
+          message:
+            "@Union case 'callbacks' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
+          line: 5,
+          column: 19
+        ),
+      ]
+    )
+  }
 }

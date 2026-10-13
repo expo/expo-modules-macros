@@ -1,3 +1,4 @@
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
@@ -226,8 +227,21 @@ private func recordProperties(
           "@Record properties must declare an explicit type — '\(ident.identifier.text)' has none"
         )
       }
-      // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
+      // A literal-inferred type never mentions `Any` or a closure, so only an explicit annotation can.
       let annotatedType = binding.typeAnnotation?.type
+      // A closure has no `decode`, `encode` or dynamic type, and the record converts every property both
+      // ways. A JavaScript function decodes into a native closure only as a `@JS` argument; a native
+      // closure can't be encoded.
+      if let functionType = annotatedType.flatMap(firstFunctionType(in:)) {
+        throw DiagnosticsError(diagnostics: [
+          Diagnostic(
+            node: functionType,
+            message: RecordDiagnosticMessage(
+              "@Record property '\(ident.identifier.text)' can't hold a closure: a record property is also encoded to JavaScript, and a native closure can't be encoded",
+              id: "record-closure-property"
+            ))
+        ])
+      }
       let freeForm = try annotatedType.flatMap { annotatedType -> FreeFormConversion? in
         guard mentionsFreeFormAny(annotatedType) else {
           return nil
@@ -544,4 +558,15 @@ private func classHasInheritance(_ declaration: some DeclGroupSyntax) -> Bool {
     return false
   }
   return true
+}
+
+private struct RecordDiagnosticMessage: DiagnosticMessage {
+  let message: String
+  let diagnosticID: MessageID
+  let severity: DiagnosticSeverity = .error
+
+  init(_ message: String, id: String) {
+    self.message = message
+    self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+  }
 }

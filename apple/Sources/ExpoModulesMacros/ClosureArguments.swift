@@ -344,7 +344,7 @@ internal func containsFunctionType(_ type: TypeSyntax) -> Bool {
 }
 
 /// The first function type in `type` or anywhere inside it, in source order.
-private func firstFunctionType(in type: some SyntaxProtocol) -> FunctionTypeSyntax? {
+internal func firstFunctionType(in type: some SyntaxProtocol) -> FunctionTypeSyntax? {
   if let functionType = type.as(FunctionTypeSyntax.self) {
     return functionType
   }

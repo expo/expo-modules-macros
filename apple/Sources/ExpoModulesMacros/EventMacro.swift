@@ -122,7 +122,7 @@ private struct EventMember {
 /// Validates the declaration `@Event` is attached to and reads the event out of it. The checks
 /// mirror what the expansion relies on: a single-binding instance `var` (the macro synthesizes a
 /// computed getter, so `let`, accessors, and initializers are all incompatible) whose type is a
-/// function type returning `Void` with at most one payload parameter.
+/// function type returning `Void` with at most one payload parameter, which holds no closure.
 private func validatedEvent(
   of node: AttributeSyntax,
   on declaration: some DeclSyntaxProtocol
@@ -168,6 +168,17 @@ private func validatedEvent(
   guard functionType.parameters.count <= 1 else {
     throw MacroExpansionErrorMessage(
       "@Event function type takes at most one payload parameter; combine multiple values into a single record")
+  }
+  // The payload is encoded to JavaScript, and a native closure can't be encoded.
+  if let payloadClosure = functionType.parameters.first.flatMap({ firstFunctionType(in: $0.type) }) {
+    throw DiagnosticsError(diagnostics: [
+      Diagnostic(
+        node: payloadClosure,
+        message: EventDiagnosticMessage(
+          "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+          id: "event-closure-payload"
+        ))
+    ])
   }
 
   let swiftName = identifier.identifier.text

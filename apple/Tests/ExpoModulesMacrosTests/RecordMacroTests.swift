@@ -1383,4 +1383,62 @@ struct RecordMacroTests {
         """
     )
   }
+
+  @Test
+  func `A closure property produces a diagnostic on the closure type`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var name: String
+        var onTap: (Int) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var name: String
+          var onTap: (Int) -> Void
+        }
+
+        extension Options: Record {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Record property 'onTap' can't hold a closure: a record property is also encoded to JavaScript, and a native closure can't be encoded",
+          line: 4,
+          column: 14
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A closure nested in a property type produces a diagnostic on the closure type`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var handlers: [String: ((Any) -> Void)?] = [:]
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var handlers: [String: ((Any) -> Void)?] = [:]
+        }
+
+        extension Options: Record {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Record property 'handlers' can't hold a closure: a record property is also encoded to JavaScript, and a native closure can't be encoded",
+          line: 3,
+          column: 27
+        )
+      ]
+    )
+  }
 }
