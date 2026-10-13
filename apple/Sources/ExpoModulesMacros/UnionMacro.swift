@@ -141,7 +141,8 @@ private struct UnionCase {
 
 /// Reads and validates the union off the attached declaration. Every check is a compile error located
 /// on the offending node: the macro must be on a non-generic `enum` with at least one case, and every
-/// case must carry exactly one associated value, its payload type distinct from every earlier case's.
+/// case must carry exactly one associated value that holds no closure, its payload type distinct from
+/// every earlier case's.
 private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> UnionType {
   guard let enumDecl = declaration.as(EnumDeclSyntax.self) else {
     throw MacroExpansionErrorMessage("@Union can only be applied to an enum")
@@ -194,6 +195,18 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
       // fix-it that removes it.
       if let defaultValue = parameter.defaultValue {
         diagnostics.append(defaultValueDiagnostic(for: parameter, defaultValue: defaultValue, caseName: name))
+        continue
+      }
+
+      // A payload is decoded from and encoded to JavaScript, and a native closure can't be encoded.
+      if let payloadClosure = firstFunctionType(in: parameter.type) {
+        diagnostics.append(
+          Diagnostic(
+            node: payloadClosure,
+            message: UnionDiagnosticMessage(
+              "@Union case '\(name)' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
+              id: "union-closure-payload"
+            )))
         continue
       }
 
