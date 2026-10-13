@@ -206,8 +206,8 @@ internal struct JSFunction {
   }
 
   /// The flat (single-arity) call-and-encode lines used when no trailing parameter is omittable:
-  /// `let result = <callee>.f(...)` then the return encode (or the no-return `<callee>.f(...)` +
-  /// `.undefined()`).
+  /// `let result = <callee>.f(...)` then the return encode (or just `<callee>.f(...)` for a function
+  /// that returns nothing).
   private func callAndEncodeLines(receiver: Receiver, arity: Int, decodingFrom: Int) -> [String] {
     var lines: [String] = []
     for index in decodingFrom..<arity {
@@ -218,7 +218,6 @@ internal struct JSFunction {
       lines.append(contentsOf: encodeResultLines())
     } else {
       lines.append(callExpression(receiver: receiver, arity: arity))
-      lines.append("return .undefined()")
     }
     return lines
   }
@@ -229,7 +228,8 @@ internal struct JSFunction {
   /// `toJavaScriptValue(in:)` except for `Int`/`UInt`, where it range-checks
   /// and throws instead of silently encoding an out-of-safe-range value as a lossy number — the
   /// catchable error is the right behavior, and matches how non-primitive integers already encode. A
-  /// no-return function returns `.undefined()` instead.
+  /// no-return function has nothing to encode: its binding closure returns `Void` (see
+  /// `decorateStatements(object:receiver:)`).
   ///
   /// For an `async` function the encode must run on the JS thread. An `async` body may suspend and
   /// resume on an arbitrary cooperative-pool thread, and encoding a heap-allocated JS value (a string,
@@ -239,7 +239,7 @@ internal struct JSFunction {
   /// which always run on the JS thread — keep encoding directly without the wrapper.
   private func encodeResultLines() -> [String] {
     guard let returnType else {
-      return ["return .undefined()"]
+      return []
     }
     let encode = "try \(encodeCall(returnType, freeForm: returnFreeForm, of: "result"))"
     if isAsync {
@@ -272,11 +272,16 @@ internal struct JSFunction {
     // a shorthand `{ [capture] name, name in }` parameter; for a sync binding the explicit
     // `JavaScriptUnownedValue` also selects the (otherwise `@_disfavoredOverload`) unowned-`this`
     // overload.
+    // A sync function that returns nothing binds through the `Void` overload, which leaves JS's
+    // result as `undefined` without building and writing a value. The closure declares `-> Void`
+    // because a body of several statements without a `return` is otherwise ambiguous between the
+    // two unowned-`this` overloads.
     let captures = receiver.captureClause
     let parameters = "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
+    let returnClause = returnType == nil && !isAsync ? " -> Void" : ""
 
     return """
-        \(object).setProperty("\(jsName)") { \(captures)\(parameters) in
+        \(object).setProperty("\(jsName)") { \(captures)\(parameters)\(returnClause) in
       \(bodyStatements(receiver: receiver, indent: "    "))
         }
       """
@@ -348,7 +353,7 @@ internal struct JSProperty {
       let setDecode = "\(callee).\(swiftName) = try \(decode)"
       lines.append(
         accessorClosure(
-          descriptorName, "set", receiver: receiver, body: "\(unwrap)\(setDecode)\nreturn .undefined()"))
+          descriptorName, "set", receiver: receiver, returnsVoid: true, body: "\(unwrap)\(setDecode)"))
     }
 
     lines.append("\(object).defineProperty(\"\(jsName)\", descriptor: \(descriptorName))")
@@ -361,8 +366,10 @@ internal struct JSProperty {
 
   /// One `descriptor.setProperty("get"/"set") { … }` accessor entry. The capture list follows the
   /// receiver: a module captures `self` strong; a shared object captures nothing of the instance.
+  /// A setter passes `returnsVoid`, so its closure declares `-> Void` and binds through the `Void`
+  /// overload, like a function that returns nothing.
   private func accessorClosure(
-    _ descriptorName: String, _ key: String, receiver: Receiver, body: String
+    _ descriptorName: String, _ key: String, receiver: Receiver, returnsVoid: Bool = false, body: String
   ) -> String {
     let captures = receiver.captureClause
     // Indent each line of a (possibly multi-line) body to sit one level inside the closure; a bare
@@ -377,8 +384,9 @@ internal struct JSProperty {
     // `borrowing JavaScriptUnownedValue` selects the unowned-`this` overload. A module ignores `this`;
     // a shared object unwraps it in the body.
     let parameters = "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
+    let returnClause = returnsVoid ? " -> Void" : ""
     return """
-      \(descriptorName).setProperty("\(key)") { \(captures)\(parameters) in
+      \(descriptorName).setProperty("\(key)") { \(captures)\(parameters)\(returnClause) in
       \(indentedBody)
       }
       """
@@ -445,7 +453,7 @@ internal func buildDecorateSharedObjectPhase(
 }
 
 /// True when a return clause is absent or written as `Void` / `()` — i.e. the function returns
-/// nothing JS-visible, so the binding returns `.undefined()`.
+/// nothing JS-visible, so the binding closure returns `Void`.
 private func isVoidType(_ type: TypeSyntax?) -> Bool {
   guard let type else {
     return true

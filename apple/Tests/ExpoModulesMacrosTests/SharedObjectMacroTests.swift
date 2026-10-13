@@ -210,10 +210,9 @@ struct SharedObjectMacroTests {
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               return try SomeType?.encode(_self.owner, in: runtime)
             }
-            ownerDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            ownerDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               _self.owner = try SomeType?.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             prototype.defineProperty("owner", descriptor: ownerDescriptor)
           }
@@ -526,9 +525,8 @@ struct SharedObjectMacroTests {
             sharedDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try Int.encode(Cache.shared, in: runtime)
             }
-            sharedDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            sharedDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               Cache.shared = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             constructor.defineProperty("shared", descriptor: sharedDescriptor)
           }
@@ -663,10 +661,9 @@ struct SharedObjectMacroTests {
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               return try String.encode(_self.name, in: runtime)
             }
-            nameDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            nameDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               _self.name = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             prototype.defineProperty("name", descriptor: nameDescriptor)
           }
@@ -697,13 +694,12 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "clear", received: arguments.count, required: 0, maximum: 0))
               }
               _self.clear()
-              return .undefined()
             }
           }
         }
@@ -880,13 +876,12 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: `Type`.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "default", received: arguments.count, required: 0, maximum: 0))
               }
               _self.`default`()
-              return .undefined()
             }
           }
         }
