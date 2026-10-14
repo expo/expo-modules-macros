@@ -225,7 +225,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
               }
@@ -237,7 +237,6 @@ struct ExpoModuleMacroTests {
                 let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
                 self.tag(name: arg0, note: arg1)
               }
-              return .undefined()
             }
           }
         }
@@ -526,12 +525,11 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("doReset") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("doReset") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "doReset", received: arguments.count, required: 0, maximum: 0))
               }
               try self.reset()
-              return .undefined()
             }
           }
         }
@@ -788,9 +786,8 @@ struct ExpoModuleMacroTests {
             readyDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try Bool.encode(self.ready, in: runtime)
             }
-            readyDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            readyDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               self.ready = try Bool.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             object.defineProperty("ready", descriptor: readyDescriptor)
           }
@@ -833,9 +830,8 @@ struct ExpoModuleMacroTests {
             configDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try MyRecord.encode(self.config, in: runtime)
             }
-            configDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            configDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               self.config = try MyRecord.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             object.defineProperty("config", descriptor: configDescriptor)
           }
@@ -878,9 +874,8 @@ struct ExpoModuleMacroTests {
             configDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try MyRecord?.encode(self.config, in: runtime)
             }
-            configDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            configDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               self.config = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             object.defineProperty("config", descriptor: configDescriptor)
           }
@@ -1569,7 +1564,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("move") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("move") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 3 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "move", received: arguments.count, required: 3, maximum: 3))
               }
@@ -1577,7 +1572,6 @@ struct ExpoModuleMacroTests {
               let arg1 = try Delta.decode(arguments.unownedValue(at: 1), in: runtime)
               let arg2 = try Tag.decode(arguments.unownedValue(at: 2), in: runtime)
               self.move(point: arg0, by: arg1, tag: arg2)
-              return .undefined()
             }
           }
         }
@@ -1608,7 +1602,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
               }
@@ -1620,7 +1614,6 @@ struct ExpoModuleMacroTests {
                 let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
                 self.tag(name: arg0, note: arg1)
               }
-              return .undefined()
             }
           }
         }
@@ -1651,13 +1644,12 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
               self.store(config: arg0)
-              return .undefined()
             }
           }
         }
@@ -1728,13 +1720,12 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
               self.store(config: arg0)
-              return .undefined()
             }
           }
         }
@@ -1765,7 +1756,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("keep") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("keep") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "keep", received: arguments.count, required: 0, maximum: 1))
               }
@@ -1776,7 +1767,6 @@ struct ExpoModuleMacroTests {
                 let arg0 = try arguments.unownedValue(at: 0).isUndefined() || arguments.unownedValue(at: 0).isNull() ? nil : JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
                 self.keep(config: arg0)
               }
-              return .undefined()
             }
           }
         }
@@ -1807,7 +1797,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 2))
               }
@@ -1819,7 +1809,6 @@ struct ExpoModuleMacroTests {
                 let arg1 = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 1).copied(in: runtime), as: [[String: Any]]?.self, in: runtime)
                 self.store(groups: arg0, rows: arg1)
               }
-              return .undefined()
             }
           }
         }
@@ -1850,14 +1839,13 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("inspect") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("inspect") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "inspect", received: arguments.count, required: 2, maximum: 2))
               }
               let arg0 = try JavaScriptValue.decodeAnyArray(arguments.unownedValue(at: 0), in: runtime)
               let arg1 = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 1), in: runtime)
               self.inspect(list: arg0, value: arg1)
-              return .undefined()
             }
           }
         }
@@ -2053,9 +2041,8 @@ struct ExpoModuleMacroTests {
             metadataDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try JavaScriptValue.encodeAnyDictionary(self.metadata, in: runtime)
             }
-            metadataDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            metadataDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               self.metadata = try JavaScriptValue.decodeAnyDictionary(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             object.defineProperty("metadata", descriptor: metadataDescriptor)
             let groupsDescriptor = runtime.createObject()
@@ -2063,9 +2050,8 @@ struct ExpoModuleMacroTests {
             groupsDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try JavaScriptValue.encodeAny(self.groups as Any, in: runtime)
             }
-            groupsDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            groupsDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               self.groups = try JavaScriptValue.decodeAny(arguments.unownedValue(at: 0).copied(in: runtime), as: [String: [Any]]?.self, in: runtime)
-              return .undefined()
             }
             object.defineProperty("groups", descriptor: groupsDescriptor)
           }
@@ -2299,9 +2285,8 @@ struct ExpoModuleMacroTests {
             `classDescriptor`.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               return try Int.encode(self.`class`, in: runtime)
             }
-            `classDescriptor`.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            `classDescriptor`.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               self.`class` = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
-              return .undefined()
             }
             object.defineProperty("class", descriptor: `classDescriptor`)
           }

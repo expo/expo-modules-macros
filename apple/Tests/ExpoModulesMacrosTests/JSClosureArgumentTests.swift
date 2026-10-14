@@ -64,7 +64,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("subscribe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("subscribe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "subscribe", received: arguments.count, required: 1, maximum: 1))
               }
@@ -73,7 +73,6 @@ struct JSClosureArgumentTests {
                 arg0Callback.invokeDetached(p0)
               }
               self.subscribe(onChange: arg0)
-              return .undefined()
             }
           }
         }
@@ -110,7 +109,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("measure") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("measure") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "measure", received: arguments.count, required: 2, maximum: 2))
               }
@@ -120,7 +119,6 @@ struct JSClosureArgumentTests {
                 try arg1Callback.invokeBlocking(p0, p1, returning: Size.self)
               }
               try self.measure(name: arg0, layout: arg1)
-              return .undefined()
             }
           }
         }
@@ -201,7 +199,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "run", received: arguments.count, required: 1, maximum: 1))
               }
@@ -214,7 +212,6 @@ struct JSClosureArgumentTests {
                 }
               }
               self.run(task: arg0)
-              return .undefined()
             }
           }
         }
@@ -245,7 +242,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("start") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("start") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "start", received: arguments.count, required: 0, maximum: 1))
               }
@@ -263,7 +260,6 @@ struct JSClosureArgumentTests {
                 }
                 self.start(onDone: arg0)
               }
-              return .undefined()
             }
           }
         }
@@ -336,7 +332,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("observe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("observe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "observe", received: arguments.count, required: 1, maximum: 1))
               }
@@ -345,7 +341,6 @@ struct JSClosureArgumentTests {
                 try arg0Callback.invokeBlocking(p0, p1, p2)
               }
               self.observe(handler: arg0)
-              return .undefined()
             }
           }
         }
@@ -476,7 +471,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "run", received: arguments.count, required: 0, maximum: 1))
               }
@@ -490,7 +485,6 @@ struct JSClosureArgumentTests {
                 }
                 self.run(onDone: arg0)
               }
-              return .undefined()
             }
           }
         }
@@ -523,7 +517,7 @@ struct JSClosureArgumentTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("sort") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("sort") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "sort", received: arguments.count, required: 1, maximum: 1))
               }
@@ -532,7 +526,6 @@ struct JSClosureArgumentTests {
                 try arg0Callback.invokeBlocking(p0, p1, returning: Bool.self)
               }
               self.sort(compare: arg0)
-              return .undefined()
             }
           }
         }
