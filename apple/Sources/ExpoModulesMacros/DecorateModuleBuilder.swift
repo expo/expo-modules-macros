@@ -23,10 +23,13 @@ internal struct JSFunction {
   let returnFreeForm: FreeFormConversion?
   let isThrowing: Bool
   let isAsync: Bool
+  /// The function's name in the source, where a JavaScript name collision is reported.
+  let nameToken: TokenSyntax
 
   init(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) {
     self.swiftName = funcDecl.name.text
     self.jsName = jsNameArgument(of: attribute) ?? withoutBackticks(funcDecl.name.text)
+    self.nameToken = funcDecl.name
     self.parameters = Array(funcDecl.signature.parameterClause.parameters)
 
     let declaredReturnType = funcDecl.signature.returnClause?.type
@@ -313,6 +316,8 @@ internal struct JSProperty {
   /// Whether the property is settable from JS: `true` for a stored `var` or a computed `var` with an
   /// explicit `set` accessor; `false` for a getter-only computed `var` or a `let`.
   let isSettable: Bool
+  /// The property's name in the source, where a JavaScript name collision is reported.
+  let nameToken: TokenSyntax
 
   /// The statements that install this property's accessor on the JS object, indented for the
   /// decorator body. Builds a descriptor object (`enumerable` + `get`, and `set` when settable) via

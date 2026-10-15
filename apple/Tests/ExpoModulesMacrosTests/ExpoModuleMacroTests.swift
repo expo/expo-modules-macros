@@ -2294,4 +2294,121 @@ struct ExpoModuleMacroTests {
         """
     )
   }
+
+  @Test
+  func `Two functions with the same JS name are an error on the later one`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func greet(name: String) -> String { "Hi" }
+
+        @JS
+        func greet(times: Int) -> String { "Hi" }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func greet(name: String) -> String { "Hi" }
+          @JavaScriptActor
+          func greet(times: Int) -> String { "Hi" }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("greet") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "greet", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = self.greet(name: arg0)
+              return try String.encode(result, in: runtime)
+            }
+            object.setProperty("greet") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "greet", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = self.greet(times: arg0)
+              return try String.encode(result, in: runtime)
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'greet' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+          line: 7,
+          column: 8,
+          severity: .error,
+          notes: [NoteSpec(message: "'greet' is first bound here", line: 4, column: 8)]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A function renamed to a property's JS name is an error`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        var status: String { "ok" }
+
+        @JS("status")
+        func readStatus() -> String { "ok" }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          var status: String { "ok" }
+          @JavaScriptActor
+          func readStatus() -> String { "ok" }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("status") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "status", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.readStatus()
+              return try String.encode(result, in: runtime)
+            }
+            let statusDescriptor = runtime.createObject()
+            statusDescriptor.setProperty("enumerable", value: true)
+            statusDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              return try String.encode(self.status, in: runtime)
+            }
+            object.defineProperty("status", descriptor: statusDescriptor)
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'status' is already bound by an earlier @JS property. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+          line: 7,
+          column: 8,
+          severity: .error,
+          notes: [NoteSpec(message: "'status' is first bound here", line: 4, column: 7)]
+        )
+      ]
+    )
+  }
 }

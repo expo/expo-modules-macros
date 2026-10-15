@@ -590,6 +590,78 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `Instance members with the same JS name are an error, a static one is not`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Cache: SharedObject {
+        @JS
+        var size: Int { 0 }
+
+        @JS("size")
+        var count: Int { 0 }
+
+        @JS
+        static var size: Int { 0 }
+      }
+      """,
+      expandedSource: """
+        final class Cache: SharedObject {
+          @JavaScriptActor
+          var size: Int { 0 }
+          @JavaScriptActor
+          var count: Int { 0 }
+          @JavaScriptActor
+          static var size: Int { 0 }
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Cache", Cache.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let sizeDescriptor = runtime.createObject()
+            sizeDescriptor.setProperty("enumerable", value: true)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
+              return try Int.encode(_self.size, in: runtime)
+            }
+            prototype.defineProperty("size", descriptor: sizeDescriptor)
+            let countDescriptor = runtime.createObject()
+            countDescriptor.setProperty("enumerable", value: true)
+            countDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
+              return try Int.encode(_self.count, in: runtime)
+            }
+            prototype.defineProperty("size", descriptor: countDescriptor)
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let sizeDescriptor = runtime.createObject()
+            sizeDescriptor.setProperty("enumerable", value: true)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              return try Int.encode(Cache.size, in: runtime)
+            }
+            constructor.defineProperty("size", descriptor: sizeDescriptor)
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'size' is already bound by an earlier @JS property. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+          line: 7,
+          column: 7,
+          severity: .error,
+          notes: [NoteSpec(message: "'size' is first bound here", line: 4, column: 7)]
+        )
+      ]
+    )
+  }
+
+  @Test
   func `Trailing defaulted parameter branches the call through the unwrapped receiver`() {
     assertExpansion(
       """

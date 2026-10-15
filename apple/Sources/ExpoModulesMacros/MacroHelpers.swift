@@ -441,7 +441,8 @@ internal func collectProperties(
       valueType: valueType,
       // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
       freeForm: binding.typeAnnotation.flatMap { freeFormConversion(of: $0.type) },
-      isSettable: isVar && bindingIsSettable(binding)
+      isSettable: isVar && bindingIsSettable(binding),
+      nameToken: ident.identifier
     )
   }
 }
