@@ -65,12 +65,22 @@ export class ScannerSchemaVersionError extends Error {
 }
 
 /**
- * The package with the Windows binary for the current architecture, for example
- * `@expo/modules-macros-win32-x64`. It is an optional dependency of this package, and its `os` and
- * `cpu` fields make package managers install it only on a matching Windows machine.
+ * The platforms whose binaries ship in packages of their own, one per architecture, with the
+ * machines that those packages install on.
  */
-function windowsBinaryPackageName(): string {
-  return `@expo/modules-macros-win32-${process.arch}`;
+const platformPackageMachines: Partial<Record<NodeJS.Platform, string>> = {
+  win32: 'Windows x64 and arm64',
+  linux: 'Linux x64 and arm64 with glibc',
+};
+
+/**
+ * The package with the binary for the current platform and architecture, for example
+ * `@expo/modules-macros-win32-x64` or `@expo/modules-macros-linux-arm64`. It is an optional
+ * dependency of this package, and its `os`, `cpu` and (on Linux) `libc` fields make package managers
+ * install it only on a matching machine.
+ */
+function platformBinaryPackageName(): string {
+  return `@expo/modules-macros-${process.platform}-${process.arch}`;
 }
 
 /**
@@ -79,36 +89,42 @@ function windowsBinaryPackageName(): string {
  *
  * - macOS: the universal binary shipped in this package, next to the Swift package rather than in a
  *   `bin` directory.
- * - Windows: `ExpoModulesMacros.exe` from the package for the current architecture (see
- *   `windowsBinaryPackageName`). When that package isn't installed, for example in this repository,
- *   it falls back to the executable that `npm run build` writes to `platforms/win32-<arch>`.
+ * - Windows and Linux: `ExpoModulesMacros.exe` or `ExpoModulesMacros` from the package for the
+ *   current platform and architecture (see `platformBinaryPackageName`). When that package isn't
+ *   installed, for example in this repository, it falls back to the executable that `npm run build`
+ *   writes to `platforms/<platform>-<arch>`.
  *
  * The path isn't checked here; running a missing binary fails with a `ScannerError` that says how to
  * get it.
  */
 export function getScannerBinaryPath(): string {
-  if (process.platform !== 'win32') {
+  if (process.platform === 'darwin') {
     return path.join(__dirname, '..', 'apple', 'ExpoModulesMacros');
   }
+  const fileName = process.platform === 'win32' ? 'ExpoModulesMacros.exe' : 'ExpoModulesMacros';
   try {
-    const packageJson = require.resolve(`${windowsBinaryPackageName()}/package.json`);
-    return path.join(path.dirname(packageJson), 'ExpoModulesMacros.exe');
+    const packageJson = require.resolve(`${platformBinaryPackageName()}/package.json`);
+    return path.join(path.dirname(packageJson), fileName);
   } catch {
-    return path.join(__dirname, '..', 'platforms', `win32-${process.arch}`, 'ExpoModulesMacros.exe');
+    return path.join(__dirname, '..', 'platforms', `${process.platform}-${process.arch}`, fileName);
   }
 }
 
 /** The message for a scanner binary that doesn't exist at `binaryPath`. */
 function missingBinaryMessage(binaryPath: string): string {
-  if (process.platform === 'win32') {
-    return (
-      `The scanner binary is missing at ${binaryPath}. On Windows it comes from the optional package ` +
-      `${windowsBinaryPackageName()}, which your package manager installs only on Windows x64 and arm64. ` +
-      'Reinstall dependencies without skipping optional ones (for example without `--omit=optional`), ' +
-      'or run `npm run build` in this package to build it locally.'
-    );
+  if (process.platform === 'darwin') {
+    return `The scanner binary is missing at ${binaryPath}. Run \`npm run build\` in this package to build it.`;
   }
-  return `The scanner binary is missing at ${binaryPath}. Run \`npm run build\` in this package to build it.`;
+  const machines = platformPackageMachines[process.platform];
+  if (machines === undefined) {
+    return `The scanner binary is missing at ${binaryPath}. No binary is built for ${process.platform}.`;
+  }
+  return (
+    `The scanner binary is missing at ${binaryPath}. It comes from the optional package ` +
+    `${platformBinaryPackageName()}, which your package manager installs only on ${machines}. ` +
+    'Reinstall dependencies without skipping optional ones (for example without `--omit=optional`), ' +
+    'or run `npm run build` in this package to build it locally.'
+  );
 }
 
 /**

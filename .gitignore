@@ -5,5 +5,6 @@ build
 node_modules
 package-lock.json
 
-# Built by `npm run build` on Windows, and published in its package, not committed
+# Built by `npm run build` on Windows and Linux, and published in their packages, not committed
 platforms/*/ExpoModulesMacros.exe
+platforms/*/ExpoModulesMacros
