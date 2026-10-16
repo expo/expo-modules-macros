@@ -67,15 +67,18 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let nameJSValue = object.getProperty("name")
-            guard !nameJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("name")
+            let name = try object.withUnownedProperty("name") { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
             }
-            let name = try String.decode(nameJSValue, in: runtime)
-            let countJSValue = object.getProperty("count")
-            let count = countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
-            let noteJSValue = object.getProperty("note")
-            let note = try String?.decode(noteJSValue, in: runtime)
+            let count = try object.withUnownedProperty("count") { countJSValue in
+              return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            }
+            let note = try object.withUnownedProperty("note") { noteJSValue in
+              return try String?.decode(noteJSValue, in: runtime)
+            }
             return Self(name: name, count: count, note: note)
           }
 
@@ -146,8 +149,9 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let ownerJSValue = object.getProperty("owner")
-            let owner = try MyRecord?.decode(ownerJSValue, in: runtime)
+            let owner = try object.withUnownedProperty("owner") { ownerJSValue in
+              return try MyRecord?.decode(ownerJSValue, in: runtime)
+            }
             return Self(owner: owner)
           }
 
@@ -217,18 +221,21 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let primaryJSValue = object.getProperty("primary")
-            guard !primaryJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("primary")
+            let primary = try object.withUnownedProperty("primary") { primaryJSValue in
+              guard !primaryJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("primary")
+              }
+              return try MyRecord.decode(primaryJSValue, in: runtime)
             }
-            let primary = try MyRecord.decode(primaryJSValue, in: runtime)
-            let tagsJSValue = object.getProperty("tags")
-            guard !tagsJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("tags")
+            let tags = try object.withUnownedProperty("tags") { tagsJSValue in
+              guard !tagsJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("tags")
+              }
+              return try [String].decode(tagsJSValue, in: runtime)
             }
-            let tags = try [String].decode(tagsJSValue, in: runtime)
-            let countJSValue = object.getProperty("count")
-            let count = countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            let count = try object.withUnownedProperty("count") { countJSValue in
+              return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            }
             return Self(primary: primary, tags: tags, count: count)
           }
 
@@ -305,14 +312,18 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let nameJSValue = object.getProperty("name")
-            let name = nameJSValue.isUndefined() ? "foo" : try String.decode(nameJSValue, in: runtime)
-            let ratioJSValue = object.getProperty("ratio")
-            let ratio = ratioJSValue.isUndefined() ? 1.0 : try Double.decode(ratioJSValue, in: runtime)
-            let countJSValue = object.getProperty("count")
-            let count = countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
-            let flagJSValue = object.getProperty("flag")
-            let flag = flagJSValue.isUndefined() ? false : try Bool.decode(flagJSValue, in: runtime)
+            let name = try object.withUnownedProperty("name") { nameJSValue in
+              return nameJSValue.isUndefined() ? "foo" : try String.decode(nameJSValue, in: runtime)
+            }
+            let ratio = try object.withUnownedProperty("ratio") { ratioJSValue in
+              return ratioJSValue.isUndefined() ? 1.0 : try Double.decode(ratioJSValue, in: runtime)
+            }
+            let count = try object.withUnownedProperty("count") { countJSValue in
+              return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            }
+            let flag = try object.withUnownedProperty("flag") { flagJSValue in
+              return flagJSValue.isUndefined() ? false : try Bool.decode(flagJSValue, in: runtime)
+            }
             return Self(name: name, ratio: ratio, count: count, flag: flag)
           }
 
@@ -414,11 +425,12 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let nameJSValue = object.getProperty("name")
-            guard !nameJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("name")
+            let name = try object.withUnownedProperty("name") { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
             }
-            let name = try String.decode(nameJSValue, in: runtime)
             return Self(name: name)
           }
 
@@ -521,10 +533,12 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let xJSValue = object.getProperty("x")
-            let x = xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
-            let yJSValue = object.getProperty("y")
-            let y = yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
+            let x = try object.withUnownedProperty("x") { xJSValue in
+              return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
+            }
+            let y = try object.withUnownedProperty("y") { yJSValue in
+              return yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
+            }
             return Self(x: x, y: y)
           }
 
@@ -579,8 +593,9 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let extraJSValue = object.getProperty("extra")
-            let extra = extraJSValue.isUndefined() ? "" : try String.decode(extraJSValue, in: runtime)
+            let extra = try object.withUnownedProperty("extra") { extraJSValue in
+              return extraJSValue.isUndefined() ? "" : try String.decode(extraJSValue, in: runtime)
+            }
             return Self(extra: extra)
           }
 
@@ -628,11 +643,12 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let nameJSValue = object.getProperty("name")
-            guard !nameJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("name")
+            let name = try object.withUnownedProperty("name") { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
             }
-            let name = try String.decode(nameJSValue, in: runtime)
             return Self(name: name)
           }
 
@@ -690,11 +706,12 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let nameJSValue = object.getProperty("name")
-            guard !nameJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("name")
+            let name = try object.withUnownedProperty("name") { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
             }
-            let name = try String.decode(nameJSValue, in: runtime)
             return Self(name: name)
           }
 
@@ -809,10 +826,12 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let xJSValue = object.getProperty("x")
-            let x = xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
-            let yJSValue = object.getProperty("y")
-            let y = yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
+            let x = try object.withUnownedProperty("x") { xJSValue in
+              return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
+            }
+            let y = try object.withUnownedProperty("y") { yJSValue in
+              return yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
+            }
             return Self(x: x, y: y)
           }
 
@@ -878,10 +897,12 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let xJSValue = object.getProperty("x")
-            let x = xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
-            let yJSValue = object.getProperty("y")
-            let y = yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
+            let x = try object.withUnownedProperty("x") { xJSValue in
+              return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
+            }
+            let y = try object.withUnownedProperty("y") { yJSValue in
+              return yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
+            }
             return Self(x: x, y: y)
           }
 
@@ -943,8 +964,9 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let `defaultJSValue` = object.getProperty("default")
-            let `default` = `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
+            let `default` = try object.withUnownedProperty("default") { `defaultJSValue` in
+              return `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
+            }
             return Self(`default`: `default`)
           }
 
@@ -1008,13 +1030,15 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let nameJSValue = object.getProperty("name")
-            guard !nameJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("name")
+            let name = try object.withUnownedProperty("name") { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
             }
-            let name = try String.decode(nameJSValue, in: runtime)
-            let attributesJSValue = object.getProperty("attributes")
-            let attributes = attributesJSValue.isUndefined() || attributesJSValue.isNull() ? nil : try JavaScriptValue.decodeAnyDictionary(attributesJSValue, in: runtime)
+            let attributes = try object.withUnownedProperty("attributes") { attributesJSValue in
+              return try attributesJSValue.isUndefined() || attributesJSValue.isNull() ? nil : JavaScriptValue.decodeAnyDictionary(attributesJSValue, in: runtime)
+            }
             return Self(name: name, attributes: attributes)
           }
 
@@ -1088,15 +1112,18 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let itemsJSValue = object.getProperty("items")
-            guard !itemsJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("items")
+            let items = try object.withUnownedProperty("items") { itemsJSValue in
+              guard !itemsJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("items")
+              }
+              return try JavaScriptValue.decodeAnyArray(itemsJSValue, in: runtime)
             }
-            let items = try JavaScriptValue.decodeAnyArray(itemsJSValue, in: runtime)
-            let metaJSValue = object.getProperty("meta")
-            let meta = metaJSValue.isUndefined() ? [:] : try JavaScriptValue.decodeAnyDictionary(metaJSValue, in: runtime)
-            let groupsJSValue = object.getProperty("groups")
-            let groups = try JavaScriptValue.decodeAny(groupsJSValue, as: [String: [Any]]?.self, in: runtime)
+            let meta = try object.withUnownedProperty("meta") { metaJSValue in
+              return metaJSValue.isUndefined() ? [:] : try JavaScriptValue.decodeAnyDictionary(metaJSValue, in: runtime)
+            }
+            let groups = try object.withUnownedProperty("groups") { groupsJSValue in
+              return try JavaScriptValue.decodeAny(groupsJSValue.copied(in: runtime), as: [String: [Any]]?.self, in: runtime)
+            }
             return Self(items: items, meta: meta, groups: groups)
           }
 
@@ -1165,13 +1192,15 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let valueJSValue = object.getProperty("value")
-            guard !valueJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("value")
+            let value = try object.withUnownedProperty("value") { valueJSValue in
+              guard !valueJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("value")
+              }
+              return try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
             }
-            let value = try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
-            let maybeJSValue = object.getProperty("maybe")
-            let maybe = maybeJSValue.isUndefined() || maybeJSValue.isNull() ? nil : try JavaScriptValue.decodeAny(maybeJSValue, in: runtime)
+            let maybe = try object.withUnownedProperty("maybe") { maybeJSValue in
+              return try maybeJSValue.isUndefined() || maybeJSValue.isNull() ? nil : JavaScriptValue.decodeAny(maybeJSValue, in: runtime)
+            }
             return Self(value: value, maybe: maybe)
           }
 
@@ -1269,13 +1298,15 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let valueJSValue = object.getProperty("value")
-            guard !valueJSValue.isUndefined() else {
-              throw RecordPropertyRequiredException("value")
+            let value = try object.withUnownedProperty("value") { valueJSValue in
+              guard !valueJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("value")
+              }
+              return try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
             }
-            let value = try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
-            let listJSValue = object.getProperty("list")
-            let list = listJSValue.isUndefined() || listJSValue.isNull() ? nil : try JavaScriptValue.decodeAnyArray(listJSValue, in: runtime)
+            let list = try object.withUnownedProperty("list") { listJSValue in
+              return try listJSValue.isUndefined() || listJSValue.isNull() ? nil : JavaScriptValue.decodeAnyArray(listJSValue, in: runtime)
+            }
             return Self(value: value, list: list)
           }
 
@@ -1340,13 +1371,15 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let `defaultJSValue` = object.getProperty("default")
-            let `default` = `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
-            let `classJSValue` = object.getProperty("class")
-            guard !`classJSValue`.isUndefined() else {
-              throw RecordPropertyRequiredException("class")
+            let `default` = try object.withUnownedProperty("default") { `defaultJSValue` in
+              return `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
             }
-            let `class` = try String.decode(`classJSValue`, in: runtime)
+            let `class` = try object.withUnownedProperty("class") { `classJSValue` in
+              guard !`classJSValue`.isUndefined() else {
+                throw RecordPropertyRequiredException("class")
+              }
+              return try String.decode(`classJSValue`, in: runtime)
+            }
             return Self(`default`: `default`, `class`: `class`)
           }
 
