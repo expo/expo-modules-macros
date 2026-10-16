@@ -378,38 +378,29 @@ private func factoryBody(properties: [RecordProperty], readLines: [String]) -> S
   return lines.joined(separator: "\n")
 }
 
-/// Per-property read statements for the JS-object factory, each producing a `let <name>` by decoding
-/// the JS value with `JavaScriptDecodable.decode` (recovering the app context from `runtime` itself).
-/// A free-form property decodes through the `JavaScriptValue` free-form methods instead; for an optional
-/// free-form shape, `undefined`/`null` map to `nil` around the call, just like `Optional.decode`.
+/// Per-property read statements for the JS-object factory, each producing a `let <name>`. The property
+/// is lent to a closure as a `JavaScriptUnownedValue` and decoded there the same way as a `@JS` argument
+/// (see `decodeCall`), so the read doesn't allocate a `JavaScriptValue`. Only the generic free-form
+/// decode copies the value into one.
 private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
   for property in properties {
     let valueVar = derivedIdentifier(from: property.name, suffix: "JSValue")
-    let exprType = expressionType(property.type)
-    let decode: String
-    switch property.freeForm {
-    case .shape(let decodeMethod, _, let isOptional, _):
-      let call = "try JavaScriptValue.\(decodeMethod)(\(valueVar), in: runtime)"
-      decode = isOptional ? "\(valueVar).isUndefined() || \(valueVar).isNull() ? nil : \(call)" : call
-    case .generic:
-      decode = "try JavaScriptValue.decodeAny(\(valueVar), as: \(exprType).self, in: runtime)"
-    case nil:
-      decode = "try \(exprType).decode(\(valueVar), in: runtime)"
-    }
-    lines.append("  let \(valueVar) = object.getProperty(\"\(property.key)\")")
+    let decode = "try \(decodeCall(property.type, freeForm: property.freeForm, from: valueVar))"
+    lines.append("  let \(property.name) = try object.withUnownedProperty(\"\(property.key)\") { \(valueVar) in")
     if property.isRequired {
-      lines.append("  guard !\(valueVar).isUndefined() else {")
-      lines.append("    throw RecordPropertyRequiredException(\"\(property.key)\")")
-      lines.append("  }")
-      lines.append("  let \(property.name) = \(decode)")
+      lines.append("    guard !\(valueVar).isUndefined() else {")
+      lines.append("      throw RecordPropertyRequiredException(\"\(property.key)\")")
+      lines.append("    }")
+      lines.append("    return \(decode)")
     } else if property.isOptional {
-      // `Optional.decode` (and the free-form reads above) already map `undefined`/`null` to `nil`, so
-      // the read is a plain decode.
-      lines.append("  let \(property.name) = \(decode)")
+      // `Optional.decode` (and the free-form decodes of optional shapes) already map `undefined` and
+      // `null` to `nil`, so the read is a plain decode.
+      lines.append("    return \(decode)")
     } else {
-      lines.append("  let \(property.name) = \(valueVar).isUndefined() ? \(property.defaultValue!) : \(decode)")
+      lines.append("    return \(valueVar).isUndefined() ? \(property.defaultValue!) : \(decode)")
     }
+    lines.append("  }")
   }
   return lines
 }
