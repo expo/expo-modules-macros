@@ -128,29 +128,5 @@ jobs:
           npm install
           npm install --no-save "$PLATFORM_PACKAGE_TARBALL"
           npm run build:ts
-          fixture="$RUNNER_TEMP/scan-fixture"
-          mkdir -p "$fixture"
-          printf '@ExpoModule\npublic final class LinuxModule {}\n' > "$fixture/Module.swift"
-          node - "$fixture" <<'EOF'
-          const path = require('node:path');
-          const { getScannerBinaryPath, scanModules } = require(path.resolve('build'));
-          const binaryPath = getScannerBinaryPath();
-          const expected = path.join('node_modules', '@expo', `modules-macros-linux-${process.arch}`, 'ExpoModulesMacros');
-          if (!binaryPath.endsWith(expected)) {
-            console.error(`getScannerBinaryPath() returned ${binaryPath}, not a path ending in ${expected}`);
-            process.exit(1);
-          }
-          console.log(`getScannerBinaryPath() returned ${binaryPath}`);
-          scanModules([process.argv[2]]).then((result) => {
-            const module = result.modules.find((candidate) => candidate.name === 'LinuxModule');
-            if (!module) {
-              console.error(JSON.stringify(result, null, 2));
-              process.exit(1);
-            }
-            console.log(`scanModules reported ${module.name} in ${module.file}`);
-          }, (error) => {
-            console.error(error);
-            process.exit(1);
-          });
-          EOF
+          node scripts/check-scan.js .
 
