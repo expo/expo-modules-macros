@@ -18,7 +18,7 @@ This package is not meant to be installed directly. It is a dependency of `expo-
 The Windows and Linux binaries ship in their own packages, one per platform and architecture:
 
 - `@expo/modules-macros-win32-x64` and `@expo/modules-macros-win32-arm64`, each with an `ExpoModulesMacros.exe`. They need only Windows system libraries and the Microsoft Visual C++ runtime.
-- `@expo/modules-macros-linux-x64` and `@expo/modules-macros-linux-arm64`, each with an `ExpoModulesMacros`. They need glibc 2.34 or newer (for example Ubuntu 22.04, Debian 12, Red Hat Enterprise Linux 9 or Amazon Linux 2023), and don't run on musl distributions such as Alpine Linux.
+- `@expo/modules-macros-linux-x64` and `@expo/modules-macros-linux-arm64`, each with an `ExpoModulesMacros`. They need glibc 2.34 or newer and the GNU C++ runtime (`libstdc++` and `libgcc_s`), for example on Ubuntu 22.04, Debian 12, Red Hat Enterprise Linux 9 or Amazon Linux 2023. They don't run on musl distributions such as Alpine Linux.
 
 This package lists them as optional dependencies, and their `os`, `cpu` and (on Linux) `libc` fields make npm, pnpm and Yarn install only the one that matches the machine, so other machines don't download them. The Swift runtime is linked in statically, so the executables run without a Swift toolchain.
 
