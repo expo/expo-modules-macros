@@ -1,6 +1,6 @@
 {
   "name": "@expo/modules-macros-linux-x64",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "The Linux x64 binary of expo-modules-macros",
   "license": "MIT",
   "author": "650 Industries, Inc.",
