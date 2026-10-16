@@ -9,14 +9,16 @@ import SwiftSyntaxMacros
  needed — and synthesizes the conversion surface from the property's static type:
 
  - an explicit memberwise `init` (so the static factories have a single construction point),
- - `from(object:appContext:)` — the fast path, reading each property straight off a
-   `JavaScriptObject`,
- - `from(dictionary:appContext:)` — reading each property from a `[String: Any]` dictionary,
- - `toDictionary(appContext:)` and `toObject(appContext:)` for the write side.
+ - `decode(_:in:)` and `encode(_:in:)` — the fast paths, reading each property straight off a JS
+   object and writing it straight into one,
+ - `from(object:appContext:)` and `toObject(appContext:)`, which forward to `decode` and `encode`,
+ - `from(dictionary:appContext:)` and `toDictionary(appContext:)` — converting each property from and
+   to a `[String: Any]` dictionary.
 
- The type is auto-conformed to `Record` (a core protocol whose requirements are exactly this
- surface); the synthesized methods override `Record`'s reflection-based defaults. Author-facing
- shape — no conformance to spell out:
+ The type is auto-conformed to `Record` (a core protocol whose requirements are this surface); the
+ synthesized methods override `Record`'s reflection-based defaults, and the synthesized `decode` and
+ `encode` replace its default `JavaScriptCodable` witnesses. Author-facing shape — no conformance to
+ spell out:
 
    @Record
    struct Options {
@@ -31,7 +33,7 @@ import SwiftSyntaxMacros
  default is required (the factories throw when the source omits it).
 
  The JS-value paths convert through `JavaScriptDecodable.decode` / `JavaScriptEncodable.encode`
- (`from(object:)` / `toObject(appContext:)`); the native-`Any` dictionary paths still go through the
+ (`decode(_:in:)` / `encode(_:in:)`); the native-`Any` dictionary paths still go through the
  public dynamic-type API — `T.getDynamicType()` plus `cast(_:appContext:)` / `convertToJS(_:appContext:)`
  (`from(dictionary:)` / `toDictionary(appContext:)`), since `JavaScriptCodable` only converts JS
  values, not native `Any`. Both spell types as `public` symbols so the synthesized code compiles inside
@@ -55,10 +57,15 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
-    let isClass = declaration.is(ClassDeclSyntax.self)
-    guard declaration.is(StructDeclSyntax.self) || isClass else {
+    let typeName: String
+    if let structDecl = declaration.as(StructDeclSyntax.self) {
+      typeName = structDecl.name.text
+    } else if let classDecl = declaration.as(ClassDeclSyntax.self) {
+      typeName = classDecl.name.text
+    } else {
       throw MacroExpansionErrorMessage("@Record can only be applied to a struct or class")
     }
+    let isClass = declaration.is(ClassDeclSyntax.self)
 
     let properties = try recordProperties(of: declaration)
     let inheritsRecord = isClass && classHasInheritance(declaration)
@@ -99,10 +106,13 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     if !existingInitLabels.contains(properties.map { $0.key }) {
       members.append(memberwiseInit(properties: properties))
     }
-    members.append(fromJSObjectFactory(properties: properties))
+    members.append(fromJSObjectFactory(properties: properties, inheritsRecord: inheritsRecord))
     members.append(fromDictionaryFactory(properties: properties))
     members.append(toDictionaryMethod(properties: properties, inheritsRecord: inheritsRecord))
     members.append(toObjectMethod(properties: properties, inheritsRecord: inheritsRecord))
+    if !inheritsRecord {
+      members.append(contentsOf: javaScriptCodableWitnesses(properties: properties, typeName: typeName))
+    }
     return members
   }
 
@@ -326,15 +336,24 @@ private func memberwiseInit(properties: [RecordProperty]) -> DeclSyntax {
 }
 
 /**
- `from(object:appContext:)` — reads each property off the `JavaScriptObject` into a local,
- then constructs the record through the memberwise init. Required properties throw when
- undefined; defaulted properties fall back to the property's declared default (inlined) when
- undefined; optional properties become `nil` when undefined/null. Each property is decoded with
- `JavaScriptDecodable.decode`, so the factory binds the `runtime` from the app context once and
- threads it to every read. A free-form property decodes through the `JavaScriptValue` free-form
- methods, which take the runtime too.
+ `from(object:appContext:)`. A record forwards to its own unowned `decode(_:in:)` witness (see
+ `javaScriptCodableWitnesses`), which holds the property reads. A subclass, which gets no witnesses,
+ reads the properties here, in the app context's runtime.
  */
-private func fromJSObjectFactory(properties: [RecordProperty]) -> DeclSyntax {
+private func fromJSObjectFactory(properties: [RecordProperty], inheritsRecord: Bool) -> DeclSyntax {
+  guard inheritsRecord else {
+    // The record declares only the unowned `decode`, so the call lends the value unowned. With an owning
+    // value it would reach an owning `decode` default, and `Record`'s converts through this factory.
+    return """
+      @JavaScriptActor
+      public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+        let runtime = try appContext.runtime
+        return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+          return try decode(unownedValue, in: runtime)
+        }
+      }
+      """
+  }
   var lines: [String] = []
   // Only bind the runtime when there's a property to decode — an empty record's factory would
   // otherwise leave it unused.
@@ -342,11 +361,10 @@ private func fromJSObjectFactory(properties: [RecordProperty]) -> DeclSyntax {
     lines.append("  let runtime = try appContext.runtime")
   }
   lines.append(factoryBody(properties: properties, readLines: jsObjectReadLines(properties: properties)))
-  let body = lines.joined(separator: "\n")
   return """
     @JavaScriptActor
     public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
-    \(raw: body)
+    \(raw: lines.joined(separator: "\n"))
     }
     """
 }
@@ -465,51 +483,94 @@ private func toDictionaryMethod(properties: [RecordProperty], inheritsRecord: Bo
 }
 
 /**
- `toObject(appContext:)` — builds a `JavaScriptObject` directly, encoding each property with
- `JavaScriptEncodable.encode` (or, for a free-form property, the matching `JavaScriptValue` free-form
- method). The fast write path mirroring `from(object:)`. The `runtime` is bound
- from the app context once and threaded to every write. Subclasses chain to `super` so inherited
- properties are written first.
+ `toObject(appContext:)`. A record forwards to its own `encode(_:in:)` witness (see
+ `javaScriptCodableWitnesses`), which holds the property writes. A subclass, which gets no witnesses,
+ overrides it to chain to `super`, so inherited properties are written first, and writes its own
+ properties in the app context's runtime.
  */
 private func toObjectMethod(properties: [RecordProperty], inheritsRecord: Bool) -> DeclSyntax {
-  let overrideKeyword = inheritsRecord ? "override " : ""
+  guard inheritsRecord else {
+    return """
+      @JavaScriptActor
+      public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+        return try Self.encode(self, in: appContext.runtime).asObject()
+      }
+      """
+  }
   var lines: [String] = []
-  // The base case needs the runtime to create the object; the inheriting case only needs it when
-  // there's a property to encode (it chains to `super` for the object itself). Binding it when unused
-  // would warn.
-  if !inheritsRecord || !properties.isEmpty {
+  // The runtime is only needed when there's a property to encode (the object itself comes from
+  // `super`). Binding it when unused would warn.
+  if !properties.isEmpty {
     lines.append("  let runtime = try appContext.runtime")
   }
-  if inheritsRecord {
-    lines.append("  let object = try super.toObject(appContext: appContext)")
-  } else {
-    lines.append("  let object = runtime.createObject()")
-  }
-  for property in properties {
-    let exprType = expressionType(property.type)
+  lines.append("  let object = try super.toObject(appContext: appContext)")
+  lines.append(contentsOf: objectWriteLines(properties: properties, of: "self"))
+  lines.append("  return object")
+  return """
+    @JavaScriptActor
+    public override func toObject(appContext: AppContext) throws -> JavaScriptObject {
+    \(raw: lines.joined(separator: "\n"))
+    }
+    """
+}
+
+/**
+ The record's own `JavaScriptDecodable` and `JavaScriptEncodable` witnesses, which convert in the
+ runtime they're given. Without them the record would convert through `Record`'s default witnesses,
+ which recover the app context from the runtime and convert in the app context's runtime.
+
+ `decode` reads each property off the JS object into a local, then constructs the record through the
+ memberwise init. Required properties throw when undefined; defaulted properties fall back to the
+ property's declared default (inlined) when undefined; optional properties become `nil` when
+ undefined/null. It's the unowned overload: an owning value decodes through `JavaScriptDecodable`'s
+ default, which forwards to it. `encode` builds the JS object, writing each property. Its parameter
+ names the type, because a class can't take `Self` as a parameter type.
+ */
+private func javaScriptCodableWitnesses(properties: [RecordProperty], typeName: String) -> [DeclSyntax] {
+  // An empty record still decodes only from an object, but has no property to read off it.
+  let objectLine = properties.isEmpty
+    ? "  _ = try value.asObject(in: runtime)"
+    : "  let object = try value.asObject(in: runtime)"
+  let decodeBody = objectLine + "\n" + factoryBody(properties: properties, readLines: jsObjectReadLines(properties: properties))
+  let encodeLines = ["  let object = runtime.createObject()"]
+    + objectWriteLines(properties: properties, of: "value")
+    + ["  return object.asValue()"]
+  return [
+    """
+    @JavaScriptActor
+    public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+    \(raw: decodeBody)
+    }
+    """,
+    """
+    @JavaScriptActor
+    public static func encode(_ value: \(raw: typeName), in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+    \(raw: encodeLines.joined(separator: "\n"))
+    }
+    """,
+  ]
+}
+
+/// The statements that write each property of `record` (`self` or the `encode` parameter) into the
+/// `object` local, encoding it with `JavaScriptEncodable.encode` or, for a free-form property, the
+/// matching `JavaScriptValue` free-form method.
+private func objectWriteLines(properties: [RecordProperty], of record: String) -> [String] {
+  return properties.map { property in
+    let value = "\(record).\(property.name)"
     let encode: String
     switch property.freeForm {
     case .shape(_, let encodeMethod, let isOptional, _):
       encode = isOptional
-        ? "self.\(property.name) == nil ? .null() : try JavaScriptValue.\(encodeMethod)(self.\(property.name)!, in: runtime)"
-        : "try JavaScriptValue.\(encodeMethod)(self.\(property.name), in: runtime)"
+        ? "\(value) == nil ? .null() : try JavaScriptValue.\(encodeMethod)(\(value)!, in: runtime)"
+        : "try JavaScriptValue.\(encodeMethod)(\(value), in: runtime)"
     case .generic:
       // The explicit `as Any` keeps an optional property from warning about its implicit coercion.
-      encode = "try JavaScriptValue.encodeAny(self.\(property.name) as Any, in: runtime)"
+      encode = "try JavaScriptValue.encodeAny(\(value) as Any, in: runtime)"
     case nil:
-      encode = "try \(exprType).encode(self.\(property.name), in: runtime)"
+      encode = "try \(expressionType(property.type)).encode(\(value), in: runtime)"
     }
-    lines.append("  object.setProperty(\"\(property.key)\", value: \(encode))")
+    return "  object.setProperty(\"\(property.key)\", value: \(encode))"
   }
-  lines.append("  return object")
-  let body = lines.joined(separator: "\n")
-
-  return """
-    @JavaScriptActor
-    public \(raw: overrideKeyword)func toObject(appContext: AppContext) throws -> JavaScriptObject {
-    \(raw: body)
-    }
-    """
 }
 
 // MARK: - Helpers
