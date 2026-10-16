@@ -391,21 +391,28 @@ private func fromDictionaryFactory(properties: [RecordProperty]) -> DeclSyntax {
 private func factoryBody(properties: [RecordProperty], readLines: [String]) -> String {
   var lines: [String] = []
   lines.append(contentsOf: readLines)
-  let initArgs = properties.map { "\($0.name): \($0.name)" }.joined(separator: ", ")
+  let initArgs = properties.enumerated().map { "\($1.name): \(fieldLocal($0))" }.joined(separator: ", ")
   lines.append("  return Self(\(initArgs))")
   return lines.joined(separator: "\n")
 }
 
-/// Per-property read statements for the JS-object factory, each producing a `let <name>`. The property
-/// is lent to a closure as a `JavaScriptUnownedValue` and decoded there the same way as a `@JS` argument
-/// (see `decodeCall`), so the read doesn't allocate a `JavaScriptValue`. Only the generic free-form
-/// decode copies the value into one.
+/// The local that holds the value of the property at `index` in a factory. It's numbered rather than
+/// named after the property, so no property can collide with it or with the factory's other parameters
+/// and locals (`object`, `runtime`, `dictionary`, `appContext`).
+private func fieldLocal(_ index: Int) -> String {
+  return "field\(index)"
+}
+
+/// Per-property read statements, each producing a `let field<index>` from the property of the JS object
+/// named `object`. The property is lent to a closure as a `JavaScriptUnownedValue` and decoded there the
+/// same way as a `@JS` argument (see `decodeCall`), so the read doesn't allocate a `JavaScriptValue`.
+/// Only the generic free-form decode copies the value into one.
 private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
-  for property in properties {
+  for (index, property) in properties.enumerated() {
     let valueVar = derivedIdentifier(from: property.name, suffix: "JSValue")
     let decode = "try \(decodeCall(property.type, freeForm: property.freeForm, from: valueVar))"
-    lines.append("  let \(property.name) = try object.withUnownedProperty(\"\(property.key)\") { \(valueVar) in")
+    lines.append("  let \(fieldLocal(index)) = try object.withUnownedProperty(\"\(property.key)\") { \(valueVar) in")
     if property.isRequired {
       lines.append("    guard !\(valueVar).isUndefined() else {")
       lines.append("      throw RecordPropertyRequiredException(\"\(property.key)\")")
@@ -423,28 +430,29 @@ private func jsObjectReadLines(properties: [RecordProperty]) -> [String] {
   return lines
 }
 
-/// Per-property read statements for the dictionary factory, each producing a `let <name>`. A bare `Any`
-/// property has no dynamic type to cast through, and the dictionary value already is an `Any`, so it's
-/// read unchanged.
+/// Per-property read statements for the dictionary factory, each producing a `let field<index>` from the
+/// raw dictionary value in `entry<index>`. A bare `Any` property has no dynamic type to cast through, and
+/// the dictionary value already is an `Any`, so it's read unchanged.
 private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
   var lines: [String] = []
-  for property in properties {
-    let valueVar = derivedIdentifier(from: property.name, suffix: "Value")
+  for (index, property) in properties.enumerated() {
+    let field = fieldLocal(index)
+    let entry = "entry\(index)"
     let exprType = expressionType(property.type)
     let isBareAny = property.freeForm?.isBareAny == true
     let cast = isBareAny
-      ? valueVar
-      : "try \(exprType).getDynamicType().cast(\(valueVar), appContext: appContext) as! \(exprType)"
-    lines.append("  let \(valueVar) = dictionary[\"\(property.key)\"]")
+      ? entry
+      : "try \(exprType).getDynamicType().cast(\(entry), appContext: appContext) as! \(exprType)"
+    lines.append("  let \(entry) = dictionary[\"\(property.key)\"]")
     if property.isRequired {
-      lines.append("  guard let \(valueVar) else {")
+      lines.append("  guard let \(entry) else {")
       lines.append("    throw RecordPropertyRequiredException(\"\(property.key)\")")
       lines.append("  }")
-      lines.append("  let \(property.name) = \(cast)")
+      lines.append("  let \(field) = \(cast)")
     } else if property.isOptional {
-      lines.append("  let \(property.name): \(property.type) = (\(valueVar) == nil || \(valueVar)! is NSNull) ? nil : \(cast)")
+      lines.append("  let \(field): \(property.type) = (\(entry) == nil || \(entry)! is NSNull) ? nil : \(cast)")
     } else {
-      lines.append("  let \(property.name) = \(valueVar) == nil ? \(property.defaultValue!) : \(isBareAny ? valueVar + "!" : cast)")
+      lines.append("  let \(field) = \(entry) == nil ? \(property.defaultValue!) : \(isBareAny ? entry + "!" : cast)")
     }
   }
   return lines

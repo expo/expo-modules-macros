@@ -73,16 +73,16 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let nameValue = dictionary["name"]
-            guard let nameValue else {
+            let entry0 = dictionary["name"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("name")
             }
-            let name = try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
-            let countValue = dictionary["count"]
-            let count = countValue == nil ? 0 : try Int.getDynamicType().cast(countValue, appContext: appContext) as! Int
-            let noteValue = dictionary["note"]
-            let note: String? = (noteValue == nil || noteValue! is NSNull) ? nil : try String?.getDynamicType().cast(noteValue, appContext: appContext) as! String?
-            return Self(name: name, count: count, note: note)
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            let entry1 = dictionary["count"]
+            let field1 = entry1 == nil ? 0 : try Int.getDynamicType().cast(entry1, appContext: appContext) as! Int
+            let entry2 = dictionary["note"]
+            let field2: String? = (entry2 == nil || entry2! is NSNull) ? nil : try String?.getDynamicType().cast(entry2, appContext: appContext) as! String?
+            return Self(name: field0, count: field1, note: field2)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -101,19 +101,19 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let name = try object.withUnownedProperty("name") { nameJSValue in
+            let field0 = try object.withUnownedProperty("name") { nameJSValue in
               guard !nameJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("name")
               }
               return try String.decode(nameJSValue, in: runtime)
             }
-            let count = try object.withUnownedProperty("count") { countJSValue in
+            let field1 = try object.withUnownedProperty("count") { countJSValue in
               return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
             }
-            let note = try object.withUnownedProperty("note") { noteJSValue in
+            let field2 = try object.withUnownedProperty("note") { noteJSValue in
               return try String?.decode(noteJSValue, in: runtime)
             }
-            return Self(name: name, count: count, note: note)
+            return Self(name: field0, count: field1, note: field2)
           }
 
           @JavaScriptActor
@@ -167,9 +167,9 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let ownerValue = dictionary["owner"]
-            let owner: MyRecord! = (ownerValue == nil || ownerValue! is NSNull) ? nil : try MyRecord?.getDynamicType().cast(ownerValue, appContext: appContext) as! MyRecord?
-            return Self(owner: owner)
+            let entry0 = dictionary["owner"]
+            let field0: MyRecord! = (entry0 == nil || entry0! is NSNull) ? nil : try MyRecord?.getDynamicType().cast(entry0, appContext: appContext) as! MyRecord?
+            return Self(owner: field0)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -186,10 +186,10 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let owner = try object.withUnownedProperty("owner") { ownerJSValue in
+            let field0 = try object.withUnownedProperty("owner") { ownerJSValue in
               return try MyRecord?.decode(ownerJSValue, in: runtime)
             }
-            return Self(owner: owner)
+            return Self(owner: field0)
           }
 
           @JavaScriptActor
@@ -251,19 +251,19 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let primaryValue = dictionary["primary"]
-            guard let primaryValue else {
+            let entry0 = dictionary["primary"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("primary")
             }
-            let primary = try MyRecord.getDynamicType().cast(primaryValue, appContext: appContext) as! MyRecord
-            let tagsValue = dictionary["tags"]
-            guard let tagsValue else {
+            let field0 = try MyRecord.getDynamicType().cast(entry0, appContext: appContext) as! MyRecord
+            let entry1 = dictionary["tags"]
+            guard let entry1 else {
               throw RecordPropertyRequiredException("tags")
             }
-            let tags = try [String].getDynamicType().cast(tagsValue, appContext: appContext) as! [String]
-            let countValue = dictionary["count"]
-            let count = countValue == nil ? 0 : try Int.getDynamicType().cast(countValue, appContext: appContext) as! Int
-            return Self(primary: primary, tags: tags, count: count)
+            let field1 = try [String].getDynamicType().cast(entry1, appContext: appContext) as! [String]
+            let entry2 = dictionary["count"]
+            let field2 = entry2 == nil ? 0 : try Int.getDynamicType().cast(entry2, appContext: appContext) as! Int
+            return Self(primary: field0, tags: field1, count: field2)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -282,22 +282,22 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let primary = try object.withUnownedProperty("primary") { primaryJSValue in
+            let field0 = try object.withUnownedProperty("primary") { primaryJSValue in
               guard !primaryJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("primary")
               }
               return try MyRecord.decode(primaryJSValue, in: runtime)
             }
-            let tags = try object.withUnownedProperty("tags") { tagsJSValue in
+            let field1 = try object.withUnownedProperty("tags") { tagsJSValue in
               guard !tagsJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("tags")
               }
               return try [String].decode(tagsJSValue, in: runtime)
             }
-            let count = try object.withUnownedProperty("count") { countJSValue in
+            let field2 = try object.withUnownedProperty("count") { countJSValue in
               return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
             }
-            return Self(primary: primary, tags: tags, count: count)
+            return Self(primary: field0, tags: field1, count: field2)
           }
 
           @JavaScriptActor
@@ -354,15 +354,15 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let nameValue = dictionary["name"]
-            let name = nameValue == nil ? "foo" : try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
-            let ratioValue = dictionary["ratio"]
-            let ratio = ratioValue == nil ? 1.0 : try Double.getDynamicType().cast(ratioValue, appContext: appContext) as! Double
-            let countValue = dictionary["count"]
-            let count = countValue == nil ? 0 : try Int.getDynamicType().cast(countValue, appContext: appContext) as! Int
-            let flagValue = dictionary["flag"]
-            let flag = flagValue == nil ? false : try Bool.getDynamicType().cast(flagValue, appContext: appContext) as! Bool
-            return Self(name: name, ratio: ratio, count: count, flag: flag)
+            let entry0 = dictionary["name"]
+            let field0 = entry0 == nil ? "foo" : try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            let entry1 = dictionary["ratio"]
+            let field1 = entry1 == nil ? 1.0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
+            let entry2 = dictionary["count"]
+            let field2 = entry2 == nil ? 0 : try Int.getDynamicType().cast(entry2, appContext: appContext) as! Int
+            let entry3 = dictionary["flag"]
+            let field3 = entry3 == nil ? false : try Bool.getDynamicType().cast(entry3, appContext: appContext) as! Bool
+            return Self(name: field0, ratio: field1, count: field2, flag: field3)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -382,19 +382,19 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let name = try object.withUnownedProperty("name") { nameJSValue in
+            let field0 = try object.withUnownedProperty("name") { nameJSValue in
               return nameJSValue.isUndefined() ? "foo" : try String.decode(nameJSValue, in: runtime)
             }
-            let ratio = try object.withUnownedProperty("ratio") { ratioJSValue in
+            let field1 = try object.withUnownedProperty("ratio") { ratioJSValue in
               return ratioJSValue.isUndefined() ? 1.0 : try Double.decode(ratioJSValue, in: runtime)
             }
-            let count = try object.withUnownedProperty("count") { countJSValue in
+            let field2 = try object.withUnownedProperty("count") { countJSValue in
               return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
             }
-            let flag = try object.withUnownedProperty("flag") { flagJSValue in
+            let field3 = try object.withUnownedProperty("flag") { flagJSValue in
               return flagJSValue.isUndefined() ? false : try Bool.decode(flagJSValue, in: runtime)
             }
-            return Self(name: name, ratio: ratio, count: count, flag: flag)
+            return Self(name: field0, ratio: field1, count: field2, flag: field3)
           }
 
           @JavaScriptActor
@@ -479,12 +479,12 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let nameValue = dictionary["name"]
-            guard let nameValue else {
+            let entry0 = dictionary["name"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("name")
             }
-            let name = try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
-            return Self(name: name)
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            return Self(name: field0)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -501,13 +501,13 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let name = try object.withUnownedProperty("name") { nameJSValue in
+            let field0 = try object.withUnownedProperty("name") { nameJSValue in
               guard !nameJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("name")
               }
               return try String.decode(nameJSValue, in: runtime)
             }
-            return Self(name: name)
+            return Self(name: field0)
           }
 
           @JavaScriptActor
@@ -612,11 +612,11 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let xValue = dictionary["x"]
-            let x = xValue == nil ? 0 : try Double.getDynamicType().cast(xValue, appContext: appContext) as! Double
-            let yValue = dictionary["y"]
-            let y = yValue == nil ? 0 : try Double.getDynamicType().cast(yValue, appContext: appContext) as! Double
-            return Self(x: x, y: y)
+            let entry0 = dictionary["x"]
+            let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
+            let entry1 = dictionary["y"]
+            let field1 = entry1 == nil ? 0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
+            return Self(x: field0, y: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -634,13 +634,13 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let x = try object.withUnownedProperty("x") { xJSValue in
+            let field0 = try object.withUnownedProperty("x") { xJSValue in
               return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
             }
-            let y = try object.withUnownedProperty("y") { yJSValue in
+            let field1 = try object.withUnownedProperty("y") { yJSValue in
               return yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
             }
-            return Self(x: x, y: y)
+            return Self(x: field0, y: field1)
           }
 
           @JavaScriptActor
@@ -678,16 +678,16 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
             let runtime = try appContext.runtime
-            let extra = try object.withUnownedProperty("extra") { extraJSValue in
+            let field0 = try object.withUnownedProperty("extra") { extraJSValue in
               return extraJSValue.isUndefined() ? "" : try String.decode(extraJSValue, in: runtime)
             }
-            return Self(extra: extra)
+            return Self(extra: field0)
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let extraValue = dictionary["extra"]
-            let extra = extraValue == nil ? "" : try String.getDynamicType().cast(extraValue, appContext: appContext) as! String
-            return Self(extra: extra)
+            let entry0 = dictionary["extra"]
+            let field0 = entry0 == nil ? "" : try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            return Self(extra: field0)
           }
 
           public override func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -734,12 +734,12 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let nameValue = dictionary["name"]
-            guard let nameValue else {
+            let entry0 = dictionary["name"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("name")
             }
-            let name = try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
-            return Self(name: name)
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            return Self(name: field0)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -756,13 +756,13 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let name = try object.withUnownedProperty("name") { nameJSValue in
+            let field0 = try object.withUnownedProperty("name") { nameJSValue in
               guard !nameJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("name")
               }
               return try String.decode(nameJSValue, in: runtime)
             }
-            return Self(name: name)
+            return Self(name: field0)
           }
 
           @JavaScriptActor
@@ -809,12 +809,12 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let nameValue = dictionary["name"]
-            guard let nameValue else {
+            let entry0 = dictionary["name"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("name")
             }
-            let name = try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
-            return Self(name: name)
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            return Self(name: field0)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -831,13 +831,13 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let name = try object.withUnownedProperty("name") { nameJSValue in
+            let field0 = try object.withUnownedProperty("name") { nameJSValue in
               guard !nameJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("name")
               }
               return try String.decode(nameJSValue, in: runtime)
             }
-            return Self(name: name)
+            return Self(name: field0)
           }
 
           @JavaScriptActor
@@ -941,11 +941,11 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let xValue = dictionary["x"]
-            let x = xValue == nil ? 0 : try Double.getDynamicType().cast(xValue, appContext: appContext) as! Double
-            let yValue = dictionary["y"]
-            let y = yValue == nil ? 0 : try Double.getDynamicType().cast(yValue, appContext: appContext) as! Double
-            return Self(x: x, y: y)
+            let entry0 = dictionary["x"]
+            let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
+            let entry1 = dictionary["y"]
+            let field1 = entry1 == nil ? 0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
+            return Self(x: field0, y: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -963,13 +963,13 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let x = try object.withUnownedProperty("x") { xJSValue in
+            let field0 = try object.withUnownedProperty("x") { xJSValue in
               return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
             }
-            let y = try object.withUnownedProperty("y") { yJSValue in
+            let field1 = try object.withUnownedProperty("y") { yJSValue in
               return yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
             }
-            return Self(x: x, y: y)
+            return Self(x: field0, y: field1)
           }
 
           @JavaScriptActor
@@ -1024,11 +1024,11 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let xValue = dictionary["x"]
-            let x = xValue == nil ? 0 : try Double.getDynamicType().cast(xValue, appContext: appContext) as! Double
-            let yValue = dictionary["y"]
-            let y = yValue == nil ? 0 : try Double.getDynamicType().cast(yValue, appContext: appContext) as! Double
-            return Self(x: x, y: y)
+            let entry0 = dictionary["x"]
+            let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
+            let entry1 = dictionary["y"]
+            let field1 = entry1 == nil ? 0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
+            return Self(x: field0, y: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1046,13 +1046,13 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let x = try object.withUnownedProperty("x") { xJSValue in
+            let field0 = try object.withUnownedProperty("x") { xJSValue in
               return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
             }
-            let y = try object.withUnownedProperty("y") { yJSValue in
+            let field1 = try object.withUnownedProperty("y") { yJSValue in
               return yJSValue.isUndefined() ? 0 : try Double.decode(yJSValue, in: runtime)
             }
-            return Self(x: x, y: y)
+            return Self(x: field0, y: field1)
           }
 
           @JavaScriptActor
@@ -1103,9 +1103,9 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let `defaultValue` = dictionary["default"]
-            let `default` = `defaultValue` == nil ? 0 : try Int.getDynamicType().cast(`defaultValue`, appContext: appContext) as! Int
-            return Self(`default`: `default`)
+            let entry0 = dictionary["default"]
+            let field0 = entry0 == nil ? 0 : try Int.getDynamicType().cast(entry0, appContext: appContext) as! Int
+            return Self(`default`: field0)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1122,10 +1122,10 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let `default` = try object.withUnownedProperty("default") { `defaultJSValue` in
+            let field0 = try object.withUnownedProperty("default") { `defaultJSValue` in
               return `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
             }
-            return Self(`default`: `default`)
+            return Self(`default`: field0)
           }
 
           @JavaScriptActor
@@ -1181,14 +1181,14 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let nameValue = dictionary["name"]
-            guard let nameValue else {
+            let entry0 = dictionary["name"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("name")
             }
-            let name = try String.getDynamicType().cast(nameValue, appContext: appContext) as! String
-            let attributesValue = dictionary["attributes"]
-            let attributes: [String: Any]? = (attributesValue == nil || attributesValue! is NSNull) ? nil : try [String: Any]?.getDynamicType().cast(attributesValue, appContext: appContext) as! [String: Any]?
-            return Self(name: name, attributes: attributes)
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            let entry1 = dictionary["attributes"]
+            let field1: [String: Any]? = (entry1 == nil || entry1! is NSNull) ? nil : try [String: Any]?.getDynamicType().cast(entry1, appContext: appContext) as! [String: Any]?
+            return Self(name: field0, attributes: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1206,16 +1206,16 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let name = try object.withUnownedProperty("name") { nameJSValue in
+            let field0 = try object.withUnownedProperty("name") { nameJSValue in
               guard !nameJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("name")
               }
               return try String.decode(nameJSValue, in: runtime)
             }
-            let attributes = try object.withUnownedProperty("attributes") { attributesJSValue in
+            let field1 = try object.withUnownedProperty("attributes") { attributesJSValue in
               return try attributesJSValue.isUndefined() || attributesJSValue.isNull() ? nil : JavaScriptValue.decodeAnyDictionary(attributesJSValue, in: runtime)
             }
-            return Self(name: name, attributes: attributes)
+            return Self(name: field0, attributes: field1)
           }
 
           @JavaScriptActor
@@ -1275,16 +1275,16 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let itemsValue = dictionary["items"]
-            guard let itemsValue else {
+            let entry0 = dictionary["items"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("items")
             }
-            let items = try [Any].getDynamicType().cast(itemsValue, appContext: appContext) as! [Any]
-            let metaValue = dictionary["meta"]
-            let meta = metaValue == nil ? [:] : try [String : Any].getDynamicType().cast(metaValue, appContext: appContext) as! [String : Any]
-            let groupsValue = dictionary["groups"]
-            let groups: [String: [Any]]? = (groupsValue == nil || groupsValue! is NSNull) ? nil : try [String: [Any]]?.getDynamicType().cast(groupsValue, appContext: appContext) as! [String: [Any]]?
-            return Self(items: items, meta: meta, groups: groups)
+            let field0 = try [Any].getDynamicType().cast(entry0, appContext: appContext) as! [Any]
+            let entry1 = dictionary["meta"]
+            let field1 = entry1 == nil ? [:] : try [String : Any].getDynamicType().cast(entry1, appContext: appContext) as! [String : Any]
+            let entry2 = dictionary["groups"]
+            let field2: [String: [Any]]? = (entry2 == nil || entry2! is NSNull) ? nil : try [String: [Any]]?.getDynamicType().cast(entry2, appContext: appContext) as! [String: [Any]]?
+            return Self(items: field0, meta: field1, groups: field2)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1303,19 +1303,19 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let items = try object.withUnownedProperty("items") { itemsJSValue in
+            let field0 = try object.withUnownedProperty("items") { itemsJSValue in
               guard !itemsJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("items")
               }
               return try JavaScriptValue.decodeAnyArray(itemsJSValue, in: runtime)
             }
-            let meta = try object.withUnownedProperty("meta") { metaJSValue in
+            let field1 = try object.withUnownedProperty("meta") { metaJSValue in
               return metaJSValue.isUndefined() ? [:] : try JavaScriptValue.decodeAnyDictionary(metaJSValue, in: runtime)
             }
-            let groups = try object.withUnownedProperty("groups") { groupsJSValue in
+            let field2 = try object.withUnownedProperty("groups") { groupsJSValue in
               return try JavaScriptValue.decodeAny(groupsJSValue.copied(in: runtime), as: [String: [Any]]?.self, in: runtime)
             }
-            return Self(items: items, meta: meta, groups: groups)
+            return Self(items: field0, meta: field1, groups: field2)
           }
 
           @JavaScriptActor
@@ -1367,14 +1367,14 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let valueValue = dictionary["value"]
-            guard let valueValue else {
+            let entry0 = dictionary["value"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("value")
             }
-            let value = valueValue
-            let maybeValue = dictionary["maybe"]
-            let maybe: Any? = (maybeValue == nil || maybeValue! is NSNull) ? nil : maybeValue
-            return Self(value: value, maybe: maybe)
+            let field0 = entry0
+            let entry1 = dictionary["maybe"]
+            let field1: Any? = (entry1 == nil || entry1! is NSNull) ? nil : entry1
+            return Self(value: field0, maybe: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1392,16 +1392,16 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let value = try object.withUnownedProperty("value") { valueJSValue in
+            let field0 = try object.withUnownedProperty("value") { valueJSValue in
               guard !valueJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("value")
               }
               return try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
             }
-            let maybe = try object.withUnownedProperty("maybe") { maybeJSValue in
+            let field1 = try object.withUnownedProperty("maybe") { maybeJSValue in
               return try maybeJSValue.isUndefined() || maybeJSValue.isNull() ? nil : JavaScriptValue.decodeAny(maybeJSValue, in: runtime)
             }
-            return Self(value: value, maybe: maybe)
+            return Self(value: field0, maybe: field1)
           }
 
           @JavaScriptActor
@@ -1485,14 +1485,14 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let valueValue = dictionary["value"]
-            guard let valueValue else {
+            let entry0 = dictionary["value"]
+            guard let entry0 else {
               throw RecordPropertyRequiredException("value")
             }
-            let value = valueValue
-            let listValue = dictionary["list"]
-            let list: [Swift.Any]? = (listValue == nil || listValue! is NSNull) ? nil : try [Swift.Any]?.getDynamicType().cast(listValue, appContext: appContext) as! [Swift.Any]?
-            return Self(value: value, list: list)
+            let field0 = entry0
+            let entry1 = dictionary["list"]
+            let field1: [Swift.Any]? = (entry1 == nil || entry1! is NSNull) ? nil : try [Swift.Any]?.getDynamicType().cast(entry1, appContext: appContext) as! [Swift.Any]?
+            return Self(value: field0, list: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1510,16 +1510,16 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let value = try object.withUnownedProperty("value") { valueJSValue in
+            let field0 = try object.withUnownedProperty("value") { valueJSValue in
               guard !valueJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("value")
               }
               return try JavaScriptValue.decodeAny(valueJSValue, in: runtime)
             }
-            let list = try object.withUnownedProperty("list") { listJSValue in
+            let field1 = try object.withUnownedProperty("list") { listJSValue in
               return try listJSValue.isUndefined() || listJSValue.isNull() ? nil : JavaScriptValue.decodeAnyArray(listJSValue, in: runtime)
             }
-            return Self(value: value, list: list)
+            return Self(value: field0, list: field1)
           }
 
           @JavaScriptActor
@@ -1570,14 +1570,14 @@ struct RecordMacroTests {
           }
 
           public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let `defaultValue` = dictionary["default"]
-            let `default` = `defaultValue` == nil ? 0 : try Int.getDynamicType().cast(`defaultValue`, appContext: appContext) as! Int
-            let `classValue` = dictionary["class"]
-            guard let `classValue` else {
+            let entry0 = dictionary["default"]
+            let field0 = entry0 == nil ? 0 : try Int.getDynamicType().cast(entry0, appContext: appContext) as! Int
+            let entry1 = dictionary["class"]
+            guard let entry1 else {
               throw RecordPropertyRequiredException("class")
             }
-            let `class` = try String.getDynamicType().cast(`classValue`, appContext: appContext) as! String
-            return Self(`default`: `default`, `class`: `class`)
+            let field1 = try String.getDynamicType().cast(entry1, appContext: appContext) as! String
+            return Self(`default`: field0, `class`: field1)
           }
 
           public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1595,16 +1595,16 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
-            let `default` = try object.withUnownedProperty("default") { `defaultJSValue` in
+            let field0 = try object.withUnownedProperty("default") { `defaultJSValue` in
               return `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
             }
-            let `class` = try object.withUnownedProperty("class") { `classJSValue` in
+            let field1 = try object.withUnownedProperty("class") { `classJSValue` in
               guard !`classJSValue`.isUndefined() else {
                 throw RecordPropertyRequiredException("class")
               }
               return try String.decode(`classJSValue`, in: runtime)
             }
-            return Self(`default`: `default`, `class`: `class`)
+            return Self(`default`: field0, `class`: field1)
           }
 
           @JavaScriptActor
@@ -1617,6 +1617,224 @@ struct RecordMacroTests {
         }
 
         extension Options: Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A property named object doesn't collide with the local holding the JS object`() {
+    assertExpansion(
+      """
+      @Record
+      struct Payload {
+        var object: String
+        var count: Int = 0
+      }
+      """,
+      expandedSource: """
+        struct Payload {
+          var object: String
+          var count: Int = 0
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(object: String, count: Int) {
+            self.object = object
+            self.count = count
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let entry0 = dictionary["object"]
+            guard let entry0 else {
+              throw RecordPropertyRequiredException("object")
+            }
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            let entry1 = dictionary["count"]
+            let field1 = entry1 == nil ? 0 : try Int.getDynamicType().cast(entry1, appContext: appContext) as! Int
+            return Self(object: field0, count: field1)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["object"] = self.object
+            dictionary["count"] = self.count
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let field0 = try object.withUnownedProperty("object") { objectJSValue in
+              guard !objectJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("object")
+              }
+              return try String.decode(objectJSValue, in: runtime)
+            }
+            let field1 = try object.withUnownedProperty("count") { countJSValue in
+              return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            }
+            return Self(object: field0, count: field1)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Payload, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            object.setProperty("object", value: try String.encode(value.object, in: runtime))
+            object.setProperty("count", value: try Int.encode(value.count, in: runtime))
+            return object.asValue()
+          }
+        }
+
+        extension Payload: Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Properties named like the factories' parameters and temporaries don't collide with them`() {
+    assertExpansion(
+      """
+      @Record
+      struct Conflicts {
+        var dictionary: String
+        var appContext: String
+        var runtime: String
+        var name: String
+        var nameValue: Int = 0
+      }
+      """,
+      expandedSource: """
+        struct Conflicts {
+          var dictionary: String
+          var appContext: String
+          var runtime: String
+          var name: String
+          var nameValue: Int = 0
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(dictionary: String, appContext: String, runtime: String, name: String, nameValue: Int) {
+            self.dictionary = dictionary
+            self.appContext = appContext
+            self.runtime = runtime
+            self.name = name
+            self.nameValue = nameValue
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let entry0 = dictionary["dictionary"]
+            guard let entry0 else {
+              throw RecordPropertyRequiredException("dictionary")
+            }
+            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
+            let entry1 = dictionary["appContext"]
+            guard let entry1 else {
+              throw RecordPropertyRequiredException("appContext")
+            }
+            let field1 = try String.getDynamicType().cast(entry1, appContext: appContext) as! String
+            let entry2 = dictionary["runtime"]
+            guard let entry2 else {
+              throw RecordPropertyRequiredException("runtime")
+            }
+            let field2 = try String.getDynamicType().cast(entry2, appContext: appContext) as! String
+            let entry3 = dictionary["name"]
+            guard let entry3 else {
+              throw RecordPropertyRequiredException("name")
+            }
+            let field3 = try String.getDynamicType().cast(entry3, appContext: appContext) as! String
+            let entry4 = dictionary["nameValue"]
+            let field4 = entry4 == nil ? 0 : try Int.getDynamicType().cast(entry4, appContext: appContext) as! Int
+            return Self(dictionary: field0, appContext: field1, runtime: field2, name: field3, nameValue: field4)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["dictionary"] = self.dictionary
+            dictionary["appContext"] = self.appContext
+            dictionary["runtime"] = self.runtime
+            dictionary["name"] = self.name
+            dictionary["nameValue"] = self.nameValue
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let field0 = try object.withUnownedProperty("dictionary") { dictionaryJSValue in
+              guard !dictionaryJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("dictionary")
+              }
+              return try String.decode(dictionaryJSValue, in: runtime)
+            }
+            let field1 = try object.withUnownedProperty("appContext") { appContextJSValue in
+              guard !appContextJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("appContext")
+              }
+              return try String.decode(appContextJSValue, in: runtime)
+            }
+            let field2 = try object.withUnownedProperty("runtime") { runtimeJSValue in
+              guard !runtimeJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("runtime")
+              }
+              return try String.decode(runtimeJSValue, in: runtime)
+            }
+            let field3 = try object.withUnownedProperty("name") { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
+            }
+            let field4 = try object.withUnownedProperty("nameValue") { nameValueJSValue in
+              return nameValueJSValue.isUndefined() ? 0 : try Int.decode(nameValueJSValue, in: runtime)
+            }
+            return Self(dictionary: field0, appContext: field1, runtime: field2, name: field3, nameValue: field4)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Conflicts, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            object.setProperty("dictionary", value: try String.encode(value.dictionary, in: runtime))
+            object.setProperty("appContext", value: try String.encode(value.appContext, in: runtime))
+            object.setProperty("runtime", value: try String.encode(value.runtime, in: runtime))
+            object.setProperty("name", value: try String.encode(value.name, in: runtime))
+            object.setProperty("nameValue", value: try Int.encode(value.nameValue, in: runtime))
+            return object.asValue()
+          }
+        }
+
+        extension Conflicts: Record {
         }
         """
     )
