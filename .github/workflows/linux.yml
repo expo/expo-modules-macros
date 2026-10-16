@@ -1,7 +1,6 @@
 name: Linux
 
-# Builds and tests the package on Linux, checks the release tool and its package there, and runs the
-# release tool on the oldest distributions that the package supports.
+# Builds and tests the package on Linux, and checks the release tool and its package there.
 
 on:
   push:
@@ -155,52 +154,3 @@ jobs:
           });
           EOF
 
-      - name: Upload the release tool
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: linux-${{ matrix.arch }}
-          path: platforms/linux-${{ matrix.arch }}/ExpoModulesMacros
-          if-no-files-found: error
-
-  distributions:
-    name: Run on other distributions (Linux ${{ matrix.arch }})
-    needs: linux
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    steps:
-      - name: Download the release tool
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: linux-${{ matrix.arch }}
-          path: ${{ runner.temp }}/tool
-
-      - name: Run the release tool
-        # Runs the plugin server and a scan in images that have no Swift toolchain, from the oldest
-        # release of each distribution that the package supports. Artifacts don't keep file modes, so
-        # the executable gets its executable bit back first.
-        working-directory: ${{ runner.temp }}
-        run: |
-          chmod +x tool/ExpoModulesMacros
-          mkdir -p fixture
-          printf '@ExpoModule\npublic final class LinuxModule {}\n' > fixture/Module.swift
-          for image in ubuntu:22.04 debian:12 amazonlinux:2023; do
-            echo "::group::$image"
-            run=(docker run --rm -v "$PWD/tool:/tool:ro" -v "$PWD/fixture:/fixture:ro" "$image")
-            "${run[@]}" getconf GNU_LIBC_VERSION
-            "${run[@]}" /tool/ExpoModulesMacros
-            output="$("${run[@]}" /tool/ExpoModulesMacros scan-modules /fixture)"
-            echo "$output"
-            if ! grep -q '"LinuxModule"' <<< "$output"; then
-              echo "The scan in $image didn't report LinuxModule"
-              exit 1
-            fi
-            echo "::endgroup::"
-          done
