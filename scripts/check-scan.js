@@ -4,8 +4,9 @@
 // Scans a test module through the `expo-modules-macros` package in the given directory, as a project
 // would. `getScannerBinaryPath()` must return the binary for this machine: `apple/ExpoModulesMacros`
 // on macOS, and the one in the installed `@expo/modules-macros-<platform>-<arch>` package on Windows
-// and Linux. `scanModules` must then report the module. The Publish workflow runs it with the release
-// binaries before it publishes them.
+// and Linux. `scanModules` must then report the module. The Windows and Linux workflows run it with
+// the binaries they build, and the Publish workflow with the release binaries before it publishes
+// them.
 //
 // Usage: node scripts/check-scan.js <package-dir>
 

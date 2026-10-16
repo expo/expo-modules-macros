@@ -1,7 +1,6 @@
 name: Windows
 
-# Builds and tests the package on Windows, and checks the release tool there. The Windows binaries
-# aren't published yet, so this runs apart from the macOS workflow.
+# Builds and tests the package on Windows, and checks the release tool and its package there.
 
 on:
   push:
@@ -116,29 +115,5 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run build:ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $fixture = Join-Path $env:RUNNER_TEMP "scan-fixture"
-          New-Item -ItemType Directory -Force $fixture | Out-Null
-          Set-Content (Join-Path $fixture "Module.swift") "@ExpoModule`npublic final class WindowsModule {}"
-          @'
-          const path = require('node:path');
-          const { getScannerBinaryPath, scanModules } = require(path.resolve('build'));
-          const binaryPath = getScannerBinaryPath();
-          const expected = path.join('node_modules', '@expo', `modules-macros-win32-${process.arch}`, 'ExpoModulesMacros.exe');
-          if (!binaryPath.endsWith(expected)) {
-            console.error(`getScannerBinaryPath() returned ${binaryPath}, not a path ending in ${expected}`);
-            process.exit(1);
-          }
-          console.log(`getScannerBinaryPath() returned ${binaryPath}`);
-          scanModules([process.argv[2]]).then((result) => {
-            const module = result.modules.find((candidate) => candidate.name === 'WindowsModule');
-            if (!module) {
-              console.error(JSON.stringify(result, null, 2));
-              process.exit(1);
-            }
-            console.log(`scanModules reported ${module.name} in ${module.file}`);
-          }, (error) => {
-            console.error(error);
-            process.exit(1);
-          });
-          '@ | Set-Content (Join-Path $env:RUNNER_TEMP "scan-check.js")
-          node (Join-Path $env:RUNNER_TEMP "scan-check.js") $fixture
+          node scripts/check-scan.js .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
