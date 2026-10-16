@@ -11,7 +11,7 @@ const execFile = promisify(childProcess.execFile);
 /** The Swift package, where `swift build` runs and the macOS binary is written. */
 const packageDir = path.join(__dirname, '..', 'apple');
 
-/** The npm packages that ship the Windows binaries, one per architecture. */
+/** The npm packages that ship the Windows and Linux binaries, one per platform and architecture. */
 const platformsDir = path.join(__dirname, '..', 'platforms');
 
 /**
@@ -53,6 +53,14 @@ const windowsBuildArgs = [
   '-Xlinker', 'BlocksRuntime.lib',
   '-Xswiftc', '-gnone',
 ];
+
+/**
+ * The extra `swift build` arguments on Linux. `-static-stdlib` links the Swift runtime into the
+ * executable, so it runs without a Swift toolchain and doesn't depend on the version of one. As on
+ * Windows, SwiftPM's `--static-swift-stdlib` leaves the macro tool linked to the shared Swift
+ * runtime, so the flag goes to the compiler directly.
+ */
+const linuxBuildArgs = ['-Xswiftc', '-static-stdlib'];
 
 /**
  * Runs `swift` with the given arguments, under `arch -${arch}` when `arch` is given and isn't the
@@ -196,6 +204,54 @@ async function mainWindows() {
   console.log(`Built ${outputPath} for ${arch}`);
 }
 
+/**
+ * The ELF machine types of the Linux architectures the tool is built for, keyed by `process.arch`.
+ */
+const linuxMachineTypes = { x64: 0x3e, arm64: 0xb7 };
+
+/**
+ * Asserts that the Linux executable at `binaryPath` is built for `arch`, by reading the machine type
+ * from its ELF header: the file starts with `\x7fELF`, the byte at 0x5 is 1 for little-endian (both
+ * architectures are), and the 16-bit machine type is at 0x12.
+ */
+async function verifyLinuxArch(binaryPath, arch) {
+  const contents = await fs.readFile(binaryPath);
+  if (contents.toString('latin1', 0, 4) !== '\x7fELF' || contents[5] !== 1) {
+    throw new Error(`The built binary at ${binaryPath} is not a little-endian ELF executable`);
+  }
+  const machine = contents.readUInt16LE(0x12);
+  if (machine !== linuxMachineTypes[arch]) {
+    throw new Error(
+      `The built binary at ${binaryPath} has machine type 0x${machine.toString(16)}, not the one for ${arch}`
+    );
+  }
+}
+
+/**
+ * Builds the Linux tool for the host architecture as `ExpoModulesMacros` in the package for that
+ * architecture, `platforms/linux-<arch>`, named by `process.arch` (`x64` or `arm64`). As on Windows,
+ * each architecture is built on a machine of its own. The executable needs the glibc version of the
+ * machine it's built on or a newer one.
+ */
+async function mainLinux() {
+  const arch = process.arch;
+  if (!(arch in linuxMachineTypes)) {
+    throw new Error(`Building on Linux ${arch} is not supported`);
+  }
+  const outputPath = path.join(platformsDir, `linux-${arch}`, 'ExpoModulesMacros');
+
+  await spawnAsync('swift', [...releaseBuildArgs, ...linuxBuildArgs], { cwd: packageDir });
+  const toolPath = await builtToolPath(linuxBuildArgs);
+
+  await fs.rm(outputPath, { force: true });
+  await fs.copyFile(toolPath, outputPath);
+  // The package publishes the file with the mode it has here.
+  await fs.chmod(outputPath, 0o755);
+  await spawnAsync('strip', [outputPath]);
+  await verifyLinuxArch(outputPath, arch);
+  console.log(`Built ${outputPath} for ${arch}`);
+}
+
 async function mainMacOS() {
   const outputPath = path.join(packageDir, 'ExpoModulesMacros');
 
@@ -232,6 +288,8 @@ async function mainMacOS() {
 async function main() {
   if (process.platform === 'win32') {
     await mainWindows();
+  } else if (process.platform === 'linux') {
+    await mainLinux();
   } else {
     await mainMacOS();
   }

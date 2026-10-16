@@ -1,0 +1,25 @@
+{
+  "name": "@expo/modules-macros-linux-arm64",
+  "version": "0.20.0",
+  "description": "The Linux arm64 binary of expo-modules-macros",
+  "license": "MIT",
+  "author": "650 Industries, Inc.",
+  "homepage": "https://github.com/expo/expo-modules-macros",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/expo-modules-macros.git",
+    "directory": "platforms/linux-arm64"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "ExpoModulesMacros"
+  ]
+}

@@ -15,7 +15,12 @@ The same executable doubles as a source scanner CLI.
 
 This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains a prebuilt universal (arm64 + x86_64) macOS binary at `apple/ExpoModulesMacros`, so consumers never build the plugin themselves.
 
-The Windows binaries ship in their own packages, `@expo/modules-macros-win32-x64` and `@expo/modules-macros-win32-arm64`, each with an `ExpoModulesMacros.exe`. This package lists them as optional dependencies, and their `os` and `cpu` fields make npm, pnpm and Yarn install only the one that matches a Windows machine, so other machines don't download them. The Swift runtime is linked in statically, so the executables run without a Swift toolchain; they need only Windows system libraries and the Microsoft Visual C++ runtime.
+The Windows and Linux binaries ship in their own packages, one per platform and architecture:
+
+- `@expo/modules-macros-win32-x64` and `@expo/modules-macros-win32-arm64`, each with an `ExpoModulesMacros.exe`. They need only Windows system libraries and the Microsoft Visual C++ runtime.
+- `@expo/modules-macros-linux-x64` and `@expo/modules-macros-linux-arm64`, each with an `ExpoModulesMacros`. They need glibc 2.34 or newer and the GNU C++ runtime (`libstdc++` and `libgcc_s`), for example on Ubuntu 22.04, Debian 12, Red Hat Enterprise Linux 9 or Amazon Linux 2023. They don't run on musl distributions such as Alpine Linux.
+
+This package lists them as optional dependencies, and their `os`, `cpu` and (on Linux) `libc` fields make npm, pnpm and Yarn install only the one that matches the machine, so other machines don't download them. The Swift runtime is linked in statically, so the executables run without a Swift toolchain.
 
 # Macros
 
@@ -97,13 +102,13 @@ The binary is a compiled executable, so each call still spawns a process. What t
 
 to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and their test specs. Expo's SPM prebuilds pass the same flag when they generate `Package.swift`, so both build systems load the same binary.
 
-On Windows, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows it falls back to the local `npm run build` output in `platforms/win32-<arch>` when the platform package isn't installed, for example in this repository.
+On Windows and Linux, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` or `ExpoModulesMacros` from `@expo/modules-macros-linux-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows and Linux it falls back to the local `npm run build` output in `platforms/<platform>-<arch>` when the platform package isn't installed, for example in this repository.
 
 The module and type names in `#externalMacro` must stay in sync with `apple/Sources/ExpoModulesMacros/Plugin.swift`.
 
 # Development
 
-Requires a toolchain with Swift 6.2 or newer: on macOS 13 or newer that means Xcode 26 or newer, and on Windows the Swift toolchain from swift.org (CI uses 6.4).
+Requires a toolchain with Swift 6.2 or newer: on macOS 13 or newer that means Xcode 26 or newer, and on Windows and Linux the Swift toolchain from swift.org (CI uses 6.4).
 
 ```sh
 cd apple
@@ -115,16 +120,17 @@ swift test
 
 - On macOS, it builds for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing.
 - On Windows, it builds for the host architecture only, with the Swift runtime linked in statically and without debug info, and writes `platforms/win32-<arch>/ExpoModulesMacros.exe` (`x64` or `arm64`, as Node's `process.arch` names them), the file that the package for that architecture publishes. It strips the executable with `llvm-strip` from the Swift toolchain and checks the architecture in its header.
+- On Linux, it also builds for the host architecture only, with the Swift runtime linked in statically, and writes `platforms/linux-<arch>/ExpoModulesMacros`. It strips the executable with `strip` and checks the architecture in its ELF header. The executable needs the glibc version of the machine it's built on or a newer one, so CI and the Publish workflow build it in the `swift:6.4.0-rhel-ubi9` image (Red Hat UBI 9, glibc 2.34).
 
-The macOS binary is committed to the repository. The Windows binaries aren't: the Publish workflow builds them and puts them into the packages in `platforms/`.
+The macOS binary is committed to the repository. The Windows and Linux binaries aren't: the Publish workflow builds them and puts them into the packages in `platforms/`.
 
 # Releasing
 
 The **Publish** workflow is manual (`workflow_dispatch`) and takes a release type. It bumps the version, builds the universal binary, and publishes to npm through OIDC trusted publishing. The commit, tag and GitHub release are created only after the publish succeeds, so a failed build leaves the branch untouched.
 
-Windows jobs (x64 and arm64) build the `.exe` files first. After the version bump, `scripts/set-platform-versions.js` gives the packages in `platforms/` the same version and lists them in this package's `optionalDependencies` with that exact version. The workflow publishes the two Windows packages before `expo-modules-macros`, so this package is never on npm without them. Each package needs trusted publishing configured on npmjs.com for the Publish workflow.
+Windows and Linux jobs (x64 and arm64 for each) build their binaries first. After the version bump, `scripts/set-platform-versions.js` gives the packages in `platforms/` the same version and lists them in this package's `optionalDependencies` with that exact version. The workflow publishes the four platform packages before `expo-modules-macros`, so this package is never on npm without them. Each package needs trusted publishing configured on npmjs.com for the Publish workflow.
 
-Prerelease versions (`prepatch`, `preminor`, `premajor`, `prerelease`) are published with the `next` dist-tag, and the others with `latest`. With **Dry run** checked, the workflow builds everything and runs `npm publish --dry-run` for the three packages, but doesn't publish, commit, tag or create a release. Use it to check a change to the workflow.
+Prerelease versions (`prepatch`, `preminor`, `premajor`, `prerelease`) are published with the `next` dist-tag, and the others with `latest`. With **Dry run** checked, the workflow builds everything and runs `npm publish --dry-run` for the five packages, but doesn't publish, commit, tag or create a release. Use it to check a change to the workflow.
 
 # Contributing
 
