@@ -93,6 +93,9 @@ public struct SharedObjectMacro: MemberMacro {
       }
     }
 
+    diagnoseJSNameCollisions(functions: instanceFunctions, properties: instanceProperties, in: context)
+    diagnoseJSNameCollisions(functions: staticFunctions, properties: staticProperties, in: context)
+
     let lines = entries.map { "    \($0)" }.joined(separator: "\n")
     let body = entries.isEmpty
       ? "  return Class(\"\(jsName)\", \(typeName).self) {\n  }"
