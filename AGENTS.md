@@ -61,7 +61,7 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 
 ## Releases
 
-- Do not rebuild or commit the binary under `apple/` in a feature change. Only the **Publish** workflow (`.github/workflows/publish.yml`, manual) rebuilds it, and it commits the result as `Release vX.Y.Z` after the npm publish succeeds. It also builds the Windows and Linux binaries and publishes them in the `platforms/` packages, with the same version.
+- Do not rebuild or commit the binary under `apple/` in a feature change. Only the **Publish** workflow (`.github/workflows/publish.yml`, manual) rebuilds it, and it commits the result as `Release vX.Y.Z` after the npm publish succeeds. It also builds the Windows and Linux binaries and publishes them in the `platforms/` packages, with the same version. Before it publishes anything, it installs each binary from its packed package and scans through the TypeScript wrapper with `scripts/check-scan.js`.
 - Do not edit the `version` in `package.json` by hand. The Publish workflow bumps it.
 - Commit and PR titles are short and imperative, with code identifiers in backticks, for example ``Report `@Union` types in `scan-exports` ``.
 
