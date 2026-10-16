@@ -35,7 +35,7 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 ## Linux
 
 - The `FoundationEssentials` rule above applies on Linux too.
-- The Linux binaries link the Swift runtime statically (`--static-swift-stdlib`) but link glibc dynamically, so they need the glibc version they were built against or a newer one. CI and the Publish workflow build them in `swift:6.4.0-rhel-ubi9` (glibc 2.34), and the Linux workflow fails when the binary needs a newer glibc symbol than `MAX_GLIBC_VERSION`. A change to the build image must keep these and the glibc version in the READMEs in sync.
+- The Linux binaries link the Swift runtime statically (`-static-stdlib`; SwiftPM's `--static-swift-stdlib` doesn't apply to the macro tool here either) but link glibc dynamically, so they need the glibc version they were built against or a newer one. CI and the Publish workflow build them in `swift:6.4.0-rhel-ubi9` (glibc 2.34), and the Linux workflow fails when the binary needs a newer glibc symbol than `MAX_GLIBC_VERSION`. A change to the build image must keep these and the glibc version in the READMEs in sync.
 
 ## Conventions
 

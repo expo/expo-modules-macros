@@ -55,10 +55,12 @@ const windowsBuildArgs = [
 ];
 
 /**
- * The extra `swift build` arguments on Linux. `--static-swift-stdlib` links the Swift runtime into
- * the executable, so it runs without a Swift toolchain and doesn't depend on the version of one.
+ * The extra `swift build` arguments on Linux. `-static-stdlib` links the Swift runtime into the
+ * executable, so it runs without a Swift toolchain and doesn't depend on the version of one. As on
+ * Windows, SwiftPM's `--static-swift-stdlib` leaves the macro tool linked to the shared Swift
+ * runtime, so the flag goes to the compiler directly.
  */
-const linuxBuildArgs = ['--static-swift-stdlib'];
+const linuxBuildArgs = ['-Xswiftc', '-static-stdlib'];
 
 /**
  * Runs `swift` with the given arguments, under `arch -${arch}` when `arch` is given and isn't the
