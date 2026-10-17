@@ -44,7 +44,6 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
       name: "ExpoModulesMacrosTests",
       dependencies: [
         "ExpoModulesMacros",
-        .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
         .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax"),
       ]
     )

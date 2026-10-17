@@ -41,7 +41,7 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 
 - Swift uses 2-space indentation. Write new doc comments as `///` line comments, not `/** */` blocks.
 - Tests use Swift Testing (`import Testing`, `@Test`) with backtick-quoted descriptive names, for example ``func `Prunes .build, Pods, .git, and node_modules directories`()``.
-- Macro tests compare full expansions with `assertMacroExpansion` from `SwiftSyntaxMacrosGenericTestSupport`, using `indentationWidth: .spaces(2)`. Each test file wraps it in a local `assertExpansion` helper.
+- Macro tests compare full expansions with `assertMacroExpansion` from `SwiftSyntaxMacrosGenericTestSupport`, using `indentationWidth: .spaces(2)`. Each test file wraps it in a local `assertExpansion` helper that passes `recordIssue` (`IssueRecording.swift`) as the failure handler.
 - Scanner tests reach internal API with `@testable import ExpoModulesScanner`. Do not make scanner types `public` only for tests.
 - `@JS` applies to functions, properties and initializers. Do not write code or comments that assume it marks only functions.
 - Code comments describe the code as it is. Do not refer to open PRs, branches or planned work.
