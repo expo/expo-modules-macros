@@ -9,7 +9,7 @@ let package = Package(
   name: "ExpoModulesMacros",
   platforms: [.macOS(.v13)],
   dependencies: [
-    .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "603.0.0-latest")
+    .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "604.0.0-latest")
   ],
   targets: [
     // The plugin executable doubles as the scanner CLI: the compiler launches it without arguments
@@ -44,7 +44,6 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
       name: "ExpoModulesMacrosTests",
       dependencies: [
         "ExpoModulesMacros",
-        .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
         .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax"),
       ]
     )

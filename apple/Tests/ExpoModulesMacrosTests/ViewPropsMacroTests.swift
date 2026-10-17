@@ -15,7 +15,6 @@ private func assertExpansion(
   diagnostics: [DiagnosticSpec] = [],
   applyFixIts: [String]? = nil,
   fixedSource: String? = nil,
-  sourceLocation: Testing.SourceLocation = #_sourceLocation,
   fileID: StaticString = #fileID,
   filePath: StaticString = #filePath,
   line: UInt = #line,
@@ -29,9 +28,7 @@ private func assertExpansion(
     applyFixIts: applyFixIts,
     fixedSource: fixedSource,
     indentationWidth: .spaces(2),
-    failureHandler: { spec in
-      Issue.record(Comment(rawValue: spec.message), sourceLocation: sourceLocation)
-    },
+    failureHandler: recordIssue,
     fileID: fileID,
     filePath: filePath,
     line: line,

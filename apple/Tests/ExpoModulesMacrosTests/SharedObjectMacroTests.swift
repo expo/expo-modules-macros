@@ -15,7 +15,6 @@ private func assertExpansion(
   _ original: String,
   expandedSource expected: String,
   diagnostics: [DiagnosticSpec] = [],
-  sourceLocation: Testing.SourceLocation = #_sourceLocation,
   fileID: StaticString = #fileID,
   filePath: StaticString = #filePath,
   line: UInt = #line,
@@ -27,9 +26,7 @@ private func assertExpansion(
     diagnostics: diagnostics,
     macroSpecs: sharedObjectMacroSpecs,
     indentationWidth: .spaces(2),
-    failureHandler: { spec in
-      Issue.record(Comment(rawValue: spec.message), sourceLocation: sourceLocation)
-    },
+    failureHandler: recordIssue,
     fileID: fileID,
     filePath: filePath,
     line: line,
