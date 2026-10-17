@@ -301,6 +301,12 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init(origin: borrowing Point) {}
 
+          private func `_assertTypesConformance_init`() {
+            func `init`<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
+            }
+            `init`(Point.self)
+          }
+
           public static func _synthesizedClassDefinition() -> ClassDefinition {
             return Class("Cache", Cache.self) {
             }
@@ -809,7 +815,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Non-primitive constructor argument decodes through the dynamic converter`() {
+  func `Non-primitive constructor argument gets a conformance assertion and decodes through its type`() {
     assertExpansion(
       """
       @SharedObject
@@ -822,6 +828,12 @@ struct SharedObjectMacroTests {
         final class Cache: SharedObject {
           @JavaScriptActor
           init(config: MyRecord) {}
+
+          private func `_assertTypesConformance_init`() {
+            func `init`<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
+            }
+            `init`(MyRecord.self)
+          }
 
           public static func _synthesizedClassDefinition() -> ClassDefinition {
             return Class("Cache", Cache.self) {
@@ -855,6 +867,12 @@ struct SharedObjectMacroTests {
         final class Cache: SharedObject {
           @JavaScriptActor
           init(config: MyRecord!) {}
+
+          private func `_assertTypesConformance_init`() {
+            func `init`<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
+            }
+            `init`(MyRecord.self)
+          }
 
           public static func _synthesizedClassDefinition() -> ClassDefinition {
             return Class("Cache", Cache.self) {

@@ -234,53 +234,40 @@ private struct BoundaryMember {
 
 /// Reads the boundary member off a `@JS` declaration, splitting its types by conversion direction. A
 /// function contributes its parameter types (decodable) and its return type when non-Void (encodable);
-/// a property contributes its value type as encodable (the getter) and also as decodable when settable
-/// (the setter). Composed types (`[Int]`, `String?`, …) are kept verbatim, their conditional
-/// conformances transitively constraining the elements. A type that mentions `Any` is left out: it
-/// converts through the free-form methods, or is diagnosed by `diagnoseFreeFormTypes`. Returns `nil`
-/// for declaration kinds `@JS` doesn't read types from, a property whose type isn't spelled out (a
-/// syntactic macro can't recover it), or one whose type mentions `Any`.
+/// an initializer contributes its parameter types; a property contributes its value type as encodable
+/// (the getter) and also as decodable when settable (the setter). Composed types (`[Int]`, `String?`,
+/// …) are kept verbatim, their conditional conformances transitively constraining the elements. A type
+/// that mentions `Any` is left out: it converts through the free-form methods, or is diagnosed by
+/// `diagnoseFreeFormTypes`. Returns `nil` for declaration kinds `@JS` doesn't read types from, a
+/// property whose type isn't spelled out (a syntactic macro can't recover it), or one whose type
+/// mentions `Any`.
 private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> BoundaryMember? {
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
-    // A closure argument moves data the other way: JS receives its parameters and returns its result.
-    // A closure in any other position is diagnosed by `diagnoseClosureTypes` and left out here, since
-    // its metatype isn't a valid expression in the assertion.
-    var decodableTypes: [String] = []
-    var callbackArgumentTypes: [String] = []
-    for parameter in funcDecl.signature.parameterClause.parameters {
-      // The specifier isn't part of the asserted type, and a parameter with one the binding can't honor
-      // is reported by `diagnoseParameterSpecifiers` and not asserted.
-      let specified = SpecifiedType(parameter.type)
-      guard specified.unsupportedSpecifier == nil else {
-        continue
-      }
-      guard let closure = JSClosureType(specified.type) else {
-        if !containsFunctionType(specified.type) && !mentionsFreeFormAny(specified.type) {
-          decodableTypes.append(specified.type.trimmedDescription)
-        }
-        continue
-      }
-      // A closure type that mentions `Any` is reported by `diagnoseClosureTypes` instead.
-      for parameter in closure.parameters
-      where !containsFunctionType(parameter.type) && !mentionsFreeFormAny(parameter.type) {
-        callbackArgumentTypes.append(parameter.type.trimmedDescription)
-      }
-      let closureReturnType = closure.functionType.returnClause.type
-      if let returnType = closure.returnType,
-        !containsFunctionType(closureReturnType) && !mentionsFreeFormAny(closureReturnType) {
-        decodableTypes.append(returnType)
-      }
-    }
+    let argumentTypes = argumentBoundaryTypes(of: funcDecl.signature.parameterClause.parameters)
     let returnType = funcDecl.signature.returnClause?.type
     let encodableType = returnType.flatMap {
       isVoidType($0) || containsFunctionType($0) || mentionsFreeFormAny($0) ? nil : $0.trimmedDescription
     }
     return BoundaryMember(
       name: funcDecl.name.text,
-      decodableTypes: decodableTypes,
+      decodableTypes: argumentTypes.decodable,
       encodableType: encodableType,
-      callbackArgumentTypes: callbackArgumentTypes,
+      callbackArgumentTypes: argumentTypes.callbackArguments,
       isStatic: isTypeLevel(funcDecl.modifiers)
+    )
+  }
+
+  if let initDecl = declaration.as(InitializerDeclSyntax.self) {
+    // A constructor decodes its arguments like a function does, and the instance it returns isn't
+    // encoded. The name is escaped because it also names the assertion's nested helper, and `init` is
+    // a keyword.
+    let argumentTypes = argumentBoundaryTypes(of: initDecl.signature.parameterClause.parameters)
+    return BoundaryMember(
+      name: "`init`",
+      decodableTypes: argumentTypes.decodable,
+      encodableType: nil,
+      callbackArgumentTypes: argumentTypes.callbackArguments,
+      isStatic: false
     )
   }
 
@@ -307,6 +294,44 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
   }
 
   return nil
+}
+
+/// The boundary types of a function's or constructor's arguments: an argument is decoded from JS, and
+/// a closure argument instead contributes its parameter types (encoded when native code calls it) and
+/// its return type (decoded).
+private func argumentBoundaryTypes(
+  of parameters: FunctionParameterListSyntax
+) -> (decodable: [String], callbackArguments: [String]) {
+  // A closure argument moves data the other way: JS receives its parameters and returns its result.
+  // A closure in any other position is diagnosed by `diagnoseClosureTypes` and left out here, since
+  // its metatype isn't a valid expression in the assertion.
+  var decodableTypes: [String] = []
+  var callbackArgumentTypes: [String] = []
+  for parameter in parameters {
+    // The specifier isn't part of the asserted type, and a parameter with one the binding can't honor
+    // is reported by `diagnoseParameterSpecifiers` and not asserted.
+    let specified = SpecifiedType(parameter.type)
+    guard specified.unsupportedSpecifier == nil else {
+      continue
+    }
+    guard let closure = JSClosureType(specified.type) else {
+      if !containsFunctionType(specified.type) && !mentionsFreeFormAny(specified.type) {
+        decodableTypes.append(specified.type.trimmedDescription)
+      }
+      continue
+    }
+    // A closure type that mentions `Any` is reported by `diagnoseClosureTypes` instead.
+    for parameter in closure.parameters
+    where !containsFunctionType(parameter.type) && !mentionsFreeFormAny(parameter.type) {
+      callbackArgumentTypes.append(parameter.type.trimmedDescription)
+    }
+    let closureReturnType = closure.functionType.returnClause.type
+    if let returnType = closure.returnType,
+      !containsFunctionType(closureReturnType) && !mentionsFreeFormAny(closureReturnType) {
+      decodableTypes.append(returnType)
+    }
+  }
+  return (decodableTypes, callbackArgumentTypes)
 }
 
 /// True when a return clause is written as `Void` / `()` — nothing crosses the boundary, so it needs
