@@ -13,6 +13,7 @@ private func assertExpansion(
   _ original: String,
   expandedSource expected: String,
   diagnostics: [DiagnosticSpec] = [],
+  fixedSource: String? = nil,
   fileID: StaticString = #fileID,
   filePath: StaticString = #filePath,
   line: UInt = #line,
@@ -23,6 +24,7 @@ private func assertExpansion(
     expandedSource: expected,
     diagnostics: diagnostics,
     macroSpecs: recordMacroSpecs,
+    fixedSource: fixedSource,
     indentationWidth: .spaces(2),
     failureHandler: recordIssue,
     fileID: fileID,
@@ -656,7 +658,7 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Subclass chains to super for the write side and inlines property defaults`() {
+  func `A class with a superclass produces a diagnostic`() {
     assertExpansion(
       """
       @Record
@@ -667,46 +669,132 @@ struct RecordMacroTests {
       expandedSource: """
         final class Child: Parent {
           var extra: String = ""
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Record class 'Child' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
+          line: 2,
+          column: 18
+        )
+      ]
+    )
+  }
 
-          public init(extra: String) {
-            self.extra = extra
-          }
+  @Test
+  func `A class whose inheritance clause lists only protocols produces a diagnostic`() {
+    assertExpansion(
+      """
+      @Record
+      final class Options: CustomStringConvertible {
+        var name: String = ""
+        var description: String { name }
+      }
+      """,
+      expandedSource: """
+        final class Options: CustomStringConvertible {
+          var name: String = ""
+          var description: String { name }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Record class 'Options' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
+          line: 2,
+          column: 20
+        )
+      ]
+    )
+  }
 
-          @JavaScriptActor
-          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
-            let runtime = try appContext.runtime
-            let field0 = try object.withUnownedProperty("extra") { extraJSValue in
-              return extraJSValue.isUndefined() ? "" : try String.decode(extraJSValue, in: runtime)
-            }
-            return Self(extra: field0)
-          }
-
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["extra"]
-            let field0 = entry0 == nil ? "" : try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            return Self(extra: field0)
-          }
-
-          public override func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
-            var dictionary = super.toDictionary(appContext: appContext)
-            dictionary["extra"] = self.extra
-            return dictionary
-          }
-
-          @JavaScriptActor
-          public override func toObject(appContext: AppContext) throws -> JavaScriptObject {
-            let runtime = try appContext.runtime
-            let object = try super.toObject(appContext: appContext)
-            object.setProperty("extra", value: try String.encode(self.extra, in: runtime))
-            return object
-          }
+  @Test
+  func `A class that isn't final produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @Record
+      class Options {
+        var count: Int = 0
+      }
+      """,
+      expandedSource: """
+        class Options {
+          var count: Int = 0
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Record class 'Options' must be final, because the macro doesn't support subclasses of a record",
+          line: 2,
+          column: 1,
+          fixIts: [FixItSpec(message: "Mark the class 'final'")]
+        )
+      ],
+      fixedSource: """
+        @Record
+        final class Options {
+          var count: Int = 0
         }
         """
     )
   }
 
   @Test
-  func `Class without inheritance gets the Record conformance`() {
+  func `The final fix-it goes after the other modifiers`() {
+    assertExpansion(
+      """
+      @Record
+      public class Options {
+        public var count: Int = 0
+      }
+      """,
+      expandedSource: """
+        public class Options {
+          public var count: Int = 0
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Record class 'Options' must be final, because the macro doesn't support subclasses of a record",
+          line: 2,
+          column: 8,
+          fixIts: [FixItSpec(message: "Mark the class 'final'")]
+        )
+      ],
+      fixedSource: """
+        @Record
+        public final class Options {
+          public var count: Int = 0
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An open class produces a diagnostic without a fix-it`() {
+    assertExpansion(
+      """
+      @Record
+      open class Options {
+        public var count: Int = 0
+      }
+      """,
+      expandedSource: """
+        open class Options {
+          public var count: Int = 0
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Record class 'Options' must be final, because the macro doesn't support subclasses of a record",
+          line: 2,
+          column: 6
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Final class gets init() and the Record conformance`() {
     assertExpansion(
       """
       @Record
@@ -717,6 +805,10 @@ struct RecordMacroTests {
       expandedSource: """
         final class Options {
           var name: String
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
 
           public init(name: String) {
             self.name = name
