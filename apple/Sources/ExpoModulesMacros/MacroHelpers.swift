@@ -69,6 +69,59 @@ internal func isConcurrentJSMember(_ decl: DeclSyntaxProtocol) -> Bool {
   return hasJSOption(attribute, named: "concurrent")
 }
 
+/// The `.async("name")` option of a `@JS` attribute, e.g. `@JS(.async("loadAsync"))` or
+/// `@JS("load", [.async("loadAsync")])`, or `nil` when the attribute doesn't list it. Like
+/// `hasJSOption`, it scans the arguments and the elements of an array literal.
+internal func asyncVariantOption(of attribute: AttributeSyntax) -> FunctionCallExprSyntax? {
+  guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
+    return nil
+  }
+  for arg in args {
+    if let option = asyncOptionCall(arg.expression) {
+      return option
+    }
+    if let array = arg.expression.as(ArrayExprSyntax.self),
+      let option = array.elements.lazy.compactMap({ asyncOptionCall($0.expression) }).first {
+      return option
+    }
+  }
+  return nil
+}
+
+/// The expression as a `.async(...)` call (or `JSOptions.async(...)`), or `nil` for anything else.
+private func asyncOptionCall(_ expression: ExprSyntax) -> FunctionCallExprSyntax? {
+  guard let call = expression.as(FunctionCallExprSyntax.self),
+    let member = call.calledExpression.as(MemberAccessExprSyntax.self),
+    member.declName.baseName.text == "async" else {
+    return nil
+  }
+  return call
+}
+
+/// The JavaScript name an `.async("name")` option gives the promise-returning variant, with the token
+/// of its string literal, where a name collision is reported. `nil` when the argument isn't a single
+/// plain string literal, which `@JS` reports.
+internal func asyncVariantName(of option: FunctionCallExprSyntax) -> (name: String, token: TokenSyntax)? {
+  guard option.arguments.count == 1,
+    let argument = option.arguments.first,
+    argument.label == nil,
+    let literal = argument.expression.as(StringLiteralExprSyntax.self),
+    literal.segments.count == 1,
+    let segment = literal.segments.first?.as(StringSegmentSyntax.self) else {
+    return nil
+  }
+  return (segment.content.text, segment.content)
+}
+
+/// True if the `@JS`-marked declaration lists `.async("name")`. Such a function is left unstamped,
+/// because its promise-returning variant calls it on the concurrent pool.
+internal func hasAsyncVariant(_ decl: DeclSyntaxProtocol) -> Bool {
+  guard let attribute = memberAttributes(of: decl).firstAttribute(named: "JS") else {
+    return false
+  }
+  return asyncVariantOption(of: attribute) != nil
+}
+
 /// True if the type is written as an optional: `T?`, `T!`, or the explicit `Optional<T>`. Used to
 /// decide argument requiredness (an optional parameter may be omitted) and record-field nullability.
 internal func isOptionalType(_ type: TypeSyntax) -> Bool {
@@ -256,6 +309,7 @@ internal func memberHasJSAttribute(_ decl: DeclSyntaxProtocol) -> Bool {
 /// Decides whether the macro should stamp `@JavaScriptActor` on a `@JS`-marked member.
 /// The macro defers to the user when they've already chosen an isolation:
 /// - the member opted out with `@JS(.concurrent)`
+/// - the member lists `@JS(.async("name"))`, whose variant runs it on the concurrent pool
 /// - the `nonisolated` modifier is present on the member
 /// - any attribute whose name matches a known global actor (`@MainActor`, `@JavaScriptActor`)
 ///   or follows the `*Actor` naming convention is present on the member or its enclosing type
@@ -265,7 +319,7 @@ internal func shouldStampJavaScriptActor(
   on member: DeclSyntaxProtocol,
   enclosedBy enclosing: some DeclGroupSyntax
 ) -> Bool {
-  if isConcurrentJSMember(member) {
+  if isConcurrentJSMember(member) || hasAsyncVariant(member) {
     return false
   }
 
@@ -312,7 +366,7 @@ internal func memberAttributes(of decl: DeclSyntaxProtocol) -> AttributeListSynt
   return AttributeListSyntax()
 }
 
-private func hasGlobalActorShape(_ element: AttributeListSyntax.Element) -> Bool {
+internal func hasGlobalActorShape(_ element: AttributeListSyntax.Element) -> Bool {
   guard let attribute = element.as(AttributeSyntax.self) else {
     return false
   }

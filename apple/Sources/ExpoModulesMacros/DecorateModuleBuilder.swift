@@ -13,18 +13,27 @@ import SwiftSyntax
 /// unwrap, arity guard, argument decode, all while `this` and the arguments are still valid)
 /// and returns the async body (call and result encode), so nothing JSI-owned crosses the asynchronous
 /// boundary and JS gets a promise.
+///
+/// A synchronous function marked `@JS(.async("name"))` also binds a promise-returning variant under that
+/// name (see `asyncVariant`). It decodes and encodes like an `async` function, and calls the function on
+/// the concurrent pool.
 internal struct JSFunction {
   let swiftName: String
-  let jsName: String
+  private(set) var jsName: String
   let parameters: [FunctionParameterSyntax]
   /// The declared return type as written, or `nil` when the function returns `Void`/nothing.
   let returnType: String?
   /// How the return value encodes when its type mentions `Any`, or `nil` for any other type.
   let returnFreeForm: FreeFormConversion?
   let isThrowing: Bool
-  let isAsync: Bool
+  private(set) var isAsync: Bool
   /// The function's name in the source, where a JavaScript name collision is reported.
-  let nameToken: TokenSyntax
+  private(set) var nameToken: TokenSyntax
+  /// The name from `.async("name")` and its token, or `nil` when the attribute doesn't list it.
+  private var asyncVariantName: (name: String, token: TokenSyntax)?
+  /// True for the binding `asyncVariant` returns: it calls the synchronous function on the concurrent
+  /// pool instead of on the JavaScript thread.
+  private var callsOnConcurrentPool = false
 
   init(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) {
     self.swiftName = funcDecl.name.text
@@ -39,6 +48,22 @@ internal struct JSFunction {
     let effectSpecifiers = funcDecl.signature.effectSpecifiers
     self.isThrowing = effectSpecifiers?.throwsClause?.throwsSpecifier != nil
     self.isAsync = effectSpecifiers?.asyncSpecifier != nil
+    self.asyncVariantName = asyncVariantOption(of: attribute).flatMap(asyncVariantName(of:))
+  }
+
+  /// The promise-returning binding that `.async("name")` adds next to a synchronous function, or `nil`
+  /// when the attribute doesn't list it. An `async` function gets none: `@JS` reports the option there.
+  var asyncVariant: JSFunction? {
+    guard let asyncVariantName, !isAsync else {
+      return nil
+    }
+    var variant = self
+    variant.jsName = asyncVariantName.name
+    variant.nameToken = asyncVariantName.token
+    variant.isAsync = true
+    variant.callsOnConcurrentPool = true
+    variant.asyncVariantName = nil
+    return variant
   }
 
   /// The number of leading parameters that must always be supplied: the total minus the maximal
@@ -152,14 +177,22 @@ internal struct JSFunction {
   /// the function's async body (`AsyncFunctionBody`), awaiting the call and encoding the result. It
   /// captures only what the call needs — the decoded `arg<i>` locals, the receiver, and `runtime`
   /// for the encode — never `this` or the arguments buffer, which are only valid for the duration
-  /// of the host call.
+  /// of the host call. The `asyncVariant` binding awaits its call on the concurrent pool instead.
   private func asyncBodyLines(receiver: Receiver, arity: Int) -> [String] {
     var lines: [String] = ["return {"]
+    let call =
+      callsOnConcurrentPool
+      ? concurrentCallExpression(receiver: receiver, arity: arity)
+      : callExpression(receiver: receiver, arity: arity)
+    // The concurrent call spans several lines, so each of its lines is indented into the body.
+    let indented = { (statement: String) in
+      statement.split(separator: "\n", omittingEmptySubsequences: false).map { "  " + $0 }
+    }
     if returnType != nil {
-      lines.append("  let result = \(callExpression(receiver: receiver, arity: arity))")
+      lines.append(contentsOf: indented("let result = \(call)"))
       lines.append(contentsOf: encodeResultLines().map { "  " + $0 })
     } else {
-      lines.append("  \(callExpression(receiver: receiver, arity: arity))")
+      lines.append(contentsOf: indented(call))
       lines.append("  return .undefined()")
     }
     lines.append("}")
@@ -179,10 +212,36 @@ internal struct JSFunction {
     )
   }
 
-  /// The `<callee>.<name>(...)` call for the given arity. Slots `0..<arity` are passed their decoded
+  /// The `<callee>.<name>(...)` call for the given arity, with the arguments from `callArguments`.
+  private func callExpression(receiver: Receiver, arity: Int) -> String {
+    // `try` only for a throwing function. An `async` call that doesn't throw must not get one, or the
+    // expansion warns that no throwing call occurs within the `try` expression.
+    let tryKeyword = isThrowing ? "try " : ""
+    let awaitKeyword = isAsync ? "await " : ""
+    return "\(tryKeyword)\(awaitKeyword)\(receiver.callee).\(swiftName)(\(callArguments(arity: arity)))"
+  }
+
+  /// The call of the `asyncVariant` binding for the given arity: the synchronous function runs in a
+  /// `@concurrent` closure, so it leaves the JavaScript thread, and the body continues once it returns.
+  private func concurrentCallExpression(receiver: Receiver, arity: Int) -> String {
+    // The closure captures the receiver and the decoded arguments, so Swift 6 requires them to be
+    // `Sendable`, as it does for the receiver and arguments of a `.concurrent` call. The signature is
+    // spelled out because `@concurrent` needs an `async` closure, and a body without `await` would
+    // infer a synchronous one.
+    let tryKeyword = isThrowing ? "try " : ""
+    let effects = isThrowing ? "async throws" : "async"
+    let returnClause = returnType.map { " -> \(expressionType($0))" } ?? ""
+    return """
+      \(tryKeyword)await { @concurrent () \(effects)\(returnClause) in
+        \(tryKeyword)\(receiver.callee).\(swiftName)(\(callArguments(arity: arity)))
+      }()
+      """
+  }
+
+  /// The argument list of a call for the given arity. Slots `0..<arity` are passed their decoded
   /// `arg<i>`; a trailing optional-without-default slot that this arity omits is passed `nil`; a
   /// trailing defaulted slot that this arity omits is dropped entirely so Swift applies its default.
-  private func callExpression(receiver: Receiver, arity: Int) -> String {
+  private func callArguments(arity: Int) -> String {
     var callArguments: [String] = []
     for (index, parameter) in parameters.enumerated() {
       let label = parameter.firstName.text
@@ -201,11 +260,7 @@ internal struct JSFunction {
       }
       callArguments.append(label == "_" ? value : "\(label): \(value)")
     }
-    // `try` only for a throwing function. An `async` call that doesn't throw must not get one, or the
-    // expansion warns that no throwing call occurs within the `try` expression.
-    let tryKeyword = isThrowing ? "try " : ""
-    let awaitKeyword = isAsync ? "await " : ""
-    return "\(tryKeyword)\(awaitKeyword)\(receiver.callee).\(swiftName)(\(callArguments.joined(separator: ", ")))"
+    return callArguments.joined(separator: ", ")
   }
 
   /// The flat (single-arity) call-and-encode lines used when no trailing parameter is omittable:

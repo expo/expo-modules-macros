@@ -35,6 +35,7 @@ public struct JSMacro: PeerMacro {
     diagnoseFreeFormTypes(in: declaration, in: context)
     diagnoseClosureTypes(in: declaration, in: context)
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
+    diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
 
     guard let member = boundaryMember(of: declaration),
       let assertion = directionalConformanceAssertion(
@@ -85,6 +86,85 @@ private func diagnoseConcurrentOption(
         id: "js-concurrent-requires-function",
         severity: .error
       )))
+}
+
+/// Emits the diagnostics for `@JS(.async("name"))` on a member that can't take it. The option adds a
+/// promise-returning variant that calls the function on the concurrent pool, so it needs a synchronous
+/// function without a global actor, and the variant's JavaScript name as a string literal.
+private func diagnoseAsyncVariantOption(
+  of node: AttributeSyntax,
+  on declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  guard let option = asyncVariantOption(of: node) else {
+    return
+  }
+  guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
+    context.diagnose(
+      Diagnostic(
+        node: node,
+        message: JSDiagnosticMessage(
+          "'.async' applies only to a synchronous @JS function, not to a property or initializer.",
+          id: "js-async-variant-requires-function",
+          severity: .error
+        )))
+    return
+  }
+  if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
+    context.diagnose(
+      Diagnostic(
+        node: node,
+        message: JSDiagnosticMessage(
+          "'.async' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.async', and use '.concurrent' to run the function off the JavaScript thread.",
+          id: "js-async-variant-on-async-function",
+          severity: .error
+        )))
+    return
+  }
+  if asyncVariantName(of: option) == nil {
+    context.diagnose(
+      Diagnostic(
+        node: option,
+        message: JSDiagnosticMessage(
+          "'.async' takes the JavaScript name of the variant as a string literal, for example '.async(\"loadAsync\")'.",
+          id: "js-async-variant-name",
+          severity: .error
+        )))
+  }
+  if let isolation = globalActorIsolation(of: funcDecl, in: context) {
+    context.diagnose(
+      Diagnostic(
+        node: node,
+        message: JSDiagnosticMessage(
+          isolation.enclosingTypeName.map {
+            "'.async' calls the function on the concurrent thread pool, so the function can't inherit '\(isolation.attribute)' from '\($0)'. Mark the function 'nonisolated'."
+          }
+            ?? "'.async' calls the function on the concurrent thread pool, so the function can't be isolated to '\(isolation.attribute)'.",
+          id: "js-async-variant-isolated",
+          severity: .error
+        )))
+  }
+}
+
+/// The global actor a function is isolated to, written on the function itself or inherited from its
+/// enclosing type, or `nil` when it has none or is `nonisolated`. `enclosingTypeName` is set when the
+/// isolation is inherited.
+private func globalActorIsolation(
+  of funcDecl: FunctionDeclSyntax,
+  in context: some MacroExpansionContext
+) -> (attribute: String, enclosingTypeName: String?)? {
+  if let attribute = funcDecl.attributes.first(where: hasGlobalActorShape) {
+    return (attribute.trimmedDescription, nil)
+  }
+  if funcDecl.modifiers.contains(where: { $0.name.text == "nonisolated" }) {
+    return nil
+  }
+  guard let enclosing = context.lexicalContext.first,
+    let attribute = enclosing.asProtocol(WithAttributesSyntax.self)?.attributes.first(where: hasGlobalActorShape)
+  else {
+    return nil
+  }
+  return (attribute.trimmedDescription, enclosing.asProtocol(NamedDeclSyntax.self)?.name.text)
 }
 
 /// The fix-it offered alongside the synchronous-function diagnostic: insert `async` into the

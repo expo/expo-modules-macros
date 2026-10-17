@@ -57,6 +57,37 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `A @JS(.async) function also exports its promise-returning variant`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class FileModule {
+          @JS("textSync", .async("text"))
+          func text(path: String) throws -> String { "" }
+
+          @JS("writeSync", [.async("write")])
+          func write(path: String) {}
+
+          // The macro reports `.async` on an async function and binds no variant.
+          @JS(.async("loadAsync"))
+          func load() async {}
+        }
+        """
+      ).modules.first)
+
+    #expect(module.functions.map(\.jsName) == ["textSync", "text", "writeSync", "write", "load"])
+    #expect(module.functions.map(\.name) == ["text", "text", "write", "write", "load"])
+    #expect(module.functions.map(\.isAsync) == [false, true, false, true, true])
+
+    // The variant keeps the function's signature, so the promise resolves to its return value.
+    let text = module.functions[1]
+    #expect(text.isThrowing == true)
+    #expect(text.returns == .primitive(name: "String", jsType: .string))
+    #expect(text.parameters.map(\.name) == ["path"])
+  }
+
+  @Test
   func `Reports closure parameters of a @JS function as function types`() throws {
     let module = try #require(
       surface(
