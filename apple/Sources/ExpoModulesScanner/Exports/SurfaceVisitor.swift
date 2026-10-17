@@ -238,7 +238,7 @@ final class SurfaceVisitor: SyntaxVisitor {
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
         let attribute = funcDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) {
-        functions.append(makeFunction(funcDecl: funcDecl, attribute: attribute, platforms: platforms))
+        functions.append(contentsOf: makeFunctions(funcDecl: funcDecl, attribute: attribute, platforms: platforms))
         continue
       }
 
@@ -291,24 +291,36 @@ final class SurfaceVisitor: SyntaxVisitor {
     return result
   }
 
-  /// Builds an `ExportedFunction` from a `@JS func`: JS-name fallback, parameters, a `Void` return as
-  /// `nil`, and the effect/static flags.
-  private func makeFunction(
+  /// Builds the `ExportedFunction` entries for a `@JS func`: JS-name fallback, parameters, a `Void`
+  /// return as `nil`, and the effect/static flags. A synchronous function with `.withAsync("name")`
+  /// gets a second, `async` entry under that name, for the promise-returning variant the macro binds.
+  private func makeFunctions(
     funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
-  ) -> ExportedFunction {
+  ) -> [ExportedFunction] {
     let effects = funcDecl.signature.effectSpecifiers
     let returnType = funcDecl.signature.returnClause?.type
-    return ExportedFunction(
-      name: funcDecl.name.identifierName,
-      jsName: stringArgument(of: attribute) ?? funcDecl.name.identifierName,
-      parameters: parameters(of: funcDecl.signature.parameterClause),
-      returns: isVoidType(returnType) ? nil : returnType.map { typeNode(from: $0) },
-      isAsync: effects?.asyncSpecifier != nil,
-      isThrowing: effects?.throwsClause?.throwsSpecifier != nil,
-      isStatic: isTypeLevel(funcDecl.modifiers),
-      accessLevel: spelledAccessLevel(of: funcDecl.modifiers),
-      platforms: platforms
-    )
+    let isAsync = effects?.asyncSpecifier != nil
+    let exportedParameters = parameters(of: funcDecl.signature.parameterClause)
+    let returns = isVoidType(returnType) ? nil : returnType.map { typeNode(from: $0) }
+    let makeFunction = { (jsName: String, isAsync: Bool) in
+      ExportedFunction(
+        name: funcDecl.name.identifierName,
+        jsName: jsName,
+        parameters: exportedParameters,
+        returns: returns,
+        isAsync: isAsync,
+        isThrowing: effects?.throwsClause?.throwsSpecifier != nil,
+        isStatic: isTypeLevel(funcDecl.modifiers),
+        accessLevel: spelledAccessLevel(of: funcDecl.modifiers),
+        platforms: platforms
+      )
+    }
+    let function = makeFunction(stringArgument(of: attribute) ?? funcDecl.name.identifierName, isAsync)
+    // The macro binds no variant for an `async` function: it reports the option there instead.
+    guard !isAsync, let variantName = asyncVariantName(of: attribute) else {
+      return [function]
+    }
+    return [function, makeFunction(variantName, true)]
   }
 
   /// Builds the `ExportedProperty` entries for a `@JS var`/`let`. One declaration can introduce several
@@ -660,6 +672,39 @@ private func boolArgument(of attribute: AttributeSyntax, label: String) -> Bool?
       return nil
     }
     return literal.literal.tokenKind == .keyword(.true)
+  }
+  return nil
+}
+
+/// The name in a `@JS` attribute's `.withAsync("name")` option, in the arguments or inside an array
+/// literal (`@JS("load", [.withAsync("loadAsync")])`), or `nil` when the option is absent or its
+/// argument isn't a plain string literal. Mirrors `asyncVariantOption` and `asyncVariantName` in the
+/// macros.
+private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
+  guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
+    return nil
+  }
+  let expressions = arguments.flatMap { argument -> [ExprSyntax] in
+    if let array = argument.expression.as(ArrayExprSyntax.self) {
+      return array.elements.map(\.expression)
+    }
+    return [argument.expression]
+  }
+  for expression in expressions {
+    guard let call = expression.as(FunctionCallExprSyntax.self),
+      let member = call.calledExpression.as(MemberAccessExprSyntax.self),
+      member.declName.baseName.text == "withAsync" else {
+      continue
+    }
+    guard call.arguments.count == 1,
+      let argument = call.arguments.first,
+      argument.label == nil,
+      let literal = argument.expression.as(StringLiteralExprSyntax.self),
+      literal.segments.count == 1,
+      let segment = literal.segments.first?.as(StringSegmentSyntax.self) else {
+      return nil
+    }
+    return segment.content.text
   }
   return nil
 }

@@ -1044,6 +1044,87 @@ struct ExpoModuleClassesTests {
   }
 
   @Test
+  func `@JS(.withAsync) variants call an instance method on the unwrapped receiver and a static one on the type`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Document: SharedObject {
+        @JS("readSync", .withAsync("read"))
+        func read(_ count: Int) throws -> String { "" }
+
+        @JS(.withAsync("existsAsync"))
+        static func exists(_ path: String) -> Bool { true }
+      }
+      """,
+      expandedSource: """
+        final class Document: SharedObject {
+          func read(_ count: Int) throws -> String { "" }
+          static func exists(_ path: String) -> Bool { true }
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Document", Document.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("readSync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Document.self)
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "readSync", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = try _self.read(arg0)
+              return try String.encode(result, in: runtime)
+            }
+            prototype.setProperty("read") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Document.self)
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "read", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+              return {
+                let result = try await { @concurrent () async throws -> String in
+                  try _self.read(arg0)
+                }()
+                return try await runtime.execute {
+                  return try String.encode(result, in: runtime)
+                }
+              }
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            constructor.setProperty("exists") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "exists", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = Document.exists(arg0)
+              return try Bool.encode(result, in: runtime)
+            }
+            constructor.setProperty("existsAsync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "existsAsync", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              return {
+                let result = await { @concurrent () async -> Bool in
+                  Document.exists(arg0)
+                }()
+                return try await runtime.execute {
+                  return try Bool.encode(result, in: runtime)
+                }
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `classes: combines with custom module name and exposed members`() {
     assertExpansion(
       """

@@ -63,7 +63,11 @@ public struct ExpoModuleMacro: MemberMacro {
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
         let attribute = funcDecl.attributes.firstAttribute(named: "JS") {
-        functions.append(JSFunction(funcDecl: funcDecl, attribute: attribute))
+        let function = JSFunction(funcDecl: funcDecl, attribute: attribute)
+        functions.append(function)
+        if let variant = function.asyncVariant {
+          functions.append(variant)
+        }
         continue
       }
 
@@ -154,7 +158,8 @@ extension ExpoModuleMacro: MemberAttributeMacro {
 
     // `@JS` sync members run on the JS thread; stamp `@JavaScriptActor` so isolation is
     // checked at compile time. Skipped when the member already chose an isolation
-    // (`async`, `nonisolated`, or another global actor) — see `shouldStampJavaScriptActor`.
+    // (`nonisolated` or another global actor), or when `.concurrent` or `.withAsync("name")` runs
+    // it on the concurrent pool. See `shouldStampJavaScriptActor`.
     // `@Event(sync: true)` members get the stamp too: a sync event dispatches inline, so the
     // isolation forces its call site onto the JS thread. Async events (the default) are
     // deliberately left unstamped — their `emit` schedules onto the JS thread itself.
