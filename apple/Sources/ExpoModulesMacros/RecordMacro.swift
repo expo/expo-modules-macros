@@ -3,53 +3,53 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/**
- Member macro applied to a record type. Treats **every stored property** that is not
- `static`, `private`, `fileprivate`, `lazy` or computed as a property — no `@Field` wrapper
- needed — and synthesizes the conversion surface from the property's static type:
-
- - an explicit memberwise `init` (so the static factories have a single construction point),
- - `decode(_:in:)` and `encode(_:in:)` — the fast paths, reading each property straight off a JS
-   object and writing it straight into one,
- - `from(object:appContext:)` and `toObject(appContext:)`, which forward to `decode` and `encode`,
- - `from(dictionary:appContext:)` and `toDictionary(appContext:)` — converting each property from and
-   to a `[String: Any]` dictionary.
-
- The type is auto-conformed to `Record` (a core protocol whose requirements are this surface); the
- synthesized methods override `Record`'s reflection-based defaults, and the synthesized `decode` and
- `encode` replace its default `JavaScriptCodable` witnesses. Author-facing shape — no conformance to
- spell out:
-
-   @Record
-   struct Options {
-     var name: String          // required (non-optional, no default)
-     var count: Int = 0        // optional (has default)
-     var note: String?         // nullable + optional
-   }
-
- The JS key is always the property name. Requiredness is inferred from the declaration:
- a default value makes a property optional (the default applies when the source omits it),
- an optional type makes it nullable and optional, and a non-optional property without a
- default is required (the factories throw when the source omits it).
-
- The JS-value paths convert through `JavaScriptDecodable.decode` / `JavaScriptEncodable.encode`
- (`decode(_:in:)` / `encode(_:in:)`); the native-`Any` dictionary paths still go through the
- public dynamic-type API — `T.getDynamicType()` plus `cast(_:appContext:)` / `convertToJS(_:appContext:)`
- (`from(dictionary:)` / `toDictionary(appContext:)`), since `JavaScriptCodable` only converts JS
- values, not native `Any`. Both spell types as `public` symbols so the synthesized code compiles inside
- user modules without any internal core symbols. Every property type must therefore conform to both
- `AnyArgument` and `JavaScriptDecodable & JavaScriptEncodable`.
-
- A property whose type mentions `Any` (`Any?`, `[String: Any]?`, `[String: [Any]]`, …) can't conform to
- the JS codable protocols. On the JS-value paths it converts through the `JavaScriptValue` free-form
- methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and the matching `encodeAny…`
- for `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic `decodeAny(_:as:in:)` /
- `encodeAny(_:in:)` for any other type. Such a property only needs `AnyArgument` for the dictionary
- paths, and a bare `Any` needs nothing, since the dictionary paths pass it through unchanged.
-
- For classes that inherit from another `@Record`-annotated class, the synthesized
- methods chain to `super` so inherited properties are handled first.
- */
+/// Member macro applied to a record type. Treats **every stored property** that is not
+/// `static`, `private`, `fileprivate`, `lazy` or computed as a property — no `@Field` wrapper
+/// needed — and synthesizes the conversion surface from the property's static type:
+///
+/// - an explicit memberwise `init` (so the static factories have a single construction point),
+/// - `decode(_:in:)` and `encode(_:in:)` — the fast paths, reading each property straight off a JS
+///   object and writing it straight into one,
+/// - `from(object:appContext:)` and `toObject(appContext:)`, which forward to `decode` and `encode`,
+/// - `from(dictionary:appContext:)` and `toDictionary(appContext:)` — converting each property from and
+///   to a `[String: Any]` dictionary.
+///
+/// The type is auto-conformed to `Record` (a core protocol whose requirements are this surface); the
+/// synthesized methods override `Record`'s reflection-based defaults, and the synthesized `decode` and
+/// `encode` replace its default `JavaScriptCodable` witnesses. Author-facing shape — no conformance to
+/// spell out:
+///
+///     @Record
+///     struct Options {
+///       var name: String          // required (non-optional, no default)
+///       var count: Int = 0        // optional (has default)
+///       var note: String?         // nullable + optional
+///     }
+///
+/// The JS key is always the property name. Requiredness is inferred from the declaration:
+/// a default value makes a property optional (the default applies when the source omits it),
+/// an optional type makes it nullable and optional, and a non-optional property without a
+/// default is required (the factories throw when the source omits it).
+///
+/// The JS-value paths convert through `JavaScriptDecodable.decode` / `JavaScriptEncodable.encode`
+/// (`decode(_:in:)` / `encode(_:in:)`); the native-`Any` dictionary paths still go through the
+/// public dynamic-type API — `T.getDynamicType()` plus `cast(_:appContext:)` / `convertToJS(_:appContext:)`
+/// (`from(dictionary:)` / `toDictionary(appContext:)`), since `JavaScriptCodable` only converts JS
+/// values, not native `Any`. Both spell types as `public` symbols so the synthesized code compiles inside
+/// user modules without any internal core symbols. Every property type must therefore conform to both
+/// `AnyArgument` and `JavaScriptDecodable & JavaScriptEncodable`.
+///
+/// A property whose type mentions `Any` (`Any?`, `[String: Any]?`, `[String: [Any]]`, …) can't conform to
+/// the JS codable protocols. On the JS-value paths it converts through the `JavaScriptValue` free-form
+/// methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and the matching `encodeAny…`
+/// for `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic `decodeAny(_:as:in:)` /
+/// `encodeAny(_:in:)` for any other type. Such a property only needs `AnyArgument` for the dictionary
+/// paths, and a bare `Any` needs nothing, since the dictionary paths pass it through unchanged.
+///
+/// A record class must be `final` and have no inheritance clause. The synthesized factories construct
+/// `Self` through the memberwise init, which only a final class can do without a `required` init, and
+/// the macro can't tell a superclass from a protocol in the clause, so protocol conformances go in an
+/// extension.
 public struct RecordMacro: MemberMacro, ExtensionMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -65,10 +65,12 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     } else {
       throw MacroExpansionErrorMessage("@Record can only be applied to a struct or class")
     }
-    let isClass = declaration.is(ClassDeclSyntax.self)
+    let classDiagnostics = unsupportedClassDiagnostics(of: declaration)
+    guard classDiagnostics.isEmpty else {
+      throw DiagnosticsError(diagnostics: classDiagnostics)
+    }
 
     let properties = try recordProperties(of: declaration)
-    let inheritsRecord = isClass && classHasInheritance(declaration)
 
     // The user may hand-write any of the initializers the macro would otherwise synthesize. Emitting
     // a duplicate is a hard "invalid redeclaration" error, so skip anything already declared and let
@@ -99,32 +101,28 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     }
 
     if !existingInitLabels.contains([]) {
-      if let defaultInit = defaultInit(properties: properties, isClass: isClass) {
+      if let defaultInit = defaultInit(properties: properties) {
         members.append(defaultInit)
       }
     }
     if !existingInitLabels.contains(properties.map { $0.key }) {
       members.append(memberwiseInit(properties: properties))
     }
-    members.append(fromJSObjectFactory(properties: properties, inheritsRecord: inheritsRecord))
+    members.append(fromJSObjectFactory())
     members.append(fromDictionaryFactory(properties: properties))
-    members.append(toDictionaryMethod(properties: properties, inheritsRecord: inheritsRecord))
-    members.append(toObjectMethod(properties: properties, inheritsRecord: inheritsRecord))
-    if !inheritsRecord {
-      members.append(contentsOf: javaScriptCodableWitnesses(properties: properties, typeName: typeName))
-    }
+    members.append(toDictionaryMethod(properties: properties))
+    members.append(toObjectMethod())
+    members.append(contentsOf: javaScriptCodableWitnesses(properties: properties, typeName: typeName))
     return members
   }
 
-  /**
-   Auto-conforms the type to `Record` — the protocol whose requirements are exactly the members
-   synthesized above (`init()`, the two `from(_:)` factories, and the `toDictionary`/`toObject`
-   write side), which the synthesized methods satisfy by overriding `Record`'s reflection-based
-   defaults.
-
-   The conformance is skipped when the type already declares it, and for class subclasses
-   (which inherit it from a `@Record`-annotated parent) no extension is emitted at all.
-   */
+  /// Auto-conforms the type to `Record` — the protocol whose requirements are exactly the members
+  /// synthesized above (`init()`, the two `from(_:)` factories, and the `toDictionary`/`toObject`
+  /// write side), which the synthesized methods satisfy by overriding `Record`'s reflection-based
+  /// defaults.
+  ///
+  /// The conformance is skipped when the type already declares it, and for a class the member role
+  /// rejects, which would otherwise get conformance errors for the members it didn't synthesize.
   public static func expansion(
     of node: AttributeSyntax,
     attachedTo declaration: some DeclGroupSyntax,
@@ -132,10 +130,10 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
-    if declaration.is(ClassDeclSyntax.self) && classHasInheritance(declaration) {
+    guard declaration.is(StructDeclSyntax.self) || declaration.is(ClassDeclSyntax.self) else {
       return []
     }
-    guard declaration.is(StructDeclSyntax.self) || declaration.is(ClassDeclSyntax.self) else {
+    guard unsupportedClassDiagnostics(of: declaration).isEmpty else {
       return []
     }
     if inheritsProtocol(named: "Record", in: declaration) {
@@ -279,23 +277,19 @@ private func recordProperties(
 
 // MARK: - Synthesized members
 
-/**
- The parameterless `init()` required by the `Record` protocol. Nothing in the synthesized code uses
- it — the factories construct through the memberwise init with defaults inlined — so it's purely a
- conformance witness. Swift only synthesizes an implicit `init()` for a struct that declares no other
- initializer, but the macro always emits a memberwise `init(…)`, which suppresses it, so for structs
- the macro must supply `init()` itself.
-
- When no property is required, the body is empty: every stored property initializes from its own
- declaration. When a property *is* required there's no value to give it, so the body traps — this `init()`
- is never reached (the `from(…)` factories don't call it), it exists only to satisfy the requirement.
-
- Not emitted when there are no properties at all — there the memberwise init already *is* `init()`. Classes
- are left alone: they inherit `init()` from their `@Record` superclass, and a base `@Record` class is
- unsupported today.
- */
-private func defaultInit(properties: [RecordProperty], isClass: Bool) -> DeclSyntax? {
-  if isClass || properties.isEmpty {
+/// The parameterless `init()` required by the `Record` protocol. Nothing in the synthesized code uses
+/// it — the factories construct through the memberwise init with defaults inlined — so it's purely a
+/// conformance witness. Swift only synthesizes an implicit `init()` for a type that declares no other
+/// initializer, but the macro always emits a memberwise `init(…)`, which suppresses it, so the macro
+/// must supply `init()` itself.
+///
+/// When no property is required, the body is empty: every stored property initializes from its own
+/// declaration. When a property *is* required there's no value to give it, so the body traps — this `init()`
+/// is never reached (the `from(…)` factories don't call it), it exists only to satisfy the requirement.
+///
+/// Not emitted when there are no properties at all — there the memberwise init already *is* `init()`.
+private func defaultInit(properties: [RecordProperty]) -> DeclSyntax? {
+  if properties.isEmpty {
     return nil
   }
   if properties.contains(where: { $0.isRequired }) {
@@ -335,36 +329,18 @@ private func memberwiseInit(properties: [RecordProperty]) -> DeclSyntax {
     """
 }
 
-/**
- `from(object:appContext:)`. A record forwards to its own unowned `decode(_:in:)` witness (see
- `javaScriptCodableWitnesses`), which holds the property reads. A subclass, which gets no witnesses,
- reads the properties here, in the app context's runtime.
- */
-private func fromJSObjectFactory(properties: [RecordProperty], inheritsRecord: Bool) -> DeclSyntax {
-  guard inheritsRecord else {
-    // The record declares only the unowned `decode`, so the call lends the value unowned. With an owning
-    // value it would reach an owning `decode` default, and `Record`'s converts through this factory.
-    return """
-      @JavaScriptActor
-      public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
-        let runtime = try appContext.runtime
-        return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
-          return try decode(unownedValue, in: runtime)
-        }
-      }
-      """
-  }
-  var lines: [String] = []
-  // Only bind the runtime when there's a property to decode — an empty record's factory would
-  // otherwise leave it unused.
-  if !properties.isEmpty {
-    lines.append("  let runtime = try appContext.runtime")
-  }
-  lines.append(factoryBody(properties: properties, readLines: jsObjectReadLines(properties: properties)))
+/// `from(object:appContext:)`, which forwards to the record's own unowned `decode(_:in:)` witness (see
+/// `javaScriptCodableWitnesses`), where the property reads are.
+private func fromJSObjectFactory() -> DeclSyntax {
+  // The record declares only the unowned `decode`, so the call lends the value unowned. With an owning
+  // value it would reach an owning `decode` default, and `Record`'s converts through this factory.
   return """
     @JavaScriptActor
     public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
-    \(raw: lines.joined(separator: "\n"))
+      let runtime = try appContext.runtime
+      return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+        return try decode(unownedValue, in: runtime)
+      }
     }
     """
 }
@@ -458,66 +434,28 @@ private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
   return lines
 }
 
-/**
- `toDictionary(appContext:)` — converts each property back to a JS-compatible value via the
- dynamic type and assembles a `[String: Any]`. Inherited properties are merged in first.
- */
-private func toDictionaryMethod(properties: [RecordProperty], inheritsRecord: Bool) -> DeclSyntax {
-  let overrideKeyword = inheritsRecord ? "override " : ""
-  var lines: [String] = []
-  if inheritsRecord {
-    lines.append("  var dictionary = super.toDictionary(appContext: appContext)")
-  } else {
-    lines.append("  var dictionary: [String: Any] = [:]")
-  }
+/// `toDictionary(appContext:)` — converts each property back to a JS-compatible value via the
+/// dynamic type and assembles a `[String: Any]`.
+private func toDictionaryMethod(properties: [RecordProperty]) -> DeclSyntax {
+  var lines = ["  var dictionary: [String: Any] = [:]"]
   for property in properties {
     lines.append("  dictionary[\"\(property.key)\"] = self.\(property.name)")
   }
   lines.append("  return dictionary")
-  let body = lines.joined(separator: "\n")
-
-  if inheritsRecord {
-    return """
-      public \(raw: overrideKeyword)func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
-      \(raw: body)
-      }
-      """
-  }
   return """
     public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
-    \(raw: body)
+    \(raw: lines.joined(separator: "\n"))
     }
     """
 }
 
-/**
- `toObject(appContext:)`. A record forwards to its own `encode(_:in:)` witness (see
- `javaScriptCodableWitnesses`), which holds the property writes. A subclass, which gets no witnesses,
- overrides it to chain to `super`, so inherited properties are written first, and writes its own
- properties in the app context's runtime.
- */
-private func toObjectMethod(properties: [RecordProperty], inheritsRecord: Bool) -> DeclSyntax {
-  guard inheritsRecord else {
-    return """
-      @JavaScriptActor
-      public func toObject(appContext: AppContext) throws -> JavaScriptObject {
-        return try Self.encode(self, in: appContext.runtime).asObject()
-      }
-      """
-  }
-  var lines: [String] = []
-  // The runtime is only needed when there's a property to encode (the object itself comes from
-  // `super`). Binding it when unused would warn.
-  if !properties.isEmpty {
-    lines.append("  let runtime = try appContext.runtime")
-  }
-  lines.append("  let object = try super.toObject(appContext: appContext)")
-  lines.append(contentsOf: objectWriteLines(properties: properties, of: "self"))
-  lines.append("  return object")
+/// `toObject(appContext:)`, which forwards to the record's own `encode(_:in:)` witness (see
+/// `javaScriptCodableWitnesses`), where the property writes are.
+private func toObjectMethod() -> DeclSyntax {
   return """
     @JavaScriptActor
-    public override func toObject(appContext: AppContext) throws -> JavaScriptObject {
-    \(raw: lines.joined(separator: "\n"))
+    public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+      return try Self.encode(self, in: appContext.runtime).asObject()
     }
     """
 }
@@ -606,18 +544,53 @@ private func initializerParameterLabels(of declaration: some DeclGroupSyntax) ->
   return signatures
 }
 
-/**
- True if the class declaration has any inheritance clause. Used as a heuristic for
- whether the superclass also conforms to `Record` and provides the synthesized methods;
- the macro emits `override` in this case.
- */
-private func classHasInheritance(_ declaration: some DeclGroupSyntax) -> Bool {
-  guard let classDecl = declaration.as(ClassDeclSyntax.self),
-    let inherited = classDecl.inheritanceClause?.inheritedTypes,
-    !inherited.isEmpty else {
-    return false
+/// The errors for a class the macro can't synthesize a record for: one that isn't `final`, or one
+/// with an inheritance clause. Empty for a struct and for a supported class.
+private func unsupportedClassDiagnostics(of declaration: some DeclGroupSyntax) -> [Diagnostic] {
+  guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
+    return []
   }
-  return true
+  let name = classDecl.name.text
+  var diagnostics: [Diagnostic] = []
+  if !classDecl.modifiers.contains(where: { $0.name.tokenKind == .keyword(.final) }) {
+    // An `open` class can't also be `final`, so changing its access level is left to the author.
+    let isOpen = classDecl.modifiers.contains(where: { $0.name.tokenKind == .keyword(.open) })
+    diagnostics.append(
+      Diagnostic(
+        node: classDecl.classKeyword,
+        message: RecordDiagnosticMessage(
+          "@Record class '\(name)' must be final, because the macro doesn't support subclasses of a record",
+          id: "record-class-not-final"
+        ),
+        fixIts: isOpen ? [] : [markFinalFixIt(for: classDecl)]))
+  }
+  if let inheritanceClause = classDecl.inheritanceClause {
+    diagnostics.append(
+      Diagnostic(
+        node: inheritanceClause,
+        message: RecordDiagnosticMessage(
+          "@Record class '\(name)' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
+          id: "record-class-inheritance"
+        )))
+  }
+  return diagnostics
+}
+
+/// The fix-it for a record class that isn't `final`: add the modifier right before `class`.
+private func markFinalFixIt(for classDecl: ClassDeclSyntax) -> FixIt {
+  // The new modifier takes over the leading trivia of `class` (the line break after the attribute
+  // when no other modifier comes first), so it lands where `class` started.
+  let classKeyword = classDecl.classKeyword
+  var modifiers = classDecl.modifiers
+  modifiers.append(
+    DeclModifierSyntax(name: .keyword(.final, leadingTrivia: classKeyword.leadingTrivia, trailingTrivia: .space)))
+  let newDecl = classDecl
+    .with(\.modifiers, modifiers)
+    .with(\.classKeyword, classKeyword.with(\.leadingTrivia, []))
+  return FixIt(
+    message: RecordFixItMessage("Mark the class 'final'", id: "record-class-insert-final"),
+    changes: [.replace(oldNode: Syntax(classDecl), newNode: Syntax(newDecl))]
+  )
 }
 
 private struct RecordDiagnosticMessage: DiagnosticMessage {
@@ -628,5 +601,15 @@ private struct RecordDiagnosticMessage: DiagnosticMessage {
   init(_ message: String, id: String) {
     self.message = message
     self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+  }
+}
+
+private struct RecordFixItMessage: FixItMessage {
+  let message: String
+  let fixItID: MessageID
+
+  init(_ message: String, id: String) {
+    self.message = message
+    self.fixItID = MessageID(domain: "ExpoModulesMacros", id: id)
   }
 }
