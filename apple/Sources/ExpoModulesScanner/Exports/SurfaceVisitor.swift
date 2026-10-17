@@ -292,8 +292,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   }
 
   /// Builds the `ExportedFunction` entries for a `@JS func`: JS-name fallback, parameters, a `Void`
-  /// return as `nil`, and the effect/static flags. A synchronous function with `.async("name")` gets a
-  /// second, `async` entry under that name, for the promise-returning variant the macro binds.
+  /// return as `nil`, and the effect/static flags. A synchronous function with `.withAsync("name")`
+  /// gets a second, `async` entry under that name, for the promise-returning variant the macro binds.
   private func makeFunctions(
     funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
   ) -> [ExportedFunction] {
@@ -676,9 +676,10 @@ private func boolArgument(of attribute: AttributeSyntax, label: String) -> Bool?
   return nil
 }
 
-/// The name in a `@JS` attribute's `.async("name")` option, in the arguments or inside an array literal
-/// (`@JS("load", [.async("loadAsync")])`), or `nil` when the option is absent or its argument isn't a
-/// plain string literal. Mirrors `asyncVariantOption` and `asyncVariantName` in the macros.
+/// The name in a `@JS` attribute's `.withAsync("name")` option, in the arguments or inside an array
+/// literal (`@JS("load", [.withAsync("loadAsync")])`), or `nil` when the option is absent or its
+/// argument isn't a plain string literal. Mirrors `asyncVariantOption` and `asyncVariantName` in the
+/// macros.
 private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
   guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return nil
@@ -692,7 +693,7 @@ private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
   for expression in expressions {
     guard let call = expression.as(FunctionCallExprSyntax.self),
       let member = call.calledExpression.as(MemberAccessExprSyntax.self),
-      member.declName.baseName.text == "async" else {
+      member.declName.baseName.text == "withAsync" else {
       continue
     }
     guard call.arguments.count == 1,

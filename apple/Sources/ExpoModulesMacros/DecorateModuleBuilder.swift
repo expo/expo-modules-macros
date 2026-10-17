@@ -14,9 +14,9 @@ import SwiftSyntax
 /// and returns the async body (call and result encode), so nothing JSI-owned crosses the asynchronous
 /// boundary and JS gets a promise.
 ///
-/// A synchronous function marked `@JS(.async("name"))` also binds a promise-returning variant under that
-/// name (see `asyncVariant`). It decodes and encodes like an `async` function, and calls the function on
-/// the concurrent pool.
+/// A synchronous function marked `@JS(.withAsync("name"))` also binds a promise-returning variant
+/// under that name (see `asyncVariant`). It decodes and encodes like an `async` function, and calls
+/// the function on the concurrent pool.
 internal struct JSFunction {
   let swiftName: String
   private(set) var jsName: String
@@ -29,7 +29,7 @@ internal struct JSFunction {
   private(set) var isAsync: Bool
   /// The function's name in the source, where a JavaScript name collision is reported.
   private(set) var nameToken: TokenSyntax
-  /// The name from `.async("name")` and its token, or `nil` when the attribute doesn't list it.
+  /// The name from `.withAsync("name")` and its token, or `nil` when the attribute doesn't list it.
   private var asyncVariantName: (name: String, token: TokenSyntax)?
   /// True for the binding `asyncVariant` returns: it calls the synchronous function on the concurrent
   /// pool instead of on the JavaScript thread.
@@ -51,8 +51,9 @@ internal struct JSFunction {
     self.asyncVariantName = asyncVariantOption(of: attribute).flatMap(asyncVariantName(of:))
   }
 
-  /// The promise-returning binding that `.async("name")` adds next to a synchronous function, or `nil`
-  /// when the attribute doesn't list it. An `async` function gets none: `@JS` reports the option there.
+  /// The promise-returning binding that `.withAsync("name")` adds next to a synchronous function, or
+  /// `nil` when the attribute doesn't list it. An `async` function gets none: `@JS` reports the option
+  /// there.
   var asyncVariant: JSFunction? {
     guard let asyncVariantName, !isAsync else {
       return nil

@@ -1016,12 +1016,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) binds a promise-returning variant that calls the function on the concurrent pool`() {
+  func `@JS(.withAsync) binds a promise-returning variant that calls the function on the concurrent pool`() {
     assertExpansion(
       """
       @ExpoModule
       final class FileModule: Module {
-        @JS("textSync", .async("text"))
+        @JS("textSync", .withAsync("text"))
         func text(path: String) throws -> String { path }
       }
       """,
@@ -1066,12 +1066,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) variant of a function with a trailing defaulted parameter has a call per accepted arity`() {
+  func `@JS(.withAsync) variant of a function with a trailing defaulted parameter has a call per accepted arity`() {
     assertExpansion(
       """
       @ExpoModule
       final class LogModule: Module {
-        @JS(.async("writeAsync"))
+        @JS(.withAsync("writeAsync"))
         func write(_ message: String, level: Int = 0) {}
       }
       """,
@@ -1130,12 +1130,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) on an async function is diagnosed on the attribute`() {
+  func `@JS(.withAsync) on an async function is diagnosed on the attribute`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
-        @JS(.async("loadAsync"))
+        @JS(.withAsync("loadAsync"))
         func load() async -> Int { 0 }
       }
       """,
@@ -1168,7 +1168,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.async' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.async', and use '.concurrent' to run the function off the JavaScript thread.",
+            "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
           line: 3,
           column: 3,
           severity: .error
@@ -1178,12 +1178,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) on a property is diagnosed on the attribute`() {
+  func `@JS(.withAsync) on a property is diagnosed on the attribute`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
-        @JS(.async("statusAsync"))
+        @JS(.withAsync("statusAsync"))
         var status: String { "ok" }
       }
       """,
@@ -1210,7 +1210,7 @@ struct ExpoModuleMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "'.async' applies only to a synchronous @JS function, not to a property or initializer.",
+          message: "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer.",
           line: 3,
           column: 3,
           severity: .error
@@ -1220,12 +1220,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) needs the variant's name as a string literal`() {
+  func `@JS(.withAsync) needs the variant's name as a string literal`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
-        @JS(.async(variantName))
+        @JS(.withAsync(variantName))
         func load() -> Int { 0 }
       }
       """,
@@ -1254,7 +1254,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.async' takes the JavaScript name of the variant as a string literal, for example '.async(\"loadAsync\")'.",
+            "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'.",
           line: 3,
           column: 7,
           severity: .error
@@ -1264,16 +1264,16 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) on a function of a global-actor type is diagnosed unless it's nonisolated`() {
+  func `@JS(.withAsync) on a function of a global-actor type is diagnosed unless it's nonisolated`() {
     assertExpansion(
       """
       @MainActor
       @ExpoModule
       final class MyModule: Module {
-        @JS(.async("loadAsync"))
+        @JS(.withAsync("loadAsync"))
         func load() {}
 
-        @JS(.async("saveAsync"))
+        @JS(.withAsync("saveAsync"))
         nonisolated func save() {}
       }
       """,
@@ -1331,7 +1331,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.async' calls the function on the concurrent thread pool, so the function can't inherit '@MainActor' from 'MyModule'. Mark the function 'nonisolated'.",
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '@MainActor' from 'MyModule'. Mark the function 'nonisolated'.",
           line: 4,
           column: 3,
           severity: .error
@@ -1341,12 +1341,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) on a function isolated to a global actor is diagnosed on the attribute`() {
+  func `@JS(.withAsync) on a function isolated to a global actor is diagnosed on the attribute`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
-        @JS(.async("loadAsync"))
+        @JS(.withAsync("loadAsync"))
         @MainActor
         func load() {}
       }
@@ -1387,7 +1387,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.async' calls the function on the concurrent thread pool, so the function can't be isolated to '@MainActor'.",
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '@MainActor'.",
           line: 3,
           column: 3,
           severity: .error
@@ -1397,12 +1397,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `@JS(.async) variant name that the function's own binding uses is a collision`() {
+  func `@JS(.withAsync) variant name that the function's own binding uses is a collision`() {
     assertExpansion(
       """
       @ExpoModule
       final class MyModule: Module {
-        @JS(.async("load"))
+        @JS(.withAsync("load"))
         func load() {}
       }
       """,
@@ -1445,7 +1445,7 @@ struct ExpoModuleMacroTests {
           line: 4,
           column: 8,
           severity: .error,
-          notes: [NoteSpec(message: "'load' is first bound here", line: 3, column: 15)]
+          notes: [NoteSpec(message: "'load' is first bound here", line: 3, column: 19)]
         )
       ]
     )

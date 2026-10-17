@@ -1044,15 +1044,15 @@ struct ExpoModuleClassesTests {
   }
 
   @Test
-  func `@JS(.async) variants call an instance method on the unwrapped receiver and a static one on the type`() {
+  func `@JS(.withAsync) variants call an instance method on the unwrapped receiver and a static one on the type`() {
     assertExpansion(
       """
       @SharedObject
       final class Document: SharedObject {
-        @JS("readSync", .async("read"))
+        @JS("readSync", .withAsync("read"))
         func read(_ count: Int) throws -> String { "" }
 
-        @JS(.async("existsAsync"))
+        @JS(.withAsync("existsAsync"))
         static func exists(_ path: String) -> Bool { true }
       }
       """,

@@ -88,9 +88,9 @@ private func diagnoseConcurrentOption(
       )))
 }
 
-/// Emits the diagnostics for `@JS(.async("name"))` on a member that can't take it. The option adds a
-/// promise-returning variant that calls the function on the concurrent pool, so it needs a synchronous
-/// function without a global actor, and the variant's JavaScript name as a string literal.
+/// Emits the diagnostics for `@JS(.withAsync("name"))` on a member that can't take it. The option
+/// adds a promise-returning variant that calls the function on the concurrent pool, so it needs a
+/// synchronous function without a global actor, and the variant's JavaScript name as a string literal.
 private func diagnoseAsyncVariantOption(
   of node: AttributeSyntax,
   on declaration: some DeclSyntaxProtocol,
@@ -104,7 +104,7 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "'.async' applies only to a synchronous @JS function, not to a property or initializer.",
+          "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer.",
           id: "js-async-variant-requires-function",
           severity: .error
         )))
@@ -115,7 +115,7 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "'.async' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.async', and use '.concurrent' to run the function off the JavaScript thread.",
+          "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
           id: "js-async-variant-on-async-function",
           severity: .error
         )))
@@ -126,7 +126,7 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: option,
         message: JSDiagnosticMessage(
-          "'.async' takes the JavaScript name of the variant as a string literal, for example '.async(\"loadAsync\")'.",
+          "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'.",
           id: "js-async-variant-name",
           severity: .error
         )))
@@ -137,9 +137,9 @@ private func diagnoseAsyncVariantOption(
         node: node,
         message: JSDiagnosticMessage(
           isolation.enclosingTypeName.map {
-            "'.async' calls the function on the concurrent thread pool, so the function can't inherit '\(isolation.attribute)' from '\($0)'. Mark the function 'nonisolated'."
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '\(isolation.attribute)' from '\($0)'. Mark the function 'nonisolated'."
           }
-            ?? "'.async' calls the function on the concurrent thread pool, so the function can't be isolated to '\(isolation.attribute)'.",
+            ?? "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '\(isolation.attribute)'.",
           id: "js-async-variant-isolated",
           severity: .error
         )))

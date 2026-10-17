@@ -57,20 +57,20 @@ struct ModuleSurfaceTests {
   }
 
   @Test
-  func `A @JS(.async) function also exports its promise-returning variant`() throws {
+  func `A @JS(.withAsync) function also exports its promise-returning variant`() throws {
     let module = try #require(
       surface(
         """
         @ExpoModule
         final class FileModule {
-          @JS("textSync", .async("text"))
+          @JS("textSync", .withAsync("text"))
           func text(path: String) throws -> String { "" }
 
-          @JS("writeSync", [.async("write")])
+          @JS("writeSync", [.withAsync("write")])
           func write(path: String) {}
 
-          // The macro reports `.async` on an async function and binds no variant.
-          @JS(.async("loadAsync"))
+          // The macro reports `.withAsync` on an async function and binds no variant.
+          @JS(.withAsync("loadAsync"))
           func load() async {}
         }
         """
