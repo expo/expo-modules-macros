@@ -400,10 +400,16 @@ export interface ScanStats {
   durationMs: number;
 }
 
-/** One module in the `scan-modules` output. */
-export interface ScannedModule {
+/**
+ * One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, or a `@SharedObject`
+ * class in `sharedObjects`.
+ */
+export interface ScannedClass {
   name: string;
-  /** The resolved JS name: the `@ExpoModule("Foo")` override, else the class name. */
+  /**
+   * The resolved JS name: the `@ExpoModule("Foo")` or `@SharedObject("Foo")` override, else the class
+   * name.
+   */
   jsName: string;
   /**
    * The spelled access level, or `internal` when none is written. The generated provider references
@@ -412,7 +418,7 @@ export interface ScannedModule {
   accessLevel: string;
   /**
    * The OSes whose builds include this class, resolved from the enclosing `#if` conditions. An
-   * unconditional module lists every OS. Empty means no build is known to include it, so don't
+   * unconditional class lists every OS. Empty means no build is known to include it, so don't
    * register it.
    */
   platforms: ScannedPlatform[];
@@ -422,7 +428,10 @@ export interface ScannedModule {
 /** The `scan-modules` result. */
 export interface ScanModulesResult {
   schemaVersion: number;
-  modules: ScannedModule[];
+  /** The top-level `@ExpoModule` classes. */
+  modules: ScannedClass[];
+  /** The top-level `@SharedObject` classes, with the same platform rules as `modules`. */
+  sharedObjects: ScannedClass[];
   warnings: ScanWarning[];
   stats: ScanStats;
 }

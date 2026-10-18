@@ -34,19 +34,19 @@ public enum Scanner {
   }
 }
 
-/// One module in the `scan-modules` output. Trimmed to what `expo-modules-autolinking` needs to
-/// register a module: the Swift class name, the JS name it registers under, the platforms that
-/// include it, and the file it's in. The richer fields the visitor captures (declaration kind, raw
-/// macro arguments, line/column) are dropped here — they're redundant for this command (the macro
-/// is always `@ExpoModule` on a class) and the deep `scan-exports` surface carries the richer
-/// per-member detail instead.
-struct ScannedModule: Codable, Equatable {
-  /// The Swift class name the module is declared as.
+/// One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, or a `@SharedObject`
+/// class in `sharedObjects`. Trimmed to what `expo-modules-autolinking` needs to register the class:
+/// the Swift class name, the JS name it registers under, the platforms that include it, and the file
+/// it's in. The richer fields the visitor captures (declaration kind, raw macro arguments,
+/// line/column) are dropped here, because this command doesn't need them (the macro is always on a
+/// class) and the deep `scan-exports` surface carries the richer per-member detail instead.
+struct ScannedClass: Codable, Equatable {
+  /// The Swift class name.
   let name: String
 
-  /// The fully-resolved JS module name: the `@ExpoModule("Foo")` override when present, otherwise the
-  /// class name. Resolved here (rather than left `nil`) so it matches how the macro derives the name
-  /// and the consumer never has to apply the fallback itself.
+  /// The fully-resolved JS name: the `@ExpoModule("Foo")` or `@SharedObject("Foo")` override when
+  /// present, otherwise the class name. Resolved here (rather than left `nil`) so it matches how the
+  /// macro derives the name and the consumer never has to apply the fallback itself.
   let jsName: String
 
   /// The class's spelled access modifier (`open`, `public`, `package`, `fileprivate`, `private`),
@@ -56,20 +56,21 @@ struct ScannedModule: Codable, Equatable {
   let accessLevel: String
 
   /// The Apple OSes whose builds include this class, spelled as `os(...)` spells them and compared
-  /// case-sensitively. An unconditional module lists every OS. Empty means no build is known to
+  /// case-sensitively. An unconditional class lists every OS. Empty means no build is known to
   /// include it, because the enclosing conditions depend on flags not asserted with `--define` or
   /// on conditions a static scan cannot answer (those are reported in `warnings`). The consumer
   /// must not assume such a class exists.
   let platforms: [String]
 
-  /// Source file the module was found in, relative to the path the scanner was invoked with.
+  /// Source file the class was found in, relative to the path the scanner was invoked with.
   let file: String
 }
 
 /// Version of the `scan-modules` output shape. Bumped on any breaking change to the envelope or to
-/// `ScannedModule`, so `expo-modules-autolinking` can verify it understands the output before
+/// `ScannedClass`, so `expo-modules-autolinking` can verify it understands the output before
 /// trusting it (and fall back to config-declared modules when it doesn't). Version 2 added the
-/// per-module `platforms` list and made the module list platform-agnostic.
+/// per-module `platforms` list and made the module list platform-agnostic. A new field that older
+/// consumers can ignore, such as `sharedObjects`, doesn't change the version.
 let scanModulesSchemaVersion = 2
 
 /// The `scan-modules` result: the detected modules plus the stats describing the run. Encoded as the
@@ -77,7 +78,11 @@ let scanModulesSchemaVersion = 2
 /// serve different consumers and don't share an envelope.)
 struct ScanModulesResult: Codable, Equatable {
   let schemaVersion: Int
-  let modules: [ScannedModule]
+  let modules: [ScannedClass]
+
+  /// The top-level `@SharedObject` classes, in the same order and with the same platform rules as
+  /// `modules`.
+  let sharedObjects: [ScannedClass]
 
   /// Warnings for `#if` conditions the scan couldn't answer statically (see `ScanWarning`). Carried
   /// in the report rather than on stderr so the consumer can attach them to its own output.
@@ -97,25 +102,28 @@ private let platformUniverse: [(condition: String, reported: String)] = [
   (condition: "visionOS", reported: "visionOS"),
 ]
 
-/// Scans the given paths for top-level `@ExpoModule` types and returns every module found in any
+/// Scans the given paths for top-level `@ExpoModule` and `@SharedObject` types and returns every one
+/// found in any
 /// `#if` branch (in file then source order), each with the platforms whose builds include it, plus
 /// the stats for the run — the `scan-modules` command. Kept separate from the public entry (and
 /// `internal`) so tests can drive it without going through argv/stdout.
 ///
 /// Each file is parsed once and walked once per platform (plus once unconditionally to enumerate
-/// every module): a module's `platforms` are the OSes whose evaluated walk reached it, given the
+/// every type): a type's `platforms` are the OSes whose evaluated walk reached it, given the
 /// asserted `defines`. The scanner reports the facts; filtering to the platform being linked is the
 /// consumer's call.
 func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResult {
-  var modules: [ScannedModule] = []
+  var modules: [ScannedClass] = []
+  var sharedObjects: [ScannedClass] = []
   var warnings: [ScanWarning] = []
   var seenWarnings = Set<ScanWarning>()
 
-  let stats = scanFiles(paths: paths, macros: [.expoModule]) { source, file in
+  let macros: Set<DetectedMacro> = [.expoModule, .sharedObject]
+  let stats = scanFiles(paths: paths, macros: macros) { source, file in
     let tree = Parser.parse(source: source)
 
-    // The unconditional walk enumerates every module in the file, in source order.
-    let allModules = DetectionVisitor(file: file, tree: tree, detectedMacros: [.expoModule], configuration: nil)
+    // The unconditional walk enumerates every type in the file, in source order.
+    let allModules = DetectionVisitor(file: file, tree: tree, detectedMacros: macros, configuration: nil)
     allModules.walk(tree)
 
     // One evaluated walk per OS attributes each module to the platforms that include it. The walks
@@ -126,7 +134,7 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
       let visitor = DetectionVisitor(
         file: file,
         tree: tree,
-        detectedMacros: [.expoModule],
+        detectedMacros: macros,
         configuration: configuration
       )
       visitor.walk(tree)
@@ -140,24 +148,30 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
       }
     }
 
-    for detection in allModules.detections {
-      // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")` override, else
-      // the class name.
-      modules.append(
-        ScannedModule(
-          name: detection.name,
-          jsName: detection.jsName ?? detection.name,
-          accessLevel: detection.accessLevel,
-          platforms: platformsByDetection[detectionKey(detection)] ?? [],
-          file: detection.file
-        )
+    // The macros reject anything but a class, so a struct with one of them is never registered.
+    for detection in allModules.detections where detection.declarationKind == "class" {
+      // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")` or
+      // `@SharedObject("Foo")` override, else the class name.
+      let scanned = ScannedClass(
+        name: detection.name,
+        jsName: detection.jsName ?? detection.name,
+        accessLevel: detection.accessLevel,
+        platforms: platformsByDetection[detectionKey(detection)] ?? [],
+        file: detection.file
       )
+      switch detection.macro {
+      case .sharedObject:
+        sharedObjects.append(scanned)
+      default:
+        modules.append(scanned)
+      }
     }
   }
 
   return ScanModulesResult(
     schemaVersion: scanModulesSchemaVersion,
     modules: modules,
+    sharedObjects: sharedObjects,
     warnings: warnings,
     stats: stats
   )
