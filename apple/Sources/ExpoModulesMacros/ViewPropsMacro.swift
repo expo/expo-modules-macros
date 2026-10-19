@@ -84,7 +84,8 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     // stored constant with the mask already folded rather than a computed property rebuilding an
     // array literal per call. The macro knows the bit count, so the literal is exact: n props
     // occupy bits 0..<n, which is the low n bits set.
-    let allPropsMask = props.valueProps.isEmpty
+    let allPropsMask =
+      props.valueProps.isEmpty
       ? "0"
       : "0b" + String(repeating: "1", count: props.valueProps.count)
 
@@ -206,7 +207,8 @@ private func innerFunctionType(of type: TypeSyntax) -> TypeSyntax? {
   guard let tuple = type.as(TupleTypeSyntax.self),
     tuple.elements.count == 1,
     let only = tuple.elements.first,
-    only.type.is(FunctionTypeSyntax.self) else {
+    only.type.is(FunctionTypeSyntax.self)
+  else {
     return nil
   }
   return only.type
@@ -322,7 +324,8 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       // (`var title = ""`). Anything a syntactic macro can't resolve still needs an annotation,
       // since the decode surface names the type.
       let declaredType = binding.typeAnnotation?.type
-      let resolvedType = declaredType?.trimmedDescription
+      let resolvedType =
+        declaredType?.trimmedDescription
         ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
       guard let resolvedType else {
         throw MacroExpansionErrorMessage(
@@ -390,7 +393,8 @@ private func underlyingFunctionType(of type: TypeSyntax) -> FunctionTypeSyntax? 
   if let identifier = type.as(IdentifierTypeSyntax.self),
     identifier.name.text == "Optional",
     let argument = identifier.genericArgumentClause?.arguments.first,
-    case .type(let wrapped) = argument.argument {
+    case .type(let wrapped) = argument.argument
+  {
     return underlyingFunctionType(of: wrapped)
   }
   return nil
@@ -404,7 +408,8 @@ private func underlyingFunctionType(of type: TypeSyntax) -> FunctionTypeSyntax? 
 private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
   // An escaped case takes its raw value from the bare identifier already, but spelling it out keeps
   // the wire key visible in the generated source and independent of that implicit rule.
-  let cases = valueProps
+  let cases =
+    valueProps
     .map { prop in
       prop.name == prop.wireName
         ? "  case \(prop.name)"

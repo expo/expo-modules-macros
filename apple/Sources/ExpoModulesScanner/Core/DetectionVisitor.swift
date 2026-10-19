@@ -94,11 +94,13 @@ final class DetectionVisitor: SyntaxVisitor {
       if node.is(SourceFileSyntax.self) {
         return true
       }
-      guard node.is(CodeBlockItemListSyntax.self)
-        || node.is(CodeBlockItemSyntax.self)
-        || node.is(IfConfigClauseSyntax.self)
-        || node.is(IfConfigClauseListSyntax.self)
-        || node.is(IfConfigDeclSyntax.self) else {
+      guard
+        node.is(CodeBlockItemListSyntax.self)
+          || node.is(CodeBlockItemSyntax.self)
+          || node.is(IfConfigClauseSyntax.self)
+          || node.is(IfConfigClauseListSyntax.self)
+          || node.is(IfConfigDeclSyntax.self)
+      else {
         return false
       }
       current = node.parent
@@ -118,7 +120,8 @@ final class DetectionVisitor: SyntaxVisitor {
     for element in attributes {
       guard let attribute = element.as(AttributeSyntax.self),
         let macro = DetectedMacro(rawValue: attribute.attributeName.trimmedDescription),
-        detectedMacros.contains(macro) else {
+        detectedMacros.contains(macro)
+      else {
         continue
       }
       let location = converter.location(for: node.positionAfterSkippingLeadingTrivia)
@@ -174,7 +177,8 @@ func stringArgument(of attribute: AttributeSyntax) -> String? {
     first.label == nil,
     let str = first.expression.as(StringLiteralExprSyntax.self),
     let segment = str.segments.first?.as(StringSegmentSyntax.self),
-    str.segments.count == 1 else {
+    str.segments.count == 1
+  else {
     return nil
   }
   return segment.content.text

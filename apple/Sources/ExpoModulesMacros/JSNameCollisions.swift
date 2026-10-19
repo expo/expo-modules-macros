@@ -32,9 +32,11 @@ internal func diagnoseJSNameCollisions(
         notes: [
           Note(
             node: Syntax(first.nameToken),
-            message: JSNameCollisionNote("'\(member.jsName)' is first bound here"))
+            message: JSNameCollisionNote("'\(member.jsName)' is first bound here")
+          )
         ]
-      ))
+      )
+    )
   }
 }
 

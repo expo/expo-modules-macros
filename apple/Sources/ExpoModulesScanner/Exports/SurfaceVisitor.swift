@@ -100,7 +100,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           accessLevel: spelledAccessLevel(of: node.modifiers),
           platforms: platforms,
           file: file
-        ))
+        )
+      )
     } else if inherits(from: enumerableConformanceName, in: node.inheritanceClause) {
       let rawType = rawValueType(of: node.inheritanceClause)
       enums.append(
@@ -111,7 +112,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           accessLevel: spelledAccessLevel(of: node.modifiers),
           platforms: platforms,
           file: file
-        ))
+        )
+      )
     }
     // An enum is often a namespace for other types, so its body is searched too.
     return .visitChildren
@@ -156,7 +158,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           accessLevel: accessLevel,
           platforms: platforms,
           file: file
-        ))
+        )
+      )
       return
     }
 
@@ -173,7 +176,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           accessLevel: accessLevel,
           platforms: platforms,
           file: file
-        ))
+        )
+      )
       return
     }
 
@@ -185,7 +189,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           accessLevel: accessLevel,
           platforms: platforms,
           file: file
-        ))
+        )
+      )
     }
   }
 
@@ -214,7 +219,8 @@ final class SurfaceVisitor: SyntaxVisitor {
 
       if let varDecl = decl.as(VariableDeclSyntax.self),
         varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) == nil,
-        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.event.rawValue) {
+        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.event.rawValue)
+      {
         events.append(contentsOf: makeEvents(varDecl: varDecl, attribute: attribute, platforms: platforms))
         continue
       }
@@ -224,7 +230,8 @@ final class SurfaceVisitor: SyntaxVisitor {
       }
 
       if let initDecl = decl.as(InitializerDeclSyntax.self),
-        initDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) != nil {
+        initDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) != nil
+      {
         // At most one `@JS init`; keep the first if a malformed source has more (the macro errors).
         if initializer == nil {
           initializer = ExportedInitializer(
@@ -237,13 +244,15 @@ final class SurfaceVisitor: SyntaxVisitor {
       }
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
-        let attribute = funcDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) {
+        let attribute = funcDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue)
+      {
         functions.append(contentsOf: makeFunctions(funcDecl: funcDecl, attribute: attribute, platforms: platforms))
         continue
       }
 
       if let varDecl = decl.as(VariableDeclSyntax.self),
-        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) {
+        let attribute = varDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue)
+      {
         properties.append(contentsOf: makeProperties(varDecl: varDecl, attribute: attribute, platforms: platforms))
       }
     }
@@ -256,10 +265,13 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// reporting one would describe a surface that does not exist. `@JS` on the same property is
   /// caught by the caller, which reaches the `@JS` branch first.
   private func makeEvents(
-    varDecl: VariableDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
+    varDecl: VariableDeclSyntax,
+    attribute: AttributeSyntax,
+    platforms: [ExportedPlatform]
   ) -> [ExportedEvent] {
     guard varDecl.bindingSpecifier.tokenKind != .keyword(.let),
-      !isTypeLevel(varDecl.modifiers) else {
+      !isTypeLevel(varDecl.modifiers)
+    else {
       return []
     }
     let override = stringArgument(of: attribute)
@@ -274,7 +286,8 @@ final class SurfaceVisitor: SyntaxVisitor {
         binding.accessorBlock == nil,
         let functionType = underlyingFunctionType(of: binding.typeAnnotation?.type),
         isVoidEventReturn(functionType.returnClause.type),
-        functionType.parameters.count <= 1 else {
+        functionType.parameters.count <= 1
+      else {
         continue
       }
       let name = ident.identifier.identifierName
@@ -286,7 +299,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           isSync: isSync,
           accessLevel: spelledAccessLevel(of: varDecl.modifiers),
           platforms: platforms
-        ))
+        )
+      )
     }
     return result
   }
@@ -295,7 +309,9 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// return as `nil`, and the effect/static flags. A synchronous function with `.withAsync("name")`
   /// gets a second, `async` entry under that name, for the promise-returning variant the macro binds.
   private func makeFunctions(
-    funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
+    funcDecl: FunctionDeclSyntax,
+    attribute: AttributeSyntax,
+    platforms: [ExportedPlatform]
   ) -> [ExportedFunction] {
     let effects = funcDecl.signature.effectSpecifiers
     let returnType = funcDecl.signature.returnClause?.type
@@ -327,7 +343,9 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// bindings (`var a, b: Int`), so this returns an array. The value type is the annotation, else the
   /// literal default's inferred type, else `nil`.
   private func makeProperties(
-    varDecl: VariableDeclSyntax, attribute: AttributeSyntax, platforms: [ExportedPlatform]
+    varDecl: VariableDeclSyntax,
+    attribute: AttributeSyntax,
+    platforms: [ExportedPlatform]
   ) -> [ExportedProperty] {
     let isLet = varDecl.bindingSpecifier.tokenKind == .keyword(.let)
     let isStatic = isTypeLevel(varDecl.modifiers)
@@ -351,7 +369,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           defaultValue: binding.initializer?.value.trimmedDescription,
           accessLevel: spelledAccessLevel(of: varDecl.modifiers),
           platforms: platforms
-        ))
+        )
+      )
     }
     return result
   }
@@ -392,7 +411,8 @@ final class SurfaceVisitor: SyntaxVisitor {
     // `@Record` reads only the properties written directly in the body, so `#if` is not looked into.
     for member in members {
       guard let varDecl = member.decl.as(VariableDeclSyntax.self),
-        !isExcludedRecordModifier(varDecl.modifiers) else {
+        !isExcludedRecordModifier(varDecl.modifiers)
+      else {
         continue
       }
       let platforms = platformResolver.platforms(of: varDecl)
@@ -418,7 +438,8 @@ final class SurfaceVisitor: SyntaxVisitor {
             defaultValue: binding.initializer?.value.trimmedDescription,
             accessLevel: spelledAccessLevel(of: varDecl.modifiers),
             platforms: platforms
-          ))
+          )
+        )
       }
     }
     return properties
@@ -452,7 +473,8 @@ final class SurfaceVisitor: SyntaxVisitor {
             name: name,
             rawValue: writtenRawValue(of: element) ?? derivedStringRawValue(for: name, rawType: rawType),
             platforms: platforms
-          ))
+          )
+        )
       }
     }
     return cases
@@ -479,12 +501,17 @@ final class SurfaceVisitor: SyntaxVisitor {
       for element in caseDecl.elements {
         guard let parameters = element.parameterClause?.parameters,
           parameters.count == 1, let parameter = parameters.first,
-          parameter.defaultValue == nil else {
+          parameter.defaultValue == nil
+        else {
           continue
         }
         result.append(
           ExportedUnionMember(
-            name: element.name.identifierName, type: typeNode(from: parameter.type), platforms: platforms))
+            name: element.name.identifierName,
+            type: typeNode(from: parameter.type),
+            platforms: platforms
+          )
+        )
       }
     }
     return result
@@ -520,7 +547,8 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
     guard let item = node.parent?.as(MemberBlockItemSyntax.self),
       let parent = declaration(owning: item),
-      let scope = enclosingTypes(of: parent) else {
+      let scope = enclosingTypes(of: parent)
+    else {
       return nil
     }
     if let decl = parent.as(ExtensionDeclSyntax.self) {
@@ -645,7 +673,8 @@ private func underlyingFunctionType(of type: TypeSyntax?) -> FunctionTypeSyntax?
     return underlyingFunctionType(of: attributed.baseType)
   }
   if let tuple = type.as(TupleTypeSyntax.self),
-    tuple.elements.count == 1, let element = tuple.elements.first, element.firstName == nil {
+    tuple.elements.count == 1, let element = tuple.elements.first, element.firstName == nil
+  {
     return underlyingFunctionType(of: element.type)
   }
   return type.as(FunctionTypeSyntax.self)
@@ -655,7 +684,8 @@ private func underlyingFunctionType(of type: TypeSyntax?) -> FunctionTypeSyntax?
 /// accepts neither `Swift.Void` nor a parenthesized `(Void)`, so it would drop valid events.
 private func isVoidEventReturn(_ type: TypeSyntax) -> Bool {
   if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1,
-    let element = tuple.elements.first, element.firstName == nil {
+    let element = tuple.elements.first, element.firstName == nil
+  {
     return isVoidEventReturn(element.type)
   }
   let text = type.trimmedDescription
@@ -693,7 +723,8 @@ private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
   for expression in expressions {
     guard let call = expression.as(FunctionCallExprSyntax.self),
       let member = call.calledExpression.as(MemberAccessExprSyntax.self),
-      member.declName.baseName.text == "withAsync" else {
+      member.declName.baseName.text == "withAsync"
+    else {
       continue
     }
     guard call.arguments.count == 1,
@@ -701,7 +732,8 @@ private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
       argument.label == nil,
       let literal = argument.expression.as(StringLiteralExprSyntax.self),
       literal.segments.count == 1,
-      let segment = literal.segments.first?.as(StringSegmentSyntax.self) else {
+      let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+    else {
       return nil
     }
     return segment.content.text
@@ -766,7 +798,8 @@ private func writtenRawValue(of element: EnumCaseElementSyntax) -> String? {
     return value.trimmedDescription
   }
   guard literal.segments.count == 1,
-    let segment = literal.segments.first?.as(StringSegmentSyntax.self) else {
+    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+  else {
     return nil
   }
   // The segment's text is the literal's content with its delimiters already stripped, so a plain
@@ -822,7 +855,8 @@ private let knownNonRawValueProtocols: Set<String> = [
 func rawValueType(of clause: InheritanceClauseSyntax?) -> TypeNode? {
   guard let first = clause?.inheritedTypes.first?.type,
     let trailing = first.trimmedDescription.split(separator: ".").last.map(String.init),
-    !knownNonRawValueProtocols.contains(trailing) else {
+    !knownNonRawValueProtocols.contains(trailing)
+  else {
     return nil
   }
   return typeNode(from: first)
@@ -846,7 +880,8 @@ extension AttributeListSyntax {
   fileprivate func firstAttribute(named name: String) -> AttributeSyntax? {
     for element in self {
       if let attribute = element.as(AttributeSyntax.self),
-        attribute.attributeName.trimmedDescription == name {
+        attribute.attributeName.trimmedDescription == name
+      {
         return attribute
       }
     }
@@ -859,14 +894,16 @@ extension AttributeListSyntax {
 /// an array literal. A local copy of the macros' helper (the macro target can't be imported here).
 private func classListArgument(of attribute: AttributeSyntax, label: String) -> [String] {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
-    let array = args.first(where: { $0.label?.text == label })?.expression.as(ArrayExprSyntax.self) else {
+    let array = args.first(where: { $0.label?.text == label })?.expression.as(ArrayExprSyntax.self)
+  else {
     return []
   }
   return array.elements.compactMap { element in
     guard let memberAccess = element.expression.as(MemberAccessExprSyntax.self),
       memberAccess.declName.baseName.text == "self",
       let base = memberAccess.base,
-      base.is(DeclReferenceExprSyntax.self) || base.is(MemberAccessExprSyntax.self) else {
+      base.is(DeclReferenceExprSyntax.self) || base.is(MemberAccessExprSyntax.self)
+    else {
       return nil
     }
     return base.trimmedDescription

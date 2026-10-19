@@ -54,7 +54,8 @@ public struct EventMacro: AccessorMacro {
     // through the getter, so the body never has to spell the payload type. A sync event calls
     // `emitSync` (inline dispatch, JS thread only); the default calls the scheduling `emit`.
     let emitMethod = event.isSync ? "emitSync" : "emit"
-    let closure = event.hasPayload
+    let closure =
+      event.hasPayload
       ? "{ [weak self] payload in self?.\(emitMethod)(event: \"\(event.jsName)\", payload: payload) }"
       : "{ [weak self] in self?.\(emitMethod)(event: \"\(event.jsName)\") }"
     return [
@@ -87,7 +88,8 @@ extension EventMacro: PeerMacro {
     let name = event.swiftName
     let payload = event.payloadType.flatMap(assertableBoundaryType)
     let owner = enclosingTypeName(in: context) ?? "Self"
-    let helper = payload != nil
+    let helper =
+      payload != nil
       ? "func \(name)<P: \(jsConvertibleProtocolName), E: \(eventEmitterProtocolName)>(_: P.Type, _: E.Type) {}"
       : "func \(name)<E: \(eventEmitterProtocolName)>(_: E.Type) {}"
     let call = payload.map { "\(name)(\($0).self, \(owner).self)" } ?? "\(name)(\(owner).self)"
@@ -132,7 +134,8 @@ private func validatedEvent(
   }
   if varDecl.attributes.firstAttribute(named: "JS") != nil {
     throw MacroExpansionErrorMessage(
-      "@Event and @JS cannot be combined on the same property; an event is exposed to JS on its own, so remove one of the attributes")
+      "@Event and @JS cannot be combined on the same property; an event is exposed to JS on its own, so remove one of the attributes"
+    )
   }
   // The compiler also rejects accessor macros on a `let`, but with a generic message; this one says
   // what to do instead and carries the fix-it doing it. The synthesized property is getter-only, so
@@ -142,32 +145,40 @@ private func validatedEvent(
   }
   if varDecl.modifiers.contains(where: isTypeLevelModifier) {
     throw MacroExpansionErrorMessage(
-      "@Event must be an instance property; events are emitted from a module or shared object instance.")
+      "@Event must be an instance property; events are emitted from a module or shared object instance."
+    )
   }
   guard varDecl.bindings.count == 1, let binding = varDecl.bindings.first,
-    let identifier = binding.pattern.as(IdentifierPatternSyntax.self) else {
+    let identifier = binding.pattern.as(IdentifierPatternSyntax.self)
+  else {
     throw MacroExpansionErrorMessage(
-      "@Event must be applied to a single named property; declare each event separately")
+      "@Event must be applied to a single named property; declare each event separately"
+    )
   }
   if binding.initializer != nil {
     throw MacroExpansionErrorMessage(
-      "@Event property cannot have an initial value; the macro synthesizes the closure")
+      "@Event property cannot have an initial value; the macro synthesizes the closure"
+    )
   }
   if binding.accessorBlock != nil {
     throw MacroExpansionErrorMessage(
-      "@Event property cannot declare its own accessors; the macro synthesizes the getter")
+      "@Event property cannot declare its own accessors; the macro synthesizes the getter"
+    )
   }
   guard let functionType = underlyingFunctionType(of: binding.typeAnnotation?.type) else {
     throw MacroExpansionErrorMessage(
-      "@Event property must declare a function type, such as '(Payload) -> Void' or '() -> Void'")
+      "@Event property must declare a function type, such as '(Payload) -> Void' or '() -> Void'"
+    )
   }
   guard isVoidReturn(functionType.returnClause.type) else {
     throw MacroExpansionErrorMessage(
-      "@Event function type must return 'Void'; an event dispatches to JS and has no return value")
+      "@Event function type must return 'Void'; an event dispatches to JS and has no return value"
+    )
   }
   guard functionType.parameters.count <= 1 else {
     throw MacroExpansionErrorMessage(
-      "@Event function type takes at most one payload parameter; combine multiple values into a single record")
+      "@Event function type takes at most one payload parameter; combine multiple values into a single record"
+    )
   }
   // The payload is encoded to JavaScript, and a native closure can't be encoded.
   if let payloadClosure = functionType.parameters.first.flatMap({ firstFunctionType(in: $0.type) }) {
@@ -177,7 +188,8 @@ private func validatedEvent(
         message: EventDiagnosticMessage(
           "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
           id: "event-closure-payload"
-        ))
+        )
+      )
     ])
   }
 
@@ -321,7 +333,8 @@ private func underlyingFunctionType(of type: TypeSyntax?) -> FunctionTypeSyntax?
     return underlyingFunctionType(of: attributed.baseType)
   }
   if let tuple = type.as(TupleTypeSyntax.self),
-    tuple.elements.count == 1, let element = tuple.elements.first, element.firstName == nil {
+    tuple.elements.count == 1, let element = tuple.elements.first, element.firstName == nil
+  {
     return underlyingFunctionType(of: element.type)
   }
   return type.as(FunctionTypeSyntax.self)
@@ -334,7 +347,8 @@ private func underlyingFunctionType(of type: TypeSyntax?) -> FunctionTypeSyntax?
 private func isVoidReturn(_ type: TypeSyntax) -> Bool {
   // Peel single-element, unlabeled parentheses: `(Void)` and `(())` are the same type as their content.
   if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1,
-    let element = tuple.elements.first, element.firstName == nil {
+    let element = tuple.elements.first, element.firstName == nil
+  {
     return isVoidReturn(element.type)
   }
   let text = type.trimmedDescription

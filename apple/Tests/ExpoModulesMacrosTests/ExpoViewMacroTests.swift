@@ -227,7 +227,8 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView does not support generic classes — a view registered with @ExpoModule(views:) must be concrete",
+          message:
+            "@ExpoView does not support generic classes — a view registered with @ExpoModule(views:) must be concrete",
           line: 1,
           column: 1
         )
@@ -251,7 +252,8 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView synthesizes a `Props` typealias, but this class already declares a typealias named 'Props'. Rename it",
+          message:
+            "@ExpoView synthesizes a `Props` typealias, but this class already declares a typealias named 'Props'. Rename it",
           line: 1,
           column: 1
         )
@@ -277,7 +279,8 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView synthesizes a `Props` typealias, but this class already declares a struct named 'Props'. Rename it",
+          message:
+            "@ExpoView synthesizes a `Props` typealias, but this class already declares a struct named 'Props'. Rename it",
           line: 1,
           column: 1
         )

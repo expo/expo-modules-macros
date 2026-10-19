@@ -1,10 +1,11 @@
+import SwiftParser
+import SwiftSyntax
+
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
 import Foundation
 #endif
-import SwiftParser
-import SwiftSyntax
 
 /// Walks `paths`, and for each `.swift` file that might contain one of `macros` or one of
 /// `conformances` (the pre-filter passes it), reads the source and hands it to `process` along with the
@@ -251,11 +252,13 @@ private func swiftFiles(inDirectoryAtPath directory: String, fileManager: FileMa
 /// The walk is the dominant cost of a whole-tree scan, and skipping that per-entry stat measurably
 /// shortens it.
 private func swiftFiles(inDirectory directory: URL, fileManager: FileManager) -> [String] {
-  guard let enumerator = fileManager.enumerator(
-    at: directory,
-    includingPropertiesForKeys: nil,
-    options: [.skipsHiddenFiles]
-  ) else {
+  guard
+    let enumerator = fileManager.enumerator(
+      at: directory,
+      includingPropertiesForKeys: nil,
+      options: [.skipsHiddenFiles]
+    )
+  else {
     return []
   }
 

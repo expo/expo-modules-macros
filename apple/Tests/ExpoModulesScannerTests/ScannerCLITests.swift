@@ -1,5 +1,6 @@
-@testable import ExpoModulesScanner
 import Testing
+
+@testable import ExpoModulesScanner
 
 /// Covers the CLI's argument handling and exit codes. The scans it dispatches to are covered by
 /// `ScanModulesTests` and the visitor suites; success paths print JSON to stdout, so only the

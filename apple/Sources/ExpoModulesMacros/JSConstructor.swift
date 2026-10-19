@@ -23,7 +23,8 @@ internal struct JSConstructor {
       guard arguments.count == \(parameters.count) else {
         throw Exceptions.ArgumentsRangeMismatch((functionName: "\(typeName)", received: arguments.count, required: \(parameters.count), maximum: \(parameters.count)))
       }
-      """)
+      """
+    )
 
     var callArguments: [String] = []
     for (index, parameter) in parameters.enumerated() {
@@ -32,7 +33,8 @@ internal struct JSConstructor {
           type: parameter.type,
           into: "arg\(index)",
           from: "arguments.unownedValue(at: \(index))"
-        ))
+        )
+      )
 
       let label = parameter.firstName.text
       callArguments.append(label == "_" ? "arg\(index)" : "\(label): arg\(index)")
@@ -40,7 +42,8 @@ internal struct JSConstructor {
 
     lines.append("return \(typeName)(\(callArguments.joined(separator: ", ")))")
 
-    return lines
+    return
+      lines
       .flatMap { $0.split(separator: "\n", omittingEmptySubsequences: false) }
       .map { indent + $0 }
       .joined(separator: "\n")

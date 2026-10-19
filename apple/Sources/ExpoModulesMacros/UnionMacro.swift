@@ -154,7 +154,8 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
         message: UnionDiagnosticMessage(
           "@Union cannot be applied to a generic enum: each case's payload type must be concrete so the macro can select its converter.",
           id: "union-generic-enum"
-        ))
+        )
+      )
     ])
   }
 
@@ -175,7 +176,9 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
             message: UnionDiagnosticMessage(
               "@Union case '\(name)' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union; make it a raw-value enum conforming to 'Enumerable' instead.",
               id: "union-case-without-payload"
-            )))
+            )
+          )
+        )
         continue
       }
       guard parameters.count == 1, let parameter = parameters.first else {
@@ -185,7 +188,9 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
             message: UnionDiagnosticMessage(
               "@Union case '\(name)' must carry exactly one associated value, but has \(parameters.count). Group them in a @Record type and use it as the single payload.",
               id: "union-case-with-multiple-payloads"
-            )))
+            )
+          )
+        )
         continue
       }
 
@@ -206,7 +211,9 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
             message: UnionDiagnosticMessage(
               "@Union case '\(name)' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
               id: "union-closure-payload"
-            )))
+            )
+          )
+        )
         continue
       }
 
@@ -223,7 +230,9 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
             message: UnionDiagnosticMessage(
               "@Union case '\(name)' repeats the payload type '\(payloadType)' of case '\(earlierCase)' and can never be decoded: alternatives are tried in declaration order and the first match wins.",
               id: "union-duplicate-payload-type"
-            )))
+            )
+          )
+        )
         continue
       }
       seenPayloadTypes[normalizedType] = name
@@ -261,12 +270,15 @@ private func decodeMethod(union: UnionType) -> DeclSyntax {
   var lines: [String] = ["  let kind = JavaScriptValueKinds(of: value)"]
   for unionCase in union.cases {
     let payloadType = expressionType(unionCase.payloadType)
-    lines.append("  if \(payloadType).decodableKinds.contains(kind), let payload = try? \(payloadType).decode(value, in: runtime) {")
+    lines.append(
+      "  if \(payloadType).decodableKinds.contains(kind), let payload = try? \(payloadType).decode(value, in: runtime) {"
+    )
     lines.append("    return \(unionCase.construction)")
     lines.append("  }")
   }
   let expected = union.cases.map { "\"\($0.payloadType)\"" }.joined(separator: ", ")
-  let mismatch = "(unionName: \"\(union.name)\", received: value.copied(in: runtime).kind.rawValue, expected: [\(expected)])"
+  let mismatch =
+    "(unionName: \"\(union.name)\", received: value.copied(in: runtime).kind.rawValue, expected: [\(expected)])"
   lines.append("  throw Exceptions.UnionCaseMismatch(\(mismatch))")
   let body = lines.joined(separator: "\n")
   return """
@@ -322,7 +334,8 @@ private func encodeMethod(union: UnionType) -> DeclSyntax {
 private func accessorMethods(union: UnionType) -> [DeclSyntax] {
   return union.cases.map { unionCase in
     let payloadType = expressionType(unionCase.payloadType)
-    let mismatch = "(unionName: \"\(union.name)\", received: _payloadTypeName, expected: [\"\(unionCase.payloadType)\"])"
+    let mismatch =
+      "(unionName: \"\(union.name)\", received: _payloadTypeName, expected: [\"\(unionCase.payloadType)\"])"
     return """
       public func `as`(_ type: \(raw: payloadType).Type) throws -> \(raw: payloadType) {
         if case \(raw: unionCase.pattern) = self {
@@ -369,7 +382,8 @@ private func defaultValueDiagnostic(
         newNode: Syntax(
           parameter
             .with(\.type, parameter.type.with(\.trailingTrivia, []))
-            .with(\.defaultValue, nil))
+            .with(\.defaultValue, nil)
+        )
       )
     ]
   )

@@ -1,23 +1,20 @@
 import SwiftSyntax
 
-/**
- Reads the first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork".
- Returns nil if the attribute has no arguments or the first argument is not a string literal.
- */
+/// Reads the first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork".
+/// Returns nil if the attribute has no arguments or the first argument is not a string literal.
 internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
     let first = args.first,
     let str = first.expression.as(StringLiteralExprSyntax.self),
-    let segment = str.segments.first?.as(StringSegmentSyntax.self) else {
+    let segment = str.segments.first?.as(StringSegmentSyntax.self)
+  else {
     return nil
   }
   return segment.content.text
 }
 
-/**
- Reads a labeled boolean-literal argument of an attribute, e.g. `@Event(sync: true)` -> true.
- Returns nil if the attribute has no argument with that label or its value isn't a boolean literal.
- */
+/// Reads a labeled boolean-literal argument of an attribute, e.g. `@Event(sync: true)` -> true.
+/// Returns nil if the attribute has no argument with that label or its value isn't a boolean literal.
 internal func boolArgument(of attribute: AttributeSyntax, label: String) -> Bool? {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return nil
@@ -44,7 +41,8 @@ internal func hasJSOption(_ attribute: AttributeSyntax, named option: String) ->
       return true
     }
     if let array = arg.expression.as(ArrayExprSyntax.self),
-      array.elements.contains(where: { namesOption($0.expression, option) }) {
+      array.elements.contains(where: { namesOption($0.expression, option) })
+    {
       return true
     }
   }
@@ -95,7 +93,8 @@ internal func asyncVariantOptions(of attribute: AttributeSyntax) -> [FunctionCal
 private func asyncOptionCall(_ expression: ExprSyntax) -> FunctionCallExprSyntax? {
   guard let call = expression.as(FunctionCallExprSyntax.self),
     let member = call.calledExpression.as(MemberAccessExprSyntax.self),
-    member.declName.baseName.text == "withAsync" else {
+    member.declName.baseName.text == "withAsync"
+  else {
     return nil
   }
   return call
@@ -110,7 +109,8 @@ internal func asyncVariantName(of option: FunctionCallExprSyntax) -> (name: Stri
     argument.label == nil,
     let literal = argument.expression.as(StringLiteralExprSyntax.self),
     literal.segments.count == 1,
-    let segment = literal.segments.first?.as(StringSegmentSyntax.self) else {
+    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+  else {
     return nil
   }
   return (segment.content.text, segment.content)
@@ -185,7 +185,8 @@ internal func optionalWrappedType(_ type: TypeSyntax) -> TypeSyntax? {
   if let identifier = type.as(IdentifierTypeSyntax.self),
     identifier.name.text == "Optional",
     let argument = identifier.genericArgumentClause?.arguments.first,
-    case .type(let wrapped) = argument.argument {
+    case .type(let wrapped) = argument.argument
+  {
     return wrapped
   }
   return nil
@@ -214,26 +215,23 @@ internal func hasDefaultValue(_ parameter: FunctionParameterSyntax) -> Bool {
   return parameter.defaultValue != nil
 }
 
-/**
- True if the declaration is a `@Event(sync: true)` property. A sync event dispatches inline on the
- JS thread instead of scheduling, so `@ExpoModule`/`@SharedObject` stamp it with `@JavaScriptActor`,
- making "must be called on the JS thread" a compile-time guarantee at the call site. Async events
- (the default) are deliberately not stamped: their `emit` schedules onto the JS thread itself, so
- they stay callable from any thread.
- */
+/// True if the declaration is a `@Event(sync: true)` property. A sync event dispatches inline on the
+/// JS thread instead of scheduling, so `@ExpoModule`/`@SharedObject` stamp it with `@JavaScriptActor`,
+/// making "must be called on the JS thread" a compile-time guarantee at the call site. Async events
+/// (the default) are deliberately not stamped: their `emit` schedules onto the JS thread itself, so
+/// they stay callable from any thread.
 internal func isSyncEventMember(_ decl: DeclSyntaxProtocol) -> Bool {
   guard let varDecl = decl.as(VariableDeclSyntax.self),
-    let attribute = varDecl.attributes.firstAttribute(named: "Event") else {
+    let attribute = varDecl.attributes.firstAttribute(named: "Event")
+  else {
     return false
   }
   return boolArgument(of: attribute, label: "sync") == true
 }
 
-/**
- Reads a labeled array-literal argument of an attribute, e.g. `@ExpoModule(classes: [Foo.self, Bar.self])`,
- and returns the type names referenced (e.g. `["Foo", "Bar"]`). Each element must be a
- `<TypeName>.self` member-access expression; non-conforming elements are skipped silently.
- */
+/// Reads a labeled array-literal argument of an attribute, e.g. `@ExpoModule(classes: [Foo.self, Bar.self])`,
+/// and returns the type names referenced (e.g. `["Foo", "Bar"]`). Each element must be a
+/// `<TypeName>.self` member-access expression; non-conforming elements are skipped silently.
 internal func classListArgument(of attribute: AttributeSyntax, label: String) -> [String] {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return []
@@ -245,7 +243,8 @@ internal func classListArgument(of attribute: AttributeSyntax, label: String) ->
     return array.elements.compactMap { element -> String? in
       guard let memberAccess = element.expression.as(MemberAccessExprSyntax.self),
         memberAccess.declName.baseName.text == "self",
-        let base = memberAccess.base else {
+        let base = memberAccess.base
+      else {
         return nil
       }
       // A bare `CardView.self` has a `DeclReferenceExprSyntax` base; a qualified
@@ -261,11 +260,9 @@ internal func classListArgument(of attribute: AttributeSyntax, label: String) ->
   return []
 }
 
-/**
- Returns true if the class's inheritance clause names any of the given identifiers.
- Matches by base identifier only, so `Module`, `ExpoModulesCore.Module`, and
- `Module<Foo>` all match an entry of "Module".
- */
+/// Returns true if the class's inheritance clause names any of the given identifiers.
+/// Matches by base identifier only, so `Module`, `ExpoModulesCore.Module`, and
+/// `Module<Foo>` all match an entry of "Module".
 internal func inheritsFromAny(_ classDecl: ClassDeclSyntax, names: Set<String>) -> Bool {
   guard let inherited = classDecl.inheritanceClause?.inheritedTypes else {
     return false
@@ -278,10 +275,8 @@ internal func inheritsFromAny(_ classDecl: ClassDeclSyntax, names: Set<String>) 
   return false
 }
 
-/**
- Returns the rightmost identifier of a type, e.g. `Foo` for `Foo`, `Foo` for
- `Module.Foo`, and nil for composed or generic shapes the macro doesn't need to handle.
- */
+/// Returns the rightmost identifier of a type, e.g. `Foo` for `Foo`, `Foo` for
+/// `Module.Foo`, and nil for composed or generic shapes the macro doesn't need to handle.
 internal func baseIdentifier(of type: TypeSyntax) -> String? {
   if let identifier = type.as(IdentifierTypeSyntax.self) {
     return identifier.name.text
@@ -292,10 +287,8 @@ internal func baseIdentifier(of type: TypeSyntax) -> String? {
   return nil
 }
 
-/**
- True if the declaration carries a `@JS` attribute. Works for functions, properties, and inits;
- returns false for any other decl kind.
- */
+/// True if the declaration carries a `@JS` attribute. Works for functions, properties, and inits;
+/// returns false for any other decl kind.
 internal func memberHasJSAttribute(_ decl: DeclSyntaxProtocol) -> Bool {
   if let funcDecl = decl.as(FunctionDeclSyntax.self) {
     return funcDecl.attributes.firstAttribute(named: "JS") != nil
@@ -402,7 +395,8 @@ extension AttributeListSyntax {
   internal func firstAttribute(named name: String) -> AttributeSyntax? {
     for element in self {
       if let attr = element.as(AttributeSyntax.self),
-        attr.attributeName.trimmedDescription == name {
+        attr.attributeName.trimmedDescription == name
+      {
         return attr
       }
     }
@@ -490,7 +484,8 @@ internal func collectProperties(
     let swiftName = ident.identifier.text
     // Prefer the explicit annotation; recover the type from a literal default (`var x = false`)
     // when there's none. `nil` falls back to inference at the use site.
-    let valueType = binding.typeAnnotation?.type.trimmedDescription
+    let valueType =
+      binding.typeAnnotation?.type.trimmedDescription
       ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
     return JSProperty(
       swiftName: swiftName,

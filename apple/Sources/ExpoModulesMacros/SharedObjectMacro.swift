@@ -2,26 +2,24 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/**
- Member macro applied to a `SharedObject` subclass. Scans the class body for
- declarations marked with `@JS` and synthesizes `_synthesizedClassDefinition()`,
- returning a `ClassDefinition` ready to drop into a module's `Class { ... }` slot.
-
-   @SharedObject
-   final class Cache: SharedObject {
-     @JS
-     init(name: String) { self.name = name }
-
-     @JS
-     func get(_ key: String) -> String? { ... }
-
-     @JS
-     var size: Int { 42 }
-   }
-
- The companion `@ExpoModule(classes: [Cache.self])` wires the resulting
- definition into the module's exposed surface.
- */
+/// Member macro applied to a `SharedObject` subclass. Scans the class body for
+/// declarations marked with `@JS` and synthesizes `_synthesizedClassDefinition()`,
+/// returning a `ClassDefinition` ready to drop into a module's `Class { ... }` slot.
+///
+///   @SharedObject
+///   final class Cache: SharedObject {
+///     @JS
+///     init(name: String) { self.name = name }
+///
+///     @JS
+///     func get(_ key: String) -> String? { ... }
+///
+///     @JS
+///     var size: Int { 42 }
+///   }
+///
+/// The companion `@ExpoModule(classes: [Cache.self])` wires the resulting
+/// definition into the module's exposed surface.
 public struct SharedObjectMacro: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -35,7 +33,8 @@ public struct SharedObjectMacro: MemberMacro {
 
     guard inheritsFromSharedObject(classDecl) else {
       throw MacroExpansionErrorMessage(
-        "@SharedObject class must inherit from SharedObject. Add `: SharedObject` to the class declaration.")
+        "@SharedObject class must inherit from SharedObject. Add `: SharedObject` to the class declaration."
+      )
     }
 
     let typeName = classDecl.name.text
@@ -62,17 +61,20 @@ public struct SharedObjectMacro: MemberMacro {
       let decl = member.decl
 
       if let initDecl = decl.as(InitializerDeclSyntax.self),
-        initDecl.attributes.firstAttribute(named: "JS") != nil {
+        initDecl.attributes.firstAttribute(named: "JS") != nil
+      {
         if constructor != nil {
           throw MacroExpansionErrorMessage(
-            "@SharedObject classes can have at most one @JS initializer; JavaScript classes have a single constructor.")
+            "@SharedObject classes can have at most one @JS initializer; JavaScript classes have a single constructor."
+          )
         }
         constructor = JSConstructor(initDecl: initDecl)
         continue
       }
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
-        let attribute = funcDecl.attributes.firstAttribute(named: "JS") {
+        let attribute = funcDecl.attributes.firstAttribute(named: "JS")
+      {
         let function = JSFunction(funcDecl: funcDecl, attribute: attribute)
         let bound = [function] + (function.asyncVariant.map { [$0] } ?? [])
         if isTypeLevel(funcDecl.modifiers) {
@@ -84,7 +86,8 @@ public struct SharedObjectMacro: MemberMacro {
       }
 
       if let varDecl = decl.as(VariableDeclSyntax.self),
-        let attribute = varDecl.attributes.firstAttribute(named: "JS") {
+        let attribute = varDecl.attributes.firstAttribute(named: "JS")
+      {
         let collected = collectProperties(varDecl: varDecl, attribute: attribute)
         if isTypeLevel(varDecl.modifiers) {
           staticProperties.append(contentsOf: collected)
@@ -98,7 +101,8 @@ public struct SharedObjectMacro: MemberMacro {
     diagnoseJSNameCollisions(functions: staticFunctions, properties: staticProperties, in: context)
 
     let lines = entries.map { "    \($0)" }.joined(separator: "\n")
-    let body = entries.isEmpty
+    let body =
+      entries.isEmpty
       ? "  return Class(\"\(jsName)\", \(typeName).self) {\n  }"
       : "  return Class(\"\(jsName)\", \(typeName).self) {\n\(lines)\n  }"
 
@@ -118,14 +122,22 @@ public struct SharedObjectMacro: MemberMacro {
     if !instanceFunctions.isEmpty || !instanceProperties.isEmpty {
       emitted.append(
         buildDecorateSharedObjectPhase(
-          phase: .prototype, functions: instanceFunctions, properties: instanceProperties,
-          typeName: typeName))
+          phase: .prototype,
+          functions: instanceFunctions,
+          properties: instanceProperties,
+          typeName: typeName
+        )
+      )
     }
     if !staticFunctions.isEmpty || !staticProperties.isEmpty {
       emitted.append(
         buildDecorateSharedObjectPhase(
-          phase: .constructor, functions: staticFunctions, properties: staticProperties,
-          typeName: typeName))
+          phase: .constructor,
+          functions: staticFunctions,
+          properties: staticProperties,
+          typeName: typeName
+        )
+      )
     }
     if let constructor {
       emitted.append(constructor.buildConstructor(typeName: typeName))

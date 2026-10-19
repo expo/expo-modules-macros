@@ -105,14 +105,16 @@ internal struct JSFunction {
         guard arguments.count == \(maximum) else {
           throw Exceptions.ArgumentsRangeMismatch((functionName: "\(jsName)", received: arguments.count, required: \(required), maximum: \(maximum)))
         }
-        """)
+        """
+      )
     } else {
       lines.append(
         """
         guard arguments.count >= \(required) && arguments.count <= \(maximum) else {
           throw Exceptions.ArgumentsRangeMismatch((functionName: "\(jsName)", received: arguments.count, required: \(required), maximum: \(maximum)))
         }
-        """)
+        """
+      )
     }
 
     // Decode the required prefix once — these slots are present in every accepted arity, so the
@@ -168,7 +170,8 @@ internal struct JSFunction {
       lines.append(contentsOf: encodeResultLines())
     }
 
-    return lines
+    return
+      lines
       .flatMap { $0.split(separator: "\n", omittingEmptySubsequences: false) }
       .map { indent + $0 }
       .joined(separator: "\n")
@@ -403,7 +406,8 @@ internal struct JSProperty {
       getEncode = "return \(callee).\(swiftName).toJavaScriptValue(in: runtime)"
     }
     lines.append(
-      accessorClosure(descriptorName, "get", receiver: receiver, body: "\(unwrap)\(getEncode)"))
+      accessorClosure(descriptorName, "get", receiver: receiver, body: "\(unwrap)\(getEncode)")
+    )
 
     // Setter: decode argument 0 by the static type through `decode` and write `<callee>.<name>`. A
     // typed setter needs a known value type; when the type couldn't be inferred the property is bound
@@ -414,12 +418,19 @@ internal struct JSProperty {
       let setDecode = "\(callee).\(swiftName) = try \(decode)"
       lines.append(
         accessorClosure(
-          descriptorName, "set", receiver: receiver, returnsVoid: true, body: "\(unwrap)\(setDecode)"))
+          descriptorName,
+          "set",
+          receiver: receiver,
+          returnsVoid: true,
+          body: "\(unwrap)\(setDecode)"
+        )
+      )
     }
 
     lines.append("\(object).defineProperty(\"\(jsName)\", descriptor: \(descriptorName))")
 
-    return lines
+    return
+      lines
       .flatMap { $0.split(separator: "\n", omittingEmptySubsequences: false) }
       .map { "  " + $0 }
       .joined(separator: "\n")
@@ -430,12 +441,17 @@ internal struct JSProperty {
   /// A setter passes `returnsVoid`, so its closure declares `-> Void` and binds through the `Void`
   /// overload, like a function that returns nothing.
   private func accessorClosure(
-    _ descriptorName: String, _ key: String, receiver: Receiver, returnsVoid: Bool = false, body: String
+    _ descriptorName: String,
+    _ key: String,
+    receiver: Receiver,
+    returnsVoid: Bool = false,
+    body: String
   ) -> String {
     let captures = receiver.captureClause
     // Indent each line of a (possibly multi-line) body to sit one level inside the closure; a bare
     // `\(body)` interpolation would only indent the first line.
-    let indentedBody = body
+    let indentedBody =
+      body
       .split(separator: "\n", omittingEmptySubsequences: false)
       .map { "  \($0)" }
       .joined(separator: "\n")
@@ -460,7 +476,10 @@ internal struct JSProperty {
 /// how each binding reaches its Swift value (module `self`, shared-object instance `_self`, or the
 /// metatype for a static member).
 private func decorateBody(
-  functions: [JSFunction], properties: [JSProperty], object: String, receiver: Receiver
+  functions: [JSFunction],
+  properties: [JSProperty],
+  object: String,
+  receiver: Receiver
 ) -> String {
   let functionBody = functions.map { $0.decorateStatements(object: object, receiver: receiver) }
   let propertyBody = properties.map { $0.decorateStatements(object: object, receiver: receiver) }
@@ -477,7 +496,11 @@ private func decorateBody(
 /// receiver; the shared-object counterpart is `buildDecorateSharedObjectPhase`.
 internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties: [JSProperty]) -> DeclSyntax {
   let body = decorateBody(
-    functions: functions, properties: properties, object: Phase.object.rawValue, receiver: .module)
+    functions: functions,
+    properties: properties,
+    object: Phase.object.rawValue,
+    receiver: .module
+  )
   return """
     @JavaScriptActor
     public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -498,13 +521,21 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
 /// which builds an instance and is emitted separately (see `JSConstructor.buildConstructor`). Each phase
 /// is emitted only when the type has a member for it.
 internal func buildDecorateSharedObjectPhase(
-  phase: Phase, functions: [JSFunction], properties: [JSProperty], typeName: String
+  phase: Phase,
+  functions: [JSFunction],
+  properties: [JSProperty],
+  typeName: String
 ) -> DeclSyntax {
-  let receiver: Receiver = phase == .constructor
+  let receiver: Receiver =
+    phase == .constructor
     ? .staticMember(typeName: typeName)
     : .sharedObject(typeName: typeName)
   let body = decorateBody(
-    functions: functions, properties: properties, object: phase.rawValue, receiver: receiver)
+    functions: functions,
+    properties: properties,
+    object: phase.rawValue,
+    receiver: receiver
+  )
   return """
     @JavaScriptActor
     public override class func _decorateSharedObject(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {

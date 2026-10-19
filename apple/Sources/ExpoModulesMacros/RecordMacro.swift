@@ -152,10 +152,8 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
 
 // MARK: - Property model
 
-/**
- A single record property discovered on the type, paired with everything the synthesized
- conversions need: its property name, its written type, and how the source may omit it.
- */
+/// A single record property discovered on the type, paired with everything the synthesized
+/// conversions need: its property name, its written type, and how the source may omit it.
 private struct RecordProperty {
   /// The property name as written, backticks included for an escaped name (`` `default` ``), since
   /// every identifier position in the generated code needs them.
@@ -190,11 +188,9 @@ private struct RecordProperty {
   }
 }
 
-/**
- Discovers the record's properties: every stored `var`/`let` binding that is not `static`,
- `private`, `fileprivate`, `lazy`, or computed. Each property must declare an explicit type
- annotation, since the synthesized conversions name the type (e.g. `Type.decode(…)`).
- */
+/// Discovers the record's properties: every stored `var`/`let` binding that is not `static`,
+/// `private`, `fileprivate`, `lazy`, or computed. Each property must declare an explicit type
+/// annotation, since the synthesized conversions name the type (e.g. `Type.decode(…)`).
 private func recordProperties(
   of declaration: some DeclGroupSyntax
 ) throws -> [RecordProperty] {
@@ -228,7 +224,8 @@ private func recordProperties(
       // (Swift's own default-literal type) — covers the common `var name = "foo"` case. Anything
       // whose type a syntactic macro can't determine (calls, collections, member access) still needs
       // an annotation.
-      let inferredType = binding.typeAnnotation?.type.trimmedDescription
+      let inferredType =
+        binding.typeAnnotation?.type.trimmedDescription
         ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
       guard let type = inferredType else {
         throw MacroExpansionErrorMessage(
@@ -247,7 +244,8 @@ private func recordProperties(
             message: RecordDiagnosticMessage(
               "@Record property '\(ident.identifier.text)' can't hold a closure: a record property is also encoded to JavaScript, and a native closure can't be encoded",
               id: "record-closure-property"
-            ))
+            )
+          )
         ])
       }
       let freeForm = try annotatedType.flatMap { annotatedType -> FreeFormConversion? in
@@ -345,10 +343,8 @@ private func fromJSObjectFactory() -> DeclSyntax {
     """
 }
 
-/**
- `from(dictionary:appContext:)` — same as the JS path but reads from `[String: Any]` and
- uses the `Any?` cast overload; a missing key is `dictionary[key] == nil`.
- */
+/// `from(dictionary:appContext:)` — same as the JS path but reads from `[String: Any]` and
+/// uses the `Any?` cast overload; a missing key is `dictionary[key] == nil`.
 private func fromDictionaryFactory(properties: [RecordProperty]) -> DeclSyntax {
   let body = factoryBody(properties: properties, readLines: dictionaryReadLines(properties: properties))
   return """
@@ -358,12 +354,10 @@ private func fromDictionaryFactory(properties: [RecordProperty]) -> DeclSyntax {
     """
 }
 
-/**
- Builds a factory body: per-property reads into locals, then a single call to the synthesized
- memberwise init. Each property's declared default expression is captured at parse time and inlined
- directly into the omitted-property branch (see the read-line builders), so the factory needs neither
- a throwaway `Self()` nor the record's `init()`.
- */
+/// Builds a factory body: per-property reads into locals, then a single call to the synthesized
+/// memberwise init. Each property's declared default expression is captured at parse time and inlined
+/// directly into the omitted-property branch (see the read-line builders), so the factory needs neither
+/// a throwaway `Self()` nor the record's `init()`.
 private func factoryBody(properties: [RecordProperty], readLines: [String]) -> String {
   var lines: [String] = []
   lines.append(contentsOf: readLines)
@@ -416,7 +410,8 @@ private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
     let entry = "entry\(index)"
     let exprType = expressionType(property.type)
     let isBareAny = property.freeForm?.isBareAny == true
-    let cast = isBareAny
+    let cast =
+      isBareAny
       ? entry
       : "try \(exprType).getDynamicType().cast(\(entry), appContext: appContext) as! \(exprType)"
     lines.append("  let \(entry) = dictionary[\"\(property.key)\"]")
@@ -460,25 +455,26 @@ private func toObjectMethod() -> DeclSyntax {
     """
 }
 
-/**
- The record's own `JavaScriptDecodable` and `JavaScriptEncodable` witnesses, which convert in the
- runtime they're given. Without them the record would convert through `Record`'s default witnesses,
- which recover the app context from the runtime and convert in the app context's runtime.
-
- `decode` reads each property off the JS object into a local, then constructs the record through the
- memberwise init. Required properties throw when undefined; defaulted properties fall back to the
- property's declared default (inlined) when undefined; optional properties become `nil` when
- undefined/null. It's the unowned overload: an owning value decodes through `JavaScriptDecodable`'s
- default, which forwards to it. `encode` builds the JS object, writing each property. Its parameter
- names the type, because a class can't take `Self` as a parameter type.
- */
+/// The record's own `JavaScriptDecodable` and `JavaScriptEncodable` witnesses, which convert in the
+/// runtime they're given. Without them the record would convert through `Record`'s default witnesses,
+/// which recover the app context from the runtime and convert in the app context's runtime.
+///
+/// `decode` reads each property off the JS object into a local, then constructs the record through the
+/// memberwise init. Required properties throw when undefined; defaulted properties fall back to the
+/// property's declared default (inlined) when undefined; optional properties become `nil` when
+/// undefined/null. It's the unowned overload: an owning value decodes through `JavaScriptDecodable`'s
+/// default, which forwards to it. `encode` builds the JS object, writing each property. Its parameter
+/// names the type, because a class can't take `Self` as a parameter type.
 private func javaScriptCodableWitnesses(properties: [RecordProperty], typeName: String) -> [DeclSyntax] {
   // An empty record still decodes only from an object, but has no property to read off it.
-  let objectLine = properties.isEmpty
+  let objectLine =
+    properties.isEmpty
     ? "  _ = try value.asObject(in: runtime)"
     : "  let object = try value.asObject(in: runtime)"
-  let decodeBody = objectLine + "\n" + factoryBody(properties: properties, readLines: jsObjectReadLines(properties: properties))
-  let encodeLines = ["  let object = runtime.createObject()"]
+  let decodeBody =
+    objectLine + "\n" + factoryBody(properties: properties, readLines: jsObjectReadLines(properties: properties))
+  let encodeLines =
+    ["  let object = runtime.createObject()"]
     + objectWriteLines(properties: properties, of: "value")
     + ["  return object.asValue()"]
   return [
@@ -506,7 +502,8 @@ private func objectWriteLines(properties: [RecordProperty], of record: String) -
     let encode: String
     switch property.freeForm {
     case .shape(_, let encodeMethod, let isOptional, _):
-      encode = isOptional
+      encode =
+        isOptional
         ? "\(value) == nil ? .null() : try JavaScriptValue.\(encodeMethod)(\(value)!, in: runtime)"
         : "try JavaScriptValue.\(encodeMethod)(\(value), in: runtime)"
     case .generic:
@@ -521,13 +518,11 @@ private func objectWriteLines(properties: [RecordProperty], of record: String) -
 
 // MARK: - Helpers
 
-/**
- The parameter-label list of every initializer the type already declares, used to avoid emitting a
- duplicate of one the author hand-wrote. Each entry is the ordered external argument labels of one
- `init` — e.g. `init(name: String, count: Int)` → `["name", "count"]`, and `init()` → `[]`. A
- parameter written with `_` or with no external label contributes its internal name's absence as an
- empty-string label, which simply won't match the macro's always-labeled signatures (a safe miss).
- */
+/// The parameter-label list of every initializer the type already declares, used to avoid emitting a
+/// duplicate of one the author hand-wrote. Each entry is the ordered external argument labels of one
+/// `init` — e.g. `init(name: String, count: Int)` → `["name", "count"]`, and `init()` → `[]`. A
+/// parameter written with `_` or with no external label contributes its internal name's absence as an
+/// empty-string label, which simply won't match the macro's always-labeled signatures (a safe miss).
 private func initializerParameterLabels(of declaration: some DeclGroupSyntax) -> [[String]] {
   var signatures: [[String]] = []
   for member in declaration.memberBlock.members {
@@ -562,7 +557,9 @@ private func unsupportedClassDiagnostics(of declaration: some DeclGroupSyntax) -
           "@Record class '\(name)' must be final, because the macro doesn't support subclasses of a record",
           id: "record-class-not-final"
         ),
-        fixIts: isOpen ? [] : [markFinalFixIt(for: classDecl)]))
+        fixIts: isOpen ? [] : [markFinalFixIt(for: classDecl)]
+      )
+    )
   }
   if let inheritanceClause = classDecl.inheritanceClause {
     diagnostics.append(
@@ -571,7 +568,9 @@ private func unsupportedClassDiagnostics(of declaration: some DeclGroupSyntax) -
         message: RecordDiagnosticMessage(
           "@Record class '\(name)' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
           id: "record-class-inheritance"
-        )))
+        )
+      )
+    )
   }
   return diagnostics
 }
@@ -583,8 +582,10 @@ private func markFinalFixIt(for classDecl: ClassDeclSyntax) -> FixIt {
   let classKeyword = classDecl.classKeyword
   var modifiers = classDecl.modifiers
   modifiers.append(
-    DeclModifierSyntax(name: .keyword(.final, leadingTrivia: classKeyword.leadingTrivia, trailingTrivia: .space)))
-  let newDecl = classDecl
+    DeclModifierSyntax(name: .keyword(.final, leadingTrivia: classKeyword.leadingTrivia, trailingTrivia: .space))
+  )
+  let newDecl =
+    classDecl
     .with(\.modifiers, modifiers)
     .with(\.classKeyword, classKeyword.with(\.leadingTrivia, []))
   return FixIt(

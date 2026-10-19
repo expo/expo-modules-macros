@@ -622,7 +622,8 @@ struct JSClosureArgumentTests {
           severity: .error
         ),
         DiagnosticSpec(
-          message: "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function.",
+          message:
+            "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function.",
           line: 4,
           column: 15,
           severity: .error

@@ -70,7 +70,8 @@ private struct Availability {
         for element in attributes {
           if let attribute = element.as(AttributeSyntax.self),
             attribute.attributeName.trimmedDescription == "available",
-            case .availability(let arguments) = attribute.arguments {
+            case .availability(let arguments) = attribute.arguments
+          {
             read(arguments, readsDeprecation: isOwn)
           }
         }
@@ -110,7 +111,8 @@ private struct Availability {
       for argument in arguments {
         if case .availabilityVersionRestriction(let restriction) = argument.argument,
           let platform = availabilityPlatformNames[restriction.platform.text],
-          let version = restriction.version {
+          let version = restriction.version
+        {
           raiseIntroduced(on: platform, to: version.trimmedDescription)
         }
       }
@@ -218,7 +220,8 @@ private func decodedText(of literal: SimpleStringLiteralExprSyntax) -> String {
     case "u":
       if text[index...].hasPrefix("{"), let close = text[index...].firstIndex(of: "}"),
         let scalarValue = UInt32(text[text.index(after: index)..<close], radix: 16),
-        let scalar = Unicode.Scalar(scalarValue) {
+        let scalar = Unicode.Scalar(scalarValue)
+      {
         result.unicodeScalars.append(scalar)
         index = text.index(after: close)
       } else {
