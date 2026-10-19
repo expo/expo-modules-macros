@@ -1441,11 +1441,130 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'load' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+            "The JavaScript name 'load' is already bound by an earlier '.withAsync' variant. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with .withAsync(\"...\") or @JS(\"...\").",
           line: 4,
           column: 8,
           severity: .error,
           notes: [NoteSpec(message: "'load' is first bound here", line: 3, column: 19)]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) variant name that another member uses is a collision on the variant's name`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func load() {}
+
+        @JS(.withAsync("load"))
+        func fetch() {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func load() {}
+          func fetch() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("fetch") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "fetch", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.fetch()
+            }
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.fetch()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'load' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\") or .withAsync(\"...\").",
+          line: 6,
+          column: 19,
+          severity: .error,
+          notes: [NoteSpec(message: "'load' is first bound here", line: 4, column: 8)]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) listed twice binds the first variant and reports the others`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("loadAsync"), .withAsync("fetchAsync"))
+        func load() {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          func load() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("loadAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.load()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "'.withAsync' can be listed only once: a function gets one promise-returning variant.",
+          line: 3,
+          column: 32,
+          severity: .error
         )
       ]
     )

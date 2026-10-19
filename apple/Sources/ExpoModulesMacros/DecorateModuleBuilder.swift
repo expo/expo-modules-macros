@@ -33,7 +33,7 @@ internal struct JSFunction {
   private var asyncVariantName: (name: String, token: TokenSyntax)?
   /// True for the binding `asyncVariant` returns: it calls the synchronous function on the concurrent
   /// pool instead of on the JavaScript thread.
-  private var callsOnConcurrentPool = false
+  private(set) var isAsyncVariant = false
 
   init(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) {
     self.swiftName = funcDecl.name.text
@@ -62,7 +62,7 @@ internal struct JSFunction {
     variant.jsName = asyncVariantName.name
     variant.nameToken = asyncVariantName.token
     variant.isAsync = true
-    variant.callsOnConcurrentPool = true
+    variant.isAsyncVariant = true
     variant.asyncVariantName = nil
     return variant
   }
@@ -182,7 +182,7 @@ internal struct JSFunction {
   private func asyncBodyLines(receiver: Receiver, arity: Int) -> [String] {
     var lines: [String] = ["return {"]
     let call =
-      callsOnConcurrentPool
+      isAsyncVariant
       ? concurrentCallExpression(receiver: receiver, arity: arity)
       : callExpression(receiver: receiver, arity: arity)
     // The concurrent call spans several lines, so each of its lines is indented into the body.

@@ -67,10 +67,11 @@ struct ExportedParameter: Encodable, Equatable {
 
 /// One `@JS func` on a module or shared object.
 struct ExportedFunction: Encodable, Equatable {
-  /// The Swift declaration name.
+  /// The Swift declaration name. A function with `.withAsync("x")` has two entries with this name.
   let name: String
 
-  /// The JS name it binds under: the `@JS("x")` override, else `name`.
+  /// The JS name it binds under: the `@JS("x")` override, else `name`. The second entry of a function
+  /// with `.withAsync("x")` binds under `x`.
   let jsName: String
 
   var parameters: [ExportedParameter]

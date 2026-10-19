@@ -121,6 +121,16 @@ private func diagnoseAsyncVariantOption(
         )))
     return
   }
+  for duplicate in asyncVariantOptions(of: node).dropFirst() {
+    context.diagnose(
+      Diagnostic(
+        node: duplicate,
+        message: JSDiagnosticMessage(
+          "'.withAsync' can be listed only once: a function gets one promise-returning variant.",
+          id: "js-async-variant-duplicate",
+          severity: .error
+        )))
+  }
   if asyncVariantName(of: option) == nil {
     context.diagnose(
       Diagnostic(

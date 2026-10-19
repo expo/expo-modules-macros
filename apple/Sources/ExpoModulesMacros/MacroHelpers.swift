@@ -70,22 +70,24 @@ internal func isConcurrentJSMember(_ decl: DeclSyntaxProtocol) -> Bool {
 }
 
 /// The `.withAsync("name")` option of a `@JS` attribute, e.g. `@JS(.withAsync("loadAsync"))` or
-/// `@JS("load", [.withAsync("loadAsync")])`, or `nil` when the attribute doesn't list it. Like
-/// `hasJSOption`, it scans the arguments and the elements of an array literal.
+/// `@JS("load", [.withAsync("loadAsync")])`, or `nil` when the attribute doesn't list it. When the
+/// option is listed more than once, the first one counts and `@JS` reports the others.
 internal func asyncVariantOption(of attribute: AttributeSyntax) -> FunctionCallExprSyntax? {
+  return asyncVariantOptions(of: attribute).first
+}
+
+/// Every `.withAsync(...)` option of a `@JS` attribute, in source order. Like `hasJSOption`, it scans
+/// the arguments and the elements of an array literal.
+internal func asyncVariantOptions(of attribute: AttributeSyntax) -> [FunctionCallExprSyntax] {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
-    return nil
+    return []
   }
-  for arg in args {
-    if let option = asyncOptionCall(arg.expression) {
-      return option
+  return args.flatMap { arg -> [FunctionCallExprSyntax] in
+    if let array = arg.expression.as(ArrayExprSyntax.self) {
+      return array.elements.compactMap { asyncOptionCall($0.expression) }
     }
-    if let array = arg.expression.as(ArrayExprSyntax.self),
-      let option = array.elements.lazy.compactMap({ asyncOptionCall($0.expression) }).first {
-      return option
-    }
+    return asyncOptionCall(arg.expression).map { [$0] } ?? []
   }
-  return nil
 }
 
 /// The expression as a `.withAsync(...)` call (or `JSOptions.withAsync(...)`), or `nil` for anything
