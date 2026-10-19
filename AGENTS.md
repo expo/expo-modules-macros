@@ -54,7 +54,7 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 ## Changing macros
 
 - The scanner re-implements the macros' naming and member rules on the syntax tree; it does not call the macro code. When a macro changes which members it binds or how it names them (the `@JS` name override, the `on` prefix `@Event` strips, which properties `@Record` treats as fields), change `scan-exports` to match, or generated TypeScript types drift from the runtime.
-- The scanner only parses files that match the pre-filter built by `macroAttributeRegex` in `Core/SourceScan.swift`. A new attribute or conformance the scanner must detect has to be added there, or files that use it are skipped without an error.
+- The scanner only parses files that pass the pre-filter, `MacroPrefilter` in `Core/SourceScan.swift`. Each command builds it from the `macros` and `conformances` arguments of its `scanFiles` call. A new attribute or conformance the scanner must detect has to be added to those arguments (an attribute also needs a `DetectedMacro` case), or files that use it are skipped without an error.
 - A new macro needs: the implementation in `apple/Sources/ExpoModulesMacros`, an entry in `providingMacros` in `Plugin.swift`, an expansion test file, the `#externalMacro` declaration in `expo-modules-core`, and an entry in the macro list in `README.md`.
 
 ## Contracts with other packages
