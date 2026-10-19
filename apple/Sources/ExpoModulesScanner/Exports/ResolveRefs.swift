@@ -44,7 +44,11 @@ struct RefIndex {
     }
     for sharedObject in surface.sharedObjects {
       entries[sharedObject.name] = Entry(
-        name: sharedObject.name, kind: .sharedObject, jsType: .object, jsName: sharedObject.jsName)
+        name: sharedObject.name,
+        kind: .sharedObject,
+        jsType: .object,
+        jsName: sharedObject.jsName
+      )
     }
     for union in surface.unions {
       // A union crosses as whichever alternative matched, so its category is only meaningful per
@@ -53,7 +57,10 @@ struct RefIndex {
     }
     for enumeration in surface.enums {
       entries[enumeration.name] = Entry(
-        name: enumeration.name, kind: .enum, jsType: jsType(ofRawType: enumeration.rawType))
+        name: enumeration.name,
+        kind: .enum,
+        jsType: jsType(ofRawType: enumeration.rawType)
+      )
     }
   }
 
@@ -113,7 +120,8 @@ extension TypeNode {
       return .ref(
         name: entry.name,
         refKind: entry.kind,
-        jsTypeOverride: entry.jsType == .object ? nil : entry.jsType)
+        jsTypeOverride: entry.jsType == .object ? nil : entry.jsType
+      )
     case .optional(let wrapped):
       return .optional(wrapped: wrapped.resolvingRefs(using: index, in: scope))
     case .array(let element):
@@ -121,7 +129,8 @@ extension TypeNode {
     case .dictionary(let key, let value):
       return .dictionary(
         key: key.resolvingRefs(using: index, in: scope),
-        value: value.resolvingRefs(using: index, in: scope))
+        value: value.resolvingRefs(using: index, in: scope)
+      )
     case .promise(let value):
       return .promise(value: value.resolvingRefs(using: index, in: scope))
     case .function(let parameters, let returns, let isAsync, let isThrowing):
@@ -153,7 +162,8 @@ extension ExportedSurface {
         resolved.events = module.events.map { $0.resolvingRefs(using: index, in: module.name) }
         resolved.classes = module.classes.map { exportedClass in
           guard let entry = index.lookup(exportedClass.name, in: module.name),
-            entry.kind == .sharedObject else {
+            entry.kind == .sharedObject
+          else {
             return exportedClass
           }
           return ExportedClass(name: entry.name, jsName: entry.jsName)

@@ -178,7 +178,8 @@ internal func isAnyType(_ type: some SyntaxProtocol) -> Bool {
   if let member = type.as(MemberTypeSyntax.self),
     member.name.text == "Any",
     member.genericArgumentClause == nil,
-    let base = member.baseType.as(IdentifierTypeSyntax.self) {
+    let base = member.baseType.as(IdentifierTypeSyntax.self)
+  {
     return base.name.text == "Swift"
   }
   return false
@@ -215,7 +216,8 @@ private func genericArguments(of type: TypeSyntax, named name: String) -> [TypeS
     clause = identifier.genericArgumentClause
   } else if let member = type.as(MemberTypeSyntax.self),
     member.name.text == name,
-    member.baseType.as(IdentifierTypeSyntax.self)?.name.text == "Swift" {
+    member.baseType.as(IdentifierTypeSyntax.self)?.name.text == "Swift"
+  {
     clause = member.genericArgumentClause
   } else {
     return nil

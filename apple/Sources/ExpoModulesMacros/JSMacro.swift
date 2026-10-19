@@ -44,7 +44,8 @@ public struct JSMacro: PeerMacro {
         encodableType: member.encodableType,
         callbackArgumentTypes: member.callbackArgumentTypes,
         isStatic: member.isStatic
-      ) else {
+      )
+    else {
       return []
     }
     return [assertion]
@@ -75,7 +76,9 @@ private func diagnoseConcurrentOption(
           id: "js-concurrent-requires-async",
           severity: .error
         ),
-        fixIts: [insertAsyncFixIt(for: funcDecl)]))
+        fixIts: [insertAsyncFixIt(for: funcDecl)]
+      )
+    )
     return
   }
   context.diagnose(
@@ -85,7 +88,9 @@ private func diagnoseConcurrentOption(
         "'.concurrent' applies only to an 'async' @JS function, not to a property or initializer.",
         id: "js-concurrent-requires-function",
         severity: .error
-      )))
+      )
+    )
+  )
 }
 
 /// Emits the diagnostics for `@JS(.withAsync("name"))` on a member that can't take it. The option
@@ -107,7 +112,9 @@ private func diagnoseAsyncVariantOption(
           "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer.",
           id: "js-async-variant-requires-function",
           severity: .error
-        )))
+        )
+      )
+    )
     return
   }
   if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
@@ -118,7 +125,9 @@ private func diagnoseAsyncVariantOption(
           "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
           id: "js-async-variant-on-async-function",
           severity: .error
-        )))
+        )
+      )
+    )
     return
   }
   for duplicate in asyncVariantOptions(of: node).dropFirst() {
@@ -129,7 +138,9 @@ private func diagnoseAsyncVariantOption(
           "'.withAsync' can be listed only once: a function gets one promise-returning variant.",
           id: "js-async-variant-duplicate",
           severity: .error
-        )))
+        )
+      )
+    )
   }
   if asyncVariantName(of: option) == nil {
     context.diagnose(
@@ -139,7 +150,9 @@ private func diagnoseAsyncVariantOption(
           "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'.",
           id: "js-async-variant-name",
           severity: .error
-        )))
+        )
+      )
+    )
   }
   if let isolation = globalActorIsolation(of: funcDecl, in: context) {
     context.diagnose(
@@ -152,7 +165,9 @@ private func diagnoseAsyncVariantOption(
             ?? "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '\(isolation.attribute)'.",
           id: "js-async-variant-isolated",
           severity: .error
-        )))
+        )
+      )
+    )
   }
 }
 
@@ -234,7 +249,9 @@ private func diagnoseParameterSpecifiers(
           "A @JS parameter can't be '\(specifier)': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
           id: "js-parameter-specifier",
           severity: .error
-        )))
+        )
+      )
+    )
   }
 }
 
@@ -263,14 +280,16 @@ private func diagnoseFreeFormTypes(
     // A constructor decodes its arguments exactly like a function and has no return value.
     types = initDecl.signature.parameterClause.parameters.map { SpecifiedType($0.type).type }
   } else if let varDecl = declaration.as(VariableDeclSyntax.self),
-    let type = varDecl.bindings.first?.typeAnnotation?.type {
+    let type = varDecl.bindings.first?.typeAnnotation?.type
+  {
     types = [type]
   }
 
   for type in types
   where mentionsFreeFormAny(type) && !isConvertibleFreeFormType(type) && !containsFunctionType(type) {
     context.diagnose(
-      Diagnostic(node: type, message: unconvertibleFreeFormError(for: type.trimmedDescription)))
+      Diagnostic(node: type, message: unconvertibleFreeFormError(for: type.trimmedDescription))
+    )
   }
 }
 
@@ -365,7 +384,8 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
     let binding = varDecl.bindings.first,
     let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
     let type = binding.typeAnnotation?.type,
-    !containsFunctionType(type) {
+    !containsFunctionType(type)
+  {
     // A `let`, or a `var` with no setter, is read-only (encodable only). A settable `var` is also
     // decoded on write, so its value type is asserted in both directions. A type that mentions `Any`
     // converts through the free-form methods instead, so it isn't asserted at all.
@@ -417,7 +437,8 @@ private func argumentBoundaryTypes(
     }
     let closureReturnType = closure.functionType.returnClause.type
     if let returnType = closure.returnType,
-      !containsFunctionType(closureReturnType) && !mentionsFreeFormAny(closureReturnType) {
+      !containsFunctionType(closureReturnType) && !mentionsFreeFormAny(closureReturnType)
+    {
       decodableTypes.append(returnType)
     }
   }

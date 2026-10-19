@@ -50,7 +50,9 @@ public enum ScannerCLI {
       // scan-modules is platform-agnostic: each reported module carries the platforms that include
       // it, and the consumer filters. An option selecting one platform would silently drop data.
       guard platform == nil else {
-        return usageError("scan-modules does not take --platform; each module reports its 'platforms' and the consumer filters")
+        return usageError(
+          "scan-modules does not take --platform; each module reports its 'platforms' and the consumer filters"
+        )
       }
       guard !paths.isEmpty else {
         return usageError("scan-modules requires at least one path")

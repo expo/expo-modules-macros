@@ -1,7 +1,8 @@
-@testable import ExpoModulesScanner
 import Foundation
 import SwiftParser
 import Testing
+
+@testable import ExpoModulesScanner
 
 /// Parses a source string and returns the exported surface the visitor extracts. The file name is
 /// fixed so any per-type `file` field is stable across runs.
@@ -31,7 +32,8 @@ struct ModuleSurfaceTests {
           func helper() {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.name == "GreeterModule")
     #expect(module.jsName == "Greeter")
@@ -43,7 +45,11 @@ struct ModuleSurfaceTests {
     #expect(greet.isAsync == false)
     #expect(greet.isThrowing == false)
     #expect(greet.parameters.map(\.name) == ["name", "loud"])
-    #expect(greet.parameters.map(\.type) == [.primitive(name: "String", jsType: .string), .primitive(name: "Bool", jsType: .boolean)])
+    #expect(
+      greet.parameters.map(\.type) == [
+        .primitive(name: "String", jsType: .string), .primitive(name: "Bool", jsType: .boolean),
+      ]
+    )
     // A defaulted parameter is omittable, so it's reported optional.
     #expect(greet.parameters.map(\.isOptional) == [false, true])
 
@@ -74,7 +80,8 @@ struct ModuleSurfaceTests {
           func load() async {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.functions.map(\.jsName) == ["textSync", "text", "writeSync", "write", "load"])
     #expect(module.functions.map(\.name) == ["text", "text", "write", "write", "load"])
@@ -98,7 +105,8 @@ struct ModuleSurfaceTests {
           func load(fetch: @escaping @Sendable (Point) async throws -> Size, onDone: ((Bool) -> Void)?) {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     let load = try #require(module.functions.first)
     #expect(
@@ -106,8 +114,14 @@ struct ModuleSurfaceTests {
         .function(parameters: [.ref(name: "Point")], returns: .ref(name: "Size"), isAsync: true, isThrowing: true),
         .optional(
           wrapped: .function(
-            parameters: [.primitive(name: "Bool", jsType: .boolean)], returns: nil, isAsync: false, isThrowing: false)),
-      ])
+            parameters: [.primitive(name: "Bool", jsType: .boolean)],
+            returns: nil,
+            isAsync: false,
+            isThrowing: false
+          )
+        ),
+      ]
+    )
     #expect(load.parameters.map(\.isOptional) == [false, true])
   }
 
@@ -130,7 +144,8 @@ struct ModuleSurfaceTests {
           }
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     let byName = Dictionary(uniqueKeysWithValues: module.properties.map { ($0.name, $0) })
 
@@ -166,7 +181,8 @@ struct ModuleSurfaceTests {
     #expect(
       module?.classes == [
         ExportedClass(name: "Database", jsName: nil), ExportedClass(name: "Outer.Statement", jsName: nil),
-      ])
+      ]
+    )
   }
 
   @Test
@@ -194,7 +210,8 @@ struct SharedObjectSurfaceTests {
           let id: String
         }
         """
-      ).sharedObjects.first)
+      ).sharedObjects.first
+    )
 
     #expect(shared.name == "Cache")
     #expect(shared.jsName == "Cache")
@@ -216,7 +233,8 @@ struct SharedObjectSurfaceTests {
           @JS func clear() {}
         }
         """
-      ).sharedObjects.first)
+      ).sharedObjects.first
+    )
     #expect(shared.initializer == nil)
   }
 }
@@ -238,7 +256,8 @@ struct RecordSurfaceTests {
           var computed: Int { 1 }
         }
         """
-      ).records.first)
+      ).records.first
+    )
 
     #expect(record.name == "Options")
     // private, static, and computed properties are excluded.
@@ -272,7 +291,8 @@ struct EnumSurfaceTests {
           case idle
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     #expect(enumeration.name == "Status")
     #expect(enumeration.rawType == .primitive(name: "String", jsType: .string))
@@ -292,7 +312,8 @@ struct EnumSurfaceTests {
           case high = 2
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     #expect(enumeration.rawType == .primitive(name: "Int", jsType: .number))
     #expect(enumeration.cases.map(\.rawValue) == ["1", "2"])
@@ -308,7 +329,8 @@ struct EnumSurfaceTests {
           case off
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     // Nothing precedes the conformance, so there's no raw type to report.
     #expect(enumeration.rawType == nil)
@@ -370,7 +392,8 @@ struct EnumSurfaceTests {
           case payload(Int)
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     // An associated value has no raw value, so it can't cross the boundary as one.
     #expect(enumeration.cases.map(\.name) == ["plain"])
@@ -404,7 +427,8 @@ struct EnumSurfaceTests {
           case d
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     // `b` is 2 and `d` is 11, each continuing from the preceding explicit value, written or derived.
     // One unreadable expression would corrupt every case after it, so Int is never derived and the
@@ -423,7 +447,8 @@ struct EnumSurfaceTests {
           case stopped = "halted"
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     // The invariant a consumer relies on: a String-backed enum reports a raw value on *every* case,
     // so there is nothing left to derive on the other side of the boundary.
@@ -439,7 +464,8 @@ struct EnumSurfaceTests {
           case active
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     // `Swift.String` is a legal raw type that parses as a `.ref` rather than a `.primitive`; the
     // invariant has to hold for it too.
@@ -456,7 +482,8 @@ struct EnumSurfaceTests {
           case b = "plain"
         }
         """#
-      ).enums.first)
+      ).enums.first
+    )
 
     // An interpolated literal isn't a legal raw value, and its source text isn't the value, so it's
     // not passed through. Reporting the derived name keeps the String invariant intact.
@@ -473,7 +500,8 @@ struct EnumSurfaceTests {
           case b = "tab\there"
         }
         """#
-      ).enums.first)
+      ).enums.first
+    )
 
     // A raw literal's delimiters are stripped like any other's. An escape would need real unescaping
     // to become its value, so that case falls back to the derived name rather than reporting `\t`
@@ -491,7 +519,8 @@ struct EnumSurfaceTests {
           case shifted = 1 << 3
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     // An integer raw value may be any literal expression, so it stays source text: the scanner can't
     // evaluate `1 << 3`, and reporting it verbatim is the honest answer.
@@ -501,9 +530,11 @@ struct EnumSurfaceTests {
   @Test
   func `Leaves a raw value alone when the enum has no String raw type`() throws {
     let ints = try #require(
-      surface("enum P: Int, Enumerable { case low = 1\n case high }").enums.first)
+      surface("enum P: Int, Enumerable { case low = 1\n case high }").enums.first
+    )
     let bare = try #require(
-      surface("enum M: Enumerable { case on }").enums.first)
+      surface("enum M: Enumerable { case on }").enums.first
+    )
 
     // Nothing to derive without a String raw type: an Int case carries the continuation rule, and a
     // raw-value-less enum has no raw values at all.
@@ -520,7 +551,8 @@ struct EnumSurfaceTests {
           case active, idle
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     #expect(enumeration.cases.map(\.name) == ["active", "idle"])
   }
@@ -540,7 +572,8 @@ struct UnionSurfaceTests {
           case options(SourceOptions)
         }
         """
-      ).unions.first)
+      ).unions.first
+    )
 
     #expect(union.name == "Source")
     #expect(union.members.map(\.name) == ["text", "count", "options"])
@@ -549,7 +582,8 @@ struct UnionSurfaceTests {
         .primitive(name: "String", jsType: .string),
         .primitive(name: "Int", jsType: .number),
         .ref(name: "SourceOptions"),
-      ])
+      ]
+    )
   }
 
   @Test
@@ -563,7 +597,8 @@ struct UnionSurfaceTests {
           case fractional(Double)
         }
         """
-      ).unions.first)
+      ).unions.first
+    )
 
     // Decode takes the first payload that succeeds, so the reported order is the decode order. A
     // consumer that reorders these describes a different union.
@@ -580,7 +615,8 @@ struct UnionSurfaceTests {
           case id(value: Int)
         }
         """
-      ).unions.first)
+      ).unions.first
+    )
 
     // The label is Swift-side construction detail; the boundary only sees the payload type.
     #expect(union.members.map(\.name) == ["id"])
@@ -600,7 +636,8 @@ struct UnionSurfaceTests {
           case defaulted(Int = 0)
         }
         """
-      ).unions.first)
+      ).unions.first
+    )
 
     // Each of the three is a macro error, so no such alternative exists at runtime and reporting one
     // would describe a union the module never accepts.
@@ -617,7 +654,8 @@ struct UnionSurfaceTests {
           case text(String), count(Int)
         }
         """
-      ).unions.first)
+      ).unions.first
+    )
 
     #expect(union.members.map(\.name) == ["text", "count"])
   }
@@ -705,7 +743,8 @@ struct UnionSurfaceTests {
           case table([String: Double])
         }
         """
-      ).unions.first)
+      ).unions.first
+    )
 
     #expect(
       union.members.map(\.type) == [
@@ -713,8 +752,10 @@ struct UnionSurfaceTests {
         .optional(wrapped: .primitive(name: "Int", jsType: .number)),
         .dictionary(
           key: .primitive(name: "String", jsType: .string),
-          value: .primitive(name: "Double", jsType: .number)),
-      ])
+          value: .primitive(name: "Double", jsType: .number)
+        ),
+      ]
+    )
   }
 }
 
@@ -744,7 +785,8 @@ struct EventSurfaceTests {
           func play() {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.map(\.name) == ["onStatusChange", "onFinish", "onRenamed", "onTick"])
 
@@ -793,7 +835,8 @@ struct EventSurfaceTests {
           var \(swiftName): (Int) -> Void
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.map(\.jsName) == [expected])
   }
@@ -809,7 +852,8 @@ struct EventSurfaceTests {
           var onProgress: (Double) -> Void
         }
         """
-      ).sharedObjects.first)
+      ).sharedObjects.first
+    )
 
     let progress = try #require(sharedObject.events.first)
     #expect(progress.name == "onProgress")
@@ -861,7 +905,8 @@ struct EventSurfaceTests {
           var onValid: () -> Void
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.map(\.name) == ["onValid"])
   }
@@ -888,7 +933,8 @@ struct EventSurfaceTests {
           var onParenthesized: (Int) -> (Void)
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.map(\.name) == ["onPlain", "onEmptyTuple", "onQualified", "onParenthesized"])
   }
@@ -907,7 +953,8 @@ struct EventSurfaceTests {
           var onBoth: (Int) -> Void
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.isEmpty)
     #expect(module.properties.map(\.name) == ["onBoth"])
@@ -927,13 +974,16 @@ struct EventSurfaceTests {
           var onParenthesized: ((String) -> Void)
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.map(\.jsName) == ["sendable", "parenthesized"])
-    #expect(module.events.map(\.payload) == [
-      .primitive(name: "Int", jsType: .number),
-      .primitive(name: "String", jsType: .string),
-    ])
+    #expect(
+      module.events.map(\.payload) == [
+        .primitive(name: "Int", jsType: .number),
+        .primitive(name: "String", jsType: .string),
+      ]
+    )
   }
 }
 
@@ -1104,7 +1154,8 @@ struct BacktickedNameTests {
           var `onClass`: () -> Void
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     let function = try #require(module.functions.first)
     #expect(function.name == "default")
@@ -1132,7 +1183,8 @@ struct BacktickedNameTests {
           case `default` = "`default`"
         }
         """
-      ).enums.first)
+      ).enums.first
+    )
 
     #expect(enumeration.cases.map(\.name) == ["class", "default"])
     // A written raw value is the literal's content, so its backticks are part of the value.
@@ -1163,7 +1215,9 @@ struct ScanExportsTests {
     _ body: (ScanExportsResult) throws -> Void
   ) throws {
     let fileManager = FileManager.default
-    let root = fileManager.temporaryDirectory.appendingPathComponent("scanner-exports-\(ProcessInfo.processInfo.globallyUniqueString)")
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "scanner-exports-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
     defer { try? fileManager.removeItem(at: root) }
 
     for (relativePath, contents) in files {
@@ -1208,7 +1262,9 @@ struct RefResolutionTests {
   /// resolution is a whole-scan pass, so it can't be exercised through `SurfaceVisitor` alone.
   private func resolvedSurface(_ source: String) throws -> ExportedSurface {
     let fileManager = FileManager.default
-    let root = fileManager.temporaryDirectory.appendingPathComponent("scanner-refs-\(ProcessInfo.processInfo.globallyUniqueString)")
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "scanner-refs-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
     try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: root) }
     try source.write(to: root.appendingPathComponent("Source.swift"), atomically: true, encoding: .utf8)
@@ -1382,7 +1438,8 @@ struct RefResolutionTests {
     let options = try #require(surface.records.first)
     #expect(
       options.properties.first?.type
-        == .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string))
+        == .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string)
+    )
   }
 
   @Test
@@ -1401,10 +1458,12 @@ struct RefResolutionTests {
     let types = try parameterTypes(surface)
 
     #expect(
-      types["type"] == .ref(name: "HapticsModule.NotificationType", refKind: .enum, jsTypeOverride: .string))
+      types["type"] == .ref(name: "HapticsModule.NotificationType", refKind: .enum, jsTypeOverride: .string)
+    )
     #expect(
       types["style"]
-        == .array(element: .ref(name: "HapticsModule.ImpactStyle", refKind: .enum, jsTypeOverride: .string)))
+        == .array(element: .ref(name: "HapticsModule.ImpactStyle", refKind: .enum, jsTypeOverride: .string))
+    )
   }
 
   @Test
@@ -1439,7 +1498,8 @@ struct RefResolutionTests {
       inner.properties.map(\.type) == [
         .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string),
         .ref(name: "Shared", refKind: .record),
-      ])
+      ]
+    )
 
     // Outside `Options`, the bare name is the file-scope enum, and the nested one needs its qualifier.
     let other = try #require(surface.records.first { $0.name == "Other" })
@@ -1447,7 +1507,8 @@ struct RefResolutionTests {
       other.properties.map(\.type) == [
         .ref(name: "Encoding", refKind: .enum, jsTypeOverride: .number),
         .ref(name: "Options.Encoding", refKind: .enum, jsTypeOverride: .string),
-      ])
+      ]
+    )
   }
 
   @Test
@@ -1509,6 +1570,7 @@ struct RefResolutionTests {
         // Only a shared object has a JS name; a record or an unscanned class has none.
         ExportedClass(name: "Options", jsName: nil),
         ExportedClass(name: "Missing", jsName: nil),
-      ])
+      ]
+    )
   }
 }

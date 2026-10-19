@@ -1,14 +1,16 @@
-@testable import ExpoModulesScanner
 import SwiftParser
 import SwiftSyntax
 import Testing
+
+@testable import ExpoModulesScanner
 
 /// Parses a Swift type spelling into a `TypeNode`, the way the surface visitor does for a boundary
 /// type. Wraps the spelling in a throwaway declaration so the parser yields a `TypeSyntax`.
 private func node(_ spelling: String) -> TypeNode {
   let tree = Parser.parse(source: "let _: \(spelling)")
   guard let varDecl = tree.statements.first?.item.as(VariableDeclSyntax.self),
-    let type = varDecl.bindings.first?.typeAnnotation?.type else {
+    let type = varDecl.bindings.first?.typeAnnotation?.type
+  else {
     return .unknown(text: spelling)
   }
   return typeNode(from: type)
@@ -59,9 +61,17 @@ struct TypeNodeTests {
 
   @Test
   func `Dictionaries: sugar and the explicit generic`() {
-    #expect(node("[String: Int]") == .dictionary(key: .primitive(name: "String", jsType: .string), value: .primitive(name: "Int", jsType: .number)))
     #expect(
-      node("Dictionary<String, Point>") == .dictionary(key: .primitive(name: "String", jsType: .string), value: .ref(name: "Point")))
+      node("[String: Int]")
+        == .dictionary(
+          key: .primitive(name: "String", jsType: .string),
+          value: .primitive(name: "Int", jsType: .number)
+        )
+    )
+    #expect(
+      node("Dictionary<String, Point>")
+        == .dictionary(key: .primitive(name: "String", jsType: .string), value: .ref(name: "Point"))
+    )
   }
 
   @Test
@@ -75,32 +85,60 @@ struct TypeNodeTests {
     #expect(
       node("(String) -> Void")
         == .function(
-          parameters: [.primitive(name: "String", jsType: .string)], returns: nil, isAsync: false, isThrowing: false))
+          parameters: [.primitive(name: "String", jsType: .string)],
+          returns: nil,
+          isAsync: false,
+          isThrowing: false
+        )
+    )
     #expect(
       node("(Int, Point) -> String")
         == .function(
           parameters: [.primitive(name: "Int", jsType: .number), .ref(name: "Point")],
-          returns: .primitive(name: "String", jsType: .string), isAsync: false, isThrowing: false))
+          returns: .primitive(name: "String", jsType: .string),
+          isAsync: false,
+          isThrowing: false
+        )
+    )
   }
 
   @Test
   func `Closure async and throws effects are captured`() {
     #expect(
       node("() async -> Int")
-        == .function(parameters: [], returns: .primitive(name: "Int", jsType: .number), isAsync: true, isThrowing: false))
+        == .function(
+          parameters: [],
+          returns: .primitive(name: "Int", jsType: .number),
+          isAsync: true,
+          isThrowing: false
+        )
+    )
     #expect(
       node("() throws -> Int")
-        == .function(parameters: [], returns: .primitive(name: "Int", jsType: .number), isAsync: false, isThrowing: true))
+        == .function(
+          parameters: [],
+          returns: .primitive(name: "Int", jsType: .number),
+          isAsync: false,
+          isThrowing: true
+        )
+    )
     #expect(
       node("() async throws -> Void")
-        == .function(parameters: [], returns: nil, isAsync: true, isThrowing: true))
+        == .function(parameters: [], returns: nil, isAsync: true, isThrowing: true)
+    )
   }
 
   @Test
   func `An @escaping attribute is stripped to the underlying type`() {
     #expect(
       node("@escaping (Int) -> Void")
-        == .function(parameters: [.primitive(name: "Int", jsType: .number)], returns: nil, isAsync: false, isThrowing: false))
+        == .function(
+          parameters: [.primitive(name: "Int", jsType: .number)],
+          returns: nil,
+          isAsync: false,
+          isThrowing: false
+        )
+    )
   }
 
   @Test
@@ -109,8 +147,14 @@ struct TypeNodeTests {
     #expect(
       node("((Int) -> Void)?")
         == .optional(
-          wrapped: .function(parameters: [.primitive(name: "Int", jsType: .number)], returns: nil, isAsync: false, isThrowing: false)
-        ))
+          wrapped: .function(
+            parameters: [.primitive(name: "Int", jsType: .number)],
+            returns: nil,
+            isAsync: false,
+            isThrowing: false
+          )
+        )
+    )
   }
 
   @Test
@@ -122,7 +166,9 @@ struct TypeNodeTests {
       node("[String: [Int?]]")
         == .dictionary(
           key: .primitive(name: "String", jsType: .string),
-          value: .array(element: .optional(wrapped: .primitive(name: "Int", jsType: .number)))))
+          value: .array(element: .optional(wrapped: .primitive(name: "Int", jsType: .number)))
+        )
+    )
   }
 
   @Test

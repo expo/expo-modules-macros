@@ -1,6 +1,7 @@
-@testable import ExpoModulesScanner
 import SwiftParser
 import Testing
+
+@testable import ExpoModulesScanner
 
 /// Parses a source string and returns the exported surface the visitor extracts.
 private func surface(_ source: String) -> SurfaceVisitor {
@@ -78,7 +79,8 @@ struct AccessLevelTests {
           @JS public private(set) var b = 0
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
     #expect(module.properties.map(\.accessLevel) == [nil, "public"])
   }
 }
@@ -133,13 +135,15 @@ struct PlatformTests {
           #endif
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.events.map(\.name) == ["onEverywhere", "onIOS", "onMacOrTV", "onOther"])
     #expect(
       module.events.map(\.platforms) == [
         everyPlatform, platforms("iOS"), platforms("macOS", "tvOS"), platforms("watchOS", "visionOS"),
-      ])
+      ]
+    )
   }
 
   @Test
@@ -265,7 +269,8 @@ struct PlatformTests {
           @JS @available(macCatalyst, unavailable) @available(iOSApplicationExtension, unavailable) func ignored() {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     let byName = Dictionary(uniqueKeysWithValues: module.functions.map { ($0.name, $0.platforms) })
     #expect(
@@ -275,7 +280,8 @@ struct PlatformTests {
         ExportedPlatform(name: "tvOS", introduced: nil),
         ExportedPlatform(name: "watchOS", introduced: nil),
         ExportedPlatform(name: "visionOS", introduced: nil),
-      ])
+      ]
+    )
     #expect(byName["longForm"]?.first == ExportedPlatform(name: "iOS", introduced: "16.4"))
     #expect(byName["longForm"]?.count == applePlatforms.count)
     #expect(byName["notOnTVOrWatch"] == platforms("iOS", "macOS", "visionOS"))
@@ -285,7 +291,8 @@ struct PlatformTests {
         ExportedPlatform(name: "tvOS", introduced: nil),
         ExportedPlatform(name: "watchOS", introduced: nil),
         ExportedPlatform(name: "visionOS", introduced: nil),
-      ])
+      ]
+    )
     #expect(byName["legacyName"]?.dropFirst().first == ExportedPlatform(name: "macOS", introduced: "13"))
     #expect(byName["ignored"] == everyPlatform)
   }
@@ -353,7 +360,8 @@ struct DefaultValueTests {
           @JS func f(a: Int, b: Int = 1, c: String = "x", d: Mode = .fast, e: [Int] = [1, 2], f: Int? = nil) {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
     #expect(module.functions.first?.parameters.map(\.defaultValue) == [nil, "1", "\"x\"", ".fast", "[1, 2]", "nil"])
   }
 
@@ -371,7 +379,8 @@ struct DefaultValueTests {
           @JS var e: Int
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
     #expect(module.properties.map(\.defaultValue) == ["0", "1.5", "2", nil, nil])
   }
 
@@ -386,7 +395,8 @@ struct DefaultValueTests {
           var c: String? = nil
         }
         """
-      ).records.first)
+      ).records.first
+    )
     #expect(record.properties.map(\.defaultValue) == [nil, ".hex", "nil"])
     #expect(record.properties.map(\.isRequired) == [true, false, false])
   }
@@ -400,7 +410,8 @@ struct DefaultValueTests {
           @JS init(size: Int = 10) {}
         }
         """
-      ).sharedObjects.first)
+      ).sharedObjects.first
+    )
     #expect(shared.initializer?.parameters.map(\.defaultValue) == ["10"])
   }
 }
@@ -425,13 +436,15 @@ struct DeprecationTests {
           @JS func current() {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     #expect(module.functions[0].platforms.allSatisfy { $0.deprecated == ExportedDeprecation() })
     #expect(
       module.functions[1].platforms.allSatisfy {
         $0.deprecated == ExportedDeprecation(message: "Use the async variant.")
-      })
+      }
+    )
     #expect(module.functions[2].platforms.allSatisfy { $0.deprecated == ExportedDeprecation(renamed: "newName") })
     #expect(module.functions[3].platforms.allSatisfy { $0.deprecated == nil })
   }
@@ -450,7 +463,8 @@ struct DeprecationTests {
           func f() {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     let byPlatform = deprecations(try #require(module.functions.first))
     #expect(byPlatform["iOS"] == ExportedDeprecation(since: "16", obsoleted: "18", message: "Gone soon."))
@@ -473,7 +487,8 @@ struct DeprecationTests {
           func f() {}
         }
         """
-      ).modules.first)
+      ).modules.first
+    )
 
     let byPlatform = deprecations(try #require(module.functions.first))
     #expect(byPlatform["iOS"] == ExportedDeprecation(since: "15", message: "Do not use."))
@@ -490,7 +505,8 @@ struct DeprecationTests {
           @JS @available(*, deprecated, message: "Use \"play\" or \\ instead.\nSee \u{2192} docs.") func f() {}
         }
         """#
-      ).modules.first)
+      ).modules.first
+    )
     let message = module.functions.first?.platforms.first?.deprecated?.message
     #expect(message == "Use \"play\" or \\ instead.\nSee \u{2192} docs.")
   }
@@ -519,10 +535,12 @@ struct DeprecationTests {
     #expect(visitor.sharedObjects.first?.functions.first?.platforms.allSatisfy { $0.deprecated == nil } == true)
     #expect(
       visitor.records.first?.properties.first?.platforms.first?.deprecated
-        == ExportedDeprecation(since: "17", message: "Unused."))
+        == ExportedDeprecation(since: "17", message: "Unused.")
+    )
     #expect(
       visitor.enums.first?.cases.map { $0.platforms.first?.deprecated } == [
         ExportedDeprecation(renamed: "b"), nil,
-      ])
+      ]
+    )
   }
 }

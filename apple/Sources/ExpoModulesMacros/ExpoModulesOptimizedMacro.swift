@@ -34,7 +34,8 @@ public struct OptimizedFunctionAttachedMacro: PeerMacro {
   ) throws -> [DeclSyntax] {
     guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
       throw MacroExpansionErrorMessage(
-        "@OptimizedFunction can only be attached to function declarations")
+        "@OptimizedFunction can only be attached to function declarations"
+      )
     }
 
     let functionName = funcDecl.name.text

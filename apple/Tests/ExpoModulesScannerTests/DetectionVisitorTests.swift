@@ -1,7 +1,8 @@
-@testable import ExpoModulesScanner
 import Foundation
 import SwiftParser
 import Testing
+
+@testable import ExpoModulesScanner
 
 /// Parses a source string and returns the detections the visitor records for it, considering all
 /// macros by default. The file name is fixed so location assertions are stable; only `line`/`column`
@@ -187,10 +188,12 @@ struct DetectionVisitorTests {
     )
     let detection = try #require(detections.first)
     #expect(detection.jsName == "Greeter")
-    #expect(detection.arguments == [
-      MacroArgument(label: nil, value: "\"Greeter\""),
-      MacroArgument(label: "classes", value: "[Cache.self, Store.self]"),
-    ])
+    #expect(
+      detection.arguments == [
+        MacroArgument(label: nil, value: "\"Greeter\""),
+        MacroArgument(label: "classes", value: "[Cache.self, Store.self]"),
+      ]
+    )
   }
 
   @Test
@@ -289,7 +292,6 @@ struct MacroPrefilterTests {
     #expect(!mightContainMacro(in: "enum Status: String, Enumerable { case a }", prefilter: prefilter))
   }
 }
-
 
 @Suite("#if evaluation")
 struct IfConfigTests {
@@ -483,7 +485,9 @@ struct ScanTests {
     _ body: (URL) throws -> Void
   ) throws {
     let fileManager = FileManager.default
-    let root = fileManager.temporaryDirectory.appendingPathComponent("scanner-test-\(ProcessInfo.processInfo.globallyUniqueString)")
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "scanner-test-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
     defer { try? fileManager.removeItem(at: root) }
 
     for (relativePath, contents) in files {
@@ -586,7 +590,10 @@ struct ScanTests {
   @Test
   func `Resolves each module's platforms from its #if conditions`() throws {
     try withTreeRoot([
-      ("TV.swift", "#if os(tvOS)\n@ExpoModule\nfinal class TVModule {}\n#else\n@ExpoModule\nfinal class NonTVModule {}\n#endif"),
+      (
+        "TV.swift",
+        "#if os(tvOS)\n@ExpoModule\nfinal class TVModule {}\n#else\n@ExpoModule\nfinal class NonTVModule {}\n#endif"
+      ),
       ("UIKit.swift", "#if canImport(UIKit)\n@ExpoModule\nfinal class UIKitModule {}\n#endif"),
       ("Vendored.swift", "#if canImport(SomeVendoredSDK)\n@ExpoModule\nfinal class VendoredModule {}\n#endif"),
       ("Plain.swift", "@ExpoModule\nfinal class PlainModule {}"),
@@ -611,17 +618,26 @@ struct ScanTests {
   @Test
   func `Asserted flags shape the platforms of flag-gated modules`() throws {
     try withTreeRoot([
-      ("Dev.swift", "#if DEBUG\n@ExpoModule\nfinal class DevModule {}\n#else\n@ExpoModule\nfinal class ProdModule {}\n#endif"),
+      (
+        "Dev.swift",
+        "#if DEBUG\n@ExpoModule\nfinal class DevModule {}\n#else\n@ExpoModule\nfinal class ProdModule {}\n#endif"
+      ),
       ("DevIos.swift", "#if DEBUG && os(iOS)\n@ExpoModule\nfinal class DevIosModule {}\n#endif"),
     ]) { root in
       // Without asserted flags, a flag is unset, the way an undefined flag behaves in a real build:
       // the modules are still reported, with the platforms of the branches that remain.
-      let unset = Dictionary(uniqueKeysWithValues: scanModules(paths: [root.path]).modules.map { ($0.name, $0.platforms) })
+      let unset = Dictionary(
+        uniqueKeysWithValues: scanModules(paths: [root.path]).modules.map { ($0.name, $0.platforms) }
+      )
       #expect(unset["DevModule"] == [])
       #expect(unset["ProdModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
       #expect(unset["DevIosModule"] == [])
 
-      let debug = Dictionary(uniqueKeysWithValues: scanModules(paths: [root.path], defines: ["DEBUG"]).modules.map { ($0.name, $0.platforms) })
+      let debug = Dictionary(
+        uniqueKeysWithValues: scanModules(paths: [root.path], defines: ["DEBUG"]).modules.map {
+          ($0.name, $0.platforms)
+        }
+      )
       #expect(debug["DevModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
       #expect(debug["ProdModule"] == [])
       #expect(debug["DevIosModule"] == ["iOS"])

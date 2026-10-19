@@ -189,7 +189,9 @@ internal func diagnoseClosureTypes(
           message: ClosureDiagnosticMessage(
             "A @JS function can't return a closure: a native closure can't be encoded to a JavaScript function.",
             id: "js-closure-return"
-          )))
+          )
+        )
+      )
     }
     return
   }
@@ -199,14 +201,17 @@ internal func diagnoseClosureTypes(
   }
   if let varDecl = declaration.as(VariableDeclSyntax.self),
     let type = varDecl.bindings.first?.typeAnnotation?.type,
-    let nested = firstFunctionType(in: type) {
+    let nested = firstFunctionType(in: type)
+  {
     context.diagnose(
       Diagnostic(
         node: nested,
         message: ClosureDiagnosticMessage(
           "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function.",
           id: "js-closure-property"
-        )))
+        )
+      )
+    )
   }
 }
 
@@ -223,7 +228,9 @@ private func diagnoseClosureParameters(
             message: ClosureDiagnosticMessage(
               "A closure in a @JS argument must be the argument's own type, optionally wrapped in an optional. Closures inside other types, such as arrays or dictionaries, aren't supported.",
               id: "js-closure-nested-in-type"
-            )))
+            )
+          )
+        )
       }
       continue
     }
@@ -245,7 +252,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         message: ClosureDiagnosticMessage(
           "'@\(name)' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed.",
           id: "js-closure-attribute"
-        )))
+        )
+      )
+    )
   }
 
   if let throwsClause = functionType.effectSpecifiers?.throwsClause, throwsClause.type != nil {
@@ -255,7 +264,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         message: ClosureDiagnosticMessage(
           "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
           id: "js-closure-typed-throws"
-        )))
+        )
+      )
+    )
   }
 
   for parameter in closure.parameters {
@@ -266,7 +277,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
           message: ClosureDiagnosticMessage(
             "A @JS closure argument can't take an '\(specifier)' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
             id: "js-closure-parameter-specifier"
-          )))
+          )
+        )
+      )
     }
     if parameter.isVariadic {
       context.diagnose(
@@ -275,7 +288,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
           message: ClosureDiagnosticMessage(
             "A @JS closure argument can't take a variadic parameter. Use an array instead.",
             id: "js-closure-variadic-parameter"
-          )))
+          )
+        )
+      )
     }
   }
 
@@ -290,7 +305,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
           message: ClosureDiagnosticMessage(
             "A @JS closure argument can't take or return another closure.",
             id: "js-closure-nested"
-          )))
+          )
+        )
+      )
     } else if mentionsFreeFormAny(type) {
       context.diagnose(
         Diagnostic(
@@ -298,7 +315,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
           message: ClosureDiagnosticMessage(
             "A @JS closure argument can't use the free-form '\(type.trimmedDescription)'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
             id: "js-closure-free-form"
-          )))
+          )
+        )
+      )
     }
   }
 
@@ -310,7 +329,9 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
           "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return.",
           id: "js-closure-requires-throws"
         ),
-        fixIts: [insertThrowsFixIt(for: functionType)]))
+        fixIts: [insertThrowsFixIt(for: functionType)]
+      )
+    )
   }
 }
 
@@ -321,13 +342,16 @@ private func insertThrowsFixIt(for functionType: FunctionTypeSyntax) -> FixIt {
   var newType = functionType
   if var effectSpecifiers = functionType.effectSpecifiers, let asyncSpecifier = effectSpecifiers.asyncSpecifier {
     effectSpecifiers.throwsClause = ThrowsClauseSyntax(
-      throwsSpecifier: .keyword(.throws, trailingTrivia: asyncSpecifier.trailingTrivia))
+      throwsSpecifier: .keyword(.throws, trailingTrivia: asyncSpecifier.trailingTrivia)
+    )
     effectSpecifiers.asyncSpecifier = asyncSpecifier.with(\.trailingTrivia, .space)
     newType.effectSpecifiers = effectSpecifiers
   } else {
     newType.effectSpecifiers = TypeEffectSpecifiersSyntax(
       throwsClause: ThrowsClauseSyntax(
-        throwsSpecifier: .keyword(.throws, trailingTrivia: functionType.rightParen.trailingTrivia)))
+        throwsSpecifier: .keyword(.throws, trailingTrivia: functionType.rightParen.trailingTrivia)
+      )
+    )
     newType.rightParen = functionType.rightParen.with(\.trailingTrivia, .space)
   }
   return FixIt(
@@ -360,7 +384,8 @@ internal func firstFunctionType(in type: some SyntaxProtocol) -> FunctionTypeSyn
 /// same type as `(Int) -> Void`.
 private func unparenthesized(_ type: TypeSyntax) -> TypeSyntax {
   if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1,
-    let element = tuple.elements.first, element.firstName == nil {
+    let element = tuple.elements.first, element.firstName == nil
+  {
     return unparenthesized(element.type)
   }
   return type

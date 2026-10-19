@@ -2,34 +2,32 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/**
- Macro applied to a module class. It plays three roles, each implemented in its own
- extension below:
-
- - `MemberMacro`: binds `@JS`-marked members directly into the module's JS object via the
-   synthesized `_decorateModule`, and emits the resolved module name as a non-optional
-   `_jsName` static (no `Name(…)` DSL element). It also synthesizes a
-   framework-internal `_synthesizedDefinition()` returning `[AnyDefinition]` (now carrying
-   only nested `classes` entries) that `expo-modules-core` merges into the module's
-   definition. When the class doesn't already inherit `Module`/`BaseModule`, it also
-   synthesizes the `appContext` storage and `init(appContext:)` those base classes provide.
- - `MemberAttributeMacro`: stamps `@JavaScriptActor` on `@JS` sync members and
-   `@ModuleDefinitionBuilder` on a `definition()` method.
- - `ExtensionMacro`: adds the `AnyModule` conformance when the class doesn't inherit it.
-
- Inheriting from `Module` is therefore optional — a class can carry any superclass (or
- none) and still be a module, because everything inheritance used to provide is synthesized.
-
-   @ExpoModule
-   public final class MyModule {
-     public func definition() -> ModuleDefinition {
-       Name("MyModule")
-     }
-
-     @JS
-     func greet(name: String) -> String { "Hi, \(name)" }
-   }
- */
+/// Macro applied to a module class. It plays three roles, each implemented in its own
+/// extension below:
+///
+/// - `MemberMacro`: binds `@JS`-marked members directly into the module's JS object via the
+///   synthesized `_decorateModule`, and emits the resolved module name as a non-optional
+///   `_jsName` static (no `Name(…)` DSL element). It also synthesizes a
+///   framework-internal `_synthesizedDefinition()` returning `[AnyDefinition]` (now carrying
+///   only nested `classes` entries) that `expo-modules-core` merges into the module's
+///   definition. When the class doesn't already inherit `Module`/`BaseModule`, it also
+///   synthesizes the `appContext` storage and `init(appContext:)` those base classes provide.
+/// - `MemberAttributeMacro`: stamps `@JavaScriptActor` on `@JS` sync members and
+///   `@ModuleDefinitionBuilder` on a `definition()` method.
+/// - `ExtensionMacro`: adds the `AnyModule` conformance when the class doesn't inherit it.
+///
+/// Inheriting from `Module` is therefore optional — a class can carry any superclass (or
+/// none) and still be a module, because everything inheritance used to provide is synthesized.
+///
+///   @ExpoModule
+///   public final class MyModule {
+///     public func definition() -> ModuleDefinition {
+///       Name("MyModule")
+///     }
+///
+///     @JS
+///     func greet(name: String) -> String { "Hi, \(name)" }
+///   }
 public struct ExpoModuleMacro: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -62,7 +60,8 @@ public struct ExpoModuleMacro: MemberMacro {
       let decl = member.decl
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
-        let attribute = funcDecl.attributes.firstAttribute(named: "JS") {
+        let attribute = funcDecl.attributes.firstAttribute(named: "JS")
+      {
         let function = JSFunction(funcDecl: funcDecl, attribute: attribute)
         functions.append(function)
         if let variant = function.asyncVariant {
@@ -72,7 +71,8 @@ public struct ExpoModuleMacro: MemberMacro {
       }
 
       if let varDecl = decl.as(VariableDeclSyntax.self),
-        let attribute = varDecl.attributes.firstAttribute(named: "JS") {
+        let attribute = varDecl.attributes.firstAttribute(named: "JS")
+      {
         properties.append(contentsOf: collectProperties(varDecl: varDecl, attribute: attribute))
       }
     }
@@ -164,7 +164,8 @@ extension ExpoModuleMacro: MemberAttributeMacro {
     // isolation forces its call site onto the JS thread. Async events (the default) are
     // deliberately left unstamped — their `emit` schedules onto the JS thread itself.
     if memberHasJSAttribute(member) || isSyncEventMember(member),
-      shouldStampJavaScriptActor(on: member, enclosedBy: declaration) {
+      shouldStampJavaScriptActor(on: member, enclosedBy: declaration)
+    {
       attributes.append("@JavaScriptActor")
     }
 
@@ -179,7 +180,8 @@ extension ExpoModuleMacro: MemberAttributeMacro {
     // they already wrote `@ModuleDefinitionBuilder` themselves, which would otherwise be
     // a duplicate attribute.
     if isModuleDefinitionFunction(member),
-      !memberAttributes(of: member).contains(where: { hasAttributeName($0, "ModuleDefinitionBuilder") }) {
+      !memberAttributes(of: member).contains(where: { hasAttributeName($0, "ModuleDefinitionBuilder") })
+    {
       attributes.append("@ModuleDefinitionBuilder")
     }
 
@@ -191,7 +193,8 @@ private func isModuleDefinitionFunction(_ member: some DeclSyntaxProtocol) -> Bo
   guard let funcDecl = member.as(FunctionDeclSyntax.self),
     funcDecl.name.text == "definition",
     funcDecl.signature.parameterClause.parameters.isEmpty,
-    let returnType = funcDecl.signature.returnClause?.type else {
+    let returnType = funcDecl.signature.returnClause?.type
+  else {
     return false
   }
   return baseIdentifier(of: returnType) == "ModuleDefinition"
@@ -220,7 +223,8 @@ extension ExpoModuleMacro: ExtensionMacro {
     // These base types already supply `AnyModule`; emitting a second conformance here
     // would be redundant and error.
     if let classDecl = declaration.as(ClassDeclSyntax.self),
-      inheritsFromAny(classDecl, names: ["Module", "BaseModule", "AnyModule"]) {
+      inheritsFromAny(classDecl, names: ["Module", "BaseModule", "AnyModule"])
+    {
       return []
     }
     let conformance: DeclSyntax = "extension \(type.trimmed): AnyModule {}"
@@ -237,7 +241,8 @@ private func hasStoredProperty(_ classDecl: ClassDeclSyntax, named name: String)
     }
     for binding in varDecl.bindings {
       if let identifier = binding.pattern.as(IdentifierPatternSyntax.self),
-        identifier.identifier.text == name {
+        identifier.identifier.text == name
+      {
         return true
       }
     }
@@ -245,14 +250,12 @@ private func hasStoredProperty(_ classDecl: ClassDeclSyntax, named name: String)
   return false
 }
 
-/**
- True if the class declares an initializer that satisfies the `init(appContext:)` protocol
- requirement: a single parameter labeled `appContext` whose type is written as `AppContext`
- (or `…​.AppContext`). Both must match — the label is part of the requirement, so
- `init(c: AppContext)` does *not* satisfy it (we still synthesize ours), and the type guards
- against a same-labeled init of an unrelated type. A macro can't resolve types, so this is a
- syntactic match on the spelled name.
- */
+/// True if the class declares an initializer that satisfies the `init(appContext:)` protocol
+/// requirement: a single parameter labeled `appContext` whose type is written as `AppContext`
+/// (or `…​.AppContext`). Both must match — the label is part of the requirement, so
+/// `init(c: AppContext)` does *not* satisfy it (we still synthesize ours), and the type guards
+/// against a same-labeled init of an unrelated type. A macro can't resolve types, so this is a
+/// syntactic match on the spelled name.
 private func hasAppContextInitializer(_ classDecl: ClassDeclSyntax) -> Bool {
   for member in classDecl.memberBlock.members {
     guard let initDecl = member.decl.as(InitializerDeclSyntax.self) else {

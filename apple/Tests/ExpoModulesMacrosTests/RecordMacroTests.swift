@@ -673,7 +673,8 @@ struct RecordMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Record class 'Child' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
+          message:
+            "@Record class 'Child' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
           line: 2,
           column: 18
         )
@@ -699,7 +700,8 @@ struct RecordMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Record class 'Options' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
+          message:
+            "@Record class 'Options' can't have an inheritance clause: a record class can't have a superclass, and the macro can't tell a superclass from a protocol. Declare protocol conformances in an extension",
           line: 2,
           column: 20
         )
@@ -961,7 +963,8 @@ struct RecordMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Field is no longer used — @Record treats every stored property as a record property. Remove the @Field attribute",
+          message:
+            "@Field is no longer used — @Record treats every stored property as a record property. Remove the @Field attribute",
           line: 1,
           column: 1
         )
@@ -1232,7 +1235,9 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Optional free-form dictionary property converts through the dedicated free-form methods on the JS-object paths`() {
+  func
+    `Optional free-form dictionary property converts through the dedicated free-form methods on the JS-object paths`()
+  {
     assertExpansion(
       """
       @Record
@@ -1323,7 +1328,9 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Array, defaulted dictionary and nested free-form properties pick the dedicated or the generic free-form methods`() {
+  func
+    `Array, defaulted dictionary and nested free-form properties pick the dedicated or the generic free-form methods`()
+  {
     assertExpansion(
       """
       @Record
@@ -1527,7 +1534,8 @@ struct RecordMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Record property 'value' can't be typed '\(type)', because a type holding Any converts to and from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any], or JavaScriptValue to keep the JavaScript value unconverted",
+          message:
+            "@Record property 'value' can't be typed '\(type)', because a type holding Any converts to and from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any], or JavaScriptValue to keep the JavaScript value unconverted",
           line: 1,
           column: 1
         )

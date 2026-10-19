@@ -50,7 +50,8 @@ struct ScanBuildConfiguration: BuildConfiguration {
     // "yes" would surface a declaration that doesn't exist in the real build.
     guard importPath.count == 1,
       case .unversioned = version,
-      let frameworkPlatforms = sdkFrameworkPlatforms[module] else {
+      let frameworkPlatforms = sdkFrameworkPlatforms[module]
+    else {
       throw ScanConfigurationError("cannot evaluate 'canImport(\(module))' in a static scan")
     }
     return frameworkPlatforms.contains(platform.lowercased())

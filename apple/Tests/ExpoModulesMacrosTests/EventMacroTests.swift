@@ -557,7 +557,8 @@ struct EventMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Event function type takes at most one payload parameter; combine multiple values into a single record",
+          message:
+            "@Event function type takes at most one payload parameter; combine multiple values into a single record",
           line: 2,
           column: 3
         )

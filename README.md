@@ -116,6 +116,19 @@ swift build
 swift test
 ```
 
+The Swift sources are formatted with [swift-format](https://github.com/swiftlang/swift-format), using the same configuration (`.swift-format`) as the `expo/expo` repository. `npm run swift:format` formats the `.swift` files that Git tracks or doesn't ignore in place, and `npm run swift:lint` checks them without changes, as CI does.
+
+The scripts run the `swift-format` on `PATH`, or on macOS the one in the selected Xcode when there is none on `PATH`. CI uses swift-format `604.0.0`, which can format differently from the one in Xcode. To get the version that CI uses, build it from source:
+
+```sh
+git clone --depth 1 --branch 604.0.0 https://github.com/swiftlang/swift-format.git /tmp/swift-format
+(cd /tmp/swift-format && swift build -c release --product swift-format)
+mkdir -p ~/.local/bin
+cp "$(cd /tmp/swift-format && swift build -c release --show-bin-path)/swift-format" ~/.local/bin/
+```
+
+Then add `~/.local/bin` to `PATH`.
+
 `npm run build` runs `scripts/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
 
 - On macOS, it builds for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing.

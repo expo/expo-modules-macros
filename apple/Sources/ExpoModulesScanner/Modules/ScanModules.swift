@@ -1,9 +1,10 @@
+import SwiftParser
+
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
 import Foundation
 #endif
-import SwiftParser
 
 /// The scanner's public entry point. Argument parsing, subcommand dispatch, and usage text live in
 /// the CLI target; this just runs a command and writes its JSON report to stdout.
@@ -122,7 +123,12 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
     var platformsByDetection: [String: [String]] = [:]
     for platform in platformUniverse {
       let configuration = ScanBuildConfiguration(platform: platform.condition, defines: defines)
-      let visitor = DetectionVisitor(file: file, tree: tree, detectedMacros: [.expoModule], configuration: configuration)
+      let visitor = DetectionVisitor(
+        file: file,
+        tree: tree,
+        detectedMacros: [.expoModule],
+        configuration: configuration
+      )
       visitor.walk(tree)
       for detection in visitor.detections {
         platformsByDetection[detectionKey(detection), default: []].append(platform.reported)

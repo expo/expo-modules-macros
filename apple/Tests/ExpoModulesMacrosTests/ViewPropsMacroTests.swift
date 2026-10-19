@@ -419,7 +419,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ViewProps can only be applied to a struct — the class form (for SwiftUI views) is not supported yet",
+          message:
+            "@ViewProps can only be applied to a struct — the class form (for SwiftUI views) is not supported yet",
           line: 1,
           column: 1
         )
@@ -443,7 +444,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+          message:
+            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
@@ -470,7 +472,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -648,7 +651,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ViewProps supports at most 64 value props (the changed-props mask is a UInt64), but this type declares 65; 'p64' is the first over the limit. Event props don't count toward it",
+          message:
+            "@ViewProps supports at most 64 value props (the changed-props mask is a UInt64), but this type declares 65; 'p64' is the first over the limit. Event props don't count toward it",
           line: 1,
           column: 1
         )
@@ -1259,7 +1263,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+          message:
+            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
@@ -1285,7 +1290,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "'rawValue' can't be used as a prop name — it collides with the synthesized PropSet's storage. Rename the property",
+          message:
+            "'rawValue' can't be used as a prop name — it collides with the synthesized PropSet's storage. Rename the property",
           line: 1,
           column: 1
         )
@@ -1359,7 +1365,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1391,7 +1398,8 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+          message:
+            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
