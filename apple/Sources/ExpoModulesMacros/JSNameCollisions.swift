@@ -13,9 +13,7 @@ internal func diagnoseJSNameCollisions(
   // Each member binds with its own `setProperty` or `defineProperty` call, so of two members with one
   // name, JavaScript would reach only one. Members are compared in source order, so the error lands on
   // every member after the first, whichever kind each one is.
-  let members =
-    functions.map { BoundMember(jsName: $0.jsName, kind: "function", nameToken: $0.nameToken) }
-    + properties.map { BoundMember(jsName: $0.jsName, kind: "property", nameToken: $0.nameToken) }
+  let members = functions.map(BoundMember.init(function:)) + properties.map(BoundMember.init(property:))
   var firstMembers: [String: BoundMember] = [:]
 
   for member in members.sorted(by: { $0.nameToken.position < $1.nameToken.position }) {
@@ -23,11 +21,13 @@ internal func diagnoseJSNameCollisions(
       firstMembers[member.jsName] = member
       continue
     }
+    let renaming =
+      first.renaming == member.renaming ? first.renaming : "\(first.renaming) or \(member.renaming)"
     context.diagnose(
       Diagnostic(
         node: member.nameToken,
         message: JSNameCollisionMessage(
-          "The JavaScript name '\(member.jsName)' is already bound by an earlier @JS \(first.kind). A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\")."
+          "The JavaScript name '\(member.jsName)' is already bound by an earlier \(first.kind). A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with \(renaming)."
         ),
         notes: [
           Note(
@@ -40,8 +40,26 @@ internal func diagnoseJSNameCollisions(
 
 private struct BoundMember {
   let jsName: String
+  /// How the message names the member, such as `@JS function`.
   let kind: String
+  /// The spelling that gives the member another JavaScript name.
+  let renaming: String
   let nameToken: TokenSyntax
+
+  init(function: JSFunction) {
+    // A `.withAsync` variant takes its JavaScript name from the option, not from `@JS("...")`.
+    self.jsName = function.jsName
+    self.kind = function.isAsyncVariant ? "'.withAsync' variant" : "@JS function"
+    self.renaming = function.isAsyncVariant ? ".withAsync(\"...\")" : "@JS(\"...\")"
+    self.nameToken = function.nameToken
+  }
+
+  init(property: JSProperty) {
+    self.jsName = property.jsName
+    self.kind = "@JS property"
+    self.renaming = "@JS(\"...\")"
+    self.nameToken = property.nameToken
+  }
 }
 
 private struct JSNameCollisionMessage: DiagnosticMessage {

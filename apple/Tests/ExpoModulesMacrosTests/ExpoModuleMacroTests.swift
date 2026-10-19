@@ -1016,6 +1016,561 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `@JS(.withAsync) binds a promise-returning variant that calls the function on the concurrent pool`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class FileModule: Module {
+        @JS("textSync", .withAsync("text"))
+        func text(path: String) throws -> String { path }
+      }
+      """,
+      expandedSource: """
+        final class FileModule: Module {
+          func text(path: String) throws -> String { path }
+
+          public static let _jsName = "FileModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("textSync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "textSync", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = try self.text(path: arg0)
+              return try String.encode(result, in: runtime)
+            }
+            object.setProperty("text") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "text", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              return {
+                let result = try await { @concurrent () async throws -> String in
+                  try self.text(path: arg0)
+                }()
+                return try await runtime.execute {
+                  return try String.encode(result, in: runtime)
+                }
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) variant of a function with a trailing defaulted parameter has a call per accepted arity`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class LogModule: Module {
+        @JS(.withAsync("writeAsync"))
+        func write(_ message: String, level: Int = 0) {}
+      }
+      """,
+      expandedSource: """
+        final class LogModule: Module {
+          func write(_ message: String, level: Int = 0) {}
+
+          public static let _jsName = "LogModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("write") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count >= 1 && arguments.count <= 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "write", received: arguments.count, required: 1, maximum: 2))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              switch arguments.count {
+              case 1:
+                self.write(arg0)
+              default:
+                let arg1 = try Int.decode(arguments.unownedValue(at: 1), in: runtime)
+                self.write(arg0, level: arg1)
+              }
+            }
+            object.setProperty("writeAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count >= 1 && arguments.count <= 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "writeAsync", received: arguments.count, required: 1, maximum: 2))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              switch arguments.count {
+              case 1:
+                return {
+                  await { @concurrent () async in
+                    self.write(arg0)
+                  }()
+                  return .undefined()
+                }
+              default:
+                let arg1 = try Int.decode(arguments.unownedValue(at: 1), in: runtime)
+                return {
+                  await { @concurrent () async in
+                    self.write(arg0, level: arg1)
+                  }()
+                  return .undefined()
+                }
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) on an async function is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("loadAsync"))
+        func load() async -> Int { 0 }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          func load() async -> Int { 0 }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                let result = await self.load()
+                return try await runtime.execute {
+                  return try Int.encode(result, in: runtime)
+                }
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) on a property is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("statusAsync"))
+        var status: String { "ok" }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          var status: String { "ok" }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let statusDescriptor = runtime.createObject()
+            statusDescriptor.setProperty("enumerable", value: true)
+            statusDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              return try String.encode(self.status, in: runtime)
+            }
+            object.defineProperty("status", descriptor: statusDescriptor)
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer.",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) needs the variant's name as a string literal`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync(variantName))
+        func load() -> Int { 0 }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          func load() -> Int { 0 }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              let result = self.load()
+              return try Int.encode(result, in: runtime)
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'.",
+          line: 3,
+          column: 7,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) on a function of a global-actor type is diagnosed unless it's nonisolated`() {
+    assertExpansion(
+      """
+      @MainActor
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("loadAsync"))
+        func load() {}
+
+        @JS(.withAsync("saveAsync"))
+        nonisolated func save() {}
+      }
+      """,
+      expandedSource: """
+        @MainActor
+        final class MyModule: Module {
+          func load() {}
+          nonisolated func save() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("loadAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.load()
+                }()
+                return .undefined()
+              }
+            }
+            object.setProperty("save") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "save", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.save()
+            }
+            object.setProperty("saveAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "saveAsync", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.save()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '@MainActor' from 'MyModule'. Mark the function 'nonisolated'.",
+          line: 4,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) on a function isolated to a global actor is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("loadAsync"))
+        @MainActor
+        func load() {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @MainActor
+          func load() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("loadAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.load()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '@MainActor'.",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) variant name that the function's own binding uses is a collision`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("load"))
+        func load() {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          func load() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.load()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'load' is already bound by an earlier '.withAsync' variant. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with .withAsync(\"...\") or @JS(\"...\").",
+          line: 4,
+          column: 8,
+          severity: .error,
+          notes: [NoteSpec(message: "'load' is first bound here", line: 3, column: 19)]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) variant name that another member uses is a collision on the variant's name`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func load() {}
+
+        @JS(.withAsync("load"))
+        func fetch() {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func load() {}
+          func fetch() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("fetch") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "fetch", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.fetch()
+            }
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.fetch()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'load' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\") or .withAsync(\"...\").",
+          line: 6,
+          column: 19,
+          severity: .error,
+          notes: [NoteSpec(message: "'load' is first bound here", line: 4, column: 8)]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.withAsync) listed twice binds the first variant and reports the others`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("loadAsync"), .withAsync("fetchAsync"))
+        func load() {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          func load() {}
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              self.load()
+            }
+            object.setProperty("loadAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await { @concurrent () async in
+                  self.load()
+                }()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "'.withAsync' can be listed only once: a function gets one promise-returning variant.",
+          line: 3,
+          column: 32,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
   func `@JS(.concurrent) on a synchronous function is diagnosed on the attribute`() {
     assertExpansion(
       """

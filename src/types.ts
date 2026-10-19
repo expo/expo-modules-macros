@@ -138,8 +138,14 @@ export interface ExportedParameter {
 
 /** One `@JS func` on a module or shared object. */
 export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
+  /**
+   * The Swift declaration name. A function with `.withAsync("x")` has two entries with this name.
+   */
   name: string;
-  /** The JS name it binds under: the `@JS("x")` override, else `name`. */
+  /**
+   * The JS name it binds under: the `@JS("x")` override, else `name`. The second entry of a function
+   * with `.withAsync("x")` binds under `x`.
+   */
   jsName: string;
   parameters: ExportedParameter[];
   /** Absent for a `Void` return. */
