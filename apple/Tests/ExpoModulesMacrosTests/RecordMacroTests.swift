@@ -212,14 +212,14 @@ struct RecordMacroTests {
       @Record
       struct Options {
         var primary: MyRecord
-        var tags: [String]
+        var tags: [Tag]
         var count: Int = 0
       }
       """,
       expandedSource: """
         struct Options {
           var primary: MyRecord
-          var tags: [String]
+          var tags: [Tag]
           var count: Int = 0
 
           private func _assertTypesConformance() {
@@ -228,14 +228,14 @@ struct RecordMacroTests {
             primary(MyRecord.self)
             func tags<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
             }
-            tags([String].self)
+            tags([Tag].self)
           }
 
           public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(primary: MyRecord, tags: [String], count: Int) {
+          public init(primary: MyRecord, tags: [Tag], count: Int) {
             self.primary = primary
             self.tags = tags
             self.count = count
@@ -259,7 +259,7 @@ struct RecordMacroTests {
             guard let entry1 else {
               throw RecordPropertyRequiredException("tags")
             }
-            let field1 = try [String].getDynamicType().cast(entry1, appContext: appContext) as! [String]
+            let field1 = try [Tag].getDynamicType().cast(entry1, appContext: appContext) as! [Tag]
             let entry2 = dictionary["count"]
             let field2 = entry2 == nil ? 0 : try Int.getDynamicType().cast(entry2, appContext: appContext) as! Int
             return Self(primary: field0, tags: field1, count: field2)
@@ -291,7 +291,7 @@ struct RecordMacroTests {
               guard !tagsJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("tags")
               }
-              return try [String].decode(tagsJSValue, in: runtime)
+              return try [Tag].decode(tagsJSValue, in: runtime)
             }
             let field2 = try object.withUnownedProperty("count") { countJSValue in
               return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
@@ -303,13 +303,126 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             object.setProperty("primary", value: try MyRecord.encode(value.primary, in: runtime))
-            object.setProperty("tags", value: try [String].encode(value.tags, in: runtime))
+            object.setProperty("tags", value: try [Tag].encode(value.tags, in: runtime))
             object.setProperty("count", value: try Int.encode(value.count, in: runtime))
             return object.asValue()
           }
         }
 
         extension Options: Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Containers of primitives skip the conformance assertion, except a set`() {
+    assertExpansion(
+      """
+      @Record
+      struct Layout {
+        var grid: [[Int]]
+        var labels: [String: String]
+        var tags: Set<String>
+      }
+      """,
+      expandedSource: """
+        struct Layout {
+          var grid: [[Int]]
+          var labels: [String: String]
+          var tags: Set<String>
+
+          private func _assertTypesConformance() {
+            func tags<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            }
+            tags(Set<String>.self)
+          }
+
+          public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+          }
+
+          public init(grid: [[Int]], labels: [String: String], tags: Set<String>) {
+            self.grid = grid
+            self.labels = labels
+            self.tags = tags
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let entry0 = dictionary["grid"]
+            guard let entry0 else {
+              throw RecordPropertyRequiredException("grid")
+            }
+            let field0 = try [[Int]].getDynamicType().cast(entry0, appContext: appContext) as! [[Int]]
+            let entry1 = dictionary["labels"]
+            guard let entry1 else {
+              throw RecordPropertyRequiredException("labels")
+            }
+            let field1 = try [String: String].getDynamicType().cast(entry1, appContext: appContext) as! [String: String]
+            let entry2 = dictionary["tags"]
+            guard let entry2 else {
+              throw RecordPropertyRequiredException("tags")
+            }
+            let field2 = try Set<String>.getDynamicType().cast(entry2, appContext: appContext) as! Set<String>
+            return Self(grid: field0, labels: field1, tags: field2)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["grid"] = self.grid
+            dictionary["labels"] = self.labels
+            dictionary["tags"] = self.tags
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let field0 = try object.withUnownedProperty("grid") { gridJSValue in
+              guard !gridJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("grid")
+              }
+              return try [[Int]].decode(gridJSValue, in: runtime)
+            }
+            let field1 = try object.withUnownedProperty("labels") { labelsJSValue in
+              guard !labelsJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("labels")
+              }
+              return try [String: String].decode(labelsJSValue, in: runtime)
+            }
+            let field2 = try object.withUnownedProperty("tags") { tagsJSValue in
+              guard !tagsJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("tags")
+              }
+              return try Set<String>.decode(tagsJSValue, in: runtime)
+            }
+            return Self(grid: field0, labels: field1, tags: field2)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Layout, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            object.setProperty("grid", value: try [[Int]].encode(value.grid, in: runtime))
+            object.setProperty("labels", value: try [String: String].encode(value.labels, in: runtime))
+            object.setProperty("tags", value: try Set<String>.encode(value.tags, in: runtime))
+            return object.asValue()
+          }
+        }
+
+        extension Layout: Record {
         }
         """
     )

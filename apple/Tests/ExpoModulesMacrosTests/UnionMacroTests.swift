@@ -187,6 +187,77 @@ struct UnionMacroTests {
   }
 
   @Test
+  func `Payloads of nested arrays and sets of primitives emit no conformance assertion`() {
+    assertExpansion(
+      """
+      @Union
+      enum Selection {
+        case grid([[Int]])
+        case tags(Set<String>)
+      }
+      """,
+      expandedSource: """
+        enum Selection {
+          case grid([[Int]])
+          case tags(Set<String>)
+
+          public static var decodableKinds: JavaScriptValueKinds {
+            return [[[Int]].decodableKinds, Set<String>.decodableKinds]
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let kind = JavaScriptValueKinds(of: value)
+            if [[Int]].decodableKinds.contains(kind), let payload = try? [[Int]].decode(value, in: runtime) {
+              return .grid(payload)
+            }
+            if Set<String>.decodableKinds.contains(kind), let payload = try? Set<String>.decode(value, in: runtime) {
+              return .tags(payload)
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Selection", received: value.copied(in: runtime).kind.rawValue, expected: ["[[Int]]", "Set<String>"]))
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Self, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            switch value {
+            case .grid(let payload):
+              return try [[Int]].encode(payload, in: runtime)
+            case .tags(let payload):
+              return try Set<String>.encode(payload, in: runtime)
+            }
+          }
+
+          public func `as`(_ type: [[Int]].Type) throws -> [[Int]] {
+            if case .grid(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Selection", received: _payloadTypeName, expected: ["[[Int]]"]))
+          }
+
+          public func `as`(_ type: Set<String>.Type) throws -> Set<String> {
+            if case .tags(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Selection", received: _payloadTypeName, expected: ["Set<String>"]))
+          }
+
+          private var _payloadTypeName: String {
+            switch self {
+            case .grid:
+              return "[[Int]]"
+            case .tags:
+              return "Set<String>"
+            }
+          }
+        }
+
+        extension Selection: JavaScriptDecodable, JavaScriptEncodable {
+        }
+        """
+    )
+  }
+
+  @Test
   func `Composed payload types are decoded, encoded, and asserted verbatim`() {
     assertExpansion(
       """
