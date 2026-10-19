@@ -13,6 +13,7 @@
 - `apple/PodTests`: a stub test so that `expo/expo` native tests can install this package as a pod. Do not add real tests here.
 - `src/`: the TypeScript wrapper around the scanner CLI. `types.ts` mirrors the Swift `Codable` output types by hand.
 - `scripts/build.js` (`npm run build`): builds the release binaries: the universal macOS `apple/ExpoModulesMacros` (committed and published), and on Windows and Linux `platforms/win32-<arch>/ExpoModulesMacros.exe` or `platforms/linux-<arch>/ExpoModulesMacros` for the host architecture (not committed; published in that package).
+- `scripts/swift-format.js` (`npm run swift:format`, `npm run swift:lint`): runs swift-format on the `.swift` files that Git tracks or doesn't ignore, with the configuration in `.swift-format`.
 
 ## Commands
 
@@ -23,9 +24,11 @@ cd apple && swift build      # debug build
 cd apple && swift test       # all Swift tests
 npm run typecheck            # TypeScript wrapper
 npm run build                # release binary (slow; on macOS uses Rosetta for x86_64)
+npm run swift:format         # format the Swift sources in place
+npm run swift:lint           # check the formatting, as CI does
 ```
 
-CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.github/workflows/windows.yml`), and on Linux x64 and arm64 (`.github/workflows/linux.yml`). On macOS it runs the release build, checks both binary slices, then runs `swift test` and `npm run typecheck`. On Windows it builds and tests the package, builds the release binary, checks that it starts without the Swift runtime, packs it into its `platforms/` package (checking the files and the `os`/`cpu` fields), installs that package, and scans through the TypeScript wrapper with `scripts/check-scan.js`, which must find the executable there. On Linux it does the same in the `swift:6.4.0-rhel-ubi9` image, and also checks that no Swift library is linked dynamically, the newest glibc symbol version that the binary needs, and that the package keeps the executable bit. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
+CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.github/workflows/windows.yml`), and on Linux x64 and arm64 (`.github/workflows/linux.yml`). On macOS it runs the release build, checks both binary slices, then runs `swift test` and `npm run typecheck`. On Windows it builds and tests the package, builds the release binary, checks that it starts without the Swift runtime, packs it into its `platforms/` package (checking the files and the `os`/`cpu` fields), installs that package, and scans through the TypeScript wrapper with `scripts/check-scan.js`, which must find the executable there. On Linux it does the same in the `swift:6.4.0-rhel-ubi9` image, and also checks that no Swift library is linked dynamically, the newest glibc symbol version that the binary needs, and that the package keeps the executable bit. The Swift Format workflow (`.github/workflows/swift-format.yml`) builds the pinned swift-format version and runs `npm run swift:lint`. Code in `Sources` and `Tests` must not assume Apple platforms or POSIX paths.
 
 ## Windows
 
@@ -39,7 +42,9 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 
 ## Conventions
 
-- Swift uses 2-space indentation. Write new doc comments as `///` line comments, not `/** */` blocks.
+- swift-format formats the Swift sources. After you change Swift code, run `npm run swift:format` and then `npm run swift:lint`, which also reports the rules that the formatter doesn't fix. `.swift-format` is a copy of the configuration in `expo/expo`, so keep the two the same. Each repository pins its own swift-format version.
+- The scripts run the swift-format on `PATH`, or on macOS the one in Xcode when there is none. CI builds the version in `SWIFT_FORMAT_VERSION` (`.github/workflows/swift-format.yml`, also named in the README), which can format differently from the one in Xcode. When CI reports a finding that the local lint doesn't, fix it as CI reports it.
+- Write new doc comments as `///` line comments, not `/** */` blocks.
 - Tests use Swift Testing (`import Testing`, `@Test`) with backtick-quoted descriptive names, for example ``func `Prunes .build, Pods, .git, and node_modules directories`()``.
 - Macro tests compare full expansions with `assertMacroExpansion` from `SwiftSyntaxMacrosGenericTestSupport`, using `indentationWidth: .spaces(2)`. Each test file wraps it in a local `assertExpansion` helper that passes `recordIssue` (`IssueRecording.swift`) as the failure handler.
 - Scanner tests reach internal API with `@testable import ExpoModulesScanner`. Do not make scanner types `public` only for tests.

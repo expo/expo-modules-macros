@@ -1,5 +1,6 @@
 .claude
 .gitattributes
+.swift-format
 
 /apple/.build/**/*
 /apple/Tests/**/*

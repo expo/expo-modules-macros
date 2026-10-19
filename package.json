@@ -16,6 +16,8 @@
     "build:ts": "tsc -p tsconfig.json",
     "clean": "rm -rf build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "swift:format": "node scripts/swift-format.js",
+    "swift:lint": "node scripts/swift-format.js --lint",
     "prepublishOnly": "npm run build:ts"
   },
   "devDependencies": {
