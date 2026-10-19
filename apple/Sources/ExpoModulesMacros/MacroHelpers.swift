@@ -192,6 +192,75 @@ internal func optionalWrappedType(_ type: TypeSyntax) -> TypeSyntax? {
   return nil
 }
 
+/// The element type of `[T]` or `Array<T>`, or `nil` for any other type.
+internal func arrayElementType(_ type: TypeSyntax) -> TypeSyntax? {
+  if let array = type.as(ArrayTypeSyntax.self) {
+    return array.element
+  }
+  guard let arguments = genericArguments(of: type, named: "Array"), arguments.count == 1 else {
+    return nil
+  }
+  return arguments[0]
+}
+
+/// The value type of `[String: V]` or `Dictionary<String, V>`, or `nil` for any other type, including a
+/// dictionary with a different key type.
+internal func stringKeyedDictionaryValueType(_ type: TypeSyntax) -> TypeSyntax? {
+  if let dictionary = type.as(DictionaryTypeSyntax.self) {
+    return isStringType(dictionary.key) ? dictionary.value : nil
+  }
+  guard let arguments = genericArguments(of: type, named: "Dictionary"), arguments.count == 2 else {
+    return nil
+  }
+  return isStringType(arguments[0]) ? arguments[1] : nil
+}
+
+/// The element type of `Set<T>`, or `nil` for any other type.
+internal func setElementType(_ type: TypeSyntax) -> TypeSyntax? {
+  guard let arguments = genericArguments(of: type, named: "Set"), arguments.count == 1 else {
+    return nil
+  }
+  return arguments[0]
+}
+
+/// The type arguments of a generic type spelled `<name><…>` (or `Swift.<name><…>`), or `nil` when the
+/// type has another name or no type arguments.
+private func genericArguments(of type: TypeSyntax, named name: String) -> [TypeSyntax]? {
+  let clause: GenericArgumentClauseSyntax?
+  if let identifier = type.as(IdentifierTypeSyntax.self), identifier.name.text == name {
+    clause = identifier.genericArgumentClause
+  } else if let member = type.as(MemberTypeSyntax.self),
+    member.name.text == name,
+    member.baseType.as(IdentifierTypeSyntax.self)?.name.text == "Swift"
+  {
+    clause = member.genericArgumentClause
+  } else {
+    return nil
+  }
+  guard let clause else {
+    return nil
+  }
+  var types: [TypeSyntax] = []
+  for argument in clause.arguments {
+    guard case .type(let type) = argument.argument else {
+      return nil
+    }
+    types.append(type)
+  }
+  return types
+}
+
+/// True when the type is `String` or `Swift.String`.
+private func isStringType(_ type: TypeSyntax) -> Bool {
+  if let identifier = type.as(IdentifierTypeSyntax.self) {
+    return identifier.name.text == "String" && identifier.genericArgumentClause == nil
+  }
+  if let member = type.as(MemberTypeSyntax.self), member.name.text == "String" {
+    return member.baseType.as(IdentifierTypeSyntax.self)?.name.text == "Swift"
+  }
+  return false
+}
+
 /// True when the modifiers make the member type-level (`static` or `class`). A shared object routes
 /// such members to its constructor (JS-static) and instance members to its prototype; the `@JS`
 /// conformance assertion also uses this to emit its peer in the matching metatype context.

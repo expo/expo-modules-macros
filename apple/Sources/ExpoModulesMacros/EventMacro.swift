@@ -86,7 +86,7 @@ extension EventMacro: PeerMacro {
     // and asserting the enclosing type by its spelled name so the conformance error names the
     // user's type rather than 'Self'.
     let name = event.swiftName
-    let payload = event.payloadType.flatMap(assertableBoundaryType)
+    let payload = event.payloadType.flatMap { assertableBoundaryType($0, constraint: jsConvertibleProtocolName) }
     let owner = enclosingTypeName(in: context) ?? "Self"
     let helper =
       payload != nil

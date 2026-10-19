@@ -213,6 +213,64 @@ struct EventMacroTests {
   }
 
   @Test
+  func `Payload of nested arrays and String-keyed dictionaries of primitives asserts only the emitter conformance`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onScores: ([String: [Int]]) -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onScores: ([String: [Int]]) -> Void {
+            get {
+              { [weak self] payload in
+                self?.emit(event: "scores", payload: payload)
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onScores() {
+            func onScores<E: EventEmitter>(_: E.Type) {
+            }
+            onScores(MyModule.self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Set payload is asserted, because Set is not an AnyArgument`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onTags: (Set<String>) -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onTags: (Set<String>) -> Void {
+            get {
+              { [weak self] payload in
+                self?.emit(event: "tags", payload: payload)
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onTags() {
+            func onTags<P: AnyArgument, E: EventEmitter>(_: P.Type, _: E.Type) {
+            }
+            onTags(Set<String>.self, MyModule.self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Attributed function type is unwrapped to the underlying event`() {
     assertExpansion(
       """

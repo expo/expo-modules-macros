@@ -329,6 +329,89 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Optionals, arrays, String-keyed dictionaries, and sets of primitives get no conformance-assertion peer`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func group(values: [[Int]], weights: [String: Double]?, flags: Set<Bool>) -> Dictionary<String, Array<String?>> { [:] }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func group(values: [[Int]], weights: [String: Double]?, flags: Set<Bool>) -> Dictionary<String, Array<String?>> { [:] }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("group") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 3 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "group", received: arguments.count, required: 3, maximum: 3))
+              }
+              let arg0 = try [[Int]].decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg1 = try [String: Double]?.decode(arguments.unownedValue(at: 1), in: runtime)
+              let arg2 = try Set<Bool>.decode(arguments.unownedValue(at: 2), in: runtime)
+              let result = self.group(values: arg0, weights: arg1, flags: arg2)
+              return try Dictionary<String, Array<String?>>.encode(result, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Containers of non-primitive types and non-String-keyed dictionaries are asserted`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func index(records: [[MyRecord]], names: [Int: String]) -> Set<MyRecord> { [] }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func index(records: [[MyRecord]], names: [Int: String]) -> Set<MyRecord> { [] }
+
+          private func _assertTypesConformance_index() {
+            func index<A0: JavaScriptDecodable & ~Copyable, A1: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: A1.Type, _: Return.Type) {
+            }
+            index([[MyRecord]].self, [Int: String].self, Set<MyRecord>.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("index") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "index", received: arguments.count, required: 2, maximum: 2))
+              }
+              let arg0 = try [[MyRecord]].decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg1 = try [Int: String].decode(arguments.unownedValue(at: 1), in: runtime)
+              let result = self.index(records: arg0, names: arg1)
+              return try Set<MyRecord>.encode(result, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Multiple non-primitive arguments get indexed decodable slots in the assertion`() {
     assertExpansion(
       """
