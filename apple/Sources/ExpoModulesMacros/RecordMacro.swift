@@ -559,7 +559,7 @@ private func propNamesClass(properties: [RecordProperty]) -> DeclSyntax {
 
     \(raw: storedProperties.joined(separator: "\n"))
 
-      init(_ runtime: JavaScriptRuntime) {
+      init(_ runtime: borrowing JavaScriptRuntime) {
     \(raw: assignments.joined(separator: "\n"))
       }
     }
@@ -573,10 +573,9 @@ private func propNameMember(_ index: Int) -> String {
 /// The statements that get the record's property names from the runtime cache into `_propNames`, at the
 /// start of `decode` and `encode`.
 private func propNamesLookupLines() -> [String] {
-  // `decode` and `encode` borrow the runtime, and the initializer takes an owned one.
   return [
     "  let _propNames = runtime.cached(\(propNamesTypeName).key) {",
-    "    return \(propNamesTypeName)(copy runtime)",
+    "    return \(propNamesTypeName)(runtime)",
     "  }",
   ]
 }

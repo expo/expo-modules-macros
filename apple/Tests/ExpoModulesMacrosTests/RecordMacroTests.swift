@@ -104,7 +104,7 @@ struct RecordMacroTests {
             let name1: JavaScriptPropNameID
             let name2: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "name")
               self.name1 = JavaScriptPropNameID(runtime, string: "count")
               self.name2 = JavaScriptPropNameID(runtime, string: "note")
@@ -115,7 +115,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { nameJSValue in
               guard !nameJSValue.isUndefined() else {
@@ -136,7 +136,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.name, in: runtime))
             object.setProperty(_propNames.name1, value: try Int.encode(value.count, in: runtime))
@@ -207,7 +207,7 @@ struct RecordMacroTests {
 
             let name0: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "owner")
             }
           }
@@ -216,7 +216,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { ownerJSValue in
               return try MyRecord?.decode(ownerJSValue, in: runtime)
@@ -228,7 +228,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try MyRecord?.encode(value.owner, in: runtime))
             return object.asValue()
@@ -321,7 +321,7 @@ struct RecordMacroTests {
             let name1: JavaScriptPropNameID
             let name2: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "primary")
               self.name1 = JavaScriptPropNameID(runtime, string: "tags")
               self.name2 = JavaScriptPropNameID(runtime, string: "count")
@@ -332,7 +332,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { primaryJSValue in
               guard !primaryJSValue.isUndefined() else {
@@ -356,7 +356,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try MyRecord.encode(value.primary, in: runtime))
             object.setProperty(_propNames.name1, value: try [Tag].encode(value.tags, in: runtime))
@@ -451,7 +451,7 @@ struct RecordMacroTests {
             let name1: JavaScriptPropNameID
             let name2: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "grid")
               self.name1 = JavaScriptPropNameID(runtime, string: "labels")
               self.name2 = JavaScriptPropNameID(runtime, string: "tags")
@@ -462,7 +462,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { gridJSValue in
               guard !gridJSValue.isUndefined() else {
@@ -489,7 +489,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Layout, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try [[Int]].encode(value.grid, in: runtime))
             object.setProperty(_propNames.name1, value: try [String: String].encode(value.labels, in: runtime))
@@ -575,7 +575,7 @@ struct RecordMacroTests {
             let name2: JavaScriptPropNameID
             let name3: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "name")
               self.name1 = JavaScriptPropNameID(runtime, string: "ratio")
               self.name2 = JavaScriptPropNameID(runtime, string: "count")
@@ -587,7 +587,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { nameJSValue in
               return nameJSValue.isUndefined() ? "foo" : try String.decode(nameJSValue, in: runtime)
@@ -608,7 +608,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.name, in: runtime))
             object.setProperty(_propNames.name1, value: try Double.encode(value.ratio, in: runtime))
@@ -713,7 +713,7 @@ struct RecordMacroTests {
 
             let name0: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "name")
             }
           }
@@ -722,7 +722,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { nameJSValue in
               guard !nameJSValue.isUndefined() else {
@@ -737,7 +737,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.name, in: runtime))
             return object.asValue()
@@ -863,7 +863,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "x")
               self.name1 = JavaScriptPropNameID(runtime, string: "y")
             }
@@ -873,7 +873,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { xJSValue in
               return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
@@ -888,7 +888,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Point, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try Double.encode(value.x, in: runtime))
             object.setProperty(_propNames.name1, value: try Double.encode(value.y, in: runtime))
@@ -1094,7 +1094,7 @@ struct RecordMacroTests {
 
             let name0: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "name")
             }
           }
@@ -1103,7 +1103,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { nameJSValue in
               guard !nameJSValue.isUndefined() else {
@@ -1118,7 +1118,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.name, in: runtime))
             return object.asValue()
@@ -1185,7 +1185,7 @@ struct RecordMacroTests {
 
             let name0: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "name")
             }
           }
@@ -1194,7 +1194,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { nameJSValue in
               guard !nameJSValue.isUndefined() else {
@@ -1209,7 +1209,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.name, in: runtime))
             return object.asValue()
@@ -1335,7 +1335,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "x")
               self.name1 = JavaScriptPropNameID(runtime, string: "y")
             }
@@ -1345,7 +1345,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { xJSValue in
               return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
@@ -1360,7 +1360,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try Double.encode(value.x, in: runtime))
             object.setProperty(_propNames.name1, value: try Double.encode(value.y, in: runtime))
@@ -1436,7 +1436,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "x")
               self.name1 = JavaScriptPropNameID(runtime, string: "y")
             }
@@ -1446,7 +1446,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { xJSValue in
               return xJSValue.isUndefined() ? 0 : try Double.decode(xJSValue, in: runtime)
@@ -1461,7 +1461,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try Double.encode(value.x, in: runtime))
             object.setProperty(_propNames.name1, value: try Double.encode(value.y, in: runtime))
@@ -1529,7 +1529,7 @@ struct RecordMacroTests {
 
             let name0: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "default")
             }
           }
@@ -1538,7 +1538,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { `defaultJSValue` in
               return `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
@@ -1550,7 +1550,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try Int.encode(value.`default`, in: runtime))
             return object.asValue()
@@ -1632,7 +1632,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "name")
               self.name1 = JavaScriptPropNameID(runtime, string: "attributes")
             }
@@ -1642,7 +1642,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { nameJSValue in
               guard !nameJSValue.isUndefined() else {
@@ -1660,7 +1660,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Report, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.name, in: runtime))
             object.setProperty(_propNames.name1, value: value.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(value.attributes!, in: runtime))
@@ -1750,7 +1750,7 @@ struct RecordMacroTests {
             let name1: JavaScriptPropNameID
             let name2: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "items")
               self.name1 = JavaScriptPropNameID(runtime, string: "meta")
               self.name2 = JavaScriptPropNameID(runtime, string: "groups")
@@ -1761,7 +1761,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { itemsJSValue in
               guard !itemsJSValue.isUndefined() else {
@@ -1782,7 +1782,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Payload, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try JavaScriptValue.encodeAnyArray(value.items, in: runtime))
             object.setProperty(_propNames.name1, value: try JavaScriptValue.encodeAnyDictionary(value.meta, in: runtime))
@@ -1858,7 +1858,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "value")
               self.name1 = JavaScriptPropNameID(runtime, string: "maybe")
             }
@@ -1868,7 +1868,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { valueJSValue in
               guard !valueJSValue.isUndefined() else {
@@ -1886,7 +1886,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Payload, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
             object.setProperty(_propNames.name1, value: value.maybe == nil ? .null() : try JavaScriptValue.encodeAny(value.maybe!, in: runtime))
@@ -1995,7 +1995,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "value")
               self.name1 = JavaScriptPropNameID(runtime, string: "list")
             }
@@ -2005,7 +2005,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { valueJSValue in
               guard !valueJSValue.isUndefined() else {
@@ -2023,7 +2023,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Payload, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
             object.setProperty(_propNames.name1, value: value.list == nil ? .null() : try JavaScriptValue.encodeAnyArray(value.list!, in: runtime))
@@ -2098,7 +2098,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "default")
               self.name1 = JavaScriptPropNameID(runtime, string: "class")
             }
@@ -2108,7 +2108,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { `defaultJSValue` in
               return `defaultJSValue`.isUndefined() ? 0 : try Int.decode(`defaultJSValue`, in: runtime)
@@ -2126,7 +2126,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try Int.encode(value.`default`, in: runtime))
             object.setProperty(_propNames.name1, value: try String.encode(value.`class`, in: runtime))
@@ -2201,7 +2201,7 @@ struct RecordMacroTests {
             let name0: JavaScriptPropNameID
             let name1: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "object")
               self.name1 = JavaScriptPropNameID(runtime, string: "count")
             }
@@ -2211,7 +2211,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { objectJSValue in
               guard !objectJSValue.isUndefined() else {
@@ -2229,7 +2229,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Payload, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.object, in: runtime))
             object.setProperty(_propNames.name1, value: try Int.encode(value.count, in: runtime))
@@ -2334,7 +2334,7 @@ struct RecordMacroTests {
             let name3: JavaScriptPropNameID
             let name4: JavaScriptPropNameID
 
-            init(_ runtime: JavaScriptRuntime) {
+            init(_ runtime: borrowing JavaScriptRuntime) {
               self.name0 = JavaScriptPropNameID(runtime, string: "dictionary")
               self.name1 = JavaScriptPropNameID(runtime, string: "appContext")
               self.name2 = JavaScriptPropNameID(runtime, string: "runtime")
@@ -2347,7 +2347,7 @@ struct RecordMacroTests {
           public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
             let object = try value.asObject(in: runtime)
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames.name0) { dictionaryJSValue in
               guard !dictionaryJSValue.isUndefined() else {
@@ -2383,7 +2383,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Conflicts, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             let _propNames = runtime.cached(_PropNames.key) {
-              return _PropNames(copy runtime)
+              return _PropNames(runtime)
             }
             object.setProperty(_propNames.name0, value: try String.encode(value.dictionary, in: runtime))
             object.setProperty(_propNames.name1, value: try String.encode(value.appContext, in: runtime))
