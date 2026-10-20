@@ -91,7 +91,7 @@ function platformBinaryPackageName(): string {
  *   `bin` directory.
  * - Windows and Linux: `ExpoModulesMacros.exe` or `ExpoModulesMacros` from the package for the
  *   current platform and architecture (see `platformBinaryPackageName`). When that package isn't
- *   installed, for example in this repository, it falls back to the executable that `npm run build`
+ *   installed, for example in this repository, it falls back to the executable that `pnpm run build`
  *   writes to `platforms/<platform>-<arch>`.
  *
  * The path isn't checked here; running a missing binary fails with a `ScannerError` that says how to
@@ -113,7 +113,7 @@ export function getScannerBinaryPath(): string {
 /** The message for a scanner binary that doesn't exist at `binaryPath`. */
 function missingBinaryMessage(binaryPath: string): string {
   if (process.platform === 'darwin') {
-    return `The scanner binary is missing at ${binaryPath}. Run \`npm run build\` in this package to build it.`;
+    return `The scanner binary is missing at ${binaryPath}. Run \`pnpm run build\` in this package to build it.`;
   }
   const machines = platformPackageMachines[process.platform];
   if (machines === undefined) {
@@ -123,7 +123,7 @@ function missingBinaryMessage(binaryPath: string): string {
     `The scanner binary is missing at ${binaryPath}. It comes from the optional package ` +
     `${platformBinaryPackageName()}, which your package manager installs only on ${machines}. ` +
     'Reinstall dependencies without skipping optional ones (for example without `--omit=optional`), ' +
-    'or run `npm run build` in this package to build it locally.'
+    'or run `pnpm run build` in this package to build it locally.'
   );
 }
 

@@ -1,0 +1,5 @@
+# `optionalDependencies` pins the platform packages to the version that the Publish workflow has just
+# released, so for a while after each release they are newer than `minimumReleaseAge`. Without this
+# entry, pnpm adds each of them to this list when it installs.
+minimumReleaseAgeExclude:
+  - '@expo/modules-macros-*'
