@@ -543,7 +543,7 @@ private func objectWriteLines(properties: [RecordProperty], of record: String, c
 /// The name of the nested class that holds the property names (see `propNamesClass`).
 private let propNamesTypeName = "_PropNames"
 
-/// A nested class that holds the `JavaScriptPropNameID` of each property, `name<index>` for the property
+/// A nested class that holds the `JavaScriptPropNameID` of each property, `_name<index>` for the property
 /// at `index`, and the runtime cache key for its instances. Each runtime creates one instance, so the
 /// whole record takes one cache key.
 private func propNamesClass(properties: [RecordProperty]) -> DeclSyntax {
@@ -555,7 +555,7 @@ private func propNamesClass(properties: [RecordProperty]) -> DeclSyntax {
   }
   return """
     private final class \(raw: propNamesTypeName) {
-      static let key = JavaScriptRuntime.Cache.Key<\(raw: propNamesTypeName)>()
+      static let _key = JavaScriptRuntime.Cache.Key<\(raw: propNamesTypeName)>()
 
     \(raw: storedProperties.joined(separator: "\n"))
 
@@ -567,14 +567,14 @@ private func propNamesClass(properties: [RecordProperty]) -> DeclSyntax {
 }
 
 private func propNameMember(_ index: Int) -> String {
-  return "name\(index)"
+  return "_name\(index)"
 }
 
 /// The statements that get the record's property names from the runtime cache into `_propNames`, at the
 /// start of `decode` and `encode`.
 private func propNamesLookupLines() -> [String] {
   return [
-    "  let _propNames = runtime.cached(\(propNamesTypeName).key) {",
+    "  let _propNames = runtime.cached(\(propNamesTypeName)._key) {",
     "    return \(propNamesTypeName)(runtime)",
     "  }",
   ]
