@@ -32,9 +32,10 @@ import SwiftSyntaxMacros
 /// default is required (the factories throw when the source omits it).
 ///
 /// `decode(_:in:)` and `encode(_:in:)` name each property with a `JavaScriptPropNameID` that each runtime
-/// creates once, cached under a key in the nested `_PropNameKeys` enum. A record that is generic or nested
-/// in a generic type uses string names, since a generic type can't have static stored properties. The
-/// macro can't tell that an extension extends a generic type, so a record declared in one doesn't compile.
+/// creates once. The names are held by the nested `_PropNames` class, which each runtime caches under one
+/// key. A record that is generic or nested in a generic type uses string names, since a generic type can't
+/// have static stored properties. The macro can't tell that an extension extends a generic type, so a
+/// record declared in one doesn't compile.
 ///
 /// The JS-value paths convert through `JavaScriptDecodable.decode` / `JavaScriptEncodable.encode`
 /// (`decode(_:in:)` / `encode(_:in:)`); the native-`Any` dictionary paths still go through the
@@ -119,7 +120,7 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     members.append(toDictionaryMethod(properties: properties))
     members.append(toObjectMethod())
     if cachesPropNames {
-      members.append(propNameKeys(count: properties.count))
+      members.append(propNamesClass(properties: properties))
     }
     members.append(
       contentsOf: javaScriptCodableWitnesses(
@@ -398,7 +399,6 @@ private func jsObjectReadLines(properties: [RecordProperty], cachesPropNames: Bo
     let valueVar = derivedIdentifier(from: property.name, suffix: "JSValue")
     let decode = "try \(decodeCall(property.type, freeForm: property.freeForm, from: valueVar))"
     let propName = propNameArgument(for: property, at: index, cached: cachesPropNames)
-    lines.append(contentsOf: propNameLookupLines(for: property, at: index, cached: cachesPropNames))
     lines.append("  let \(fieldLocal(index)) = try object.withUnownedProperty(\(propName)) { \(valueVar) in")
     if property.isRequired {
       lines.append("    guard !\(valueVar).isUndefined() else {")
@@ -492,10 +492,12 @@ private func javaScriptCodableWitnesses(
     properties.isEmpty
     ? "  _ = try value.asObject(in: runtime)"
     : "  let object = try value.asObject(in: runtime)"
-  let readLines = jsObjectReadLines(properties: properties, cachesPropNames: cachesPropNames)
+  let lookupLines = cachesPropNames ? propNamesLookupLines() : []
+  let readLines = lookupLines + jsObjectReadLines(properties: properties, cachesPropNames: cachesPropNames)
   let decodeBody = objectLine + "\n" + factoryBody(properties: properties, readLines: readLines)
   let encodeLines =
     ["  let object = runtime.createObject()"]
+    + lookupLines
     + objectWriteLines(properties: properties, of: "value", cachesPropNames: cachesPropNames)
     + ["  return object.asValue()"]
   return [
@@ -518,7 +520,7 @@ private func javaScriptCodableWitnesses(
 /// `object` local, encoding it with `JavaScriptEncodable.encode` or, for a free-form property, the
 /// matching `JavaScriptValue` free-form method.
 private func objectWriteLines(properties: [RecordProperty], of record: String, cachesPropNames: Bool) -> [String] {
-  return properties.enumerated().flatMap { index, property in
+  return properties.enumerated().map { index, property in
     let value = "\(record).\(property.name)"
     let encode: String
     switch property.freeForm {
@@ -534,59 +536,59 @@ private func objectWriteLines(properties: [RecordProperty], of record: String, c
       encode = "try \(expressionType(property.type)).encode(\(value), in: runtime)"
     }
     let propName = propNameArgument(for: property, at: index, cached: cachesPropNames)
-    return propNameLookupLines(for: property, at: index, cached: cachesPropNames)
-      + ["  object.setProperty(\(propName), value: \(encode))"]
+    return "  object.setProperty(\(propName), value: \(encode))"
   }
 }
 
-/// The name of the nested enum that holds the property name keys (see `propNameKeys`).
-private let propNameKeysTypeName = "_PropNameKeys"
+/// The name of the nested class that holds the property names (see `propNamesClass`).
+private let propNamesTypeName = "_PropNames"
 
-/// A nested enum with one runtime cache key for the JS name of each property, `key<index>` for the
-/// property at `index`, so each runtime creates a property's `JavaScriptPropNameID` only once.
-private func propNameKeys(count: Int) -> DeclSyntax {
-  let keys = (0..<count).map { index in
-    "  static let \(propNameKey(index)) = JavaScriptRuntime.Cache.Key<JavaScriptPropNameID>()"
+/// A nested class that holds the `JavaScriptPropNameID` of each property, `name<index>` for the property
+/// at `index`, and the runtime cache key for its instances. Each runtime creates one instance, so the
+/// whole record takes one cache key.
+private func propNamesClass(properties: [RecordProperty]) -> DeclSyntax {
+  let storedProperties = properties.indices.map { index in
+    "  let \(propNameMember(index)): JavaScriptPropNameID"
+  }
+  let assignments = properties.enumerated().map { index, property in
+    "    self.\(propNameMember(index)) = JavaScriptPropNameID(runtime, string: \"\(property.key)\")"
   }
   return """
-    private enum \(raw: propNameKeysTypeName) {
-    \(raw: keys.joined(separator: "\n"))
+    private final class \(raw: propNamesTypeName) {
+      static let key = JavaScriptRuntime.Cache.Key<\(raw: propNamesTypeName)>()
+
+    \(raw: storedProperties.joined(separator: "\n"))
+
+      init(_ runtime: JavaScriptRuntime) {
+    \(raw: assignments.joined(separator: "\n"))
+      }
     }
     """
 }
 
-private func propNameKey(_ index: Int) -> String {
-  return "key\(index)"
+private func propNameMember(_ index: Int) -> String {
+  return "name\(index)"
 }
 
-/// The local that holds the `JavaScriptPropNameID` of the property at `index` in `decode` and `encode`.
-private func propNameLocal(_ index: Int) -> String {
-  return "propName\(index)"
-}
-
-/// The statements that get the `JavaScriptPropNameID` of the property at `index` from the runtime cache
-/// into `propName<index>`. None when the record can't hold the cache keys.
-private func propNameLookupLines(for property: RecordProperty, at index: Int, cached: Bool) -> [String] {
-  guard cached else {
-    return []
-  }
-  // `decode` and `encode` borrow the runtime, and `JavaScriptPropNameID` takes an owned one.
+/// The statements that get the record's property names from the runtime cache into `propNames`, at the
+/// start of `decode` and `encode`.
+private func propNamesLookupLines() -> [String] {
+  // `decode` and `encode` borrow the runtime, and the initializer takes an owned one.
   return [
-    "  let \(propNameLocal(index)) = runtime.cached(\(propNameKeysTypeName).\(propNameKey(index))) {",
-    "    return JavaScriptPropNameID(copy runtime, string: \"\(property.key)\")",
+    "  let propNames = runtime.cached(\(propNamesTypeName).key) {",
+    "    return \(propNamesTypeName)(copy runtime)",
     "  }",
   ]
 }
 
 /// The first argument of the `withUnownedProperty` and `setProperty` calls for the property at `index`:
-/// the local from `propNameLookupLines`, or the key as a string literal when the record can't hold the
-/// cache keys.
+/// its name from `propNames`, or the key as a string literal when the record can't hold the cache key.
 private func propNameArgument(for property: RecordProperty, at index: Int, cached: Bool) -> String {
-  return cached ? propNameLocal(index) : "\"\(property.key)\""
+  return cached ? "propNames.\(propNameMember(index))" : "\"\(property.key)\""
 }
 
 /// True when the record or a type that encloses it is generic. Swift doesn't support static stored
-/// properties in generic types, so the record can't hold the property name keys.
+/// properties in generic types, so the record can't hold the cache key.
 private func isInGenericContext(_ declaration: some DeclGroupSyntax, context: some MacroExpansionContext) -> Bool {
   // The lexical context of a member macro usually starts with the type it's attached to, but the
   // declaration is checked on its own too.
