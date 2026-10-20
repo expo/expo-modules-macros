@@ -570,21 +570,21 @@ private func propNameMember(_ index: Int) -> String {
   return "name\(index)"
 }
 
-/// The statements that get the record's property names from the runtime cache into `propNames`, at the
+/// The statements that get the record's property names from the runtime cache into `_propNames`, at the
 /// start of `decode` and `encode`.
 private func propNamesLookupLines() -> [String] {
   // `decode` and `encode` borrow the runtime, and the initializer takes an owned one.
   return [
-    "  let propNames = runtime.cached(\(propNamesTypeName).key) {",
+    "  let _propNames = runtime.cached(\(propNamesTypeName).key) {",
     "    return \(propNamesTypeName)(copy runtime)",
     "  }",
   ]
 }
 
 /// The first argument of the `withUnownedProperty` and `setProperty` calls for the property at `index`:
-/// its name from `propNames`, or the key as a string literal when the record can't hold the cache key.
+/// its name from `_propNames`, or the key as a string literal when the record can't hold the cache key.
 private func propNameArgument(for property: RecordProperty, at index: Int, cached: Bool) -> String {
-  return cached ? "propNames.\(propNameMember(index))" : "\"\(property.key)\""
+  return cached ? "_propNames.\(propNameMember(index))" : "\"\(property.key)\""
 }
 
 /// True when the record or a type that encloses it is generic. Swift doesn't support static stored
