@@ -499,7 +499,7 @@ private func javaScriptCodableWitnesses(
     ["  let object = runtime.createObject()"]
     + lookupLines
     + objectWriteLines(properties: properties, of: "value", cachesPropNames: cachesPropNames)
-    + ["  return object.asValue()"]
+    + ["  return object.takeValue()"]
   return [
     """
     @JavaScriptActor
