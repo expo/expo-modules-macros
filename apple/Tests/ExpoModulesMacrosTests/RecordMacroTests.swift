@@ -141,7 +141,7 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
             object.setProperty(_propNames._name1, value: try Int.encode(value.count, in: runtime))
             object.setProperty(_propNames._name2, value: try String?.encode(value.note, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -231,7 +231,7 @@ struct RecordMacroTests {
               return _PropNames(runtime)
             }
             object.setProperty(_propNames._name0, value: try MyRecord?.encode(value.owner, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -361,7 +361,7 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name0, value: try MyRecord.encode(value.primary, in: runtime))
             object.setProperty(_propNames._name1, value: try [Tag].encode(value.tags, in: runtime))
             object.setProperty(_propNames._name2, value: try Int.encode(value.count, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -494,7 +494,7 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name0, value: try [[Int]].encode(value.grid, in: runtime))
             object.setProperty(_propNames._name1, value: try [String: String].encode(value.labels, in: runtime))
             object.setProperty(_propNames._name2, value: try Set<String>.encode(value.tags, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -614,7 +614,7 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name1, value: try Double.encode(value.ratio, in: runtime))
             object.setProperty(_propNames._name2, value: try Int.encode(value.count, in: runtime))
             object.setProperty(_propNames._name3, value: try Bool.encode(value.flag, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -740,7 +740,7 @@ struct RecordMacroTests {
               return _PropNames(runtime)
             }
             object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -796,7 +796,7 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func encode(_ value: Empty, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -892,7 +892,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try Double.encode(value.x, in: runtime))
             object.setProperty(_propNames._name1, value: try Double.encode(value.y, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1121,7 +1121,7 @@ struct RecordMacroTests {
               return _PropNames(runtime)
             }
             object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1212,7 +1212,7 @@ struct RecordMacroTests {
               return _PropNames(runtime)
             }
             object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
         """
@@ -1364,7 +1364,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try Double.encode(value.x, in: runtime))
             object.setProperty(_propNames._name1, value: try Double.encode(value.y, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1465,7 +1465,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try Double.encode(value.x, in: runtime))
             object.setProperty(_propNames._name1, value: try Double.encode(value.y, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1553,7 +1553,7 @@ struct RecordMacroTests {
               return _PropNames(runtime)
             }
             object.setProperty(_propNames._name0, value: try Int.encode(value.`default`, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1664,7 +1664,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
             object.setProperty(_propNames._name1, value: value.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(value.attributes!, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1787,7 +1787,7 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAnyArray(value.items, in: runtime))
             object.setProperty(_propNames._name1, value: try JavaScriptValue.encodeAnyDictionary(value.meta, in: runtime))
             object.setProperty(_propNames._name2, value: try JavaScriptValue.encodeAny(value.groups as Any, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -1890,7 +1890,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
             object.setProperty(_propNames._name1, value: value.maybe == nil ? .null() : try JavaScriptValue.encodeAny(value.maybe!, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -2027,7 +2027,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
             object.setProperty(_propNames._name1, value: value.list == nil ? .null() : try JavaScriptValue.encodeAnyArray(value.list!, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -2130,7 +2130,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try Int.encode(value.`default`, in: runtime))
             object.setProperty(_propNames._name1, value: try String.encode(value.`class`, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -2233,7 +2233,7 @@ struct RecordMacroTests {
             }
             object.setProperty(_propNames._name0, value: try String.encode(value.object, in: runtime))
             object.setProperty(_propNames._name1, value: try Int.encode(value.count, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -2390,7 +2390,7 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name2, value: try String.encode(value.runtime, in: runtime))
             object.setProperty(_propNames._name3, value: try String.encode(value.name, in: runtime))
             object.setProperty(_propNames._name4, value: try Int.encode(value.nameValue, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -2471,7 +2471,7 @@ struct RecordMacroTests {
           public static func encode(_ value: Box, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             object.setProperty("value", value: try Element.encode(value.value, in: runtime))
-            return object.asValue()
+            return object.takeValue()
           }
         }
 
@@ -2549,7 +2549,7 @@ struct RecordMacroTests {
             public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
               let object = runtime.createObject()
               object.setProperty("name", value: try String.encode(value.name, in: runtime))
-              return object.asValue()
+              return object.takeValue()
             }
           }
         }
