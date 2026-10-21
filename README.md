@@ -102,7 +102,7 @@ The binary is a compiled executable, so each call still spawns a process. What t
 
 to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and their test specs. Expo's SPM prebuilds pass the same flag when they generate `Package.swift`, so both build systems load the same binary.
 
-On Windows and Linux, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` or `ExpoModulesMacros` from `@expo/modules-macros-linux-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows and Linux it falls back to the local `npm run build` output in `platforms/<platform>-<arch>` when the platform package isn't installed, for example in this repository.
+On Windows and Linux, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` or `ExpoModulesMacros` from `@expo/modules-macros-linux-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows and Linux it falls back to the local `pnpm run build` output in `platforms/<platform>-<arch>` when the platform package isn't installed, for example in this repository.
 
 The module and type names in `#externalMacro` must stay in sync with `apple/Sources/ExpoModulesMacros/Plugin.swift`.
 
@@ -116,7 +116,9 @@ swift build
 swift test
 ```
 
-The Swift sources are formatted with [swift-format](https://github.com/swiftlang/swift-format), using the same configuration (`.swift-format`) as the `expo/expo` repository. `npm run swift:format` formats the `.swift` files that Git tracks or doesn't ignore in place, and `npm run swift:lint` checks them without changes, as CI does.
+The scripts and the TypeScript wrapper use [pnpm](https://pnpm.io), at the version in `packageManager` in `package.json`. Run `pnpm install` to install the TypeScript dependencies, and `pnpm run typecheck` to check the wrapper.
+
+The Swift sources are formatted with [swift-format](https://github.com/swiftlang/swift-format), using the same configuration (`.swift-format`) as the `expo/expo` repository. `pnpm run swift:format` formats the `.swift` files that Git tracks or doesn't ignore in place, and `pnpm run swift:lint` checks them without changes, as CI does.
 
 The scripts run the `swift-format` on `PATH`, or on macOS the one in the selected Xcode when there is none on `PATH`. CI uses swift-format `604.0.0`, which can format differently from the one in Xcode. To get the version that CI uses, build it from source:
 
@@ -129,7 +131,7 @@ cp "$(cd /tmp/swift-format && swift build -c release --show-bin-path)/swift-form
 
 Then add `~/.local/bin` to `PATH`.
 
-`npm run build` runs `scripts/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
+`pnpm run build` runs `scripts/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
 
 - On macOS, it builds for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing.
 - On Windows, it builds for the host architecture only, with the Swift runtime linked in statically and without debug info, and writes `platforms/win32-<arch>/ExpoModulesMacros.exe` (`x64` or `arm64`, as Node's `process.arch` names them), the file that the package for that architecture publishes. It strips the executable with `llvm-strip` from the Swift toolchain and checks the architecture in its header.

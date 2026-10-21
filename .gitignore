@@ -4,7 +4,8 @@ apple/.swiftpm
 build
 node_modules
 package-lock.json
+pnpm-lock.yaml
 
-# Built by `npm run build` on Windows and Linux, and published in their packages, not committed
+# Built by `pnpm run build` on Windows and Linux, and published in their packages, not committed
 platforms/*/ExpoModulesMacros.exe
 platforms/*/ExpoModulesMacros

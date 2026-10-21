@@ -1,6 +1,7 @@
 .claude
 .gitattributes
 .swift-format
+pnpm-workspace.yaml
 
 /apple/.build/**/*
 /apple/Tests/**/*
