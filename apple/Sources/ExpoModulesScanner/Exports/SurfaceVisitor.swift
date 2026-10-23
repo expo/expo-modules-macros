@@ -349,6 +349,8 @@ final class SurfaceVisitor: SyntaxVisitor {
     platforms: [ExportedPlatform]
   ) -> [ExportedProperty] {
     let isLet = varDecl.bindingSpecifier.tokenKind == .keyword(.let)
+    // A `lazy var` is read-only from JS, like a `let`: the macro binds it getter-only.
+    let isLazy = varDecl.modifiers.contains { $0.name.tokenKind == .keyword(.lazy) }
     let isStatic = isTypeLevel(varDecl.modifiers)
     let override = stringArgument(of: attribute)
     var result: [ExportedProperty] = []
@@ -364,7 +366,7 @@ final class SurfaceVisitor: SyntaxVisitor {
           name: name,
           jsName: override ?? name,
           type: type,
-          isSettable: isSettable(binding: binding, isLet: isLet),
+          isSettable: !isLazy && isSettable(binding: binding, isLet: isLet),
           isStatic: isStatic,
           // Only a stored property has an initializer; a computed one has none to report.
           defaultValue: binding.initializer?.value.trimmedDescription,

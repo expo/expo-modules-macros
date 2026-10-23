@@ -142,6 +142,10 @@ struct ModuleSurfaceTests {
           @JS var observed: Int = 0 {
             didSet {}
           }
+          @JS lazy var config: String = load()
+          @JS lazy var limit: Int = 0 {
+            didSet {}
+          }
         }
         """
       ).modules.first
@@ -161,6 +165,10 @@ struct ModuleSurfaceTests {
     #expect(byName["name"]?.isSettable == true)
     // Observed stored var (`didSet`): still backed by storage, so settable.
     #expect(byName["observed"]?.isSettable == true)
+    // Lazy var: bound getter-only, so read-only.
+    #expect(byName["config"]?.isSettable == false)
+    // Lazy var with an observer: still read-only.
+    #expect(byName["limit"]?.isSettable == false)
   }
 
   @Test
@@ -193,6 +201,25 @@ struct ModuleSurfaceTests {
 
 @Suite("Exports surface: shared objects")
 struct SharedObjectSurfaceTests {
+  @Test
+  func `Reports a shared object's lazy property as read-only`() throws {
+    let shared = try #require(
+      surface(
+        """
+        @SharedObject
+        final class Cache: SharedObject {
+          @JS
+          lazy var size: Int = computeSize()
+        }
+        """
+      ).sharedObjects.first
+    )
+
+    #expect(shared.properties.map(\.name) == ["size"])
+    #expect(shared.properties.first?.isSettable == false)
+    #expect(shared.properties.first?.isStatic == false)
+  }
+
   @Test
   func `Extracts a shared object's constructor, functions, and properties`() throws {
     let shared = try #require(

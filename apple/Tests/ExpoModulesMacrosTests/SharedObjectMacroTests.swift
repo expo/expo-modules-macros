@@ -815,6 +815,44 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `Lazy property caches the value on the instance, not on the prototype`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Cache: SharedObject {
+        @JS
+        lazy var size: Int = computeSize()
+      }
+      """,
+      expandedSource: """
+        final class Cache: SharedObject {
+          @JavaScriptActor
+          lazy var size: Int = computeSize()
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Cache", Cache.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let sizeDescriptor = runtime.createObject()
+            sizeDescriptor.setProperty("enumerable", value: true)
+            sizeDescriptor.setProperty("configurable", value: true)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
+              let value = try Int.encode(_self.size, in: runtime)
+              this.getObject(in: runtime).defineProperty("size", value: value, options: [.enumerable])
+              return value
+            }
+            prototype.defineProperty("size", descriptor: sizeDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `No-argument void method calls through and returns undefined`() {
     assertExpansion(
       """

@@ -386,15 +386,15 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
     let type = binding.typeAnnotation?.type,
     !containsFunctionType(type)
   {
-    // A `let`, or a `var` with no setter, is read-only (encodable only). A settable `var` is also
-    // decoded on write, so its value type is asserted in both directions. A type that mentions `Any`
-    // converts through the free-form methods instead, so it isn't asserted at all.
+    // A `let`, a `lazy var`, or a `var` with no setter is read-only (encodable only). A settable `var`
+    // is also decoded on write, so its value type is asserted in both directions. A type that mentions
+    // `Any` converts through the free-form methods instead, so it isn't asserted at all.
     guard !mentionsFreeFormAny(type) else {
       return nil
     }
     let typeText = type.trimmedDescription
     let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
-    let isSettable = isVar && bindingIsSettable(binding)
+    let isSettable = isVar && !isLazy(varDecl.modifiers) && bindingIsSettable(binding)
     return BoundaryMember(
       name: identifier.identifier.text,
       decodableTypes: isSettable ? [typeText] : [],

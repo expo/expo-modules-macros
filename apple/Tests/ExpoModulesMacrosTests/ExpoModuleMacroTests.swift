@@ -839,6 +839,182 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Lazy property binds a configurable getter that caches the value on this`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        lazy var config: MyRecord = loadConfig()
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          lazy var config: MyRecord = loadConfig()
+
+          private func _assertTypesConformance_config() {
+            func config<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            }
+            config(MyRecord.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let configDescriptor = runtime.createObject()
+            configDescriptor.setProperty("enumerable", value: true)
+            configDescriptor.setProperty("configurable", value: true)
+            configDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let value = try MyRecord.encode(self.config, in: runtime)
+              if this.isObject() {
+                this.getObject(in: runtime).defineProperty("config", value: value, options: [.enumerable])
+              }
+              return value
+            }
+            object.defineProperty("config", descriptor: configDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Lazy property without a type annotation encodes through toJavaScriptValue`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS("token")
+        lazy var cachedToken = makeToken()
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          lazy var cachedToken = makeToken()
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let cachedTokenDescriptor = runtime.createObject()
+            cachedTokenDescriptor.setProperty("enumerable", value: true)
+            cachedTokenDescriptor.setProperty("configurable", value: true)
+            cachedTokenDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let value = self.cachedToken.toJavaScriptValue(in: runtime)
+              if this.isObject() {
+                this.getObject(in: runtime).defineProperty("token", value: value, options: [.enumerable])
+              }
+              return value
+            }
+            object.defineProperty("token", descriptor: cachedTokenDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Lazy free-form property encodes through the free-form method`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        lazy var info: [String: Any] = loadInfo()
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          lazy var info: [String: Any] = loadInfo()
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let infoDescriptor = runtime.createObject()
+            infoDescriptor.setProperty("enumerable", value: true)
+            infoDescriptor.setProperty("configurable", value: true)
+            infoDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let value = try JavaScriptValue.encodeAnyDictionary(self.info, in: runtime)
+              if this.isObject() {
+                this.getObject(in: runtime).defineProperty("info", value: value, options: [.enumerable])
+              }
+              return value
+            }
+            object.defineProperty("info", descriptor: infoDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Lazy property with an observer is still getter-only and asserts only the encodable direction`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        lazy var cache: MyRecord = MyRecord() {
+          didSet {}
+        }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          lazy var cache: MyRecord = MyRecord() {
+            didSet {}
+          }
+
+          private func _assertTypesConformance_cache() {
+            func cache<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            }
+            cache(MyRecord.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let cacheDescriptor = runtime.createObject()
+            cacheDescriptor.setProperty("enumerable", value: true)
+            cacheDescriptor.setProperty("configurable", value: true)
+            cacheDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let value = try MyRecord.encode(self.cache, in: runtime)
+              if this.isObject() {
+                this.getObject(in: runtime).defineProperty("cache", value: value, options: [.enumerable])
+              }
+              return value
+            }
+            object.defineProperty("cache", descriptor: cacheDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Settable stored property binds both a getter and a setter`() {
     assertExpansion(
       """
