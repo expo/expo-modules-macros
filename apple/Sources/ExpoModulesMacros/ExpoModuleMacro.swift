@@ -7,10 +7,9 @@ import SwiftSyntaxMacros
 ///
 /// - `MemberMacro`: binds `@JS`-marked members directly into the module's JS object via the
 ///   synthesized `_decorateModule`, and emits the resolved module name as a non-optional
-///   `_jsName` static (no `Name(…)` DSL element). It also synthesizes a
-///   framework-internal `_synthesizedDefinition()` returning `[AnyDefinition]` (now carrying
-///   only nested `classes` entries) that `expo-modules-core` merges into the module's
-///   definition. When the class doesn't already inherit `Module`/`BaseModule`, it also
+///   `_jsName` static (no `Name(…)` DSL element). The `classes:` and `views:` arguments become
+///   `_classTypes` and `_viewTypes` statics that `expo-modules-core` registers by type.
+///   When the class doesn't already inherit `Module`/`BaseModule`, it also
 ///   synthesizes the `appContext` storage and `init(appContext:)` those base classes provide.
 /// - `MemberAttributeMacro`: stamps `@JavaScriptActor` on `@JS` sync members and
 ///   `@ModuleDefinitionBuilder` on a `definition()` method.
@@ -44,17 +43,12 @@ public struct ExpoModuleMacro: MemberMacro {
     // macro no longer emits a `Name(…)` DSL entry. Core reads the static for the module name,
     // ahead of its type-name fallback (which then only applies to non-macro DSL modules).
     let moduleName = jsNameArgument(of: node) ?? withoutBackticks(classDecl.name.text)
-    var entries: [String] = []
 
     // `@JS func`s (sync and async) and `@JS var`s are bound directly into the JS object by the
     // synthesized `_decorateModule` rather than described with a `Function(...)` / `Property(...)`
-    // DSL entry, so they're collected here instead of appended to `entries`.
+    // DSL entry.
     var functions: [JSFunction] = []
     var properties: [JSProperty] = []
-
-    for typeName in classListArgument(of: node, label: "classes") {
-      entries.append("\(typeName)._synthesizedClassDefinition()")
-    }
 
     for member in classDecl.memberBlock.members {
       let decl = member.decl
@@ -79,20 +73,22 @@ public struct ExpoModuleMacro: MemberMacro {
 
     diagnoseJSNameCollisions(functions: functions, properties: properties, in: context)
 
-    let body: String
-    if entries.isEmpty {
-      body = "  return []"
-    } else {
-      let lines = entries.map { "    \($0)" }.joined(separator: ",\n")
-      body = "  return [\n\(lines)\n  ]"
-    }
-
     var emitted: [DeclSyntax] = []
 
     // The fully-resolved module name as a non-optional stored constant. Core reads this
     // instead of the retired `Name(…)` DSL element; it feeds both native registration and the
     // JS object name, so they can't diverge.
     emitted.append("public static let _jsName = \"\(raw: moduleName)\"")
+
+    // Shared object classes are registered by type: core builds each JavaScript class from the
+    // `@SharedObject` hooks, with the name from the class's `_jsName`. The element type makes the
+    // compiler reject a class that isn't a `SharedObject` subclass. Emitted only when the argument is
+    // present, so a module without classes gains nothing.
+    let classTypes = classListArgument(of: node, label: "classes")
+    if !classTypes.isEmpty {
+      let entries = classTypes.map { "\($0).self" }.joined(separator: ", ")
+      emitted.append("public static let _classTypes: [SharedObject.Type] = [\(raw: entries)]")
+    }
 
     // View classes are registered by type, not spliced as definitions: an `@ExpoView` emits no
     // definition function, so there is nothing to call on each entry. Core reads a view's props
@@ -122,15 +118,6 @@ public struct ExpoModuleMacro: MemberMacro {
         )
       }
     }
-
-    // Always emitted: the definition is derived from the class name and `@JS` members,
-    // independent of any `definition()` the user wrote.
-    let method: DeclSyntax = """
-      public func _synthesizedDefinition() -> [AnyDefinition] {
-      \(raw: body)
-      }
-      """
-    emitted.append(method)
 
     // Direct JSI binding: one `_decorateModule` that binds each `@JS func` (inlined `setProperty`
     // closure) and each `@JS var` (a `defineProperty` get/set accessor) into the module's JS object.

@@ -37,7 +37,7 @@ private func assertExpansion(
 @Suite("@SharedObject macro")
 struct SharedObjectMacroTests {
   @Test
-  func `Empty class emits a Class block with no elements`() {
+  func `Empty class emits only _jsName`() {
     assertExpansion(
       """
       @SharedObject
@@ -47,9 +47,8 @@ struct SharedObjectMacroTests {
       expandedSource: """
         final class Cache: SharedObject {
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
         }
         """
@@ -67,9 +66,8 @@ struct SharedObjectMacroTests {
       expandedSource: """
         final class Cache: SharedObject {
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("MyCache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "MyCache"
           }
         }
         """
@@ -112,9 +110,8 @@ struct SharedObjectMacroTests {
             merge(SharedRef<UIImage>.self, SharedRef<UIImage>.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("ImageRef", ImageRef.self) {
-            }
+          public override class var _jsName: String {
+            "ImageRef"
           }
 
           @JavaScriptActor
@@ -156,9 +153,8 @@ struct SharedObjectMacroTests {
       expandedSource: """
         final class Thumbnail: ImageRef {
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Thumbnail", Thumbnail.self) {
-            }
+          public override class var _jsName: String {
+            "Thumbnail"
           }
         }
         """
@@ -180,9 +176,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           func get(_ key: String) -> String? { nil }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -217,9 +212,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           func load() async throws {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -261,9 +255,8 @@ struct SharedObjectMacroTests {
             owner(SomeType.self, SomeType.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -300,9 +293,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           var size: Int { 42 }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -335,9 +327,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init(name: String) {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -374,9 +365,8 @@ struct SharedObjectMacroTests {
             `init`(Point.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -407,9 +397,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init(config: [String: Any]) {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -450,9 +439,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           var size: Int { 42 }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -509,9 +497,8 @@ struct SharedObjectMacroTests {
             open(Cache.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -545,9 +532,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           static func warmUp(_ path: String) async throws {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -583,9 +569,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           static var shared: Int = 0
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -625,9 +610,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           static func get(_ key: String) -> String? { nil }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -684,9 +668,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           static var size: Int { 0 }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -746,9 +729,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           func resize(width: Int, height: Int = 100) -> Bool { true }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -790,9 +772,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           var name: String = ""
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -829,9 +810,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           lazy var size: Int = computeSize()
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -867,9 +847,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           func clear() {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -902,9 +881,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init() {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -940,9 +918,8 @@ struct SharedObjectMacroTests {
             `init`(MyRecord.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -979,9 +956,8 @@ struct SharedObjectMacroTests {
             `init`(MyRecord.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -1018,9 +994,8 @@ struct SharedObjectMacroTests {
             resolve(MyRecord.self, MyRecord.self)
           }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -1061,9 +1036,8 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           func `default`() {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Type", `Type`.self) {
-            }
+          public override class var _jsName: String {
+            "Type"
           }
 
           @JavaScriptActor
@@ -1085,7 +1059,7 @@ struct SharedObjectMacroTests {
 @Suite("@ExpoModule classes: argument")
 struct ExpoModuleClassesTests {
   @Test
-  func `classes: list emits _synthesizedClassDefinition() entries`() {
+  func `classes: list emits _classTypes`() {
     assertExpansion(
       """
       @ExpoModule(classes: [Cache.self, UserSession.self])
@@ -1097,12 +1071,7 @@ struct ExpoModuleClassesTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return [
-              Cache._synthesizedClassDefinition(),
-              UserSession._synthesizedClassDefinition()
-            ]
-          }
+          public static let _classTypes: [SharedObject.Type] = [Cache.self, UserSession.self]
         }
         """
     )
@@ -1123,9 +1092,8 @@ struct ExpoModuleClassesTests {
           @concurrent
           func fetch() async -> Int { 1 }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Cache", Cache.self) {
-            }
+          public override class var _jsName: String {
+            "Cache"
           }
 
           @JavaScriptActor
@@ -1166,9 +1134,8 @@ struct ExpoModuleClassesTests {
           func read(_ count: Int) throws -> String { "" }
           static func exists(_ path: String) -> Bool { true }
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Document", Document.self) {
-            }
+          public override class var _jsName: String {
+            "Document"
           }
 
           @JavaScriptActor
@@ -1246,11 +1213,7 @@ struct ExpoModuleClassesTests {
 
           public static let _jsName = "CustomName"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return [
-              Cache._synthesizedClassDefinition()
-            ]
-          }
+          public static let _classTypes: [SharedObject.Type] = [Cache.self]
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {

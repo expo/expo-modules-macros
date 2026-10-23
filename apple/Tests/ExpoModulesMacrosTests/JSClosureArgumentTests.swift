@@ -55,10 +55,6 @@ struct JSClosureArgumentTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("subscribe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -99,10 +95,6 @@ struct JSClosureArgumentTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -146,10 +138,6 @@ struct JSClosureArgumentTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -190,10 +178,6 @@ struct JSClosureArgumentTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -232,10 +216,6 @@ struct JSClosureArgumentTests {
           func start(onDone: ((Bool) throws -> Void)?) {}
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -279,9 +259,8 @@ struct JSClosureArgumentTests {
           @JavaScriptActor
           init(onEvent: @escaping (String) -> Void) {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Watcher", Watcher.self) {
-            }
+          public override class var _jsName: String {
+            "Watcher"
           }
 
           @JavaScriptActor
@@ -323,10 +302,6 @@ struct JSClosureArgumentTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("observe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -360,9 +335,8 @@ struct JSClosureArgumentTests {
           @JavaScriptActor
           func download(onProgress: @escaping (Double) async throws -> Void) async {}
 
-          public static func _synthesizedClassDefinition() -> ClassDefinition {
-            return Class("Downloader", Downloader.self) {
-            }
+          public override class var _jsName: String {
+            "Downloader"
           }
 
           @JavaScriptActor
@@ -403,10 +377,6 @@ struct JSClosureArgumentTests {
           func sync(onProgress: ((Double) -> Void)?) async throws -> Bool { true }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -462,10 +432,6 @@ struct JSClosureArgumentTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -507,10 +473,6 @@ struct JSClosureArgumentTests {
           func sort(compare: (Int, Int) -> Bool) {}
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
