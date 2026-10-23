@@ -8,8 +8,8 @@ import SwiftSyntax
 /// never silently dropped.
 
 /// The runtime category mirroring JavaScript's `typeof`. A coarse companion to `TypeNode.kind`: every
-/// structured object kind (array, dictionary, promise, ref) reports `object`. `symbol` is included for
-/// completeness; the scanner doesn't produce it.
+/// structured object kind (array, dictionary, promise, ref, sharedRef) reports `object`. `symbol` is
+/// included for completeness; the scanner doesn't produce it.
 enum JSType: String, Encodable {
   case undefined
   case object
@@ -72,6 +72,11 @@ indirect enum TypeNode: Equatable {
   /// node parsed at a use site has never seen.
   case ref(name: String, refKind: RefKind? = nil, jsTypeOverride: JSType? = nil)
 
+  /// `SharedRef<T>` (or `ExpoModulesCore.SharedRef<T>`): a shared object holding a native `T`, which
+  /// JS sees as an instance of `expo.SharedRef`. `native` is `T` parsed like any other type, but it
+  /// never crosses the boundary itself, so refs in it are not resolved.
+  case sharedRef(native: TypeNode)
+
   /// A spelling the parser doesn't model (generic parameter, tuple, metatype, …), kept verbatim so
   /// nothing is lost. Has no `typeof`.
   case unknown(text: String)
@@ -82,7 +87,7 @@ indirect enum TypeNode: Equatable {
     switch self {
     case .primitive(_, let jsType):
       return jsType
-    case .array, .dictionary, .promise:
+    case .array, .dictionary, .promise, .sharedRef:
       return .object
     case .ref(_, _, let jsTypeOverride):
       // An unresolved ref, and every resolved one but an enum, is an object.
@@ -105,7 +110,7 @@ extension TypeNode: Encodable {
     // The `typeof` category. Spelled `typeof` in JSON (what the consumer reads); the Swift property is
     // `jsType` since it's the cleaner Swift name.
     case jsType = "typeof"
-    case wrapped, element, key, value, parameters, returns, text
+    case wrapped, element, key, value, parameters, returns, text, native
     // A closure type's effects, matching `ExportedFunction`'s TS-keyword spellings.
     case isAsync = "async"
     case isThrowing = "throws"
@@ -143,6 +148,9 @@ extension TypeNode: Encodable {
       try container.encode("ref", forKey: .kind)
       try container.encode(name, forKey: .name)
       try container.encodeIfPresent(refKind, forKey: .refKind)
+    case .sharedRef(let native):
+      try container.encode("sharedRef", forKey: .kind)
+      try container.encode(native, forKey: .native)
     case .unknown(let text):
       try container.encode("unknown", forKey: .kind)
       try container.encode(text, forKey: .text)
@@ -209,8 +217,15 @@ func typeNode(from type: TypeSyntax) -> TypeNode {
   if let identifier = type.as(IdentifierTypeSyntax.self) {
     return nominalNode(name: identifier.name.identifierName, generics: identifier.genericArgumentClause)
   }
-  // A qualified nominal type: `Foo.Bar`. Kept as a ref under its full spelling.
+  // A qualified nominal type: `Foo.Bar`. Kept as a ref under its full spelling, except core's own
+  // `ExpoModulesCore.SharedRef<T>`, which is the same type as a bare `SharedRef<T>`.
   if let member = type.as(MemberTypeSyntax.self) {
+    if member.baseType.as(IdentifierTypeSyntax.self)?.name.text == "ExpoModulesCore",
+      member.name.text == "SharedRef",
+      let generics = member.genericArgumentClause
+    {
+      return nominalNode(name: "SharedRef", generics: generics)
+    }
     return .ref(name: member.trimmedDescription)
   }
   // Tuples, metatypes, some/any types, etc.: not modeled, preserve the verbatim spelling.
@@ -218,8 +233,8 @@ func typeNode(from type: TypeSyntax) -> TypeNode {
 }
 
 /// A nominal type's node. The standard generic wrappers normalize to their sugared node
-/// (`Optional<T>`/`Array<T>`/`Dictionary<K,V>`/`Promise<T>`); a bare name is a primitive when known,
-/// else a ref; any other generic is a ref under its full spelling.
+/// (`Optional<T>`/`Array<T>`/`Dictionary<K,V>`/`Promise<T>`) and `SharedRef<T>` to its own node; a
+/// bare name is a primitive when known, else a ref; any other generic is a ref under its full spelling.
 private func nominalNode(name: String, generics: GenericArgumentClauseSyntax?) -> TypeNode {
   guard let generics else {
     if let jsType = primitiveJSTypes[name] {
@@ -238,6 +253,8 @@ private func nominalNode(name: String, generics: GenericArgumentClauseSyntax?) -
     return .dictionary(key: arguments[0], value: arguments[1])
   case ("Promise", 1):
     return .promise(value: arguments[0])
+  case ("SharedRef", 1):
+    return .sharedRef(native: arguments[0])
   default:
     // An unmodeled generic (`Set<Int>`, `Either<A, B>`, …). Keep the whole spelling as a ref so the
     // name and its arguments survive for the generator to interpret or flag.
@@ -297,6 +314,8 @@ extension TypeNode {
       return "[\(key.spelling): \(value.spelling)]"
     case .promise(let value):
       return "Promise<\(value.spelling)>"
+    case .sharedRef(let native):
+      return "SharedRef<\(native.spelling)>"
     case .function(let parameters, let returns, _, _):
       return "(\(parameters.map { $0.spelling }.joined(separator: ", "))) -> \(returns?.spelling ?? "Void")"
     case .unknown(let text):

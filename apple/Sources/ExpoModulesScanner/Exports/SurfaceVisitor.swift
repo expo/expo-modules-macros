@@ -170,6 +170,7 @@ final class SurfaceVisitor: SyntaxVisitor {
           name: qualified,
           jsName: stringArgument(of: attribute) ?? name,
           initializer: initializer,
+          sharedRef: sharedRefSuperclass(of: node),
           functions: functions,
           properties: properties,
           events: events,
@@ -739,6 +740,54 @@ private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
     return segment.content.text
   }
   return nil
+}
+
+/// The `SharedRef<T>` a class names as its superclass, or `nil` when it names another one or none.
+/// Swift requires the superclass to come first in the inheritance clause, so only that entry is read.
+private func sharedRefSuperclass(of node: some DeclGroupSyntax) -> ExportedSharedRef? {
+  guard let superclass = node.inheritanceClause?.inheritedTypes.first?.type,
+    case .sharedRef(let native) = typeNode(from: superclass)
+  else {
+    return nil
+  }
+  return ExportedSharedRef(native: native, nativeRefType: nativeRefType(in: node.memberBlock.members))
+}
+
+/// The value of a `nativeRefType` override that returns a plain string literal: `"image"` in
+/// `override var nativeRefType: String { "image" }`, also with `return` or inside a `get` block.
+/// `unknown`, core's default, when the class declares no `nativeRefType`, and `nil` when its getter is
+/// anything else.
+private func nativeRefType(in members: MemberBlockItemListSyntax) -> String? {
+  let binding = members.lazy
+    .compactMap { $0.decl.as(VariableDeclSyntax.self) }
+    .filter { !isTypeLevel($0.modifiers) }
+    .flatMap { $0.bindings }
+    .first { $0.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "nativeRefType" }
+  guard let binding else {
+    return "unknown"
+  }
+  let statements: CodeBlockItemListSyntax?
+  switch binding.accessorBlock?.accessors {
+  case .getter(let body):
+    statements = body
+  case .accessors(let accessors):
+    statements = accessors.first { $0.accessorSpecifier.tokenKind == .keyword(.get) }?.body?.statements
+  case nil:
+    statements = nil
+  }
+  guard let statements, statements.count == 1, let item = statements.first?.item else {
+    return nil
+  }
+  let expression = item.as(ReturnStmtSyntax.self)?.expression ?? item.as(ExprSyntax.self)
+  guard let literal = expression?.as(StringLiteralExprSyntax.self),
+    literal.segments.count == 1,
+    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+  else {
+    return nil
+  }
+  // An escape would need real unescaping, so it's treated as unreadable, as in `writtenRawValue(of:)`.
+  let content = segment.content.text
+  return content.contains("\\") ? nil : content
 }
 
 private func isTypeLevel(_ modifiers: DeclModifierListSyntax) -> Bool {

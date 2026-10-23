@@ -1,3 +1,4 @@
+import Foundation
 import SwiftParser
 import SwiftSyntax
 import Testing
@@ -78,6 +79,30 @@ struct TypeNodeTests {
   func `Promise wraps its value`() {
     #expect(node("Promise<Int>") == .promise(value: .primitive(name: "Int", jsType: .number)))
     #expect(node("Promise<[Point]>") == .promise(value: .array(element: .ref(name: "Point"))))
+  }
+
+  @Test
+  func `SharedRef holds its native type`() {
+    #expect(node("SharedRef<UIImage>") == .sharedRef(native: .ref(name: "UIImage")))
+    #expect(node("SharedRef<String>") == .sharedRef(native: .primitive(name: "String", jsType: .string)))
+    // Core's module qualifier names the same type.
+    #expect(node("ExpoModulesCore.SharedRef<Data>") == .sharedRef(native: .ref(name: "Data")))
+    // A `SharedRef` from any other module is not core's, so it stays a ref.
+    #expect(node("Other.SharedRef<Data>") == .ref(name: "Other.SharedRef<Data>"))
+    #expect(
+      node("[SharedRef<UIImage>]?")
+        == .optional(wrapped: .array(element: .sharedRef(native: .ref(name: "UIImage"))))
+    )
+  }
+
+  @Test
+  func `SharedRef encodes its kind and native type`() throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    let json = String(decoding: try encoder.encode(node("SharedRef<UIImage>")), as: UTF8.self)
+    #expect(
+      json == #"{"kind":"sharedRef","native":{"kind":"ref","name":"UIImage","typeof":"object"},"typeof":"object"}"#
+    )
   }
 
   @Test
@@ -198,6 +223,7 @@ struct TypeNodeTests {
     #expect(node("[String: Int]").jsType == .object)
     #expect(node("Promise<Int>").jsType == .object)
     #expect(node("Point").jsType == .object)
+    #expect(node("SharedRef<String>").jsType == .object)
     // A closure is `function`.
     #expect(node("(Int) -> Void").jsType == .function)
     // An optional reports the category of its present value, not `undefined` (the absent case is
