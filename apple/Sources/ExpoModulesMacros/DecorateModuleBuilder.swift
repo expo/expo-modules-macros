@@ -363,6 +363,12 @@ internal struct JSFunction {
 /// writes `<callee>.<name> = …`. Decode/encode of the value go through `JavaScriptDecodable.decode` /
 /// `JavaScriptEncodable.encode` (or the free-form methods for a type that mentions `Any`), the same
 /// path as functions.
+///
+/// A `lazy var` binds a getter only, on a configurable accessor. On the first read the getter defines
+/// the encoded value as a data property on the JS `this` with `Reflect.defineProperty`, so later reads
+/// don't call into native code. The data property goes on `this`, not on the object that holds the
+/// accessor, so each shared object instance stores its own value. `Reflect.defineProperty` returns
+/// `false` instead of throwing on a frozen object, where the property stays an accessor.
 internal struct JSProperty {
   let swiftName: String
   let jsName: String
@@ -373,8 +379,10 @@ internal struct JSProperty {
   /// How the value converts when its type mentions `Any`, or `nil` for any other type.
   let freeForm: FreeFormConversion?
   /// Whether the property is settable from JS: `true` for a stored `var` or a computed `var` with an
-  /// explicit `set` accessor; `false` for a getter-only computed `var` or a `let`.
+  /// explicit `set` accessor; `false` for a getter-only computed `var`, a `lazy var` or a `let`.
   let isSettable: Bool
+  /// Whether the property is a `lazy var`, whose getter replaces the accessor with the first value.
+  let isLazy: Bool
   /// The property's name in the source, where a JavaScript name collision is reported.
   let nameToken: TokenSyntax
 
@@ -395,18 +403,38 @@ internal struct JSProperty {
 
     lines.append("let \(descriptorName) = runtime.createObject()")
     lines.append("\(descriptorName).setProperty(\"enumerable\", value: true)")
+    if isLazy {
+      // The getter redefines the property on `this`, which needs a configurable accessor when `this`
+      // is the object that holds it (a module).
+      lines.append("\(descriptorName).setProperty(\"configurable\", value: true)")
+    }
 
     // Getter: read `<callee>.<name>` and encode the result back to JS through `encode`. When the value
     // type couldn't be inferred (no annotation and no literal default, rare for a stored var) there's
     // no static type to call `encode` on, so the value's own `toJavaScriptValue(in:)` is the fallback.
-    let getEncode: String
+    let encode: String
     if let valueType {
-      getEncode = "return try \(encodeCall(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)"))"
+      encode = "try \(encodeCall(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)"))"
     } else {
-      getEncode = "return \(callee).\(swiftName).toJavaScriptValue(in: runtime)"
+      encode = "\(callee).\(swiftName).toJavaScriptValue(in: runtime)"
+    }
+    let getBody: String
+    if isLazy {
+      // The arguments go through `ref()` because a parameter pack takes copyable values only.
+      getBody = """
+        let value = \(encode)
+        let valueDescriptor = runtime.createObject()
+        valueDescriptor.setProperty("enumerable", value: true)
+        valueDescriptor.setProperty("value", value: value)
+        try runtime.global().getPropertyAsObject("Reflect").getPropertyAsFunction("defineProperty")
+          .call(arguments: this.copied(in: runtime).ref(), "\(jsName)", valueDescriptor.ref())
+        return value
+        """
+    } else {
+      getBody = "return \(encode)"
     }
     lines.append(
-      accessorClosure(descriptorName, "get", receiver: receiver, body: "\(unwrap)\(getEncode)")
+      accessorClosure(descriptorName, "get", receiver: receiver, body: "\(unwrap)\(getBody)")
     )
 
     // Setter: decode argument 0 by the static type through `decode` and write `<callee>.<name>`. A

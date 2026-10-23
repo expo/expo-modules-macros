@@ -142,6 +142,7 @@ struct ModuleSurfaceTests {
           @JS var observed: Int = 0 {
             didSet {}
           }
+          @JS lazy var config: String = load()
         }
         """
       ).modules.first
@@ -161,6 +162,8 @@ struct ModuleSurfaceTests {
     #expect(byName["name"]?.isSettable == true)
     // Observed stored var (`didSet`): still backed by storage, so settable.
     #expect(byName["observed"]?.isSettable == true)
+    // Lazy var: bound getter-only, so read-only.
+    #expect(byName["config"]?.isSettable == false)
   }
 
   @Test

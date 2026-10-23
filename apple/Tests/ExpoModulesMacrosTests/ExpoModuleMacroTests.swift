@@ -839,6 +839,96 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Lazy property binds a configurable getter that caches the value on this`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        lazy var config: MyRecord = loadConfig()
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          lazy var config: MyRecord = loadConfig()
+
+          private func _assertTypesConformance_config() {
+            func config<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            }
+            config(MyRecord.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let configDescriptor = runtime.createObject()
+            configDescriptor.setProperty("enumerable", value: true)
+            configDescriptor.setProperty("configurable", value: true)
+            configDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let value = try MyRecord.encode(self.config, in: runtime)
+              let valueDescriptor = runtime.createObject()
+              valueDescriptor.setProperty("enumerable", value: true)
+              valueDescriptor.setProperty("value", value: value)
+              try runtime.global().getPropertyAsObject("Reflect").getPropertyAsFunction("defineProperty")
+                .call(arguments: this.copied(in: runtime).ref(), "config", valueDescriptor.ref())
+              return value
+            }
+            object.defineProperty("config", descriptor: configDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Lazy property without a type annotation encodes through toJavaScriptValue`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS("token")
+        lazy var cachedToken = makeToken()
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          lazy var cachedToken = makeToken()
+
+          public static let _jsName = "MyModule"
+
+          public func _synthesizedDefinition() -> [AnyDefinition] {
+            return []
+          }
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let cachedTokenDescriptor = runtime.createObject()
+            cachedTokenDescriptor.setProperty("enumerable", value: true)
+            cachedTokenDescriptor.setProperty("configurable", value: true)
+            cachedTokenDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let value = self.cachedToken.toJavaScriptValue(in: runtime)
+              let valueDescriptor = runtime.createObject()
+              valueDescriptor.setProperty("enumerable", value: true)
+              valueDescriptor.setProperty("value", value: value)
+              try runtime.global().getPropertyAsObject("Reflect").getPropertyAsFunction("defineProperty")
+                .call(arguments: this.copied(in: runtime).ref(), "token", valueDescriptor.ref())
+              return value
+            }
+            object.defineProperty("token", descriptor: cachedTokenDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Settable stored property binds both a getter and a setter`() {
     assertExpansion(
       """

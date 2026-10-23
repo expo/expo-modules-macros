@@ -270,6 +270,12 @@ internal func isTypeLevel(_ modifiers: DeclModifierListSyntax) -> Bool {
   }
 }
 
+/// True for a `lazy` property. A lazy `@JS` property is read-only from JS: its getter stores the
+/// first value as a data property on the JS object, which a setter couldn't write through.
+internal func isLazy(_ modifiers: DeclModifierListSyntax) -> Bool {
+  return modifiers.contains { $0.name.tokenKind == .keyword(.lazy) }
+}
+
 /// True if a trailing occurrence of this parameter may be omitted by the JS caller: it either has a
 /// default value (Swift applies it) or is an optional type (an absent slot becomes `nil`). The arity
 /// range and the per-arity call branches are derived from this.
@@ -545,6 +551,7 @@ internal func collectProperties(
   let jsNameOverride = jsNameArgument(of: attribute)
   // A `let` is never settable; only `var` bindings can carry a setter.
   let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
+  let isLazy = isLazy(varDecl.modifiers)
 
   return varDecl.bindings.compactMap { binding in
     guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
@@ -562,7 +569,8 @@ internal func collectProperties(
       valueType: valueType,
       // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
       freeForm: binding.typeAnnotation.flatMap { freeFormConversion(of: $0.type) },
-      isSettable: isVar && bindingIsSettable(binding),
+      isSettable: isVar && !isLazy && bindingIsSettable(binding),
+      isLazy: isLazy,
       nameToken: ident.identifier
     )
   }
