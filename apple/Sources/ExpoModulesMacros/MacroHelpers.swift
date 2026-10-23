@@ -1,5 +1,4 @@
 import SwiftSyntax
-import SwiftSyntaxMacros
 
 /// Reads the first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork".
 /// Returns nil if the attribute has no arguments or the first argument is not a string literal.
@@ -635,14 +634,4 @@ internal func inheritsProtocol(named name: String, in declaration: some DeclGrou
     return false
   }
   return inherited.contains { baseIdentifier(of: $0.type) == name }
-}
-
-/// True when the declaration or a type that encloses it is generic. Swift doesn't support static stored
-/// properties in generic types, so such a type can't hold a runtime cache key.
-internal func isInGenericContext(_ declaration: some DeclGroupSyntax, context: some MacroExpansionContext) -> Bool {
-  // The lexical context of a member macro usually starts with the type it's attached to, but the
-  // declaration is checked on its own too.
-  return ([Syntax(declaration)] + context.lexicalContext).contains { node in
-    return node.asProtocol(WithGenericParametersSyntax.self)?.genericParameterClause != nil
-  }
 }

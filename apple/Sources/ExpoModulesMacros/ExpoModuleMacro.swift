@@ -136,17 +136,7 @@ public struct ExpoModuleMacro: MemberMacro {
     // closure) and each `@JS var` (a `defineProperty` get/set accessor) into the module's JS object.
     // Only emitted when there's at least one member to bind.
     if !functions.isEmpty || !properties.isEmpty {
-      let keyDecl = reflectDefinePropertyKeyDecl(properties: properties, declaration: declaration, context: context)
-      if let keyDecl {
-        emitted.append(keyDecl)
-      }
-      emitted.append(
-        buildDecorateJavaScriptObject(
-          functions: functions,
-          properties: properties,
-          defineKey: keyDecl == nil ? nil : "Self.\(reflectDefinePropertyKeyName)"
-        )
-      )
+      emitted.append(buildDecorateJavaScriptObject(functions: functions, properties: properties))
     }
 
     return emitted

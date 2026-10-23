@@ -767,8 +767,6 @@ struct SharedObjectMacroTests {
             }
           }
 
-          private static let _reflectDefinePropertyKey = JavaScriptRuntime.Cache.Key<JavaScriptFunction.Ref>()
-
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
@@ -777,14 +775,7 @@ struct SharedObjectMacroTests {
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               let value = try Int.encode(_self.size, in: runtime)
-              _ = try? runtime.withCached(Cache._reflectDefinePropertyKey) {
-                try runtime.global().getPropertyAsObject("Reflect").getPropertyAsFunction("defineProperty")
-              } _: { defineProperty in
-                let valueDescriptor = runtime.createObject()
-                valueDescriptor.setProperty("enumerable", value: true)
-                valueDescriptor.setProperty("value", value: value)
-                return try defineProperty.call(arguments: this.copied(in: runtime).ref(), "size", valueDescriptor.ref())
-              }
+              this.getObject(in: runtime).defineProperty("size", value: value, options: [.enumerable])
               return value
             }
             prototype.defineProperty("size", descriptor: sizeDescriptor)
