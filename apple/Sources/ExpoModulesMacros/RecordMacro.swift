@@ -586,16 +586,6 @@ private func propNameArgument(for property: RecordProperty, at index: Int, cache
   return cached ? "_propNames.\(propNameMember(index))" : "\"\(property.key)\""
 }
 
-/// True when the record or a type that encloses it is generic. Swift doesn't support static stored
-/// properties in generic types, so the record can't hold the cache key.
-private func isInGenericContext(_ declaration: some DeclGroupSyntax, context: some MacroExpansionContext) -> Bool {
-  // The lexical context of a member macro usually starts with the type it's attached to, but the
-  // declaration is checked on its own too.
-  return ([Syntax(declaration)] + context.lexicalContext).contains { node in
-    return node.asProtocol(WithGenericParametersSyntax.self)?.genericParameterClause != nil
-  }
-}
-
 // MARK: - Helpers
 
 /// The parameter-label list of every initializer the type already declares, used to avoid emitting a

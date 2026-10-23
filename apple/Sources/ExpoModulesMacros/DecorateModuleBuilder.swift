@@ -1,4 +1,5 @@
 import SwiftSyntax
+import SwiftSyntaxMacros
 
 /// A `@JS func` collected for **direct JSI binding**. Instead of describing the function with a
 /// `Function(...)` / `AsyncFunction(...)` DSL entry that the runtime interprets per call, the enclosing
@@ -368,7 +369,9 @@ internal struct JSFunction {
 /// the encoded value as a data property on the JS `this` with `Reflect.defineProperty`, so later reads
 /// don't call into native code. The data property goes on `this`, not on the object that holds the
 /// accessor, so each shared object instance stores its own value. `Reflect.defineProperty` returns
-/// `false` instead of throwing on a frozen object, where the property stays an accessor.
+/// `false` instead of throwing on a frozen object, where the property stays an accessor. A `this` that
+/// isn't an object, or a failure to store the value, doesn't fail the read: the getter still returns
+/// the value.
 internal struct JSProperty {
   let swiftName: String
   let jsName: String
@@ -391,8 +394,9 @@ internal struct JSProperty {
   /// the closure-taking `setProperty(_:)` overload — with the read/write body inlined into each
   /// closure — and installs it with `object.defineProperty(name, descriptor:)`. Capture matches the
   /// function bindings: a module captures `self` strong, a shared object captures nothing of the
-  /// instance. Getter and setter are gated independently.
-  func decorateStatements(object: String, receiver: Receiver) -> String {
+  /// instance. Getter and setter are gated independently. `defineKey` is the runtime cache key under
+  /// which a lazy getter keeps `Reflect.defineProperty`, or `nil` to look it up on each attempt.
+  func decorateStatements(object: String, receiver: Receiver, defineKey: String?) -> String {
     let descriptorName = derivedIdentifier(from: swiftName, suffix: "Descriptor")
     let callee = receiver.callee
     // A shared object's accessors unwrap the JS `this` into `_self` before reading/writing; a module
@@ -419,15 +423,20 @@ internal struct JSProperty {
       encode = "\(callee).\(swiftName).toJavaScriptValue(in: runtime)"
     }
     let getBody: String
-    if isLazy {
-      // The arguments go through `ref()` because a parameter pack takes copyable values only.
+    if isLazy && receiver.unwrapStatement == nil {
+      // A module getter ignores `this` otherwise, so it can be anything, and only an object can hold
+      // the value. A shared object's unwrap has already checked that `this` is an object.
       getBody = """
         let value = \(encode)
-        let valueDescriptor = runtime.createObject()
-        valueDescriptor.setProperty("enumerable", value: true)
-        valueDescriptor.setProperty("value", value: value)
-        try runtime.global().getPropertyAsObject("Reflect").getPropertyAsFunction("defineProperty")
-          .call(arguments: this.copied(in: runtime).ref(), "\(jsName)", valueDescriptor.ref())
+        if this.isObject() {
+        \(indented(lazyDefineStatements(defineKey: defineKey)))
+        }
+        return value
+        """
+    } else if isLazy {
+      getBody = """
+        let value = \(encode)
+        \(lazyDefineStatements(defineKey: defineKey))
         return value
         """
     } else {
@@ -464,6 +473,34 @@ internal struct JSProperty {
       .joined(separator: "\n")
   }
 
+  /// The statements of a lazy getter that define `value` as a data property on `this`, ignoring a
+  /// failure. The arguments go through `ref()` because a parameter pack takes copyable values only.
+  private func lazyDefineStatements(defineKey: String?) -> String {
+    let descriptor = """
+      let valueDescriptor = runtime.createObject()
+      valueDescriptor.setProperty("enumerable", value: true)
+      valueDescriptor.setProperty("value", value: value)
+      """
+    let arguments = "this.copied(in: runtime).ref(), \"\(jsName)\", valueDescriptor.ref()"
+    let lookup = "runtime.global().getPropertyAsObject(\"Reflect\").getPropertyAsFunction(\"defineProperty\")"
+    if let defineKey {
+      return """
+        _ = try? runtime.withCached(\(defineKey)) {
+          try \(lookup)
+        } _: { defineProperty in
+        \(indented(descriptor))
+          return try defineProperty.call(arguments: \(arguments))
+        }
+        """
+    } else {
+      return """
+        \(descriptor)
+        _ = try? \(lookup)
+          .call(arguments: \(arguments))
+        """
+    }
+  }
+
   /// One `descriptor.setProperty("get"/"set") { … }` accessor entry. The capture list follows the
   /// receiver: a module captures `self` strong; a shared object captures nothing of the instance.
   /// A setter passes `returnsVoid`, so its closure declares `-> Void` and binds through the `Void`
@@ -478,11 +515,7 @@ internal struct JSProperty {
     let captures = receiver.captureClause
     // Indent each line of a (possibly multi-line) body to sit one level inside the closure; a bare
     // `\(body)` interpolation would only indent the first line.
-    let indentedBody =
-      body
-      .split(separator: "\n", omittingEmptySubsequences: false)
-      .map { "  \($0)" }
-      .joined(separator: "\n")
+    let indentedBody = indented(body)
     // Property `get`/`set` accessors are always synchronous, so they bind through the unowned-`this`
     // `setProperty` overload like sync functions. The parameter list is parenthesized and fully typed
     // because Swift rejects a type annotation on a shorthand closure parameter; the explicit
@@ -507,10 +540,13 @@ private func decorateBody(
   functions: [JSFunction],
   properties: [JSProperty],
   object: String,
-  receiver: Receiver
+  receiver: Receiver,
+  defineKey: String?
 ) -> String {
   let functionBody = functions.map { $0.decorateStatements(object: object, receiver: receiver) }
-  let propertyBody = properties.map { $0.decorateStatements(object: object, receiver: receiver) }
+  let propertyBody = properties.map {
+    $0.decorateStatements(object: object, receiver: receiver, defineKey: defineKey)
+  }
   return (functionBody + propertyBody).joined(separator: "\n")
 }
 
@@ -522,12 +558,17 @@ private func decorateBody(
 /// ownership). Only emitted when there's at least
 /// one member to bind. Uses the shared body generation with the module `object:` phase and `self`
 /// receiver; the shared-object counterpart is `buildDecorateSharedObjectPhase`.
-internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties: [JSProperty]) -> DeclSyntax {
+internal func buildDecorateJavaScriptObject(
+  functions: [JSFunction],
+  properties: [JSProperty],
+  defineKey: String?
+) -> DeclSyntax {
   let body = decorateBody(
     functions: functions,
     properties: properties,
     object: Phase.object.rawValue,
-    receiver: .module
+    receiver: .module,
+    defineKey: defineKey
   )
   return """
     @JavaScriptActor
@@ -552,7 +593,8 @@ internal func buildDecorateSharedObjectPhase(
   phase: Phase,
   functions: [JSFunction],
   properties: [JSProperty],
-  typeName: String
+  typeName: String,
+  defineKey: String?
 ) -> DeclSyntax {
   let receiver: Receiver =
     phase == .constructor
@@ -562,7 +604,8 @@ internal func buildDecorateSharedObjectPhase(
     functions: functions,
     properties: properties,
     object: phase.rawValue,
-    receiver: receiver
+    receiver: receiver,
+    defineKey: defineKey
   )
   return """
     @JavaScriptActor
@@ -580,4 +623,33 @@ private func isVoidType(_ type: TypeSyntax?) -> Bool {
   }
   let text = type.trimmedDescription
   return text == "Void" || text == "()"
+}
+
+/// The name of the static runtime cache key under which a type with a lazy `@JS` property keeps
+/// `Reflect.defineProperty`, for its lazy getters to reuse.
+internal let reflectDefinePropertyKeyName = "_reflectDefinePropertyKey"
+
+/// The declaration of the `Reflect.defineProperty` cache key (see `reflectDefinePropertyKeyName`), or
+/// `nil` when no property is lazy. A type in a generic context can't hold a static stored property, so
+/// it gets no key either, and its lazy getters look up `Reflect.defineProperty` on each attempt.
+internal func reflectDefinePropertyKeyDecl(
+  properties: [JSProperty],
+  declaration: some DeclGroupSyntax,
+  context: some MacroExpansionContext
+) -> DeclSyntax? {
+  guard properties.contains(where: \.isLazy), !isInGenericContext(declaration, context: context) else {
+    return nil
+  }
+  return """
+    private static let \(raw: reflectDefinePropertyKeyName) = JavaScriptRuntime.Cache.Key<JavaScriptFunction.Ref>()
+    """
+}
+
+/// `text` with each line indented by one level (two spaces).
+private func indented(_ text: String) -> String {
+  return
+    text
+    .split(separator: "\n", omittingEmptySubsequences: false)
+    .map { "  \($0)" }
+    .joined(separator: "\n")
 }

@@ -119,13 +119,23 @@ public struct SharedObjectMacro: MemberMacro {
     // `this`); `_decorateSharedObject(constructor:)` binds `static`/`class` ones (called on the metatype); and
     // `_constructSharedObject` builds an instance from the `@JS init` arguments. Each is emitted only
     // when it has something to bind.
+    // Swift rejects `static lazy var`, so only instance properties can be lazy.
+    let keyDecl = reflectDefinePropertyKeyDecl(
+      properties: instanceProperties,
+      declaration: declaration,
+      context: context
+    )
+    if let keyDecl {
+      emitted.append(keyDecl)
+    }
     if !instanceFunctions.isEmpty || !instanceProperties.isEmpty {
       emitted.append(
         buildDecorateSharedObjectPhase(
           phase: .prototype,
           functions: instanceFunctions,
           properties: instanceProperties,
-          typeName: typeName
+          typeName: typeName,
+          defineKey: keyDecl == nil ? nil : "\(typeName).\(reflectDefinePropertyKeyName)"
         )
       )
     }
@@ -135,7 +145,8 @@ public struct SharedObjectMacro: MemberMacro {
           phase: .constructor,
           functions: staticFunctions,
           properties: staticProperties,
-          typeName: typeName
+          typeName: typeName,
+          defineKey: nil
         )
       )
     }
