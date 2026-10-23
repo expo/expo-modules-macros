@@ -54,7 +54,7 @@ struct UnionMacroTests {
           case options(SourceOptions)
 
           private func _assertTypesConformance() {
-            func options<T: JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func options(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             options(SourceOptions.self)
           }
@@ -277,13 +277,13 @@ struct UnionMacroTests {
           case maybe(Int?)
 
           private func _assertTypesConformance() {
-            func single<T: JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func single(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             single(Point.self)
-            func many<T: JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func many(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             many([Point].self)
-            func keyed<T: JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func keyed(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             keyed([String: Point].self)
           }
@@ -526,7 +526,7 @@ struct UnionMacroTests {
           case record(MyRecord!)
 
           private func _assertTypesConformance() {
-            func record<T: JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func record(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             record(MyRecord.self)
           }
@@ -1018,7 +1018,7 @@ struct UnionMacroTests {
             case children([Node])
 
             private func _assertTypesConformance() {
-              func children<T: JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+              func children(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
               }
               children([Node].self)
             }

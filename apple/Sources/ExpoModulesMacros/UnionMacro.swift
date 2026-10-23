@@ -57,7 +57,7 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
     // reports the clear "requires that '…' conform to …" error ahead of the noisier "no member
     // 'decode'"/"'encode'" errors from the conversion code below.
     let assertions = union.cases.map { ConformanceAssertion(name: $0.name, types: [$0.payloadType]) }
-    if let assertionMember = typeConformanceAssertions(for: assertions, constraint: unionPayloadProtocolName) {
+    if let assertionMember = typeConformanceAssertions(for: assertions, constraint: javaScriptCodableProtocolName) {
       members.append(assertionMember)
     }
 

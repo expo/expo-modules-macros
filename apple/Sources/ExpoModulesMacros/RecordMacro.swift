@@ -43,14 +43,17 @@ import SwiftSyntaxMacros
 /// (`from(dictionary:)` / `toDictionary(appContext:)`), since `JavaScriptCodable` only converts JS
 /// values, not native `Any`. Both spell types as `public` symbols so the synthesized code compiles inside
 /// user modules without any internal core symbols. Every property type must therefore conform to both
-/// `AnyArgument` and `JavaScriptDecodable & JavaScriptEncodable`.
+/// `AnyArgument` and `JavaScriptDecodable & JavaScriptEncodable`. The conformance assertion checks only
+/// the JS codable protocols; the compiler reports a missing `AnyArgument` at the `getDynamicType()`
+/// call.
 ///
 /// A property whose type mentions `Any` (`Any?`, `[String: Any]?`, `[String: [Any]]`, …) can't conform to
-/// the JS codable protocols. On the JS-value paths it converts through the `JavaScriptValue` free-form
-/// methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and the matching `encodeAny…`
-/// for `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic `decodeAny(_:as:in:)` /
-/// `encodeAny(_:in:)` for any other type. Such a property only needs `AnyArgument` for the dictionary
-/// paths, and a bare `Any` needs nothing, since the dictionary paths pass it through unchanged.
+/// the JS codable protocols, so it isn't asserted. On the JS-value paths it converts through the
+/// `JavaScriptValue` free-form methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and
+/// the matching `encodeAny…` for `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic
+/// `decodeAny(_:as:in:)` / `encodeAny(_:in:)` for any other type. Such a property only needs
+/// `AnyArgument` for the dictionary paths, and a bare `Any` needs nothing, since the dictionary paths
+/// pass it through unchanged.
 ///
 /// A record class must be `final` and have no inheritance clause. The synthesized factories construct
 /// `Self` through the memberwise init, which only a final class can do without a `required` init, and
@@ -87,23 +90,16 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
 
     var members: [DeclSyntax] = []
 
-    // A single never-called member that makes the compiler verify each property type is convertible
-    // both ways (the JS-value paths call `decode`/`encode`; the native-`Any` dictionary paths call
-    // the dynamic-type API). Each property keeps its own named assertion inside, so the compiler's
-    // conformance diagnostic names the offending property (see `typeConformanceAssertions`). Emitted
-    // first so that, for a non-conforming type, this clear "requires that '…' conform to '…'" error
-    // is reported ahead of the noisier "no member 'decode'"/"getDynamicType" errors from the
-    // conversion code below.
+    // A single never-called member that makes the compiler verify each property type converts both
+    // ways (the JS-value paths call `decode`/`encode`). Each property keeps its own named assertion
+    // inside, so the compiler's conformance diagnostic names the offending property (see
+    // `typeConformanceAssertions`). Emitted first so that, for a non-conforming type, this clear
+    // "requires that '…' conform to '…'" error is reported ahead of the noisier "no member 'decode'"
+    // errors from the conversion code below.
     let assertions = properties.map { property in
-      // A bare `Any` can't conform to anything and needs no conformance, since every path converts it
-      // without one.
-      ConformanceAssertion(
-        name: property.name,
-        types: property.freeForm?.isBareAny == true ? [] : [property.type],
-        constraint: property.freeForm != nil ? jsConvertibleProtocolName : nil
-      )
+      ConformanceAssertion(name: property.name, types: property.freeForm == nil ? [property.type] : [])
     }
-    if let assertionMember = typeConformanceAssertions(for: assertions, constraint: recordFieldProtocolName) {
+    if let assertionMember = typeConformanceAssertions(for: assertions, constraint: javaScriptCodableProtocolName) {
       members.append(assertionMember)
     }
 
