@@ -3,8 +3,9 @@ import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
 /// Member macro applied to a `SharedObject` subclass, direct or not (a `SharedRef<T>` subclass too).
-/// Scans the class body for declarations marked with `@JS` and synthesizes
-/// `_synthesizedClassDefinition()`, returning a `ClassDefinition` ready to drop into a module's `Class { ... }` slot.
+/// Scans the class body for declarations marked with `@JS` and binds them directly through overrides of
+/// the `SharedObject` hooks core calls when it builds the JavaScript class. The class's JavaScript name
+/// is emitted as a `_jsName` override.
 ///
 ///   @SharedObject
 ///   final class Cache: SharedObject {
@@ -18,8 +19,8 @@ import SwiftSyntaxMacros
 ///     var size: Int { 42 }
 ///   }
 ///
-/// The companion `@ExpoModule(classes: [Cache.self])` wires the resulting
-/// definition into the module's exposed surface.
+/// The companion `@ExpoModule(classes: [Cache.self])` registers the class with the module, which
+/// exposes it in its JavaScript object.
 public struct SharedObjectMacro: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -33,21 +34,17 @@ public struct SharedObjectMacro: MemberMacro {
 
     // The superclass isn't checked here: the macro sees only this declaration, so it can't tell an
     // indirect subclass (`class Thumbnail: ImageRef`) from an unrelated class. The compiler reports a
-    // class that isn't a `SharedObject` subclass on the generated code that needs one.
+    // class that isn't a `SharedObject` subclass on the `_jsName` override, which is always emitted.
     let typeName = classDecl.name.text
     let jsName = jsNameArgument(of: node) ?? withoutBackticks(typeName)
 
     // `@JS func`s/`var`s and the `@JS init` are bound directly into the shared object's JS object by
-    // the synthesized `_decorateSharedObject(prototype:)` / `_decorateSharedObject(constructor:)` / `_constructSharedObject`
-    // rather than described with a `Function(...)` / `Property(...)` / `Constructor { … }` DSL entry, so
-    // they're collected here instead of appended to the `Class` block. The block keeps only non-`@JS`
-    // definitions (none are collected today), so it's empty when every member is `@JS`.
+    // the synthesized `_decorateSharedObject(prototype:)` / `_decorateSharedObject(constructor:)` / `_constructSharedObject`.
     //
     // Members split by the `static`/`class` modifier onto two different JS objects: instance members
     // decorate the prototype (receiver recovered from JS `this`), static members decorate the
     // constructor (called on the metatype). A JS instance and static member may share a name without
     // colliding: they live on different objects.
-    let entries: [String] = []
     var instanceFunctions: [JSFunction] = []
     var instanceProperties: [JSProperty] = []
     var staticFunctions: [JSFunction] = []
@@ -97,18 +94,10 @@ public struct SharedObjectMacro: MemberMacro {
     diagnoseJSNameCollisions(functions: instanceFunctions, properties: instanceProperties, in: context)
     diagnoseJSNameCollisions(functions: staticFunctions, properties: staticProperties, in: context)
 
-    let lines = entries.map { "    \($0)" }.joined(separator: "\n")
-    let body =
-      entries.isEmpty
-      ? "  return Class(\"\(jsName)\", \(typeName).self) {\n  }"
-      : "  return Class(\"\(jsName)\", \(typeName).self) {\n\(lines)\n  }"
-
+    // The resolved JS class name, read by core when it builds the class. An `override` of the
+    // `SharedObject` class property, so core reads it through the concrete type's metatype.
     var emitted: [DeclSyntax] = [
-      """
-      public static func _synthesizedClassDefinition() -> ClassDefinition {
-      \(raw: body)
-      }
-      """
+      "public override class var _jsName: String { \"\(raw: jsName)\" }"
     ]
 
     // Direct JSI binding, split by which JS object each member decorates:

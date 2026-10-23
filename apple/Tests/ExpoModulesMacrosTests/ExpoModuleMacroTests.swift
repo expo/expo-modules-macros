@@ -50,10 +50,6 @@ struct ExpoModuleMacroTests {
         final class MyModule: Module {
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -71,10 +67,6 @@ struct ExpoModuleMacroTests {
         final class MyModule: Module {
 
           public static let _jsName = "CustomName"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -96,10 +88,6 @@ struct ExpoModuleMacroTests {
           func greet(name: String) -> String { "Hi" }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -134,10 +122,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("add") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -171,10 +155,6 @@ struct ExpoModuleMacroTests {
           func resize(width: Int, height: Int = 100) -> Bool { true }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -216,10 +196,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -257,10 +233,6 @@ struct ExpoModuleMacroTests {
           func ping(times: Int = 1) -> Int { times }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -307,10 +279,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("transform") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -344,10 +312,6 @@ struct ExpoModuleMacroTests {
           func group(values: [[Int]], weights: [String: Double]?, flags: Set<Bool>) -> Dictionary<String, Array<String?>> { [:] }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -390,10 +354,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("index") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -433,10 +393,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -478,10 +434,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let cacheDescriptor = runtime.createObject()
@@ -518,10 +470,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -562,10 +510,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("describe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -599,10 +543,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("doReset") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -633,10 +573,6 @@ struct ExpoModuleMacroTests {
           func performWork() async throws {}
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -671,10 +607,6 @@ struct ExpoModuleMacroTests {
           func fetchValue(key: String) async throws -> Int { 0 }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -717,10 +649,6 @@ struct ExpoModuleMacroTests {
           func fetchValue(key: String) async -> Int { 0 }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -767,10 +695,6 @@ struct ExpoModuleMacroTests {
           func find(key: String, limit: Int?) async throws -> Int { 0 }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -820,10 +744,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let statusDescriptor = runtime.createObject()
@@ -861,10 +781,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let configDescriptor = runtime.createObject()
@@ -901,10 +817,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let cachedTokenDescriptor = runtime.createObject()
@@ -940,10 +852,6 @@ struct ExpoModuleMacroTests {
           lazy var info: [String: Any] = loadInfo()
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -991,10 +899,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let cacheDescriptor = runtime.createObject()
@@ -1030,10 +934,6 @@ struct ExpoModuleMacroTests {
           var ready: Bool = false
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1075,10 +975,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let configDescriptor = runtime.createObject()
@@ -1118,10 +1014,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1166,10 +1058,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("greet") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -1209,10 +1097,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -1250,10 +1134,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("loadAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -1289,10 +1169,6 @@ struct ExpoModuleMacroTests {
           func text(path: String) throws -> String { path }
 
           public static let _jsName = "FileModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1339,10 +1215,6 @@ struct ExpoModuleMacroTests {
           func write(_ message: String, level: Int = 0) {}
 
           public static let _jsName = "LogModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1404,10 +1276,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -1452,10 +1320,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let statusDescriptor = runtime.createObject()
@@ -1493,10 +1357,6 @@ struct ExpoModuleMacroTests {
           func load() -> Int { 0 }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1543,10 +1403,6 @@ struct ExpoModuleMacroTests {
           nonisolated func save() {}
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1617,10 +1473,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -1670,10 +1522,6 @@ struct ExpoModuleMacroTests {
           func load() {}
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1730,10 +1578,6 @@ struct ExpoModuleMacroTests {
           func fetch() {}
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1792,10 +1636,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -1846,10 +1686,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("compute") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -1891,10 +1727,6 @@ struct ExpoModuleMacroTests {
           func compute() throws -> Int { 42 }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -1996,10 +1828,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("compute") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -2059,10 +1887,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2085,10 +1909,6 @@ struct ExpoModuleMacroTests {
 
           public required init(appContext: AppContext) {
             self.appContext = appContext
-          }
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
           }
         }
 
@@ -2116,10 +1936,6 @@ struct ExpoModuleMacroTests {
           public required init(appContext: AppContext) {
             self.appContext = appContext
           }
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
 
         extension MyModule: AnyModule {
@@ -2140,10 +1956,6 @@ struct ExpoModuleMacroTests {
         final class MyModule: Module {
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2161,10 +1973,6 @@ struct ExpoModuleMacroTests {
         final class MyModule: BaseModule {
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2188,10 +1996,6 @@ struct ExpoModuleMacroTests {
           public required init(appContext: AppContext) {
             self.appContext = appContext
           }
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2214,10 +2018,6 @@ struct ExpoModuleMacroTests {
 
           public required init(appContext: AppContext) {
             self.appContext = appContext
-          }
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
           }
         }
 
@@ -2243,10 +2043,6 @@ struct ExpoModuleMacroTests {
           public static let _jsName = "MyModule"
 
           public weak var appContext: AppContext?
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
 
         extension MyModule: AnyModule {
@@ -2275,10 +2071,6 @@ struct ExpoModuleMacroTests {
           public required init(appContext: AppContext) {
             self.appContext = appContext
           }
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
 
         extension MyModule: AnyModule {
@@ -2306,10 +2098,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2335,10 +2123,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2368,10 +2152,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2406,10 +2186,6 @@ struct ExpoModuleMacroTests {
           func tag(name: String, note: borrowing String?) { }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2448,10 +2224,6 @@ struct ExpoModuleMacroTests {
           func store(config: borrowing [String: Any]) { }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2525,10 +2297,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -2560,10 +2328,6 @@ struct ExpoModuleMacroTests {
           func keep(config: [String: Any]?) { }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2602,10 +2366,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
@@ -2643,10 +2403,6 @@ struct ExpoModuleMacroTests {
           func inspect(list: [Any], value: Any) { }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2688,10 +2444,6 @@ struct ExpoModuleMacroTests {
           func raw() -> Any { 0 }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2747,10 +2499,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("find") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -2797,10 +2545,6 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
-
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             object.setProperty("fetch") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -2840,10 +2584,6 @@ struct ExpoModuleMacroTests {
           var groups: [String: [Any]]? = nil
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2887,10 +2627,6 @@ struct ExpoModuleMacroTests {
           func keyed(map: [Int: Any]) -> Set<[String: Any]> { [] }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2938,10 +2674,6 @@ struct ExpoModuleMacroTests {
           public static let _jsName = "MyModule"
 
           public static let _viewTypes: [Any.Type] = [CardView.self, BadgeView.self]
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -2960,13 +2692,9 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public static let _viewTypes: [Any.Type] = [CardView.self]
+          public static let _classTypes: [SharedObject.Type] = [Cache.self]
 
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return [
-              Cache._synthesizedClassDefinition()
-            ]
-          }
+          public static let _viewTypes: [Any.Type] = [CardView.self]
         }
         """
     )
@@ -2984,10 +2712,6 @@ struct ExpoModuleMacroTests {
         class MyModule: Module {
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -3009,10 +2733,6 @@ struct ExpoModuleMacroTests {
           public static let _jsName = "MyModule"
 
           public static let _viewTypes: [Any.Type] = [Outer.CardView.self]
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -3030,10 +2750,6 @@ struct ExpoModuleMacroTests {
         class MyModule: Module {
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
         }
         """
     )
@@ -3076,10 +2792,6 @@ struct ExpoModuleMacroTests {
           }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -3127,10 +2839,6 @@ struct ExpoModuleMacroTests {
           func greet(times: Int) -> String { "Hi" }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -3187,10 +2895,6 @@ struct ExpoModuleMacroTests {
           func readStatus() -> String { "ok" }
 
           public static let _jsName = "MyModule"
-
-          public func _synthesizedDefinition() -> [AnyDefinition] {
-            return []
-          }
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
