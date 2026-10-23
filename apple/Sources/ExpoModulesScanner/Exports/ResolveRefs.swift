@@ -112,6 +112,9 @@ extension TypeNode {
     switch self {
     case .primitive, .unknown:
       return self
+    case .sharedRef:
+      // The native type never reaches JS, so it isn't looked up among the scanned declarations.
+      return self
     case .ref(let name, _, _):
       guard let entry = index.lookup(name, in: scope) else {
         return self

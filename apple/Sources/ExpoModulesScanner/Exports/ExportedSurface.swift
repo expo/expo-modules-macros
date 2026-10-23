@@ -293,6 +293,9 @@ struct ExportedSharedObject: Encodable, Equatable {
   /// if a malformed source has more. Not named `constructor`, which every JS object inherits.
   var initializer: ExportedInitializer?
 
+  /// What the class inherits from `SharedRef<T>`, or `nil` when its superclass isn't `SharedRef`.
+  let sharedRef: ExportedSharedRef?
+
   var functions: [ExportedFunction]
   var properties: [ExportedProperty]
   var events: [ExportedEvent]
@@ -303,6 +306,17 @@ struct ExportedSharedObject: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 
   let file: String
+}
+
+/// The `SharedRef<T>` superclass of a shared object. Only the superclass written on the class is read,
+/// so a class that inherits `SharedRef` through another subclass has none.
+struct ExportedSharedRef: Encodable, Equatable {
+  /// The `T` in `SharedRef<T>`: the native type the object holds, which JS never sees.
+  let native: TypeNode
+
+  /// The `nativeRefType` JS reads to tell refs apart, for example `image`. `unknown` (core's default)
+  /// when the class doesn't override it, and `nil` when the override isn't a plain string literal.
+  let nativeRefType: String?
 }
 
 /// A `@Record` type and its properties (data only: no functions, accessors, or constructor).
@@ -448,8 +462,9 @@ struct ExportedSurface: Encodable, Equatable {
 /// an enum ref's `typeof`; version 6 added `classes` to modules; version 7 reports nested types under
 /// qualified names and gives a resolved ref the name of its declaration; version 8 reports
 /// declarations in `#if` blocks, adds `platforms` (with deprecations), `accessLevel`, and
-/// `defaultValue`, and replaces `constructorParameters` with `initializer`.
-let scanExportsSchemaVersion = 8
+/// `defaultValue`, and replaces `constructorParameters` with `initializer`; version 9 adds the
+/// `sharedRef` type kind and the `sharedRef` of a shared object.
+let scanExportsSchemaVersion = 9
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanModulesResult` (different consumer: TS generation vs. autolinking).

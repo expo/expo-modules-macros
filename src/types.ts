@@ -56,6 +56,11 @@ export type TypeNode =
       name: string;
       refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
     }
+  /**
+   * `SharedRef<T>`: a shared object that JS sees as an instance of `expo.SharedRef`. `native` is the
+   * `T` it holds on the native side. It never reaches JS, so refs in it are not resolved.
+   */
+  | { kind: 'sharedRef'; typeof: JSType; native: TypeNode }
   /** A type the scanner couldn't interpret; `text` is its source spelling. */
   | { kind: 'unknown'; text: string };
 
@@ -247,10 +252,26 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
    * which every JS object inherits.
    */
   initializer?: ExportedInitializer;
+  /** What the class inherits from `SharedRef<T>`, or absent when its superclass isn't `SharedRef`. */
+  sharedRef?: ExportedSharedRef;
   functions: ExportedFunction[];
   properties: ExportedProperty[];
   events: ExportedEvent[];
   file: string;
+}
+
+/**
+ * The `SharedRef<T>` superclass of a shared object. Only the superclass written on the class is read,
+ * so a class that inherits `SharedRef` through another subclass has none.
+ */
+export interface ExportedSharedRef {
+  /** The `T` in `SharedRef<T>`: the native type the object holds, which JS never sees. */
+  native: TypeNode;
+  /**
+   * The `nativeRefType` JS reads to tell refs apart, for example `image`. `unknown` (core's default)
+   * when the class doesn't override it, and absent when the override isn't a plain string literal.
+   */
+  nativeRefType?: string;
 }
 
 /** A `@Record` type and its properties. */
@@ -383,4 +404,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 8;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 9;

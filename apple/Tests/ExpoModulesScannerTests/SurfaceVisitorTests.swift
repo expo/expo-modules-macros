@@ -237,6 +237,65 @@ struct SharedObjectSurfaceTests {
     )
     #expect(shared.initializer == nil)
   }
+
+  @Test
+  func `Reports the SharedRef superclass with its native type and nativeRefType`() throws {
+    let visitor = surface(
+      """
+      @SharedObject
+      final class ImageRef: SharedRef<UIImage> {
+        override var nativeRefType: String { "image" }
+      }
+
+      @SharedObject
+      final class StringRef: ExpoModulesCore.SharedRef<String> {
+        override var nativeRefType: String {
+          get { return "string" }
+        }
+      }
+      """
+    )
+
+    #expect(
+      visitor.sharedObjects.map(\.sharedRef) == [
+        ExportedSharedRef(native: .ref(name: "UIImage"), nativeRefType: "image"),
+        ExportedSharedRef(native: .primitive(name: "String", jsType: .string), nativeRefType: "string"),
+      ]
+    )
+  }
+
+  @Test
+  func `Reports core's default nativeRefType when there's no override, and none for an unreadable one`() throws {
+    let visitor = surface(
+      """
+      @SharedObject
+      final class Plain: SharedRef<Data> {}
+
+      @SharedObject
+      final class Computed: SharedRef<Data> {
+        override var nativeRefType: String { prefix + "data" }
+      }
+      """
+    )
+
+    #expect(visitor.sharedObjects.map(\.sharedRef?.nativeRefType) == ["unknown", nil])
+    #expect(visitor.sharedObjects.allSatisfy { $0.sharedRef?.native == .ref(name: "Data") })
+  }
+
+  @Test
+  func `Reports no SharedRef for a SharedObject or an indirect subclass`() throws {
+    let visitor = surface(
+      """
+      @SharedObject
+      final class Cache: SharedObject {}
+
+      @SharedObject
+      final class Thumbnail: ImageRef {}
+      """
+    )
+
+    #expect(visitor.sharedObjects.map(\.sharedRef) == [nil, nil])
+  }
 }
 
 @Suite("Exports surface: records")
@@ -1419,6 +1478,27 @@ struct RefResolutionTests {
     // A qualifier the scan doesn't declare is dropped, as the conformance and raw-type checks already
     // do. The resolved ref takes the declaration's name, so a consumer can match the two exactly.
     #expect(types["s"] == .ref(name: "Status", refKind: .enum, jsTypeOverride: .string))
+  }
+
+  @Test
+  func `Leaves the native type of a SharedRef unresolved`() throws {
+    let surface = try resolvedSurface(
+      """
+      @Record struct Options { var name: String }
+
+      @SharedObject
+      final class OptionsRef: SharedRef<Options> {}
+
+      @ExpoModule
+      final class M {
+        @JS func f(o: SharedRef<Options>) {}
+      }
+      """
+    )
+
+    // `Options` here is the native object the ref holds, not a record crossing to JS.
+    #expect(try parameterTypes(surface)["o"] == .sharedRef(native: .ref(name: "Options")))
+    #expect(surface.sharedObjects.first?.sharedRef?.native == .ref(name: "Options"))
   }
 
   @Test
