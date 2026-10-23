@@ -2,9 +2,9 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/// Member macro applied to a `SharedObject` subclass. Scans the class body for
-/// declarations marked with `@JS` and synthesizes `_synthesizedClassDefinition()`,
-/// returning a `ClassDefinition` ready to drop into a module's `Class { ... }` slot.
+/// Member macro applied to a `SharedObject` subclass, direct or not (a `SharedRef<T>` subclass too).
+/// Scans the class body for declarations marked with `@JS` and synthesizes
+/// `_synthesizedClassDefinition()`, returning a `ClassDefinition` ready to drop into a module's `Class { ... }` slot.
 ///
 ///   @SharedObject
 ///   final class Cache: SharedObject {
@@ -31,12 +31,9 @@ public struct SharedObjectMacro: MemberMacro {
       throw MacroExpansionErrorMessage("@SharedObject can only be applied to a class")
     }
 
-    guard inheritsFromSharedObject(classDecl) else {
-      throw MacroExpansionErrorMessage(
-        "@SharedObject class must inherit from SharedObject. Add `: SharedObject` to the class declaration."
-      )
-    }
-
+    // The superclass isn't checked here: the macro sees only this declaration, so it can't tell an
+    // indirect subclass (`class Thumbnail: ImageRef`) from an unrelated class. The compiler reports a
+    // class that isn't a `SharedObject` subclass on the generated code that needs one.
     let typeName = classDecl.name.text
     let jsName = jsNameArgument(of: node) ?? withoutBackticks(typeName)
 
@@ -169,10 +166,4 @@ extension SharedObjectMacro: MemberAttributeMacro {
     }
     return ["@JavaScriptActor"]
   }
-}
-
-// MARK: - Inheritance check
-
-private func inheritsFromSharedObject(_ classDecl: ClassDeclSyntax) -> Bool {
-  return inheritsFromAny(classDecl, names: ["SharedObject"])
 }

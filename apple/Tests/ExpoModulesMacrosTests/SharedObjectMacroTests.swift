@@ -37,28 +37,6 @@ private func assertExpansion(
 @Suite("@SharedObject macro")
 struct SharedObjectMacroTests {
   @Test
-  func `Class without : SharedObject inheritance produces a diagnostic`() {
-    assertExpansion(
-      """
-      @SharedObject
-      final class Cache {
-      }
-      """,
-      expandedSource: """
-        final class Cache {
-        }
-        """,
-      diagnostics: [
-        DiagnosticSpec(
-          message: "@SharedObject class must inherit from SharedObject. Add `: SharedObject` to the class declaration.",
-          line: 1,
-          column: 1
-        )
-      ]
-    )
-  }
-
-  @Test
   func `Empty class emits a Class block with no elements`() {
     assertExpansion(
       """
@@ -91,6 +69,95 @@ struct SharedObjectMacroTests {
 
           public static func _synthesizedClassDefinition() -> ClassDefinition {
             return Class("MyCache", Cache.self) {
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `SharedRef subclass binds its @JS members and takes SharedRef arguments`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class ImageRef: SharedRef<UIImage> {
+        @JS
+        init(image: SharedRef<UIImage>) {
+          super.init(image.ref)
+        }
+
+        @JS
+        func merge(_ other: SharedRef<UIImage>) -> SharedRef<UIImage> { self }
+      }
+      """,
+      expandedSource: """
+        final class ImageRef: SharedRef<UIImage> {
+          @JavaScriptActor
+          init(image: SharedRef<UIImage>) {
+            super.init(image.ref)
+          }
+
+          private func `_assertTypesConformance_init`() {
+            func `init`<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
+            }
+            `init`(SharedRef<UIImage>.self)
+          }
+          @JavaScriptActor
+          func merge(_ other: SharedRef<UIImage>) -> SharedRef<UIImage> { self }
+
+          private func _assertTypesConformance_merge() {
+            func merge<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
+            }
+            merge(SharedRef<UIImage>.self, SharedRef<UIImage>.self)
+          }
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("ImageRef", ImageRef.self) {
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("merge") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: ImageRef.self)
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "merge", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try SharedRef<UIImage>.decode(arguments.unownedValue(at: 0), in: runtime)
+              let result = _self.merge(arg0)
+              return try SharedRef<UIImage>.encode(result, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+            guard arguments.count == 1 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "ImageRef", received: arguments.count, required: 1, maximum: 1))
+            }
+            let arg0 = try SharedRef<UIImage>.decode(arguments.unownedValue(at: 0), in: runtime)
+            return ImageRef(image: arg0)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Indirect subclass expands without a diagnostic`() {
+    // The macro can't see that `ImageRef` is a `SharedObject` subclass, so it leaves the superclass
+    // to the compiler.
+    assertExpansion(
+      """
+      @SharedObject
+      final class Thumbnail: ImageRef {
+      }
+      """,
+      expandedSource: """
+        final class Thumbnail: ImageRef {
+
+          public static func _synthesizedClassDefinition() -> ClassDefinition {
+            return Class("Thumbnail", Thumbnail.self) {
             }
           }
         }
