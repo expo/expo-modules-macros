@@ -80,18 +80,19 @@ extension EventMacro: PeerMacro {
       return []
     }
     // One nested helper asserts everything in a single call: the payload type is JS-convertible
-    // (the `P` parameter, dropped for no-payload events and known-conforming primitives) and the
-    // enclosing type can emit (the `E` parameter, always present since any `@Event` dispatches
+    // (the first parameter, dropped for no-payload events and known-conforming primitives) and the
+    // enclosing type can emit (the last parameter, always present since any `@Event` dispatches
     // through `self.emit`). Named after the member so the member shows up in either diagnostic,
     // and asserting the enclosing type by its spelled name so the conformance error names the
     // user's type rather than 'Self'.
     let name = event.swiftName
     let payload = event.payloadType.flatMap { assertableBoundaryType($0, constraint: jsConvertibleProtocolName) }
     let owner = enclosingTypeName(in: context) ?? "Self"
+    let emitterParameter = opaqueMetatypeParameter(constraint: eventEmitterProtocolName)
     let helper =
       payload != nil
-      ? "func \(name)<P: \(jsConvertibleProtocolName), E: \(eventEmitterProtocolName)>(_: P.Type, _: E.Type) {}"
-      : "func \(name)<E: \(eventEmitterProtocolName)>(_: E.Type) {}"
+      ? "func \(name)(\(opaqueMetatypeParameter(constraint: jsConvertibleProtocolName)), \(emitterParameter)) {}"
+      : "func \(name)(\(emitterParameter)) {}"
     let call = payload.map { "\(name)(\($0).self, \(owner).self)" } ?? "\(name)(\(owner).self)"
     let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
     return [

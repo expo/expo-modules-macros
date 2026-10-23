@@ -58,7 +58,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onProgress() {
-            func onProgress<P: AnyArgument, E: EventEmitter>(_: P.Type, _: E.Type) {
+            func onProgress(_: (some AnyArgument).Type, _: (some EventEmitter).Type) {
             }
             onProgress(ProgressEvent.self, MyModule.self)
           }
@@ -87,7 +87,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onReady() {
-            func onReady<E: EventEmitter>(_: E.Type) {
+            func onReady(_: (some EventEmitter).Type) {
             }
             onReady(MyModule.self)
           }
@@ -116,7 +116,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onProgress() {
-            func onProgress<P: AnyArgument, E: EventEmitter>(_: P.Type, _: E.Type) {
+            func onProgress(_: (some AnyArgument).Type, _: (some EventEmitter).Type) {
             }
             onProgress(ProgressEvent.self, MyModule.self)
           }
@@ -145,7 +145,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onURLChange() {
-            func onURLChange<E: EventEmitter>(_: E.Type) {
+            func onURLChange(_: (some EventEmitter).Type) {
             }
             onURLChange(MyModule.self)
           }
@@ -174,7 +174,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_online() {
-            func online<E: EventEmitter>(_: E.Type) {
+            func online(_: (some EventEmitter).Type) {
             }
             online(MyModule.self)
           }
@@ -203,7 +203,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onCount() {
-            func onCount<E: EventEmitter>(_: E.Type) {
+            func onCount(_: (some EventEmitter).Type) {
             }
             onCount(MyModule.self)
           }
@@ -232,7 +232,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onScores() {
-            func onScores<E: EventEmitter>(_: E.Type) {
+            func onScores(_: (some EventEmitter).Type) {
             }
             onScores(MyModule.self)
           }
@@ -261,7 +261,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onTags() {
-            func onTags<P: AnyArgument, E: EventEmitter>(_: P.Type, _: E.Type) {
+            func onTags(_: (some AnyArgument).Type, _: (some EventEmitter).Type) {
             }
             onTags(Set<String>.self, MyModule.self)
           }
@@ -290,7 +290,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onReady() {
-            func onReady<E: EventEmitter>(_: E.Type) {
+            func onReady(_: (some EventEmitter).Type) {
             }
             onReady(MyModule.self)
           }
@@ -319,7 +319,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onReady() {
-            func onReady<E: EventEmitter>(_: E.Type) {
+            func onReady(_: (some EventEmitter).Type) {
             }
             onReady(MyModule.self)
           }
@@ -348,7 +348,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onReady() {
-            func onReady<E: EventEmitter>(_: E.Type) {
+            func onReady(_: (some EventEmitter).Type) {
             }
             onReady(MyModule.self)
           }
@@ -377,7 +377,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onTick() {
-            func onTick<P: AnyArgument, E: EventEmitter>(_: P.Type, _: E.Type) {
+            func onTick(_: (some AnyArgument).Type, _: (some EventEmitter).Type) {
             }
             onTick(TickEvent.self, MyModule.self)
           }
@@ -406,7 +406,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onTick() {
-            func onTick<E: EventEmitter>(_: E.Type) {
+            func onTick(_: (some EventEmitter).Type) {
             }
             onTick(MyModule.self)
           }
@@ -435,7 +435,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onReady() {
-            func onReady<E: EventEmitter>(_: E.Type) {
+            func onReady(_: (some EventEmitter).Type) {
             }
             onReady(MyModule.self)
           }

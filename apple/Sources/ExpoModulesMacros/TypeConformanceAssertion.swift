@@ -1,9 +1,8 @@
 import SwiftSyntax
 import SwiftSyntaxBuilder
 
-/// The protocol that every type crossing the JS boundary must conform to. Centralized here so the
-/// eventual rename (this is a placeholder name) is a single edit, and shared by the macros whose
-/// generated conversions go through the dynamic-type API (`@Record`, `@Event`).
+/// The protocol of the 1.0 dynamic-type API (`getDynamicType()`). `@Event` asserts payload types
+/// against it.
 internal let jsConvertibleProtocolName = "AnyArgument"
 
 /// The constraint a `@JS` boundary type must satisfy, by direction: an argument (and a settable
@@ -15,23 +14,10 @@ internal let jsConvertibleProtocolName = "AnyArgument"
 internal let javaScriptDecodableProtocolName = "JavaScriptDecodable"
 internal let javaScriptEncodableProtocolName = "JavaScriptEncodable"
 
-/// The constraint a `@Record` property type must satisfy: it must be both `AnyArgument` (the
-/// `from(dictionary:)` / `toDictionary(appContext:)` paths still convert native `Any` through the
-/// dynamic-type API) and `JavaScriptDecodable & JavaScriptEncodable` (the `from(object:)` /
-/// `toObject(appContext:)` paths convert JS values through `decode`/`encode`). A record field has to
-/// support both directions, so the assertion requires the intersection.
-///
-/// The exception is a property whose type mentions `Any` (`[String: Any]?`, `[Any]`, …): it can't
-/// conform to the JS codable protocols, so the JS-value paths convert it through the `JavaScriptValue`
-/// free-form methods, and it's asserted against `jsConvertibleProtocolName` alone for the dictionary
-/// paths.
-internal let recordFieldProtocolName = "AnyArgument & JavaScriptDecodable & JavaScriptEncodable"
-
-/// The constraint a `@Union` case payload type must satisfy: the union decodes by trying each payload's
-/// `decode` and encodes through the matching payload's `encode`, so every alternative must convert in
-/// both directions. Unlike a `@Record` field, a union never crosses the native-`Any` dictionary path, so
-/// `AnyArgument` is not required.
-internal let unionPayloadProtocolName = "JavaScriptDecodable & JavaScriptEncodable"
+/// The constraint a `@Record` property type and a `@Union` case payload type must satisfy. A record
+/// decodes and encodes each property, and a union decodes by trying each payload's `decode` and
+/// encodes through the matching payload's `encode`, so both convert in both directions.
+internal let javaScriptCodableProtocolName = "JavaScriptDecodable & JavaScriptEncodable"
 
 /// The protocol a type must conform to for `self.emit(event:…)` to resolve; core conforms
 /// `BaseModule` and `SharedObject` to it. Asserted by `@Event` so attaching it to a type that can't
@@ -52,20 +38,15 @@ internal struct ConformanceAssertion {
   /// Declared types as written. Composed types (`[Int]`, `String?`, …) are kept verbatim — their
   /// conditional conformances transitively constrain the elements.
   let types: [String]
-  /// The constraint for this member's types, overriding the one passed to `typeConformanceAssertions`.
-  /// `@Record` uses it to assert only `AnyArgument` for a property that mentions `Any`, which can't be
-  /// `JavaScriptDecodable & JavaScriptEncodable`.
-  var constraint: String? = nil
 }
 
 /// A directional conformance-assertion peer for a `@JS` member: a never-called `private func` whose
 /// body asserts each argument type is `JavaScriptDecodable` and the return/getter type is
 /// `JavaScriptEncodable`, matching how the generated binding converts each (decode on the way in,
-/// encode on the way out). The check is a single member-named nested helper with one `A0…` generic
-/// parameter per asserted argument and a single `Return` parameter for the value, called once with
-/// every type's metatype; naming the helper after the member puts the member in the compiler's
-/// diagnostic, and the per-slot constraint reports the offending type against the protocol for *its*
-/// direction.
+/// encode on the way out). The check is a single member-named nested helper with one opaque metatype
+/// parameter per asserted type, called once with every type's metatype; naming the helper after the
+/// member puts the member in the compiler's diagnostic, and the per-parameter constraint reports the
+/// offending type against the protocol for *its* direction.
 ///
 /// `decodableTypes` are the argument types (and a settable property's value type); `encodableType` is
 /// the single return type (or a property's value type on read), or `nil` when there's none.
@@ -87,31 +68,18 @@ internal func directionalConformanceAssertion(
     return nil
   }
 
-  // Build the generic parameter list and the matching call arguments in lockstep: one `A0…` slot
-  // constrained `JavaScriptDecodable` per argument, one `E0…` slot constrained `JavaScriptEncodable`
-  // per closure-argument parameter, and a single `Return` slot constrained `JavaScriptEncodable` for
-  // the return/getter value (there's only ever one, so it isn't indexed). Every slot suppresses
-  // `Copyable`, so a non-copyable boundary type such as `JavaScriptValue` can fill it.
-  var parameters: [String] = []
-  var typeParameters: [String] = []
-  var arguments: [String] = []
-  for (index, type) in decodables.enumerated() {
-    parameters.append("A\(index): \(javaScriptDecodableProtocolName) & ~Copyable")
-    typeParameters.append("_: A\(index).Type")
-    arguments.append("\(type).self")
-  }
-  for (index, type) in callbackArguments.enumerated() {
-    parameters.append("E\(index): \(javaScriptEncodableProtocolName) & ~Copyable")
-    typeParameters.append("_: E\(index).Type")
-    arguments.append("\(type).self")
-  }
-  if let encodable {
-    parameters.append("Return: \(javaScriptEncodableProtocolName) & ~Copyable")
-    typeParameters.append("_: Return.Type")
-    arguments.append("\(encodable).self")
-  }
+  // Arguments are constrained `JavaScriptDecodable`, and closure-argument parameters and the
+  // return/getter value `JavaScriptEncodable`. Every parameter suppresses `Copyable`, so a
+  // non-copyable boundary type such as `JavaScriptValue` can fill it.
+  let encodables = callbackArguments + [encodable].compactMap { $0 }
+  let decodableParameter = opaqueMetatypeParameter(constraint: "\(javaScriptDecodableProtocolName) & ~Copyable")
+  let encodableParameter = opaqueMetatypeParameter(constraint: "\(javaScriptEncodableProtocolName) & ~Copyable")
+  let parameters =
+    Array(repeating: decodableParameter, count: decodables.count)
+    + Array(repeating: encodableParameter, count: encodables.count)
+  let arguments = (decodables + encodables).map { "\($0).self" }
 
-  let helper = "func \(name)<\(parameters.joined(separator: ", "))>(\(typeParameters.joined(separator: ", "))) {}"
+  let helper = "func \(name)(\(parameters.joined(separator: ", "))) {}"
   let call = "\(name)(\(arguments.joined(separator: ", ")))"
   let staticKeyword = isStatic ? "static " : ""
   let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
@@ -132,9 +100,9 @@ internal func directionalConformanceAssertion(
 /// caller emits nothing.
 internal func typeConformanceAssertions(
   for assertions: [ConformanceAssertion],
-  constraint: String = jsConvertibleProtocolName
+  constraint: String
 ) -> DeclSyntax? {
-  let bodies = assertions.compactMap { conformanceAssertionBody($0, constraint: $0.constraint ?? constraint) }
+  let bodies = assertions.compactMap { conformanceAssertionBody($0, constraint: constraint) }
   guard !bodies.isEmpty else {
     return nil
   }
@@ -186,23 +154,31 @@ private func setsConform(to constraint: String) -> Bool {
   }
 }
 
-/// The assertion's body fragment: a nested generic helper named after the member, plus one call per
-/// distinct type that needs an assertion. Nesting the helper keeps the constraint entirely local — no
-/// shared symbol, nothing to collide, nothing left in the type's namespace — and naming it after the
-/// member puts the member's name in the compiler's conformance diagnostic. Returns `nil` when every
-/// type was known to conform or the list was empty.
+/// The assertion's body fragment: a nested helper named after the member, plus one call per distinct
+/// type that needs an assertion. Nesting the helper keeps the constraint entirely local — no shared
+/// symbol, nothing to collide, nothing left in the type's namespace — and naming it after the member
+/// puts the member's name in the compiler's conformance diagnostic. Returns `nil` when every type was
+/// known to conform or the list was empty.
 private func conformanceAssertionBody(
   _ assertion: ConformanceAssertion,
-  constraint: String = jsConvertibleProtocolName
+  constraint: String
 ) -> String? {
   let distinct = distinctAssertableTypes(assertion.types, constraint: constraint)
   guard !distinct.isEmpty else {
     return nil
   }
 
-  var lines = ["func \(assertion.name)<T: \(constraint)>(_: T.Type) {}"]
+  var lines = ["func \(assertion.name)(\(opaqueMetatypeParameter(constraint: constraint))) {}"]
   lines.append(contentsOf: distinct.map { "\(assertion.name)(\($0).self)" })
   return lines.joined(separator: "\n")
+}
+
+/// An unlabeled parameter that takes the metatype of any type satisfying `constraint`, for an
+/// assertion helper.
+internal func opaqueMetatypeParameter(constraint: String) -> String {
+  // A named generic parameter would shadow a generic parameter of the same name on an enclosing
+  // type, which is an error. An opaque parameter declares no name.
+  return "_: (some \(constraint)).Type"
 }
 
 /// The distinct types to assert against `constraint` from a list, mapping each through

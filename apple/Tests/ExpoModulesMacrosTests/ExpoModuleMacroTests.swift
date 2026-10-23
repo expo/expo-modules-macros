@@ -272,7 +272,7 @@ struct ExpoModuleMacroTests {
           func transform(value: MyRecord, count: Int) -> [MyRecord] { [] }
 
           private func _assertTypesConformance_transform() {
-            func transform<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
+            func transform(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             transform(MyRecord.self, [MyRecord].self)
           }
@@ -347,7 +347,7 @@ struct ExpoModuleMacroTests {
           func index(records: [[MyRecord]], names: [Int: String]) -> Set<MyRecord> { [] }
 
           private func _assertTypesConformance_index() {
-            func index<A0: JavaScriptDecodable & ~Copyable, A1: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: A1.Type, _: Return.Type) {
+            func index(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             index([[MyRecord]].self, [Int: String].self, Set<MyRecord>.self)
           }
@@ -387,7 +387,7 @@ struct ExpoModuleMacroTests {
           func merge(primary: MyRecord, secondary: OtherRecord) -> MyRecord { primary }
 
           private func _assertTypesConformance_merge() {
-            func merge<A0: JavaScriptDecodable & ~Copyable, A1: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: A1.Type, _: Return.Type) {
+            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             merge(MyRecord.self, OtherRecord.self, MyRecord.self)
           }
@@ -427,7 +427,7 @@ struct ExpoModuleMacroTests {
           var cache: MyRecord { MyRecord() }
 
           private func _assertTypesConformance_cache() {
-            func cache<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            func cache(_: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             cache(MyRecord.self)
           }
@@ -464,7 +464,7 @@ struct ExpoModuleMacroTests {
           func make(count: Int) -> MyRecord! { nil }
 
           private func _assertTypesConformance_make() {
-            func make<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            func make(_: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             make(MyRecord.self)
           }
@@ -503,7 +503,7 @@ struct ExpoModuleMacroTests {
           static func describe(_ value: MyRecord) -> String { "" }
 
           private static func _assertTypesConformance_describe() {
-            func describe<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
+            func describe(_: (some JavaScriptDecodable & ~Copyable).Type) {
             }
             describe(MyRecord.self)
           }
@@ -774,7 +774,7 @@ struct ExpoModuleMacroTests {
           lazy var config: MyRecord = loadConfig()
 
           private func _assertTypesConformance_config() {
-            func config<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            func config(_: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             config(MyRecord.self)
           }
@@ -892,7 +892,7 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance_cache() {
-            func cache<Return: JavaScriptEncodable & ~Copyable>(_: Return.Type) {
+            func cache(_: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             cache(MyRecord.self)
           }
@@ -968,7 +968,7 @@ struct ExpoModuleMacroTests {
           var config: MyRecord
 
           private func _assertTypesConformance_config() {
-            func config<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
+            func config(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             config(MyRecord.self, MyRecord.self)
           }
@@ -1008,7 +1008,7 @@ struct ExpoModuleMacroTests {
           var config: MyRecord!
 
           private func _assertTypesConformance_config() {
-            func config<A0: JavaScriptDecodable & ~Copyable, Return: JavaScriptEncodable & ~Copyable>(_: A0.Type, _: Return.Type) {
+            func config(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
             config(MyRecord.self, MyRecord.self)
           }
@@ -1868,7 +1868,7 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance_onTick() {
-            func onTick<E: EventEmitter>(_: E.Type) {
+            func onTick(_: (some EventEmitter).Type) {
             }
             onTick(MyModule.self)
           }
@@ -1881,7 +1881,7 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance_onReady() {
-            func onReady<E: EventEmitter>(_: E.Type) {
+            func onReady(_: (some EventEmitter).Type) {
             }
             onReady(MyModule.self)
           }
@@ -2146,7 +2146,7 @@ struct ExpoModuleMacroTests {
           func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
 
           private func _assertTypesConformance_move() {
-            func move<A0: JavaScriptDecodable & ~Copyable, A1: JavaScriptDecodable & ~Copyable, A2: JavaScriptDecodable & ~Copyable>(_: A0.Type, _: A1.Type, _: A2.Type) {
+            func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
             move(Point.self, Delta.self, Tag.self)
           }
@@ -2254,7 +2254,7 @@ struct ExpoModuleMacroTests {
         func b(worker: isolated Worker, name: Name) {}
 
         private func _assertTypesConformance_b() {
-          func b<A0: JavaScriptDecodable & ~Copyable>(_: A0.Type) {
+          func b(_: (some JavaScriptDecodable & ~Copyable).Type) {
           }
           b(Name.self)
         }
@@ -2786,7 +2786,7 @@ struct ExpoModuleMacroTests {
           }
 
           private func `_assertTypesConformance_onClass`() {
-            func `onClass`<E: EventEmitter>(_: E.Type) {
+            func `onClass`(_: (some EventEmitter).Type) {
             }
             `onClass`(MyModule.self)
           }

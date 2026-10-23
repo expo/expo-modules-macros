@@ -165,7 +165,7 @@ struct RecordMacroTests {
           var owner: MyRecord!
 
           private func _assertTypesConformance() {
-            func owner<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func owner(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             owner(MyRecord.self)
           }
@@ -259,10 +259,10 @@ struct RecordMacroTests {
           var count: Int = 0
 
           private func _assertTypesConformance() {
-            func primary<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func primary(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             primary(MyRecord.self)
-            func tags<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func tags(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
             tags([Tag].self)
           }
@@ -372,7 +372,7 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Containers of primitives skip the conformance assertion, except a set`() {
+  func `Containers of primitives skip the conformance assertion`() {
     assertExpansion(
       """
       @Record
@@ -387,12 +387,6 @@ struct RecordMacroTests {
           var grid: [[Int]]
           var labels: [String: String]
           var tags: Set<String>
-
-          private func _assertTypesConformance() {
-            func tags<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
-            }
-            tags(Set<String>.self)
-          }
 
           public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
@@ -1580,12 +1574,6 @@ struct RecordMacroTests {
           var name: String
           var attributes: [String: Any]?
 
-          private func _assertTypesConformance() {
-            func attributes<T: AnyArgument>(_: T.Type) {
-            }
-            attributes([String: Any].self)
-          }
-
           public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
@@ -1692,12 +1680,6 @@ struct RecordMacroTests {
           var items: [Any]
           var meta: [String : Any] = [:]
           var groups: [String: [Any]]?
-
-          private func _assertTypesConformance() {
-            func groups<T: AnyArgument>(_: T.Type) {
-            }
-            groups([String: [Any]].self)
-          }
 
           public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
@@ -1942,12 +1924,6 @@ struct RecordMacroTests {
         struct Payload {
           var value: Swift.Any
           var list: [Swift.Any]?
-
-          private func _assertTypesConformance() {
-            func list<T: AnyArgument>(_: T.Type) {
-            }
-            list([Swift.Any].self)
-          }
 
           public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
@@ -2405,25 +2381,25 @@ struct RecordMacroTests {
     assertExpansion(
       """
       @Record
-      struct Box<Element: AnyArgument & JavaScriptDecodable & JavaScriptEncodable> {
-        var value: Element
+      struct Box<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable> {
+        var value: T
       }
       """,
       expandedSource: """
-        struct Box<Element: AnyArgument & JavaScriptDecodable & JavaScriptEncodable> {
-          var value: Element
+        struct Box<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable> {
+          var value: T
 
           private func _assertTypesConformance() {
-            func value<T: AnyArgument & JavaScriptDecodable & JavaScriptEncodable>(_: T.Type) {
+            func value(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
             }
-            value(Element.self)
+            value(T.self)
           }
 
           public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(value: Element) {
+          public init(value: T) {
             self.value = value
           }
 
@@ -2440,7 +2416,7 @@ struct RecordMacroTests {
             guard let entry0 else {
               throw RecordPropertyRequiredException("value")
             }
-            let field0 = try Element.getDynamicType().cast(entry0, appContext: appContext) as! Element
+            let field0 = try T.getDynamicType().cast(entry0, appContext: appContext) as! T
             return Self(value: field0)
           }
 
@@ -2462,7 +2438,7 @@ struct RecordMacroTests {
               guard !valueJSValue.isUndefined() else {
                 throw RecordPropertyRequiredException("value")
               }
-              return try Element.decode(valueJSValue, in: runtime)
+              return try T.decode(valueJSValue, in: runtime)
             }
             return Self(value: field0)
           }
@@ -2470,7 +2446,7 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func encode(_ value: Box, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
-            object.setProperty("value", value: try Element.encode(value.value, in: runtime))
+            object.setProperty("value", value: try T.encode(value.value, in: runtime))
             return object.takeValue()
           }
         }
