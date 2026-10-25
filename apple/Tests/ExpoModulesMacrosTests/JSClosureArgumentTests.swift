@@ -63,7 +63,9 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int) -> Void = { @Sendable p0 in
-                arg0Callback.invokeDetached(p0)
+                arg0Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                  try _arguments.emplace(_values, at: 0, in: _runtime)
+                }
               }
               self.subscribe(onChange: arg0)
             }
@@ -105,9 +107,55 @@ struct JSClosureArgumentTests {
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg1Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 1), in: runtime)
               let arg1: (Point, Int) throws -> Size = { @Sendable p0, p1 in
-                try arg1Callback.invokeBlocking(p0, p1, returning: Size.self)
+                try arg1Callback.invokeBlocking((p0, p1), argumentCount: 2, returning: Size.self) { _values, _arguments, _runtime in
+                  try _arguments.emplace(_values.0, at: 0, in: _runtime)
+                  try _arguments.emplace(_values.1, at: 1, in: _runtime)
+                }
               }
               try self.measure(name: arg0, layout: arg1)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Closure with one parameter passes it without a tuple and decodes an optional result`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func lookup(resolve: (String?) throws -> Size?) {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func lookup(resolve: (String?) throws -> Size?) {}
+
+          private func _assertTypesConformance_lookup() {
+            func lookup(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            lookup(Size.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("lookup") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "lookup", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg0: (String?) throws -> Size? = { @Sendable p0 in
+                try arg0Callback.invokeBlocking(p0, argumentCount: 1, returning: Size?.self) { _values, _arguments, _runtime in
+                  try _arguments.emplace(_values, at: 0, in: _runtime)
+                }
+              }
+              self.lookup(resolve: arg0)
             }
           }
         }
@@ -230,7 +278,9 @@ struct JSClosureArgumentTests {
                 let arg0: ((Bool) throws -> Void)?
                 if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
                   arg0 = { @Sendable p0 in
-                    try arg0Callback.invokeBlocking(p0)
+                    try arg0Callback.invokeBlocking(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                      try _arguments.emplace(_values, at: 0, in: _runtime)
+                    }
                   }
                 } else {
                   arg0 = nil
@@ -270,7 +320,9 @@ struct JSClosureArgumentTests {
             }
             let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
             let arg0: (String) -> Void = { @Sendable p0 in
-              arg0Callback.invokeDetached(p0)
+              arg0Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                try _arguments.emplace(_values, at: 0, in: _runtime)
+              }
             }
             return Watcher(onEvent: arg0)
           }
@@ -310,7 +362,11 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (borrowing Point, consuming Size, sending Item) throws -> Void = { @Sendable p0, p1, p2 in
-                try arg0Callback.invokeBlocking(p0, p1, p2)
+                try arg0Callback.invokeBlocking((p0, p1, p2), argumentCount: 3) { _values, _arguments, _runtime in
+                  try _arguments.emplace(_values.0, at: 0, in: _runtime)
+                  try _arguments.emplace(_values.1, at: 1, in: _runtime)
+                  try _arguments.emplace(_values.2, at: 2, in: _runtime)
+                }
               }
               self.observe(handler: arg0)
             }
@@ -396,7 +452,9 @@ struct JSClosureArgumentTests {
                 let arg0: ((Double) -> Void)?
                 if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
                   arg0 = { @Sendable p0 in
-                    arg0Callback.invokeDetached(p0)
+                    arg0Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                      try _arguments.emplace(_values, at: 0, in: _runtime)
+                    }
                   }
                 } else {
                   arg0 = nil
@@ -482,7 +540,10 @@ struct JSClosureArgumentTests {
               }
               let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
               let arg0: (Int, Int) -> Bool = { @Sendable p0, p1 in
-                try arg0Callback.invokeBlocking(p0, p1, returning: Bool.self)
+                try arg0Callback.invokeBlocking((p0, p1), argumentCount: 2, returning: Bool.self) { _values, _arguments, _runtime in
+                  try _arguments.emplace(_values.0, at: 0, in: _runtime)
+                  try _arguments.emplace(_values.1, at: 1, in: _runtime)
+                }
               }
               self.sort(compare: arg0)
             }

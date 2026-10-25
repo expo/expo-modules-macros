@@ -141,7 +141,17 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
   let parameters = closure.parameters.indices.map { "p\($0)" }
   let header = parameters.isEmpty ? "{ @Sendable in" : "{ @Sendable \(parameters.joined(separator: ", ")) in"
 
+  // A sync closure with parameters passes them as one value, a tuple when there are several, and an
+  // `emplacing` closure moves each one into the arguments buffer at its index. Capturing the
+  // parameters instead would send non-`Sendable` values to the `@JavaScriptActor` closure, which
+  // Swift 6 rejects. The closure captures nothing, so it needs no allocation. Without parameters
+  // there is nothing to emplace, and `invokeAsync` takes the parameters variadically.
+  let emplaces = !closure.isAsync && !parameters.isEmpty
   var arguments = parameters
+  if emplaces {
+    let values = parameters.count == 1 ? "p0" : "(" + parameters.joined(separator: ", ") + ")"
+    arguments = [values, "argumentCount: \(parameters.count)"]
+  }
   if let returnType = closure.returnType {
     arguments.append("returning: \(expressionType(returnType)).self")
   }
@@ -156,6 +166,14 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
     call = "\(callback).invokeDetached(\(argumentList))"
   }
 
+  if emplaces {
+    var lines = [header, "  \(call) { _values, _arguments, _runtime in"]
+    for index in parameters.indices {
+      let value = parameters.count == 1 ? "_values" : "_values.\(index)"
+      lines.append("    try _arguments.emplace(\(value), at: \(index), in: _runtime)")
+    }
+    return lines + ["  }", "}"]
+  }
   guard closure.isAsync && !closure.isThrowing else {
     return [header, "  " + call, "}"]
   }
