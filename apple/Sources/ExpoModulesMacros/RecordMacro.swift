@@ -477,7 +477,9 @@ private func toObjectMethod() -> DeclSyntax {
 /// property's declared default (inlined) when undefined; optional properties become `nil` when
 /// undefined/null. It's the unowned overload: an owning value decodes through `JavaScriptDecodable`'s
 /// default, which forwards to it. `encode` builds the JS object, writing each property. Its parameter
-/// names the type, because a class can't take `Self` as a parameter type.
+/// names the type, because a class can't take `Self` as a parameter type. `encode(_:into:in:)` builds
+/// the same object and moves it into the slot (an array element, an argument or a result), with no
+/// `JavaScriptValue` in between.
 private func javaScriptCodableWitnesses(
   properties: [RecordProperty],
   typeName: String,
@@ -491,11 +493,12 @@ private func javaScriptCodableWitnesses(
   let lookupLines = cachesPropNames ? propNamesLookupLines() : []
   let readLines = lookupLines + jsObjectReadLines(properties: properties, cachesPropNames: cachesPropNames)
   let decodeBody = objectLine + "\n" + factoryBody(properties: properties, readLines: readLines)
-  let encodeLines =
+  let objectLines =
     ["  let object = runtime.createObject()"]
     + lookupLines
     + objectWriteLines(properties: properties, of: "value", cachesPropNames: cachesPropNames)
-    + ["  return object.takeValue()"]
+  let encodeLines = objectLines + ["  return object.takeValue()"]
+  let encodeIntoSlotLines = objectLines + ["  slot.emplace(object)"]
   return [
     """
     @JavaScriptActor
@@ -509,12 +512,23 @@ private func javaScriptCodableWitnesses(
     \(raw: encodeLines.joined(separator: "\n"))
     }
     """,
+    """
+    @JavaScriptActor
+    public static func encode(
+      _ value: \(raw: typeName),
+      into slot: borrowing JavaScriptValue.Slot,
+      in runtime: borrowing JavaScriptRuntime
+    ) throws {
+    \(raw: encodeIntoSlotLines.joined(separator: "\n"))
+    }
+    """,
   ]
 }
 
 /// The statements that write each property of `record` (`self` or the `encode` parameter) into the
-/// `object` local, encoding it with `JavaScriptEncodable.encode` or, for a free-form property, the
-/// matching `JavaScriptValue` free-form method.
+/// `object` local. A property is encoded straight into the engine value that `setProperty` writes, through
+/// `JavaScriptEncodable.encode(_:into:in:)`, so a number, a boolean or a string never becomes a
+/// `JavaScriptValue`. A free-form property goes through the matching `JavaScriptValue` free-form method.
 private func objectWriteLines(properties: [RecordProperty], of record: String, cachesPropNames: Bool) -> [String] {
   return properties.enumerated().map { index, property in
     let value = "\(record).\(property.name)"
@@ -529,7 +543,8 @@ private func objectWriteLines(properties: [RecordProperty], of record: String, c
       // The explicit `as Any` keeps an optional property from warning about its implicit coercion.
       encode = "try JavaScriptValue.encodeAny(\(value) as Any, in: runtime)"
     case nil:
-      encode = "try \(expressionType(property.type)).encode(\(value), in: runtime)"
+      let propName = propNameArgument(for: property, at: index, cached: cachesPropNames)
+      return "  try object.setProperty(\(propName), encoding: \(value), in: runtime)"
     }
     let propName = propNameArgument(for: property, at: index, cached: cachesPropNames)
     return "  object.setProperty(\(propName), value: \(encode))"
