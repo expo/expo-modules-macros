@@ -138,10 +138,26 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
-            object.setProperty(_propNames._name1, value: try Int.encode(value.count, in: runtime))
-            object.setProperty(_propNames._name2, value: try String?.encode(value.note, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.note, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.note, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -230,8 +246,22 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try MyRecord?.encode(value.owner, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.owner, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.owner, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -358,10 +388,26 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try MyRecord.encode(value.primary, in: runtime))
-            object.setProperty(_propNames._name1, value: try [Tag].encode(value.tags, in: runtime))
-            object.setProperty(_propNames._name2, value: try Int.encode(value.count, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.primary, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.tags, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.primary, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.tags, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -485,10 +531,26 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try [[Int]].encode(value.grid, in: runtime))
-            object.setProperty(_propNames._name1, value: try [String: String].encode(value.labels, in: runtime))
-            object.setProperty(_propNames._name2, value: try Set<String>.encode(value.tags, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.grid, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.labels, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.tags, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Layout,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.grid, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.labels, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.tags, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -604,11 +666,28 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
-            object.setProperty(_propNames._name1, value: try Double.encode(value.ratio, in: runtime))
-            object.setProperty(_propNames._name2, value: try Int.encode(value.count, in: runtime))
-            object.setProperty(_propNames._name3, value: try Bool.encode(value.flag, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.ratio, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name3, encoding: value.flag, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.ratio, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name3, encoding: value.flag, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -733,8 +812,22 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -791,6 +884,16 @@ struct RecordMacroTests {
           public static func encode(_ value: Empty, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Empty,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            slot.emplace(object)
           }
         }
 
@@ -884,9 +987,24 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try Double.encode(value.x, in: runtime))
-            object.setProperty(_propNames._name1, value: try Double.encode(value.y, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Point,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -1114,8 +1232,22 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -1205,8 +1337,22 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            slot.emplace(object)
           }
         }
         """
@@ -1356,9 +1502,24 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try Double.encode(value.x, in: runtime))
-            object.setProperty(_propNames._name1, value: try Double.encode(value.y, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -1457,9 +1618,24 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try Double.encode(value.x, in: runtime))
-            object.setProperty(_propNames._name1, value: try Double.encode(value.y, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -1546,8 +1722,22 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try Int.encode(value.`default`, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -1650,9 +1840,24 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.name, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
             object.setProperty(_propNames._name1, value: value.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(value.attributes!, in: runtime))
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Report,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            object.setProperty(_propNames._name1, value: value.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(value.attributes!, in: runtime))
+            slot.emplace(object)
           }
         }
 
@@ -1771,6 +1976,22 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name2, value: try JavaScriptValue.encodeAny(value.groups as Any, in: runtime))
             return object.takeValue()
           }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Payload,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAnyArray(value.items, in: runtime))
+            object.setProperty(_propNames._name1, value: try JavaScriptValue.encodeAnyDictionary(value.meta, in: runtime))
+            object.setProperty(_propNames._name2, value: try JavaScriptValue.encodeAny(value.groups as Any, in: runtime))
+            slot.emplace(object)
+          }
         }
 
         extension Payload: Record {
@@ -1873,6 +2094,21 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
             object.setProperty(_propNames._name1, value: value.maybe == nil ? .null() : try JavaScriptValue.encodeAny(value.maybe!, in: runtime))
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Payload,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
+            object.setProperty(_propNames._name1, value: value.maybe == nil ? .null() : try JavaScriptValue.encodeAny(value.maybe!, in: runtime))
+            slot.emplace(object)
           }
         }
 
@@ -2005,6 +2241,21 @@ struct RecordMacroTests {
             object.setProperty(_propNames._name1, value: value.list == nil ? .null() : try JavaScriptValue.encodeAnyArray(value.list!, in: runtime))
             return object.takeValue()
           }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Payload,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeAny(value.value, in: runtime))
+            object.setProperty(_propNames._name1, value: value.list == nil ? .null() : try JavaScriptValue.encodeAnyArray(value.list!, in: runtime))
+            slot.emplace(object)
+          }
         }
 
         extension Payload: Record {
@@ -2104,9 +2355,24 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try Int.encode(value.`default`, in: runtime))
-            object.setProperty(_propNames._name1, value: try String.encode(value.`class`, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.`class`, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.`class`, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -2207,9 +2473,24 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.object, in: runtime))
-            object.setProperty(_propNames._name1, value: try Int.encode(value.count, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.object, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Payload,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.object, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -2361,12 +2642,30 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try String.encode(value.dictionary, in: runtime))
-            object.setProperty(_propNames._name1, value: try String.encode(value.appContext, in: runtime))
-            object.setProperty(_propNames._name2, value: try String.encode(value.runtime, in: runtime))
-            object.setProperty(_propNames._name3, value: try String.encode(value.name, in: runtime))
-            object.setProperty(_propNames._name4, value: try Int.encode(value.nameValue, in: runtime))
+            try object.setProperty(_propNames._name0, encoding: value.dictionary, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.appContext, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.runtime, in: runtime)
+            try object.setProperty(_propNames._name3, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name4, encoding: value.nameValue, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Conflicts,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.dictionary, in: runtime)
+            try object.setProperty(_propNames._name1, encoding: value.appContext, in: runtime)
+            try object.setProperty(_propNames._name2, encoding: value.runtime, in: runtime)
+            try object.setProperty(_propNames._name3, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name4, encoding: value.nameValue, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -2446,8 +2745,19 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func encode(_ value: Box, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
-            object.setProperty("value", value: try T.encode(value.value, in: runtime))
+            try object.setProperty("value", encoding: value.value, in: runtime)
             return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Box,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            try object.setProperty("value", encoding: value.value, in: runtime)
+            slot.emplace(object)
           }
         }
 
@@ -2524,8 +2834,19 @@ struct RecordMacroTests {
             @JavaScriptActor
             public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
               let object = runtime.createObject()
-              object.setProperty("name", value: try String.encode(value.name, in: runtime))
+              try object.setProperty("name", encoding: value.name, in: runtime)
               return object.takeValue()
+            }
+
+            @JavaScriptActor
+            public static func encode(
+              _ value: Options,
+              into slot: borrowing JavaScriptValue.Slot,
+              in runtime: borrowing JavaScriptRuntime
+            ) throws {
+              let object = runtime.createObject()
+              try object.setProperty("name", encoding: value.name, in: runtime)
+              slot.emplace(object)
             }
           }
         }
