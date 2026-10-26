@@ -64,6 +64,7 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
     members.append(decodableKindsProperty(union: union))
     members.append(decodeMethod(union: union))
     members.append(encodeMethod(union: union))
+    members.append(encodeIntoSlotMethod(union: union))
     members.append(contentsOf: accessorMethods(union: union))
     members.append(payloadTypeNameProperty(union: union))
     return members
@@ -317,6 +318,30 @@ private func encodeMethod(union: UnionType) -> DeclSyntax {
   return """
     @JavaScriptActor
     public static func encode(_ value: Self, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+    \(raw: body)
+    }
+    """
+}
+
+/// `encode(_:into:in:)`: the same `switch` as `encode(_:in:)`, with each payload encoded straight into the
+/// slot through the payload type's own `encode(_:into:in:)`. A payload that is a number, a boolean or a
+/// string is then constructed in the slot (an array element, an argument or a result), with no
+/// `JavaScriptValue` in between.
+private func encodeIntoSlotMethod(union: UnionType) -> DeclSyntax {
+  var lines: [String] = ["  switch value {"]
+  for unionCase in union.cases {
+    lines.append("  case \(unionCase.pattern):")
+    lines.append("    try \(expressionType(unionCase.payloadType)).encode(payload, into: slot, in: runtime)")
+  }
+  lines.append("  }")
+  let body = lines.joined(separator: "\n")
+  return """
+    @JavaScriptActor
+    public static func encode(
+      _ value: Self,
+      into slot: borrowing JavaScriptValue.Slot,
+      in runtime: borrowing JavaScriptRuntime
+    ) throws {
     \(raw: body)
     }
     """
