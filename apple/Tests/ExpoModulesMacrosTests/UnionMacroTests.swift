@@ -85,6 +85,20 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .text(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            case .options(let payload):
+              try SourceOptions.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
@@ -156,6 +170,20 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .named(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            case .points(let payload):
+              try Double.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: String.Type) throws -> String {
             if case .named(let payload) = self {
               return payload
@@ -224,6 +252,20 @@ struct UnionMacroTests {
               return try [[Int]].encode(payload, in: runtime)
             case .tags(let payload):
               return try Set<String>.encode(payload, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .grid(let payload):
+              try [[Int]].encode(payload, into: slot, in: runtime)
+            case .tags(let payload):
+              try Set<String>.encode(payload, into: slot, in: runtime)
             }
           }
 
@@ -324,6 +366,24 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .single(let payload):
+              try Point.encode(payload, into: slot, in: runtime)
+            case .many(let payload):
+              try [Point].encode(payload, into: slot, in: runtime)
+            case .keyed(let payload):
+              try [String: Point].encode(payload, into: slot, in: runtime)
+            case .maybe(let payload):
+              try Int?.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: Point.Type) throws -> Point {
             if case .single(let payload) = self {
               return payload
@@ -413,6 +473,20 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .id(let payload):
+              try Int.encode(payload, into: slot, in: runtime)
+            case .name(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: Int.Type) throws -> Int {
             if case .id(let payload) = self {
               return payload
@@ -479,6 +553,20 @@ struct UnionMacroTests {
               return try Bool.encode(payload, in: runtime)
             case .count(let payload):
               return try Int.encode(payload, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .flag(let payload):
+              try Bool.encode(payload, into: slot, in: runtime)
+            case .count(let payload):
+              try Int.encode(payload, into: slot, in: runtime)
             }
           }
 
@@ -552,6 +640,18 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .record(let payload):
+              try MyRecord?.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: MyRecord?.Type) throws -> MyRecord? {
             if case .record(let payload) = self {
               return payload
@@ -621,6 +721,18 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .text(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
@@ -676,6 +788,18 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .text(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
@@ -728,6 +852,18 @@ struct UnionMacroTests {
             switch value {
             case .text(let payload):
               return try String.encode(payload, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .text(let payload):
+              try String.encode(payload, into: slot, in: runtime)
             }
           }
 
@@ -943,6 +1079,18 @@ struct UnionMacroTests {
             }
           }
 
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .text(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            }
+          }
+
           public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
@@ -1046,6 +1194,20 @@ struct UnionMacroTests {
                 return try Int.encode(payload, in: runtime)
               case .children(let payload):
                 return try [Node].encode(payload, in: runtime)
+              }
+            }
+
+            @JavaScriptActor
+            public static func encode(
+              _ value: Self,
+              into slot: borrowing JavaScriptValue.Slot,
+              in runtime: borrowing JavaScriptRuntime
+            ) throws {
+              switch value {
+              case .leaf(let payload):
+                try Int.encode(payload, into: slot, in: runtime)
+              case .children(let payload):
+                try [Node].encode(payload, into: slot, in: runtime)
               }
             }
 
