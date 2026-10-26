@@ -116,14 +116,14 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("merge") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("merge") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: ImageRef.self)
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "merge", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try SharedRef<UIImage>.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = _self.merge(arg0)
-              return try SharedRef<UIImage>.encode(result, in: runtime)
+              let value = _self.merge(arg0)
+              try SharedRef<UIImage>.encode(value, into: result, in: runtime)
             }
           }
 
@@ -182,14 +182,14 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "get", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = _self.get(arg0)
-              return try String?.encode(result, in: runtime)
+              let value = _self.get(arg0)
+              try String?.encode(value, into: result, in: runtime)
             }
           }
         }
@@ -263,11 +263,11 @@ struct SharedObjectMacroTests {
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let ownerDescriptor = runtime.createObject()
             ownerDescriptor.setProperty("enumerable", value: true)
-            ownerDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            ownerDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              return try SomeType?.encode(_self.owner, in: runtime)
+              try SomeType?.encode(_self.owner, into: result, in: runtime)
             }
-            ownerDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            ownerDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               _self.owner = try SomeType?.decode(arguments.unownedValue(at: 0), in: runtime)
             }
@@ -301,9 +301,9 @@ struct SharedObjectMacroTests {
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
-            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              return try Int.encode(_self.size, in: runtime)
+              try Int.encode(_self.size, into: result, in: runtime)
             }
             prototype.defineProperty("size", descriptor: sizeDescriptor)
           }
@@ -445,20 +445,20 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "get", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = _self.get(arg0)
-              return try String?.encode(result, in: runtime)
+              let value = _self.get(arg0)
+              try String?.encode(value, into: result, in: runtime)
             }
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
-            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              return try Int.encode(_self.size, in: runtime)
+              try Int.encode(_self.size, into: result, in: runtime)
             }
             prototype.defineProperty("size", descriptor: sizeDescriptor)
           }
@@ -503,13 +503,13 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            constructor.setProperty("open") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            constructor.setProperty("open") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "open", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = Cache.open(arg0)
-              return try Cache.encode(result, in: runtime)
+              let value = Cache.open(arg0)
+              try Cache.encode(value, into: result, in: runtime)
             }
           }
         }
@@ -577,10 +577,10 @@ struct SharedObjectMacroTests {
           public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sharedDescriptor = runtime.createObject()
             sharedDescriptor.setProperty("enumerable", value: true)
-            sharedDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
-              return try Int.encode(Cache.shared, in: runtime)
+            sharedDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              try Int.encode(Cache.shared, into: result, in: runtime)
             }
-            sharedDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            sharedDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               Cache.shared = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
             }
             constructor.defineProperty("shared", descriptor: sharedDescriptor)
@@ -616,26 +616,26 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "get", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = _self.get(arg0)
-              return try String?.encode(result, in: runtime)
+              let value = _self.get(arg0)
+              try String?.encode(value, into: result, in: runtime)
             }
           }
 
           @JavaScriptActor
           public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            constructor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            constructor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "get", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = Cache.get(arg0)
-              return try String?.encode(result, in: runtime)
+              let value = Cache.get(arg0)
+              try String?.encode(value, into: result, in: runtime)
             }
           }
         }
@@ -676,16 +676,16 @@ struct SharedObjectMacroTests {
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
-            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              return try Int.encode(_self.size, in: runtime)
+              try Int.encode(_self.size, into: result, in: runtime)
             }
             prototype.defineProperty("size", descriptor: sizeDescriptor)
             let countDescriptor = runtime.createObject()
             countDescriptor.setProperty("enumerable", value: true)
-            countDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            countDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              return try Int.encode(_self.count, in: runtime)
+              try Int.encode(_self.count, into: result, in: runtime)
             }
             prototype.defineProperty("size", descriptor: countDescriptor)
           }
@@ -694,8 +694,8 @@ struct SharedObjectMacroTests {
           public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
-            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
-              return try Int.encode(Cache.size, in: runtime)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              try Int.encode(Cache.size, into: result, in: runtime)
             }
             constructor.defineProperty("size", descriptor: sizeDescriptor)
           }
@@ -735,21 +735,21 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("resize") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("resize") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "resize", received: arguments.count, required: 1, maximum: 2))
               }
               let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result: Bool
+              let value: Bool
               switch arguments.count {
               case 1:
-                result = _self.resize(width: arg0)
+                value = _self.resize(width: arg0)
               default:
                 let arg1 = try Int.decode(arguments.unownedValue(at: 1), in: runtime)
-                result = _self.resize(width: arg0, height: arg1)
+                value = _self.resize(width: arg0, height: arg1)
               }
-              return try Bool.encode(result, in: runtime)
+              try Bool.encode(value, into: result, in: runtime)
             }
           }
         }
@@ -780,11 +780,11 @@ struct SharedObjectMacroTests {
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let nameDescriptor = runtime.createObject()
             nameDescriptor.setProperty("enumerable", value: true)
-            nameDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            nameDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              return try String.encode(_self.name, in: runtime)
+              try String.encode(_self.name, into: result, in: runtime)
             }
-            nameDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            nameDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               _self.name = try String.decode(arguments.unownedValue(at: 0), in: runtime)
             }
@@ -819,11 +819,11 @@ struct SharedObjectMacroTests {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("configurable", value: true)
-            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               let value = try Int.encode(_self.size, in: runtime)
               this.getObject(in: runtime).defineProperty("size", value: value, options: [.enumerable])
-              return value
+              result.emplace(value)
             }
             prototype.defineProperty("size", descriptor: sizeDescriptor)
           }
@@ -853,7 +853,7 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "clear", received: arguments.count, required: 0, maximum: 0))
@@ -1000,20 +1000,20 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("resolve") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("resolve") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "resolve", received: arguments.count, required: 0, maximum: 1))
               }
-              let result: MyRecord?
+              let value: MyRecord?
               switch arguments.count {
               case 0:
-                result = _self.resolve(nil)
+                value = _self.resolve(nil)
               default:
                 let arg0 = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
-                result = _self.resolve(arg0)
+                value = _self.resolve(arg0)
               }
-              return try MyRecord?.encode(result, in: runtime)
+              try MyRecord?.encode(value, into: result, in: runtime)
             }
           }
         }
@@ -1042,7 +1042,7 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: `Type`.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "default", received: arguments.count, required: 0, maximum: 0))
@@ -1140,14 +1140,14 @@ struct ExpoModuleClassesTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("readSync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            prototype.setProperty("readSync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Document.self)
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "readSync", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = try _self.read(arg0)
-              return try String.encode(result, in: runtime)
+              let value = try _self.read(arg0)
+              try String.encode(value, into: result, in: runtime)
             }
             prototype.setProperty("read") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Document.self)
@@ -1168,13 +1168,13 @@ struct ExpoModuleClassesTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            constructor.setProperty("exists") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            constructor.setProperty("exists") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "exists", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let result = Document.exists(arg0)
-              return try Bool.encode(result, in: runtime)
+              let value = Document.exists(arg0)
+              try Bool.encode(value, into: result, in: runtime)
             }
             constructor.setProperty("existsAsync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               guard arguments.count == 1 else {
@@ -1217,12 +1217,12 @@ struct ExpoModuleClassesTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("ping") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+            object.setProperty("ping") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "ping", received: arguments.count, required: 0, maximum: 0))
               }
-              let result = self.ping()
-              return try String.encode(result, in: runtime)
+              let value = self.ping()
+              try String.encode(value, into: result, in: runtime)
             }
           }
         }
