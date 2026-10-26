@@ -152,9 +152,9 @@ internal struct JSFunction {
     } else {
       // One call shape per accepted arity, branching on `arguments.count`. A branch decodes a
       // trailing slot before the call, so this is a `switch` statement (not an expression): a
-      // value-returning function declares `result` up front and each branch assigns it.
+      // value-returning function declares `value` up front and each branch assigns it.
       if let returnType {
-        lines.append("let result: \(expressionType(returnType))")
+        lines.append("let value: \(expressionType(returnType))")
       }
       lines.append("switch arguments.count {")
       for arity in required...maximum {
@@ -163,7 +163,7 @@ internal struct JSFunction {
         for index in required..<arity {
           lines.append(contentsOf: decodeLines(at: index).map { "  " + $0 })
         }
-        let assignment = returnType != nil ? "result = " : ""
+        let assignment = returnType != nil ? "value = " : ""
         lines.append("  \(assignment)\(callExpression(receiver: receiver, arity: arity))")
       }
       lines.append("}")
@@ -268,7 +268,7 @@ internal struct JSFunction {
   }
 
   /// The flat (single-arity) call-and-encode lines used when no trailing parameter is omittable:
-  /// `let result = <callee>.f(...)` then the return encode (or just `<callee>.f(...)` for a function
+  /// `let value = <callee>.f(...)` then the encode (or just `<callee>.f(...)` for a function
   /// that returns nothing).
   private func callAndEncodeLines(receiver: Receiver, arity: Int, decodingFrom: Int) -> [String] {
     var lines: [String] = []
@@ -276,7 +276,7 @@ internal struct JSFunction {
       lines.append(contentsOf: decodeLines(at: index))
     }
     if returnType != nil {
-      lines.append("let result = \(callExpression(receiver: receiver, arity: arity))")
+      lines.append("let value = \(callExpression(receiver: receiver, arity: arity))")
       lines.append(contentsOf: encodeResultLines())
     } else {
       lines.append(callExpression(receiver: receiver, arity: arity))
@@ -290,8 +290,9 @@ internal struct JSFunction {
   /// `toJavaScriptValue(in:)` except for `Int`/`UInt`, where it range-checks
   /// and throws instead of silently encoding an out-of-safe-range value as a lossy number — the
   /// catchable error is the right behavior, and matches how non-primitive integers already encode. A
-  /// no-return function has nothing to encode: its binding closure returns `Void` (see
-  /// `decorateStatements(object:receiver:)`).
+  /// no-return function has nothing to encode, so its binding closure leaves the result slot empty (see
+  /// `decorateStatements(object:receiver:)`). A synchronous function encodes straight into the
+  /// engine's result slot, so a number, a boolean or a string never becomes a `JavaScriptValue`.
   ///
   /// For an `async` function the encode must run on the JS thread. An `async` body may suspend and
   /// resume on an arbitrary cooperative-pool thread, and encoding a heap-allocated JS value (a string,
@@ -303,15 +304,15 @@ internal struct JSFunction {
     guard let returnType else {
       return []
     }
-    let encode = "try \(encodeCall(returnType, freeForm: returnFreeForm, of: "result"))"
     if isAsync {
+      let encode = "try \(encodeCall(returnType, freeForm: returnFreeForm, of: "result"))"
       return [
         "return try await runtime.execute {",
         "  return \(encode)",
         "}",
       ]
     }
-    return ["return \(encode)"]
+    return [encodeIntoSlotStatement(returnType, freeForm: returnFreeForm, of: "value")]
   }
 
   /// The `setProperty` statement that installs this function on the JS object. The decode-call-encode
@@ -331,19 +332,18 @@ internal struct JSFunction {
     // differ only in what they return. A module ignores `this`; a shared object unwraps it (still
     // borrowed) — an async binding does so in its synchronous decode phase, before the borrow ends.
     // The parameter list is parenthesized and fully typed, since Swift rejects a type annotation on
-    // a shorthand `{ [capture] name, name in }` parameter; for a sync binding the explicit
-    // `JavaScriptUnownedValue` also selects the (otherwise `@_disfavoredOverload`) unowned-`this`
-    // overload.
-    // A sync function that returns nothing binds through the `Void` overload, which leaves JS's
-    // result as `undefined` without building and writing a value. The closure declares `-> Void`
-    // because a body of several statements without a `return` is otherwise ambiguous between the
-    // two unowned-`this` overloads.
+    // a shorthand `{ [capture] name, name in }` parameter.
+    // A sync function binds through the result-slot overload (`JavaScriptRuntime.HostFunctionClosure`):
+    // it encodes its result into the slot and gets the runtime as a parameter. A function that returns
+    // nothing writes nothing, so JS gets `undefined` without a value being built.
     let captures = receiver.captureClause
-    let parameters = "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
-    let returnClause = returnType == nil && !isAsync ? " -> Void" : ""
+    let parameters =
+      isAsync
+      ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
+      : resultSlotClosureParameters
 
     return """
-        \(object).setProperty("\(jsName)") { \(captures)\(parameters)\(returnClause) in
+        \(object).setProperty("\(jsName)") { \(captures)\(parameters) in
       \(bodyStatements(receiver: receiver, indent: "    "))
         }
       """
@@ -419,8 +419,16 @@ internal struct JSProperty {
     } else {
       encode = "\(callee).\(swiftName).toJavaScriptValue(in: runtime)"
     }
+    // A getter encodes straight into the engine's result slot. A lazy getter needs the encoded value as
+    // a `JavaScriptValue` to define it on `this` as well, and then moves it into the slot.
     let getBody: String
-    if isLazy {
+    if !isLazy {
+      if let valueType {
+        getBody = encodeIntoSlotStatement(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)")
+      } else {
+        getBody = "result.emplace(\(encode))"
+      }
+    } else {
       let define = "this.getObject(in: runtime).defineProperty(\"\(jsName)\", value: value, options: [.enumerable])"
       // A module getter ignores `this` otherwise, so it can be anything, and only an object can hold the
       // value. A shared object's unwrap has already checked that `this` is an object.
@@ -428,9 +436,7 @@ internal struct JSProperty {
         receiver.unwrapStatement == nil
         ? "if this.isObject() {\n  \(define)\n}"
         : define
-      getBody = "let value = \(encode)\n\(defineStatement)\nreturn value"
-    } else {
-      getBody = "return \(encode)"
+      getBody = "let value = \(encode)\n\(defineStatement)\nresult.emplace(value)"
     }
     lines.append(
       accessorClosure(descriptorName, "get", receiver: receiver, body: "\(unwrap)\(getBody)")
@@ -444,13 +450,7 @@ internal struct JSProperty {
       let decode = decodeCall(valueType, freeForm: freeForm, from: "arguments.unownedValue(at: 0)")
       let setDecode = "\(callee).\(swiftName) = try \(decode)"
       lines.append(
-        accessorClosure(
-          descriptorName,
-          "set",
-          receiver: receiver,
-          returnsVoid: true,
-          body: "\(unwrap)\(setDecode)"
-        )
+        accessorClosure(descriptorName, "set", receiver: receiver, body: "\(unwrap)\(setDecode)")
       )
     }
 
@@ -465,13 +465,10 @@ internal struct JSProperty {
 
   /// One `descriptor.setProperty("get"/"set") { … }` accessor entry. The capture list follows the
   /// receiver: a module captures `self` strong; a shared object captures nothing of the instance.
-  /// A setter passes `returnsVoid`, so its closure declares `-> Void` and binds through the `Void`
-  /// overload, like a function that returns nothing.
   private func accessorClosure(
     _ descriptorName: String,
     _ key: String,
     receiver: Receiver,
-    returnsVoid: Bool = false,
     body: String
   ) -> String {
     let captures = receiver.captureClause
@@ -482,19 +479,34 @@ internal struct JSProperty {
       .split(separator: "\n", omittingEmptySubsequences: false)
       .map { "  \($0)" }
       .joined(separator: "\n")
-    // Property `get`/`set` accessors are always synchronous, so they bind through the unowned-`this`
+    // Property `get`/`set` accessors are always synchronous, so they bind through the result-slot
     // `setProperty` overload like sync functions. The parameter list is parenthesized and fully typed
-    // because Swift rejects a type annotation on a shorthand closure parameter; the explicit
-    // `borrowing JavaScriptUnownedValue` selects the unowned-`this` overload. A module ignores `this`;
-    // a shared object unwraps it in the body.
-    let parameters = "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
-    let returnClause = returnsVoid ? " -> Void" : ""
+    // because Swift rejects a type annotation on a shorthand closure parameter. A module ignores `this`;
+    // a shared object unwraps it in the body. A setter writes nothing, so JS gets `undefined`.
     return """
-      \(descriptorName).setProperty("\(key)") { \(captures)\(parameters)\(returnClause) in
+      \(descriptorName).setProperty("\(key)") { \(captures)\(resultSlotClosureParameters) in
       \(indentedBody)
       }
       """
   }
+}
+
+/// The parameter list of a binding closure that writes its result into the engine's result slot
+/// (`JavaScriptRuntime.HostFunctionClosure`). The closure gets the runtime as a parameter, which shadows
+/// the decorator's `runtime`, so it doesn't capture it.
+private let resultSlotClosureParameters =
+  "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, "
+  + "result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime)"
+
+/// The statement that encodes `valueExpression` of a boundary type into the result slot `result`. A type
+/// that mentions `Any` has no `encode(_:into:in:)`, so its free-form encode result is moved into the slot.
+private func encodeIntoSlotStatement(_ type: String, freeForm: FreeFormConversion?, of valueExpression: String)
+  -> String
+{
+  if freeForm != nil {
+    return "result.emplace(try \(encodeCall(type, freeForm: freeForm, of: valueExpression)))"
+  }
+  return "try \(expressionType(type)).encode(\(valueExpression), into: result, in: runtime)"
 }
 
 /// The body shared by every decorator phase: every `@JS func` bound via an inlined `setProperty`
