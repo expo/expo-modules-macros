@@ -426,6 +426,54 @@ export interface ScanExportsResult {
   stats: ScanStats;
 }
 
+/** A note attached to an `ExpansionDiagnostic`, at its own location. */
+export interface ExpansionNote {
+  message: string;
+  line: number;
+  column: number;
+}
+
+/**
+ * A syntax error in a file or a diagnostic of a macro, at its location in the original file. `line`
+ * and `column` are 1-based, and the column counts UTF-8 bytes, as in the compiler's output.
+ */
+export interface ExpansionDiagnostic {
+  severity: 'error' | 'warning' | 'note' | 'remark';
+  message: string;
+  line: number;
+  column: number;
+  notes: ExpansionNote[];
+  /** The messages of the Fix-Its, for example `replace 'var' with 'let'`. */
+  fixIts: string[];
+}
+
+/** Expanded source code. */
+export interface Expansion {
+  /** The symbol this expansion is for, or absent for the whole file. */
+  symbol?: string;
+  source: string;
+}
+
+/** What the macros generate for one file, and what they report about it. */
+export interface ExpandedFile {
+  /** The path as it was passed. */
+  file: string;
+  /**
+   * Without symbols, one expansion of the whole file. With symbols, one per symbol that this file
+   * declares, in the order they were passed. Empty with `diagnosticsOnly`.
+   */
+  expansions: Expansion[];
+  /** In source order. With symbols, only those inside the declarations of the symbols. */
+  diagnostics: ExpansionDiagnostic[];
+}
+
+/** The `expand --json` result. */
+export interface ExpandResult {
+  schemaVersion: number;
+  /** One entry per file, in the order they were passed. */
+  files: ExpandedFile[];
+}
+
 /**
  * The output schema versions this package was written against. The wrapper compares these to the
  * `schemaVersion` in each report and throws on a mismatch, so a binary/wrapper version skew surfaces
@@ -433,3 +481,4 @@ export interface ScanExportsResult {
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
 export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 10;
+export const SUPPORTED_EXPAND_SCHEMA_VERSION = 1;

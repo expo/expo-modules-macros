@@ -23,6 +23,11 @@ let package = Package(
         "ExpoModulesCLI",
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+        // For `expand`, which runs the macros in process.
+        .product(name: "SwiftSyntaxMacroExpansion", package: "swift-syntax"),
+        .product(name: "SwiftParser", package: "swift-syntax"),
+        .product(name: "SwiftParserDiagnostics", package: "swift-syntax"),
+        .product(name: "SwiftBasicFormat", package: "swift-syntax"),
       ]
     ),
     .target(
@@ -44,6 +49,7 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
       name: "ExpoModulesMacrosTests",
       dependencies: [
         "ExpoModulesMacros",
+        "ExpoModulesCLI",
         .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax"),
       ]
     )

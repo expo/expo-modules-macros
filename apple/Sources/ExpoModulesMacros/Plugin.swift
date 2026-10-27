@@ -11,23 +11,14 @@ import CRT
 #endif
 
 struct ExpoModulesMacrosPlugin: CompilerPlugin {
-  let providingMacros: [Macro.Type] = [
-    OptimizedFunctionAttachedMacro.self,
-    JSMacro.self,
-    EventMacro.self,
-    ExpoModuleMacro.self,
-    SharedObjectMacro.self,
-    RecordMacro.self,
-    UnionMacro.self,
-    ViewPropsMacro.self,
-    ExpoViewMacro.self,
-  ]
+  let providingMacros: [Macro.Type] = ProvidedMacro.all.map(\.type)
 }
 
 /// The executable doubles as the scanner CLI. The compiler always launches a plugin executable
 /// without arguments and speaks the plugin protocol over stdin, so any argument means a scanner
 /// invocation (`ExpoModulesMacros scan-modules <path>...`); with none, this starts the plugin
-/// server exactly as `@main` on the `CompilerPlugin` type would.
+/// server exactly as `@main` on the `CompilerPlugin` type would. The CLI gets `expandMacros`, so
+/// `expand` runs the macros of this executable.
 @main
 enum EntryPoint {
   static func main() throws {
@@ -35,7 +26,7 @@ enum EntryPoint {
     if arguments.isEmpty {
       try ExpoModulesMacrosPlugin.main()
     } else {
-      exit(ScannerCLI.run(arguments: arguments))
+      exit(ScannerCLI.run(arguments: arguments, expander: expandMacros))
     }
   }
 }

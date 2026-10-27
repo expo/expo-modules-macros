@@ -196,7 +196,7 @@ func swiftFiles(in paths: [String]) -> [String] {
 }
 
 /// Whether `path` is a directory (following symbolic links), or `nil` if nothing exists there.
-private func isDirectory(atPath path: String, fileManager: FileManager) -> Bool? {
+func isDirectory(atPath path: String, fileManager: FileManager = .default) -> Bool? {
   #if canImport(FoundationEssentials)
   var isDirectory = false
   #else
