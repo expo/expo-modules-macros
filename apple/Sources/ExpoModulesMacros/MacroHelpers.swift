@@ -493,22 +493,29 @@ internal func expressionType(_ type: String) -> String {
 
 /// The decode expression for a boundary type read from `valueExpression` (a `JavaScriptUnownedValue`),
 /// as it appears after `try`. A type that mentions `Any` can't conform to `JavaScriptDecodable`, so it
-/// decodes through the `JavaScriptValue` free-form methods its `freeForm` conversion names; every other
-/// type decodes through its own static `decode`, spelled in expression position (`T!` rewritten to
-/// `T?`).
+/// decodes through the `JavaScriptValue` free-form methods its `freeForm` conversion names, and a tuple
+/// through the `JavaScriptValue` tuple methods (see `TupleConversion`); every other type decodes through
+/// its own static `decode`, spelled in expression position (`T!` rewritten to `T?`).
 internal func decodeCall(_ type: String, freeForm: FreeFormConversion?, from valueExpression: String) -> String {
   if let freeForm {
     return freeForm.decodeExpression(of: valueExpression, as: expressionType(type))
+  }
+  if let tuple = tupleConversion(of: type) {
+    return tuple.decodeExpression(of: valueExpression)
   }
   return "\(expressionType(type)).decode(\(valueExpression), in: runtime)"
 }
 
 /// The encode expression for the native value `valueExpression` of a boundary type, as it appears
 /// after `try`. The counterpart of `decodeCall`: a type that mentions `Any` encodes through the
-/// `JavaScriptValue` free-form methods, and every other type through its own static `encode`.
+/// `JavaScriptValue` free-form methods, a tuple through the `JavaScriptValue` tuple methods, and every
+/// other type through its own static `encode`.
 internal func encodeCall(_ type: String, freeForm: FreeFormConversion?, of valueExpression: String) -> String {
   if let freeForm {
     return freeForm.encodeExpression(of: valueExpression)
+  }
+  if let tuple = tupleConversion(of: type) {
+    return tuple.encodeExpression(of: valueExpression)
   }
   return "\(expressionType(type)).encode(\(valueExpression), in: runtime)"
 }

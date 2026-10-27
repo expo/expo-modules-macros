@@ -2278,7 +2278,222 @@ struct ExpoModuleMacroTests {
     )
   }
 
-  // MARK: - Free-form (Any) types
+  // MARK: - Tuple types
+
+  @Test
+  func `Unlabeled tuple argument and return value convert through the tuple methods`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func swap(pair: (Int, String)) -> (String, Int) { (pair.1, pair.0) }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func swap(pair: (Int, String)) -> (String, Int) { (pair.1, pair.0) }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("swap") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "swap", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 0), in: runtime, { value, runtime in
+                  try Int.decode(value, in: runtime)
+                }, { value, runtime in
+                  try String.decode(value, in: runtime)
+                })
+              let value = self.swap(pair: arg0)
+              result.emplace(try JavaScriptValue.encodeTuple(value, in: runtime, { value, runtime in
+                    try String.encode(value, in: runtime)
+                  }, { value, runtime in
+                    try Int.encode(value, in: runtime)
+                  }))
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Labeled tuple converts through the tuple methods with labels and asserts its element types`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func move(_ point: Point, by offset: (x: Double, y: Double)) -> (point: Point, distance: Double) { fatalError() }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func move(_ point: Point, by offset: (x: Double, y: Double)) -> (point: Point, distance: Double) { fatalError() }
+
+          private func _assertTypesConformance_move() {
+            func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            move(Point.self, Point.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("move") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "move", received: arguments.count, required: 2, maximum: 2))
+              }
+              let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg1 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 1), labels: ["x", "y"], in: runtime, { value, runtime in
+                  try Double.decode(value, in: runtime)
+                }, { value, runtime in
+                  try Double.decode(value, in: runtime)
+                })
+              let value = self.move(arg0, by: arg1)
+              result.emplace(try JavaScriptValue.encodeTuple(value as (Point, Double), labels: ["point", "distance"], in: runtime, { value, runtime in
+                    try Point.encode(value, in: runtime)
+                  }, { value, runtime in
+                    try Double.encode(value, in: runtime)
+                  }))
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Optional tuple argument and property map undefined and null to nil`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        var selection: (start: Int, end: Int)?
+
+        @JS
+        func select(_ range: (Int, Int)?) { }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          var selection: (start: Int, end: Int)?
+          @JavaScriptActor
+          func select(_ range: (Int, Int)?) { }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("select") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count >= 0 && arguments.count <= 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "select", received: arguments.count, required: 0, maximum: 1))
+              }
+              switch arguments.count {
+              case 0:
+                self.select(nil)
+              default:
+                let arg0 = try JavaScriptValue.decodeOptional(arguments.unownedValue(at: 0), in: runtime, wrapped: { value, runtime in
+                    try JavaScriptValue.decodeTuple(value, in: runtime, { value, runtime in
+                        try Int.decode(value, in: runtime)
+                      }, { value, runtime in
+                        try Int.decode(value, in: runtime)
+                      })
+                  })
+                self.select(arg0)
+              }
+            }
+            let selectionDescriptor = runtime.createObject()
+            selectionDescriptor.setProperty("enumerable", value: true)
+            selectionDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              result.emplace(try JavaScriptValue.encodeOptional(self.selection, in: runtime, wrapped: { value, runtime in
+                    try JavaScriptValue.encodeTuple(value as (Int, Int), labels: ["start", "end"], in: runtime, { value, runtime in
+                        try Int.encode(value, in: runtime)
+                      }, { value, runtime in
+                        try Int.encode(value, in: runtime)
+                      })
+                  }))
+            }
+            selectionDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              self.selection = try JavaScriptValue.decodeOptional(arguments.unownedValue(at: 0), in: runtime, wrapped: { value, runtime in
+                  try JavaScriptValue.decodeTuple(value, labels: ["start", "end"], in: runtime, { value, runtime in
+                      try Int.decode(value, in: runtime)
+                    }, { value, runtime in
+                      try Int.decode(value, in: runtime)
+                    })
+                })
+            }
+            object.defineProperty("selection", descriptor: selectionDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Containers holding tuples convert through nested conversion closures`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func lengths(of ranges: [(name: String, range: (Int, Point))]) -> [String: (Int, Int)?] { [:] }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func lengths(of ranges: [(name: String, range: (Int, Point))]) -> [String: (Int, Int)?] { [:] }
+
+          private func _assertTypesConformance_lengths() {
+            func lengths(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            lengths(Point.self)
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("lengths") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "lengths", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try JavaScriptValue.decodeArray(arguments.unownedValue(at: 0), in: runtime, element: { value, runtime in
+                  try JavaScriptValue.decodeTuple(value, labels: ["name", "range"], in: runtime, { value, runtime in
+                      try String.decode(value, in: runtime)
+                    }, { value, runtime in
+                      try JavaScriptValue.decodeTuple(value, in: runtime, { value, runtime in
+                          try Int.decode(value, in: runtime)
+                        }, { value, runtime in
+                          try Point.decode(value, in: runtime)
+                        })
+                    })
+                })
+              let value = self.lengths(of: arg0)
+              result.emplace(try JavaScriptValue.encodeDictionary(value, in: runtime, value: { value, runtime in
+                    try JavaScriptValue.encodeOptional(value, in: runtime, wrapped: { value, runtime in
+                        try JavaScriptValue.encodeTuple(value, in: runtime, { value, runtime in
+                            try Int.encode(value, in: runtime)
+                          }, { value, runtime in
+                            try Int.encode(value, in: runtime)
+                          })
+                      })
+                  }))
+            }
+          }
+        }
+        """
+    )
+  }
 
   @Test
   func `Free-form dictionary argument decodes through JavaScriptValue.decodeAnyDictionary`() {
