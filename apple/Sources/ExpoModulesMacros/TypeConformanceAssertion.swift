@@ -63,15 +63,15 @@ internal func directionalConformanceAssertion(
 ) -> DeclSyntax? {
   let decodables = distinctAssertableTypes(decodableTypes, constraint: javaScriptDecodableProtocolName)
   let callbackArguments = distinctAssertableTypes(callbackArgumentTypes, constraint: javaScriptEncodableProtocolName)
-  let encodable = encodableType.flatMap { assertableBoundaryType($0, constraint: javaScriptEncodableProtocolName) }
-  guard !decodables.isEmpty || !callbackArguments.isEmpty || encodable != nil else {
+  let encodable = distinctAssertableTypes(encodableType.map { [$0] } ?? [], constraint: javaScriptEncodableProtocolName)
+  guard !decodables.isEmpty || !callbackArguments.isEmpty || !encodable.isEmpty else {
     return nil
   }
 
   // Arguments are constrained `JavaScriptDecodable`, and closure-argument parameters and the
   // return/getter value `JavaScriptEncodable`. Every parameter suppresses `Copyable`, so a
   // non-copyable boundary type such as `JavaScriptValue` can fill it.
-  let encodables = callbackArguments + [encodable].compactMap { $0 }
+  let encodables = callbackArguments + encodable
   let decodableParameter = opaqueMetatypeParameter(constraint: "\(javaScriptDecodableProtocolName) & ~Copyable")
   let encodableParameter = opaqueMetatypeParameter(constraint: "\(javaScriptEncodableProtocolName) & ~Copyable")
   let parameters =
@@ -182,11 +182,16 @@ internal func opaqueMetatypeParameter(constraint: String) -> String {
 }
 
 /// The distinct types to assert against `constraint` from a list, mapping each through
-/// `assertableBoundaryType` (which drops what needs no assertion) and deduping in first-seen order.
+/// `assertableBoundaryType` (which drops what needs no assertion) and deduping in first-seen order. A
+/// type that holds a tuple converts element by element (see `TupleConversion`), so the types in it that
+/// convert through their own `decode` / `encode` are asserted in its place.
 private func distinctAssertableTypes(_ types: [String], constraint: String) -> [String] {
   var seen: Set<String> = []
   var distinct: [String] = []
-  let assertable = types.compactMap { assertableBoundaryType($0, constraint: constraint) }
+  let assertable = types.flatMap { type in
+    let elementTypes = tupleConversion(of: type)?.conformingTypes ?? [type]
+    return elementTypes.compactMap { assertableBoundaryType($0, constraint: constraint) }
+  }
   for type in assertable where seen.insert(type).inserted {
     distinct.append(type)
   }
