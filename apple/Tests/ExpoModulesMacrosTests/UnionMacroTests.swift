@@ -1319,4 +1319,89 @@ struct UnionMacroTests {
       ]
     )
   }
+
+  @Test
+  func `Tuple payload converts through the tuple methods`() {
+    assertExpansion(
+      """
+      @Union
+      enum Coordinate {
+        case pair((Double, Double))
+        case label(String)
+      }
+      """,
+      expandedSource: """
+        enum Coordinate {
+          case pair((Double, Double))
+          case label(String)
+
+          public static var decodableKinds: JavaScriptValueKinds {
+            return [JavaScriptValueKinds.object, String.decodableKinds]
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let kind = JavaScriptValueKinds(of: value)
+            if JavaScriptValueKinds.object.contains(kind), let payload = try? JavaScriptValue.decodeTuple(value, as: Double.self, Double.self, in: runtime) {
+              return .pair(payload)
+            }
+            if String.decodableKinds.contains(kind), let payload = try? String.decode(value, in: runtime) {
+              return .label(payload)
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Coordinate", received: value.copied(in: runtime).kind.rawValue, expected: ["(Double, Double)", "String"]))
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Self, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            switch value {
+            case .pair(let payload):
+              return try JavaScriptValue.encodeTuple(payload, in: runtime)
+            case .label(let payload):
+              return try String.encode(payload, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .pair(let payload):
+              slot.emplace(try JavaScriptValue.encodeTuple(payload, in: runtime))
+            case .label(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            }
+          }
+
+          public func `as`(_ type: (Double, Double).Type) throws -> (Double, Double) {
+            if case .pair(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Coordinate", received: _payloadTypeName, expected: ["(Double, Double)"]))
+          }
+
+          public func `as`(_ type: String.Type) throws -> String {
+            if case .label(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Coordinate", received: _payloadTypeName, expected: ["String"]))
+          }
+
+          private var _payloadTypeName: String {
+            switch self {
+            case .pair:
+              return "(Double, Double)"
+            case .label:
+              return "String"
+            }
+          }
+        }
+
+        extension Coordinate: JavaScriptDecodable, JavaScriptEncodable {
+        }
+        """
+    )
+  }
 }
