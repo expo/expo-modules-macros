@@ -49,9 +49,15 @@ public struct ExpoModuleMacro: MemberMacro {
     // DSL entry.
     var functions: [JSFunction] = []
     var properties: [JSProperty] = []
+    var assertions: [String] = []
+    let aliases = TupleTypeAliases(in: classDecl.memberBlock)
 
     for member in classDecl.memberBlock.members {
-      let decl = member.decl
+      // The types of a `@JS` member are read with the class's tuple aliases resolved.
+      let decl = aliases.resolving(member.decl)
+      if memberHasJSAttribute(decl), let assertion = jsConformanceAssertionBody(for: decl) {
+        assertions.append(assertion)
+      }
 
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
         let attribute = funcDecl.attributes.firstAttribute(named: "JS")
@@ -124,6 +130,12 @@ public struct ExpoModuleMacro: MemberMacro {
     // Only emitted when there's at least one member to bind.
     if !functions.isEmpty || !properties.isEmpty {
       emitted.append(buildDecorateJavaScriptObject(functions: functions, properties: properties))
+    }
+
+    // The conformance assertions of the `@JS` members, which `@JS` leaves to this macro (see
+    // `jsConformanceAssertionBody`).
+    if let assertion = classConformanceAssertions(assertions) {
+      emitted.append(assertion)
     }
 
     return emitted

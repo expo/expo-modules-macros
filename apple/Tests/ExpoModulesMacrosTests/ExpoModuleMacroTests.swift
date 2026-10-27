@@ -271,12 +271,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func transform(value: MyRecord, count: Int) -> [MyRecord] { [] }
 
-          private func _assertTypesConformance_transform() {
-            func transform(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            transform(MyRecord.self, [MyRecord].self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -289,6 +283,14 @@ struct ExpoModuleMacroTests {
               let arg1 = try Int.decode(arguments.unownedValue(at: 1), in: runtime)
               let value = self.transform(value: arg0, count: arg1)
               try [MyRecord].encode(value, into: result, in: runtime)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func transform(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              transform(MyRecord.self, [MyRecord].self)
             }
           }
         }
@@ -346,12 +348,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func index(records: [[MyRecord]], names: [Int: String]) -> Set<MyRecord> { [] }
 
-          private func _assertTypesConformance_index() {
-            func index(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            index([[MyRecord]].self, [Int: String].self, Set<MyRecord>.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -364,6 +360,14 @@ struct ExpoModuleMacroTests {
               let arg1 = try [Int: String].decode(arguments.unownedValue(at: 1), in: runtime)
               let value = self.index(records: arg0, names: arg1)
               try Set<MyRecord>.encode(value, into: result, in: runtime)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func index(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              index([[MyRecord]].self, [Int: String].self, Set<MyRecord>.self)
             }
           }
         }
@@ -386,12 +390,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func merge(primary: MyRecord, secondary: OtherRecord) -> MyRecord { primary }
 
-          private func _assertTypesConformance_merge() {
-            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            merge(MyRecord.self, OtherRecord.self, MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -404,6 +402,14 @@ struct ExpoModuleMacroTests {
               let arg1 = try OtherRecord.decode(arguments.unownedValue(at: 1), in: runtime)
               let value = self.merge(primary: arg0, secondary: arg1)
               try MyRecord.encode(value, into: result, in: runtime)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              merge(MyRecord.self, OtherRecord.self, MyRecord.self)
             }
           }
         }
@@ -426,12 +432,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           var cache: MyRecord { MyRecord() }
 
-          private func _assertTypesConformance_cache() {
-            func cache(_: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            cache(MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -442,6 +442,14 @@ struct ExpoModuleMacroTests {
               try MyRecord.encode(self.cache, into: result, in: runtime)
             }
             object.defineProperty("cache", descriptor: cacheDescriptor)
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func cache(_: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              cache(MyRecord.self)
+            }
           }
         }
         """
@@ -463,12 +471,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func make(count: Int) -> MyRecord! { nil }
 
-          private func _assertTypesConformance_make() {
-            func make(_: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            make(MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -480,6 +482,14 @@ struct ExpoModuleMacroTests {
               let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
               let value = self.make(count: arg0)
               try MyRecord?.encode(value, into: result, in: runtime)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func make(_: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              make(MyRecord.self)
             }
           }
         }
@@ -502,12 +512,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           static func describe(_ value: MyRecord) -> String { "" }
 
-          private static func _assertTypesConformance_describe() {
-            func describe(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            describe(MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -519,6 +523,14 @@ struct ExpoModuleMacroTests {
               let arg0 = try MyRecord.decode(arguments.unownedValue(at: 0), in: runtime)
               let value = self.describe(arg0)
               try String.encode(value, into: result, in: runtime)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func describe(_: (some JavaScriptDecodable & ~Copyable).Type) {
+              }
+              describe(MyRecord.self)
             }
           }
         }
@@ -773,12 +785,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           lazy var config: MyRecord = loadConfig()
 
-          private func _assertTypesConformance_config() {
-            func config(_: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            config(MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -794,6 +800,14 @@ struct ExpoModuleMacroTests {
               result.emplace(value)
             }
             object.defineProperty("config", descriptor: configDescriptor)
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func config(_: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              config(MyRecord.self)
+            }
           }
         }
         """
@@ -891,12 +905,6 @@ struct ExpoModuleMacroTests {
             didSet {}
           }
 
-          private func _assertTypesConformance_cache() {
-            func cache(_: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            cache(MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -912,6 +920,14 @@ struct ExpoModuleMacroTests {
               result.emplace(value)
             }
             object.defineProperty("cache", descriptor: cacheDescriptor)
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func cache(_: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              cache(MyRecord.self)
+            }
           }
         }
         """
@@ -967,12 +983,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           var config: MyRecord
 
-          private func _assertTypesConformance_config() {
-            func config(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            config(MyRecord.self, MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -986,6 +996,14 @@ struct ExpoModuleMacroTests {
               self.config = try MyRecord.decode(arguments.unownedValue(at: 0), in: runtime)
             }
             object.defineProperty("config", descriptor: configDescriptor)
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func config(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              config(MyRecord.self, MyRecord.self)
+            }
           }
         }
         """
@@ -1007,12 +1025,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           var config: MyRecord!
 
-          private func _assertTypesConformance_config() {
-            func config(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            config(MyRecord.self, MyRecord.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -1026,6 +1038,14 @@ struct ExpoModuleMacroTests {
               self.config = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
             }
             object.defineProperty("config", descriptor: configDescriptor)
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func config(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              config(MyRecord.self, MyRecord.self)
+            }
           }
         }
         """
@@ -2145,12 +2165,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
 
-          private func _assertTypesConformance_move() {
-            func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            move(Point.self, Delta.self, Tag.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -2163,6 +2177,14 @@ struct ExpoModuleMacroTests {
               let arg1 = try Delta.decode(arguments.unownedValue(at: 1), in: runtime)
               let arg2 = try Tag.decode(arguments.unownedValue(at: 2), in: runtime)
               self.move(point: arg0, by: arg1, tag: arg2)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type) {
+              }
+              move(Point.self, Delta.self, Tag.self)
             }
           }
         }
@@ -2328,12 +2350,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func move(_ point: Point, by offset: (x: Double, y: Double)) -> (point: Point, distance: Double) { fatalError() }
 
-          private func _assertTypesConformance_move() {
-            func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            move(Point.self, Point.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -2346,6 +2362,14 @@ struct ExpoModuleMacroTests {
               let arg1 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 1), labels: ["x", "y"], as: Double.self, Double.self, in: runtime)
               let value = self.move(arg0, by: arg1)
               result.emplace(try JavaScriptValue.encodeTuple(value as (Point, Double), labels: ["point", "distance"], in: runtime))
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              move(Point.self, Point.self)
             }
           }
         }
@@ -2425,12 +2449,6 @@ struct ExpoModuleMacroTests {
           @JavaScriptActor
           func lengths(of ranges: [(name: String, range: (Int, Point))]) -> [String: (Int, Int)?] { [:] }
 
-          private func _assertTypesConformance_lengths() {
-            func lengths(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            lengths(Point.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -2452,6 +2470,14 @@ struct ExpoModuleMacroTests {
                         return try JavaScriptValue.encodeTuple(value, in: runtime)
                       })
                   }))
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func lengths(_: (some JavaScriptDecodable & ~Copyable).Type) {
+              }
+              lengths(Point.self)
             }
           }
         }
@@ -2543,6 +2569,59 @@ struct ExpoModuleMacroTests {
           severity: .error
         )
       ]
+    )
+  }
+
+  @Test
+  func `Tuple type aliases in the module body resolve in @JS members`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        typealias Span = (start: Int, end: Point)
+        typealias Spans = [Self.Span]
+        typealias Identifier = String
+
+        @JS
+        func merge(_ spans: Spans, id: Identifier) -> Span? { nil }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          typealias Span = (start: Int, end: Point)
+          typealias Spans = [Self.Span]
+          typealias Identifier = String
+          @JavaScriptActor
+          func merge(_ spans: Spans, id: Identifier) -> Span? { nil }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("merge") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "merge", received: arguments.count, required: 2, maximum: 2))
+              }
+              let arg0 = try JavaScriptValue.decodeArray(arguments.unownedValue(at: 0), in: runtime, element: { value, runtime in
+                  return try JavaScriptValue.decodeTuple(value, labels: ["start", "end"], as: Int.self, Point.self, in: runtime)
+                })
+              let arg1 = try Identifier.decode(arguments.unownedValue(at: 1), in: runtime)
+              let value = self.merge(arg0, id: arg1)
+              result.emplace(try JavaScriptValue.encodeOptional(value, in: runtime, wrapped: { value, runtime in
+                    return try JavaScriptValue.encodeTuple(value as (Int, Point), labels: ["start", "end"], in: runtime)
+                  }))
+            }
+          }
+
+          private func _assertTypesConformance() {
+            do {
+              func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+              }
+              merge(Point.self, Identifier.self, Point.self)
+            }
+          }
+        }
+        """
     )
   }
 

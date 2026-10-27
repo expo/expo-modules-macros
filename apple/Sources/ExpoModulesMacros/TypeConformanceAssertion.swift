@@ -61,6 +61,33 @@ internal func directionalConformanceAssertion(
   callbackArgumentTypes: [String] = [],
   isStatic: Bool
 ) -> DeclSyntax? {
+  guard
+    let body = directionalConformanceAssertionBody(
+      name: name,
+      decodableTypes: decodableTypes,
+      encodableType: encodableType,
+      callbackArgumentTypes: callbackArgumentTypes
+    )
+  else {
+    return nil
+  }
+  let staticKeyword = isStatic ? "static " : ""
+  let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
+  return """
+    private \(raw: staticKeyword)func \(raw: peerName)() {
+    \(raw: body)
+    }
+    """
+}
+
+/// The body of a directional conformance assertion (see `directionalConformanceAssertion`): the
+/// member-named helper and its call, or `nil` when no type needs an assertion.
+internal func directionalConformanceAssertionBody(
+  name: String,
+  decodableTypes: [String],
+  encodableType: String?,
+  callbackArgumentTypes: [String] = []
+) -> String? {
   let decodables = distinctAssertableTypes(decodableTypes, constraint: javaScriptDecodableProtocolName)
   let callbackArguments = distinctAssertableTypes(callbackArgumentTypes, constraint: javaScriptEncodableProtocolName)
   let encodable = distinctAssertableTypes(encodableType.map { [$0] } ?? [], constraint: javaScriptEncodableProtocolName)
@@ -81,14 +108,7 @@ internal func directionalConformanceAssertion(
 
   let helper = "func \(name)(\(parameters.joined(separator: ", "))) {}"
   let call = "\(name)(\(arguments.joined(separator: ", ")))"
-  let staticKeyword = isStatic ? "static " : ""
-  let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
-  return """
-    private \(raw: staticKeyword)func \(raw: peerName)() {
-    \(raw: helper)
-    \(raw: call)
-    }
-    """
+  return "\(helper)\n\(call)"
 }
 
 /// One conformance-assertion peer covering several members' assertions at once — used by `@Record`,
@@ -211,4 +231,23 @@ private func unwrappedOptional(_ type: String) -> String {
     result = result.dropLast()
   }
   return String(result)
+}
+
+/// One assertion member covering the `@JS` members of an `@ExpoModule` or `@SharedObject` class, which
+/// the class macro emits in place of the `@JS` peers. Each member's helper sits in its own `do` block,
+/// so overloaded members' helpers, which share a name, don't collide. Returns `nil` when no member has a
+/// type to assert.
+internal func classConformanceAssertions(_ bodies: [String]) -> DeclSyntax? {
+  guard !bodies.isEmpty else {
+    return nil
+  }
+  let blocks = bodies.map { body in
+    let indented = body.split(separator: "\n").map { "  \($0)" }.joined(separator: "\n")
+    return "do {\n\(indented)\n}"
+  }
+  return """
+    private func _assertTypesConformance() {
+    \(raw: blocks.joined(separator: "\n"))
+    }
+    """
 }

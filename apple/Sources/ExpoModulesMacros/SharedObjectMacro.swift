@@ -50,9 +50,15 @@ public struct SharedObjectMacro: MemberMacro {
     var staticFunctions: [JSFunction] = []
     var staticProperties: [JSProperty] = []
     var constructor: JSConstructor?
+    var assertions: [String] = []
+    let aliases = TupleTypeAliases(in: classDecl.memberBlock)
 
     for member in classDecl.memberBlock.members {
-      let decl = member.decl
+      // The types of a `@JS` member are read with the class's tuple aliases resolved.
+      let decl = aliases.resolving(member.decl)
+      if memberHasJSAttribute(decl), let assertion = jsConformanceAssertionBody(for: decl) {
+        assertions.append(assertion)
+      }
 
       if let initDecl = decl.as(InitializerDeclSyntax.self),
         initDecl.attributes.firstAttribute(named: "JS") != nil
@@ -127,6 +133,12 @@ public struct SharedObjectMacro: MemberMacro {
     }
     if let constructor {
       emitted.append(constructor.buildConstructor(typeName: typeName))
+    }
+
+    // The conformance assertions of the `@JS` members, which `@JS` leaves to this macro (see
+    // `jsConformanceAssertionBody`).
+    if let assertion = classConformanceAssertions(assertions) {
+      emitted.append(assertion)
     }
 
     return emitted

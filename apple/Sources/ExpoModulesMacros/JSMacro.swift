@@ -37,19 +37,52 @@ public struct JSMacro: PeerMacro {
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
     diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
 
-    guard let member = boundaryMember(of: declaration),
-      let assertion = directionalConformanceAssertion(
-        name: member.name,
-        decodableTypes: member.decodableTypes,
-        encodableType: member.encodableType,
-        callbackArgumentTypes: member.callbackArgumentTypes,
-        isStatic: member.isStatic
-      )
-    else {
+    // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
+    // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
+    guard !isInBindingClass(context), let assertion = jsConformanceAssertion(for: declaration) else {
       return []
     }
     return [assertion]
   }
+}
+
+/// The conformance-assertion peer for a `@JS` member, or `nil` when the member has no type to assert.
+private func jsConformanceAssertion(for declaration: some DeclSyntaxProtocol) -> DeclSyntax? {
+  guard let member = boundaryMember(of: declaration) else {
+    return nil
+  }
+  return directionalConformanceAssertion(
+    name: member.name,
+    decodableTypes: member.decodableTypes,
+    encodableType: member.encodableType,
+    callbackArgumentTypes: member.callbackArgumentTypes,
+    isStatic: member.isStatic
+  )
+}
+
+/// The body of a `@JS` member's conformance assertion, for an `@ExpoModule` or `@SharedObject` class
+/// to fold into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when the
+/// member has no type to assert.
+internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtocol) -> String? {
+  guard let member = boundaryMember(of: declaration) else {
+    return nil
+  }
+  return directionalConformanceAssertionBody(
+    name: member.name,
+    decodableTypes: member.decodableTypes,
+    encodableType: member.encodableType,
+    callbackArgumentTypes: member.callbackArgumentTypes
+  )
+}
+
+/// True when the member is declared directly in an `@ExpoModule` or `@SharedObject` class, whose macro
+/// binds it.
+private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
+  guard let classDecl = context.lexicalContext.first?.as(ClassDeclSyntax.self) else {
+    return false
+  }
+  return classDecl.attributes.firstAttribute(named: "ExpoModule") != nil
+    || classDecl.attributes.firstAttribute(named: "SharedObject") != nil
 }
 
 /// Emits the diagnostic for `@JS(.concurrent)` on a member that can't take it. The option maps to
