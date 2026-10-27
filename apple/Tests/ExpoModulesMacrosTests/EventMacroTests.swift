@@ -712,8 +712,8 @@ struct EventMacroTests {
           var onMoved: ((x: Int, y: Point)) -> Void {
             get {
               { [weak self] payload in
-                self?.emit(event: "moved", payload: payload, encode: { value, runtime in
-                    return try JavaScriptValue.encodeTuple(value as (Int, Point), labels: ["x", "y"], in: runtime)
+                self?.emit(event: "moved", payload: payload, encode: { value, slot, runtime in
+                    try JavaScriptValue.encodeTuple(value as (Int, Point), labels: ["x", "y"], into: slot, in: runtime)
                   })
               }
             }

@@ -332,8 +332,8 @@ private func encodeIntoSlotMethod(union: UnionType) -> DeclSyntax {
   for unionCase in union.cases {
     lines.append("  case \(unionCase.pattern):")
     if let tuple = tupleConversion(of: unionCase.payloadType) {
-      // A payload that holds a tuple has no `encode(_:into:in:)`, so its encoded value is moved in.
-      lines.append("    slot.emplace(try \(tuple.encodeExpression(of: "payload")))")
+      // A payload that holds a tuple has no `encode(_:into:in:)`, so the tuple methods encode it into the slot.
+      lines.append("    try \(tuple.encodeCall(of: "payload", into: "slot"))")
     } else {
       lines.append("    try \(expressionType(unionCase.payloadType)).encode(payload, into: slot, in: runtime)")
     }

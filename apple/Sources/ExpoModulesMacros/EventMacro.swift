@@ -58,7 +58,7 @@ public struct EventMacro: AccessorMacro {
     let emitMethod = event.isSync ? "emitSync" : "emit"
     let closure: String
     if let tuple = event.payloadType.flatMap({ tupleConversion(of: $0) }) {
-      let encode = elementClosure(returning: tuple.encodeExpression(of: "value"))
+      let encode = encoderClosure(encoding: tuple.encodeCall(of: "value", into: "slot"))
       closure =
         "{ [weak self] payload in self?.\(emitMethod)(event: \"\(event.jsName)\", payload: payload, encode: \(encode)) }"
     } else if event.hasPayload {

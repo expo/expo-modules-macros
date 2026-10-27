@@ -177,9 +177,11 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
     var lines = [header, "  \(call) { _values, _arguments, _runtime in"]
     for (index, parameter) in closure.parameters.enumerated() {
       let value = parameters.count == 1 ? "_values" : "_values.\(index)"
-      // A parameter that holds a tuple has no `encode(_:into:in:)`, so its encoded value is moved in.
+      // A parameter that holds a tuple has no `encode(_:into:in:)`, so the tuple methods encode it into the
+      // argument's slot.
       if let tuple = tupleConversion(of: parameter.type) {
-        lines.append("    _arguments.emplace(try \(tuple.encodeExpression(of: value, in: "_runtime")), at: \(index))")
+        let encode = tuple.encodeCall(of: value, into: "slot", in: "_runtime")
+        lines.append("    try _arguments.emplace(at: \(index)) { slot in try \(encode) }")
       } else {
         lines.append("    try _arguments.emplace(\(value), at: \(index), in: _runtime)")
       }

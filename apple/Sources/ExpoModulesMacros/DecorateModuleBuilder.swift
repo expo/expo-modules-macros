@@ -499,13 +499,16 @@ private let resultSlotClosureParameters =
   + "result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime)"
 
 /// The statement that encodes `valueExpression` of a boundary type into the result slot `result`. A type
-/// that mentions `Any` and a tuple have no `encode(_:into:in:)`, so their encode result is moved into
-/// the slot.
+/// that mentions `Any` has no `encode(_:into:in:)`, so its free-form encode result is moved into the slot,
+/// and a type that holds a tuple is encoded into the slot by the tuple methods.
 private func encodeIntoSlotStatement(_ type: String, freeForm: FreeFormConversion?, of valueExpression: String)
   -> String
 {
-  if freeForm != nil || tupleConversion(of: type) != nil {
+  if freeForm != nil {
     return "result.emplace(try \(encodeCall(type, freeForm: freeForm, of: valueExpression)))"
+  }
+  if let tuple = tupleConversion(of: type) {
+    return "try \(tuple.encodeCall(of: valueExpression, into: "result"))"
   }
   return "try \(expressionType(type)).encode(\(valueExpression), into: result, in: runtime)"
 }
