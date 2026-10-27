@@ -3,16 +3,24 @@ import Testing
 
 @testable import ExpoModulesCLI
 
-/// An expander that records nothing and reports the symbols in `declared` as found.
-private func stubExpander(declaring declared: Set<String> = []) -> MacroExpander {
+/// An expander that reports the symbols in `declared` as found, with an empty expansion each (or
+/// one for the whole file without symbols), and returns `diagnostics` for every file.
+private func stubExpander(
+  declaring declared: Set<String> = [],
+  diagnostics: [ExpansionDiagnostic] = []
+) -> MacroExpander {
   { _, file, symbols in
     ExpandedFile(
       file: file,
-      expansions: symbols.filter(declared.contains).map { Expansion(symbol: $0, source: "") },
-      diagnostics: []
+      expansions: symbols.isEmpty
+        ? [Expansion(symbol: nil, source: "")]
+        : symbols.filter(declared.contains).map { Expansion(symbol: $0, source: "") },
+      diagnostics: diagnostics
     )
   }
 }
+
+private let error = ExpansionDiagnostic(severity: .error, message: "broken", line: 1, column: 1)
 
 /// Covers the argument handling and the input errors of `expand`. The expansion itself is covered by
 /// `ExpandTests` in the macro tests, where the macros are available.
@@ -63,6 +71,30 @@ struct ExpandCLITests {
       let expander = stubExpander(declaring: ["MyModule"])
       let arguments = ["expand", "--diagnostics-only", "--symbol", "MyModule", "--symbol", "Other", file]
       #expect(ScannerCLI.run(arguments: arguments, expander: expander) == 2)
+    }
+  }
+
+  @Test
+  func `An error diagnostic exits with 1 as text and with 0 as JSON`() throws {
+    try withFile { file, _ in
+      let expander = stubExpander(diagnostics: [error])
+      #expect(ScannerCLI.run(arguments: ["expand", "--diagnostics-only", file], expander: expander) == 1)
+      #expect(ScannerCLI.run(arguments: ["expand", "--json", "--diagnostics-only", file], expander: expander) == 0)
+      #expect(ScannerCLI.run(arguments: ["expand", "--diagnostics-only", file], expander: stubExpander()) == 0)
+    }
+  }
+
+  @Test
+  func `--diagnostics-only leaves out the expansions and keeps the diagnostics`() throws {
+    try withFile { file, _ in
+      var options = ExpandOptions(files: [file], diagnosticsOnly: true)
+      let result = try expandFiles(options: options, expander: stubExpander(diagnostics: [error])).get()
+      #expect(result.files.map(\.expansions) == [[]])
+      #expect(result.files.map(\.diagnostics) == [[error]])
+
+      options.diagnosticsOnly = false
+      let full = try expandFiles(options: options, expander: stubExpander(diagnostics: [error])).get()
+      #expect(full.files.map(\.expansions.count) == [1])
     }
   }
 
@@ -120,6 +152,24 @@ struct ExpandOutputTests {
 
         """
     )
+  }
+
+  @Test
+  func `The JSON leaves out the symbol of a whole-file expansion`() throws {
+    let result = ExpandResult(
+      schemaVersion: expandSchemaVersion,
+      files: [
+        ExpandedFile(
+          file: "A.swift",
+          expansions: [Expansion(symbol: nil, source: "a"), Expansion(symbol: "A", source: "b")],
+          diagnostics: []
+        )
+      ]
+    )
+    let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(result)) as? [String: Any]
+    let files = try #require(json?["files"] as? [[String: Any]])
+    let expansions = try #require(files.first?["expansions"] as? [[String: Any]])
+    #expect(expansions.map { $0.keys.sorted() } == [["source"], ["source", "symbol"]])
   }
 
   @Test

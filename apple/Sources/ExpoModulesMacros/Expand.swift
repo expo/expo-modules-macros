@@ -61,9 +61,14 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
   var diagnostics = ParseDiagnosticsGenerator.diagnostics(for: tree).map { diagnostic in
     expansionDiagnostic(diagnostic) { position, _ in converter.location(for: position) }
   }
+  let originalDeclarations = OriginalDeclarations(tree)
   diagnostics += context.diagnostics.map { diagnostic in
     expansionDiagnostic(diagnostic) { position, node in
-      context.location(for: position, anchoredAt: node, fileName: file)
+      let location = context.location(for: position, anchoredAt: node, fileName: file)
+      if let original = originalDeclarations.position(of: position, in: node, shiftedOffset: location.offset) {
+        return converter.location(for: original)
+      }
+      return location
     }
   }
   diagnostics.sort { ($0.line, $0.column) < ($1.line, $1.column) }
@@ -84,7 +89,9 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
     let members = declarations.filter { $0.path == symbol && $0.kind == .member }
 
     if !types.isEmpty {
-      let source = render(typePath: symbol, kinds: [.type], in: expanded, original: tree)
+      let source = render(typePath: symbol, in: expanded, original: tree) { index in
+        index.filter { $0.path == symbol && $0.kind == .type }.map(\.node)
+      }
       expansions.append(Expansion(symbol: symbol, source: source))
       lineRanges += types.map { lineRange(of: $0.node, converter: converter) }
     } else if !members.isEmpty {
@@ -97,9 +104,13 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
         continue
       }
       let parentPath = String(symbol[..<(symbol.lastIndex(of: ".") ?? symbol.startIndex)])
-      let parentKinds = Set(declarations.filter { members.map(\.parent?.id).contains($0.node.id) }.map(\.kind))
       let (prunedExpansion, _) = expand(prunedTree, file: file)
-      let source = render(typePath: parentPath, kinds: parentKinds, in: prunedExpansion, original: prunedTree)
+      // Only the types or extensions that declare the member: another extension of the same type
+      // isn't pruned.
+      let source = render(typePath: parentPath, in: prunedExpansion, original: prunedTree) { index in
+        let parents = Set(index.filter { $0.path == symbol && $0.kind == .member }.compactMap(\.parent?.id))
+        return index.filter { parents.contains($0.node.id) }.map(\.node)
+      }
       expansions.append(Expansion(symbol: symbol, source: source))
       lineRanges += members.map { lineRange(of: $0.node, converter: converter) }
     }
@@ -138,29 +149,26 @@ private func expand(
   return (expanded, context)
 }
 
-/// The expanded declarations of the given kinds at `typePath`, each without the indentation of its
-/// nesting, followed by the extensions that the extension macros add for the type.
+/// The expanded declarations that `select` picks from the symbols of `expanded`, each without the
+/// indentation of its nesting, followed by the extensions that the extension macros add for the type
+/// at `typePath`.
 private func render(
   typePath: String,
-  kinds: Set<SymbolDeclaration.Kind>,
   in expanded: Syntax,
-  original: SourceFileSyntax
+  original: SourceFileSyntax,
+  select: ([SymbolDeclaration]) -> [Syntax]
 ) -> String {
-  let declarations = SymbolIndex(expanded).declarations.filter {
-    $0.path == typePath && kinds.contains($0.kind)
-  }
+  let declarations = select(SymbolIndex(expanded).declarations)
   // The macro system adds the extensions after the expanded statements of the file, with the type
   // name as the macro got it (qualified for a nested type). So they are the last statements, after
   // the extensions that already end the file.
-  let typeName = String(typePath.split(separator: ".").last ?? "")
   let statements = expanded.as(SourceFileSyntax.self)?.statements ?? []
   let addedCount =
     trailingExtensions(of: statements).count - trailingExtensions(of: original.statements).count
   let addedExtensions = trailingExtensions(of: statements).suffix(max(addedCount, 0)).filter {
-    let extendedType = $0.extendedType.trimmedDescription
-    return extendedType == typePath || extendedType == typeName
+    $0.extendedType.trimmedDescription == typePath
   }
-  let nodes = declarations.map(\.node) + addedExtensions.map(Syntax.init)
+  let nodes = declarations + addedExtensions.map(Syntax.init)
   return nodes.map(withoutNestingIndentation).joined(separator: "\n\n") + "\n"
 }
 
@@ -230,6 +238,96 @@ private func severity(_ severity: DiagnosticSeverity) -> ExpansionDiagnostic.Sev
   case .warning: .warning
   case .note: .note
   case .remark: .remark
+  }
+}
+
+// MARK: - Diagnostic locations
+
+/// Maps a position in a declaration that a macro got to the same position in the original file.
+///
+/// The macro system detaches the declaration that it passes to an attached macro and maps positions
+/// in it back to the declaration it detached it from. But a peer macro gets the declaration with the
+/// attributes that the member attribute macros of its type added, for example the `@JavaScriptActor`
+/// that `@ExpoModule` adds to a `@JS` function, and that declaration isn't in the original file. So
+/// every position after the added attributes is off by their length. A diagnostic in a parameter
+/// type of a `@JS` function would be on the next line.
+///
+/// The text from the keyword of the declaration (`func`, `var`, `init`) to its end is the same in
+/// both, so this finds the original declaration by that text and moves the position by the offset of
+/// the keyword. A position before the keyword, in the attributes or the modifiers, isn't mapped.
+private struct OriginalDeclarations {
+  /// The positions of the keywords of the declarations in the original file, in source order, by the
+  /// text from the keyword to the end of the declaration.
+  private let keywordPositions: [String: [AbsolutePosition]]
+
+  init(_ tree: SourceFileSyntax) {
+    let collector = DeclarationCollector(viewMode: .sourceAccurate)
+    collector.walk(tree)
+    var keywordPositions: [String: [AbsolutePosition]] = [:]
+    for declaration in collector.declarations {
+      guard let keyword = keywordToken(of: declaration) else {
+        continue
+      }
+      keywordPositions[textFromKeyword(keyword, of: declaration), default: []].append(
+        keyword.positionAfterSkippingLeadingTrivia
+      )
+    }
+    self.keywordPositions = keywordPositions
+  }
+
+  /// The position in the original file of `position` in `node`, or `nil` when `node` is in the
+  /// original file, isn't in a detached declaration, or is before its keyword.
+  ///
+  /// `shiftedOffset` is the offset that the macro system maps `position` to. The added attributes
+  /// only move it forward, so when declarations with the same text are in the file, the one it is
+  /// in is the last one that starts at or before that offset.
+  func position(of position: AbsolutePosition, in node: Syntax, shiftedOffset: Int) -> AbsolutePosition? {
+    guard !node.root.is(SourceFileSyntax.self),
+      let declaration = node.root.as(DeclSyntax.self),
+      let keyword = keywordToken(of: declaration),
+      position >= keyword.positionAfterSkippingLeadingTrivia,
+      let candidates = keywordPositions[textFromKeyword(keyword, of: declaration)]
+    else {
+      return nil
+    }
+    let offset = position.utf8Offset - keyword.positionAfterSkippingLeadingTrivia.utf8Offset
+    let shiftedKeyword = shiftedOffset - offset
+    guard let originalKeyword = candidates.last(where: { $0.utf8Offset <= shiftedKeyword }) ?? candidates.first
+    else {
+      return nil
+    }
+    return AbsolutePosition(utf8Offset: originalKeyword.utf8Offset + offset)
+  }
+}
+
+/// The first token of `declaration` after its attributes and modifiers, such as `func` or `var`.
+private func keywordToken(of declaration: DeclSyntax) -> TokenSyntax? {
+  for child in declaration.children(viewMode: .sourceAccurate)
+  where !child.is(AttributeListSyntax.self) && !child.is(DeclModifierListSyntax.self) {
+    if let token = child.firstToken(viewMode: .sourceAccurate) {
+      return token
+    }
+  }
+  return nil
+}
+
+/// The source text of `declaration` from `keyword` to its end, without the trailing trivia.
+private func textFromKeyword(_ keyword: TokenSyntax, of declaration: DeclSyntax) -> String {
+  let text = Array(declaration.description.utf8)
+  let start = keyword.positionAfterSkippingLeadingTrivia.utf8Offset - declaration.position.utf8Offset
+  let end = declaration.endPositionBeforeTrailingTrivia.utf8Offset - declaration.position.utf8Offset
+  return String(decoding: text[start..<end], as: UTF8.self)
+}
+
+/// Collects every declaration in a tree.
+private final class DeclarationCollector: SyntaxAnyVisitor {
+  private(set) var declarations: [DeclSyntax] = []
+
+  override func visitAny(_ node: Syntax) -> SyntaxVisitorContinueKind {
+    if let declaration = node.as(DeclSyntax.self) {
+      declarations.append(declaration)
+    }
+    return .visitChildren
   }
 }
 
@@ -349,7 +447,7 @@ private final class SymbolIndex: SyntaxVisitor {
   /// an accessor isn't a member.
   private func addMember(_ node: some DeclSyntaxProtocol, names: [String]) -> SyntaxVisitorContinueKind {
     if let scope = scopes.last {
-      for name in names {
+      for name in names.map(withoutBackticks) {
         declarations.append(
           SymbolDeclaration(path: "\(scope.path).\(name)", kind: .member, node: Syntax(node), parent: scope.node)
         )
@@ -358,15 +456,15 @@ private final class SymbolIndex: SyntaxVisitor {
     return .skipChildren
   }
 
-  /// `name` inside the innermost type. Backticks are dropped, so `` `default` `` is `default`.
+  /// `name` inside the innermost type, without backticks: `` `default` `` is `default`.
   private func qualified(_ name: String) -> String {
-    let name = name.filter { $0 != "`" }
+    let name = withoutBackticks(name)
     return scopes.last.map { "\($0.path).\(name)" } ?? name
   }
 }
 
-/// Removes from the member blocks of `parents` every member that isn't in `kept`. An `#if` block
-/// stays with the kept members inside it.
+/// Removes from the member blocks of `parents` every member that isn't in `kept`, except the type
+/// aliases. An `#if` block stays with the kept members inside it.
 private final class MemberPruner: SyntaxRewriter {
   private let parents: Set<SyntaxIdentifier>
   private let kept: Set<SyntaxIdentifier>
@@ -387,7 +485,8 @@ private final class MemberPruner: SyntaxRewriter {
   private func prune(_ members: MemberBlockItemListSyntax) -> MemberBlockItemListSyntax {
     MemberBlockItemListSyntax(
       members.compactMap { item -> MemberBlockItemSyntax? in
-        if kept.contains(item.decl.id) {
+        // The macros resolve the type aliases of the type in the types of its members.
+        if kept.contains(item.decl.id) || item.decl.is(TypeAliasDeclSyntax.self) {
           return item
         }
         guard let ifConfig = item.decl.as(IfConfigDeclSyntax.self) else {
@@ -403,7 +502,8 @@ private final class MemberPruner: SyntaxRewriter {
           guard case .decls(let decls) = clause.elements else {
             return false
           }
-          return !decls.isEmpty
+          // A clause with only type aliases left keeps no member.
+          return decls.contains { !$0.decl.is(TypeAliasDeclSyntax.self) }
         }
         return keepsMember
           ? item.with(\.decl, DeclSyntax(ifConfig.with(\.clauses, IfConfigClauseListSyntax(clauses)))) : nil

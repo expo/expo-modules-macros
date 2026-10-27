@@ -22,36 +22,14 @@ extension Scanner {
   /// failed. An input that can't be expanded (a missing file, a directory, a file that isn't Swift, a
   /// symbol that no file declares) is a usage error, `2`.
   static func runExpand(options: ExpandOptions, expander: MacroExpander) -> Int32 {
-    var sources: [(file: String, source: String)] = []
-    for file in options.files {
-      guard isDirectory(atPath: file) != true else {
-        return expandInputError("expand takes files, but '\(file)' is a directory")
-      }
-      guard file.hasSuffix(".swift") else {
-        return expandInputError("expand takes .swift files, but got '\(file)'")
-      }
-      guard let source = try? String(contentsOfFile: file, encoding: .utf8) else {
-        return expandInputError("could not read '\(file)'")
-      }
-      sources.append((file, source))
+    let result: ExpandResult
+    switch expandFiles(options: options, expander: expander) {
+    case .success(let expanded):
+      result = expanded
+    case .failure(let error):
+      writeToStandardError("error: \(error.message)\n")
+      return 2
     }
-
-    let files = sources.map { expander($0.source, $0.file, options.symbols) }
-
-    let found = Set(files.flatMap { $0.expansions.compactMap(\.symbol) })
-    if let missing = options.symbols.first(where: { !found.contains($0) }) {
-      return expandInputError(
-        "no declaration of '\(missing)' in the given files; name a type ('Module'), a nested type "
-          + "('Module.Options') or a member ('Module.method')"
-      )
-    }
-
-    let result = ExpandResult(
-      schemaVersion: expandSchemaVersion,
-      files: options.diagnosticsOnly
-        ? files.map { ExpandedFile(file: $0.file, expansions: [], diagnostics: $0.diagnostics) }
-        : files
-    )
 
     if options.json {
       do {
@@ -71,9 +49,53 @@ extension Scanner {
     if options.diagnosticsOnly {
       writeToStandardError(renderSummary(result.files))
     }
-    let hasErrors = files.contains { $0.diagnostics.contains { $0.severity == .error } }
+    let hasErrors = result.files.contains { $0.diagnostics.contains { $0.severity == .error } }
     return hasErrors ? 1 : 0
   }
+}
+
+/// An input that `expand` can't take.
+struct ExpandInputError: Error, Equatable {
+  let message: String
+}
+
+/// Reads the files of `options`, expands each with `expander`, and returns the report that `expand`
+/// prints. Separate from `runExpand` so tests can drive it without stdout.
+func expandFiles(options: ExpandOptions, expander: MacroExpander) -> Result<ExpandResult, ExpandInputError> {
+  var sources: [(file: String, source: String)] = []
+  for file in options.files {
+    guard isDirectory(atPath: file) != true else {
+      return .failure(ExpandInputError(message: "expand takes files, but '\(file)' is a directory"))
+    }
+    guard file.hasSuffix(".swift") else {
+      return .failure(ExpandInputError(message: "expand takes .swift files, but got '\(file)'"))
+    }
+    guard let source = try? String(contentsOfFile: file, encoding: .utf8) else {
+      return .failure(ExpandInputError(message: "could not read '\(file)'"))
+    }
+    sources.append((file, source))
+  }
+
+  let files = sources.map { expander($0.source, $0.file, options.symbols) }
+
+  let found = Set(files.flatMap { $0.expansions.compactMap(\.symbol) })
+  if let missing = options.symbols.first(where: { !found.contains($0) }) {
+    return .failure(
+      ExpandInputError(
+        message: "no declaration of '\(missing)' in the given files; name a type ('Module'), a nested "
+          + "type ('Module.Options') or a member ('Module.method')"
+      )
+    )
+  }
+
+  return .success(
+    ExpandResult(
+      schemaVersion: expandSchemaVersion,
+      files: options.diagnosticsOnly
+        ? files.map { ExpandedFile(file: $0.file, expansions: [], diagnostics: $0.diagnostics) }
+        : files
+    )
+  )
 }
 
 /// The expanded sources as text. A single expansion is printed as it is; more than one each get a
@@ -127,10 +149,4 @@ private func count(_ n: Int, _ noun: String) -> String {
 
 private func withTrailingNewline(_ text: String) -> String {
   text.hasSuffix("\n") ? text : text + "\n"
-}
-
-/// Reports an input that `expand` can't take on stderr and returns the usage exit code.
-private func expandInputError(_ message: String) -> Int32 {
-  writeToStandardError("error: \(message)\n")
-  return 2
 }

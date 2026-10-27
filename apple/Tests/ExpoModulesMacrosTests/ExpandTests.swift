@@ -121,6 +121,104 @@ struct ExpandTests {
   }
 
   @Test
+  func `Reports a diagnostic in a member at its line, also when the module adds attributes to the member`() throws {
+    // `@ExpoModule` adds `@JavaScriptActor` to `take`, so the `@JS` macro gets a declaration with one
+    // more line. The same declaration in `Plain` gets no attribute.
+    let source = """
+      final class Plain {
+        @JS
+        func take(callbacks: [() -> Void]) {}
+      }
+
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func take(callbacks: [() -> Void]) {}
+
+        @JS func takeOnOneLine(callbacks: [() -> Void]) {}
+      }
+      """
+    let diagnostics = expandMacros(source: source, file: "f.swift", symbols: []).diagnostics
+    #expect(diagnostics.map { [$0.line, $0.column] } == [[3, 25], [9, 25], [11, 38]])
+
+    let member = expandMacros(source: source, file: "f.swift", symbols: ["MyModule.take"]).diagnostics
+    #expect(member.map { [$0.line, $0.column] } == [[9, 25]])
+  }
+
+  @Test
+  func `A member symbol keeps the type aliases of its type`() throws {
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {
+        typealias Point = (x: Double, y: Double)
+
+        @JS
+        func move(to point: Point) {}
+      }
+      """
+    let expansion = try #require(
+      expandMacros(source: source, file: "f.swift", symbols: ["MyModule.move"]).expansions.only
+    )
+    #expect(expansion.source.contains("typealias Point = (x: Double, y: Double)"))
+    #expect(expansion.source.contains("JavaScriptValue.decodeTuple("))
+  }
+
+  @Test
+  func `A member in an extension prints only that extension`() throws {
+    let source = """
+      extension MyModule {
+        @JS
+        func fromExtension() {}
+      }
+
+      extension MyModule {
+        func helper() {}
+      }
+      """
+    let expansion = try #require(
+      expandMacros(source: source, file: "f.swift", symbols: ["MyModule.fromExtension"]).expansions.only
+    )
+    #expect(expansion.source.contains("func fromExtension()"))
+    #expect(!expansion.source.contains("helper"))
+  }
+
+  @Test
+  func `A nested type symbol leaves out the extensions of a top-level type with the same name`() throws {
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {
+        @Record
+        struct Options {
+          var verbose: Bool = false
+        }
+      }
+
+      @Record
+      struct Options {
+        var top: Int = 0
+      }
+      """
+    let expansion = try #require(
+      expandMacros(source: source, file: "f.swift", symbols: ["MyModule.Options"]).expansions.only
+    )
+    #expect(expansion.source.contains("extension MyModule.Options: Record {"))
+    #expect(!expansion.source.contains("extension Options: Record {"))
+  }
+
+  @Test
+  func `A member symbol is written without backticks`() throws {
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func `default`() {}
+      }
+      """
+    let result = expandMacros(source: source, file: "f.swift", symbols: ["MyModule.default"])
+    #expect(result.expansions.only?.symbol == "MyModule.default")
+  }
+
+  @Test
   func `Reports syntax errors in the file`() throws {
     let result = expandMacros(source: "struct S {\n  func f( {}\n}\n", file: "f.swift", symbols: [])
     #expect(result.diagnostics.contains { $0.severity == .error && $0.line == 2 })
