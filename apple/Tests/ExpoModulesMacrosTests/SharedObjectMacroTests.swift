@@ -1080,7 +1080,7 @@ struct SharedObjectMacroTests {
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)
-              result.emplace(try JavaScriptValue.encodeTuple(_self.size as (Double, Double), labels: ["width", "height"], in: runtime))
+              try JavaScriptValue.encodeTuple(_self.size as (Double, Double), labels: ["width", "height"], into: result, in: runtime)
             }
             sizeDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)

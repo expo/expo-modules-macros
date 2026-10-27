@@ -50,27 +50,58 @@ internal enum TupleConversion {
     }
   }
 
-  /// The encode expression, as it appears after `try`, for the value `valueExpression` in the runtime
-  /// named `runtime`. A tuple whose elements all conform needs no closures. The tuple method takes an
-  /// unlabeled tuple, so a labeled one is coerced to its unlabeled type first.
-  func encodeExpression(of valueExpression: String, in runtime: String = "runtime") -> String {
+  /// The call, as it appears after `try`, that encodes the value `valueExpression` into the slot named
+  /// `slot`, in the runtime named `runtime`. A tuple whose elements all conform needs no closures. The
+  /// tuple method takes an unlabeled tuple, so a labeled one is coerced to its unlabeled type first.
+  func encodeCall(of valueExpression: String, into slot: String, in runtime: String = "runtime") -> String {
     switch self {
     case .conforming(let type):
-      return "\(expressionType(type)).encode(\(valueExpression), in: \(runtime))"
+      return "\(expressionType(type)).encode(\(valueExpression), into: \(slot), in: \(runtime))"
     case .tuple(let elements, let labels):
       let value = labels == nil ? valueExpression : "\(valueExpression) as \(unlabeledType)"
       let closures =
         conformingElementTypes(elements) == nil
-        ? elements.map { elementClosure(returning: $0.encodeExpression(of: "value")) } : []
-      let arguments = [value] + labelsArgument(labels) + ["in: \(runtime)"] + closures
+        ? elements.map { encoderClosure(encoding: $0.encodeCall(of: "value", into: "slot")) } : []
+      let arguments = [value] + labelsArgument(labels) + ["into: \(slot)", "in: \(runtime)"] + closures
       return "JavaScriptValue.encodeTuple(\(arguments.joined(separator: ", ")))"
     case .optional(let wrapped):
-      return containerEncode("encodeOptional", label: "wrapped", inner: wrapped, of: valueExpression, in: runtime)
+      return containerEncode(
+        "encodeOptional",
+        label: "wrapped",
+        inner: wrapped,
+        of: valueExpression,
+        into: slot,
+        in: runtime
+      )
     case .array(let element):
-      return containerEncode("encodeArray", label: "element", inner: element, of: valueExpression, in: runtime)
+      return containerEncode(
+        "encodeArray",
+        label: "element",
+        inner: element,
+        of: valueExpression,
+        into: slot,
+        in: runtime
+      )
     case .dictionary(let value):
-      return containerEncode("encodeDictionary", label: "value", inner: value, of: valueExpression, in: runtime)
+      return containerEncode(
+        "encodeDictionary",
+        label: "value",
+        inner: value,
+        of: valueExpression,
+        into: slot,
+        in: runtime
+      )
     }
+  }
+
+  /// The encode expression, as it appears after `try`, that creates a `JavaScriptValue` from the value
+  /// `valueExpression`, for a place that has no slot to encode into, such as an async result. A type that
+  /// holds a tuple is encoded into the slot of `JavaScriptValue.encoding(in:_:)`.
+  func encodeExpression(of valueExpression: String) -> String {
+    if case .conforming(let type) = self {
+      return "\(expressionType(type)).encode(\(valueExpression), in: runtime)"
+    }
+    return "JavaScriptValue.encoding(in: runtime) { slot in try \(encodeCall(of: valueExpression, into: "slot")) }"
   }
 
   /// The JavaScript value kinds the decode accepts, as an expression of type `JavaScriptValueKinds`, for
@@ -147,10 +178,11 @@ internal enum TupleConversion {
     label: String,
     inner: TupleConversion,
     of valueExpression: String,
+    into slot: String,
     in runtime: String
   ) -> String {
-    return
-      "JavaScriptValue.\(method)(\(valueExpression), in: \(runtime), \(label): \(elementClosure(returning: inner.encodeExpression(of: "value"))))"
+    let closure = encoderClosure(encoding: inner.encodeCall(of: "value", into: "slot"))
+    return "JavaScriptValue.\(method)(\(valueExpression), into: \(slot), in: \(runtime), \(label): \(closure))"
   }
 
   /// The types of a tuple's elements when every element converts through its own `decode` /
@@ -231,4 +263,10 @@ private func structure(of type: TypeSyntax) -> TupleConversion {
 /// the runtime as parameters, which shadow the outer ones, so it captures nothing.
 internal func elementClosure(returning expression: String) -> String {
   return "{ value, runtime in return try \(expression) }"
+}
+
+/// An element closure that encodes its value into its slot with `call`, as it appears after `try`. It takes
+/// the value, the slot and the runtime as parameters, which shadow the outer ones, so it captures nothing.
+internal func encoderClosure(encoding call: String) -> String {
+  return "{ value, slot, runtime in try \(call) }"
 }

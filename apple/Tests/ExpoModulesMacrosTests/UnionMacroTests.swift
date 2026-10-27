@@ -1355,7 +1355,9 @@ struct UnionMacroTests {
           public static func encode(_ value: Self, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             switch value {
             case .pair(let payload):
-              return try JavaScriptValue.encodeTuple(payload, in: runtime)
+              return try JavaScriptValue.encoding(in: runtime) { slot in
+                try JavaScriptValue.encodeTuple(payload, into: slot, in: runtime)
+              }
             case .label(let payload):
               return try String.encode(payload, in: runtime)
             }
@@ -1369,7 +1371,7 @@ struct UnionMacroTests {
           ) throws {
             switch value {
             case .pair(let payload):
-              slot.emplace(try JavaScriptValue.encodeTuple(payload, in: runtime))
+              try JavaScriptValue.encodeTuple(payload, into: slot, in: runtime)
             case .label(let payload):
               try String.encode(payload, into: slot, in: runtime)
             }

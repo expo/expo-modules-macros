@@ -551,9 +551,11 @@ private func objectWriteLines(properties: [RecordProperty], of record: String, c
       encode = "try JavaScriptValue.encodeAny(\(value) as Any, in: runtime)"
     case nil:
       let propName = propNameArgument(for: property, at: index, cached: cachesPropNames)
-      // A type that holds a tuple has no `encode(_:into:in:)`, so its encoded value is written instead.
+      // A type that holds a tuple has no `encode(_:into:in:)`, so the tuple methods encode it into the
+      // property's slot.
       if let tuple = tupleConversion(of: property.type) {
-        return "  object.setProperty(\(propName), value: try \(tuple.encodeExpression(of: value)))"
+        return
+          "  try object.setProperty(\(propName)) { slot, runtime in try \(tuple.encodeCall(of: value, into: "slot")) }"
       }
       return "  try object.setProperty(\(propName), encoding: \(value))"
     }

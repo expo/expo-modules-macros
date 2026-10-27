@@ -3013,12 +3013,16 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeTuple(value.range as (Int, Int), labels: ["start", "end"], in: runtime))
-            object.setProperty(_propNames._name1, value: try JavaScriptValue.encodeOptional(value.points, in: runtime, wrapped: { value, runtime in
-                  return try JavaScriptValue.encodeArray(value, in: runtime, element: { value, runtime in
-                      return try JavaScriptValue.encodeTuple(value, in: runtime)
+            try object.setProperty(_propNames._name0) { slot, runtime in
+              try JavaScriptValue.encodeTuple(value.range as (Int, Int), labels: ["start", "end"], into: slot, in: runtime)
+            }
+            try object.setProperty(_propNames._name1) { slot, runtime in
+              try JavaScriptValue.encodeOptional(value.points, into: slot, in: runtime, wrapped: { value, slot, runtime in
+                  try JavaScriptValue.encodeArray(value, into: slot, in: runtime, element: { value, slot, runtime in
+                      try JavaScriptValue.encodeTuple(value, into: slot, in: runtime)
                     })
-                }))
+                })
+            }
             return object.takeValue()
           }
 
@@ -3032,12 +3036,16 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeTuple(value.range as (Int, Int), labels: ["start", "end"], in: runtime))
-            object.setProperty(_propNames._name1, value: try JavaScriptValue.encodeOptional(value.points, in: runtime, wrapped: { value, runtime in
-                  return try JavaScriptValue.encodeArray(value, in: runtime, element: { value, runtime in
-                      return try JavaScriptValue.encodeTuple(value, in: runtime)
+            try object.setProperty(_propNames._name0) { slot, runtime in
+              try JavaScriptValue.encodeTuple(value.range as (Int, Int), labels: ["start", "end"], into: slot, in: runtime)
+            }
+            try object.setProperty(_propNames._name1) { slot, runtime in
+              try JavaScriptValue.encodeOptional(value.points, into: slot, in: runtime, wrapped: { value, slot, runtime in
+                  try JavaScriptValue.encodeArray(value, into: slot, in: runtime, element: { value, slot, runtime in
+                      try JavaScriptValue.encodeTuple(value, into: slot, in: runtime)
                     })
-                }))
+                })
+            }
             slot.emplace(object)
           }
         }
