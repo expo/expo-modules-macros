@@ -207,8 +207,48 @@ struct TypeNodeTests {
     // A bare identifier is syntactically indistinguishable from a nominal type, so a generic
     // parameter `T` reads as a ref, the generator resolves (or flags) it.
     #expect(node("T") == .ref(name: "T"))
-    // A tuple isn't modeled; its verbatim text survives as .unknown rather than being dropped.
-    #expect(node("(Int, Bool)") == .unknown(text: "(Int, Bool)"))
+    // A tuple the macros don't convert keeps its verbatim text as .unknown rather than being dropped.
+    #expect(node("(x: Int, Bool)") == .unknown(text: "(x: Int, Bool)"))
+  }
+
+  @Test
+  func `An unlabeled tuple is a tuple and a labeled one an object`() {
+    #expect(
+      node("(Int, [Point])")
+        == .tuple(elements: [.primitive(name: "Int", jsType: .number), .array(element: .ref(name: "Point"))])
+    )
+    #expect(
+      node("(x: Double, y: Double)?")
+        == .optional(
+          wrapped: .object(properties: [
+            TypeNodeProperty(name: "x", type: .primitive(name: "Double", jsType: .number)),
+            TypeNodeProperty(name: "y", type: .primitive(name: "Double", jsType: .number)),
+          ])
+        )
+    )
+    #expect(node("(Int, Int)").jsType == .object)
+    #expect(node("(x: Int, y: Int)").jsType == .object)
+  }
+
+  @Test
+  func `Tuple and object nodes encode their elements and properties`() throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    let tuple = String(decoding: try encoder.encode(node("(Int, String)")), as: UTF8.self)
+    #expect(
+      tuple
+        == #"{"elements":[{"kind":"primitive","name":"Int","typeof":"number"},{"kind":"primitive","name":"String","typeof":"string"}],"kind":"tuple","typeof":"object"}"#
+    )
+    let object = String(decoding: try encoder.encode(node("(x: Int, y: Int)")), as: UTF8.self)
+    #expect(
+      object
+        == #"{"kind":"object","properties":[{"name":"x","type":{"kind":"primitive","name":"Int","typeof":"number"}},{"name":"y","type":{"kind":"primitive","name":"Int","typeof":"number"}}],"typeof":"object"}"#
+    )
+    let named = TypeNode.tuple(elements: [.primitive(name: "Int", jsType: .number)], name: "MyModule.Pair")
+    #expect(
+      String(decoding: try encoder.encode(named), as: UTF8.self)
+        == #"{"elements":[{"kind":"primitive","name":"Int","typeof":"number"}],"kind":"tuple","name":"MyModule.Pair","typeof":"object"}"#
+    )
   }
 
   @Test
@@ -231,6 +271,6 @@ struct TypeNodeTests {
     #expect(node("Int?").jsType == .number)
     #expect(node("Point?").jsType == .object)
     // An unmodeled spelling has no known category.
-    #expect(node("(Int, Bool)").jsType == nil)
+    #expect(node("(x: Int, Bool)").jsType == nil)
   }
 }

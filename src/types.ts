@@ -57,6 +57,34 @@ export type TypeNode =
       refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
     }
   /**
+   * An unlabeled Swift tuple of two or more elements, `(A, B)`. It crosses as an array with one value per
+   * element, like a TypeScript tuple.
+   */
+  | {
+      kind: 'tuple';
+      typeof: JSType;
+      elements: TypeNode[];
+      /**
+       * The qualified name of the type alias the tuple was written through, such as `MyModule.Pair`.
+       * Absent when the tuple is spelled out.
+       */
+      name?: string;
+    }
+  /**
+   * An object with a fixed set of properties. A labeled Swift tuple of two or more elements,
+   * `(x: A, y: B)`, crosses as one, with one property per label.
+   */
+  | {
+      kind: 'object';
+      typeof: JSType;
+      properties: { name: string; type: TypeNode }[];
+      /**
+       * The qualified name of the type alias the labeled tuple was written through, such as
+       * `MyModule.Span`. Absent when the tuple is spelled out.
+       */
+      name?: string;
+    }
+  /**
    * `SharedRef<T>`: a shared object that JS sees as an instance of `expo.SharedRef`. `native` is the
    * `T` it holds on the native side. It never reaches JS, so refs in it are not resolved.
    */
@@ -404,4 +432,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 9;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 10;
