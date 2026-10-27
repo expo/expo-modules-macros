@@ -270,9 +270,9 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
 private func decodeMethod(union: UnionType) -> DeclSyntax {
   var lines: [String] = ["  let kind = JavaScriptValueKinds(of: value)"]
   for unionCase in union.cases {
-    let payloadType = expressionType(unionCase.payloadType)
+    let conversion = payloadConversion(unionCase)
     lines.append(
-      "  if \(payloadType).decodableKinds.contains(kind), let payload = try? \(payloadType).decode(value, in: runtime) {"
+      "  if \(conversion.decodableKindsExpression).contains(kind), let payload = try? \(conversion.decodeExpression(of: "value")) {"
     )
     lines.append("    return \(unionCase.construction)")
     lines.append("  }")
@@ -293,7 +293,7 @@ private func decodeMethod(union: UnionType) -> DeclSyntax {
 /// `decodableKinds`: the union of the payloads' kinds, so a union nested in another union, or wrapped
 /// in an optional, is skipped as precisely as its payloads are.
 private func decodableKindsProperty(union: UnionType) -> DeclSyntax {
-  let kinds = union.cases.map { "\(expressionType($0.payloadType)).decodableKinds" }
+  let kinds = union.cases.map { payloadConversion($0).decodableKindsExpression }
   // An option set's array literal is the union of its elements, which reads like the case list. The
   // optimizer folds it to a constant after specialization, the same as a chain of `union(_:)` calls.
   let expression = kinds.count == 1 ? kinds[0] : "[\(kinds.joined(separator: ", "))]"
@@ -311,7 +311,7 @@ private func encodeMethod(union: UnionType) -> DeclSyntax {
   var lines: [String] = ["  switch value {"]
   for unionCase in union.cases {
     lines.append("  case \(unionCase.pattern):")
-    lines.append("    return try \(expressionType(unionCase.payloadType)).encode(payload, in: runtime)")
+    lines.append("    return try \(payloadConversion(unionCase).encodeExpression(of: "payload"))")
   }
   lines.append("  }")
   let body = lines.joined(separator: "\n")
@@ -331,7 +331,12 @@ private func encodeIntoSlotMethod(union: UnionType) -> DeclSyntax {
   var lines: [String] = ["  switch value {"]
   for unionCase in union.cases {
     lines.append("  case \(unionCase.pattern):")
-    lines.append("    try \(expressionType(unionCase.payloadType)).encode(payload, into: slot, in: runtime)")
+    if let tuple = tupleConversion(of: unionCase.payloadType) {
+      // A payload that holds a tuple has no `encode(_:into:in:)`, so its encoded value is moved in.
+      lines.append("    slot.emplace(try \(tuple.encodeExpression(of: "payload")))")
+    } else {
+      lines.append("    try \(expressionType(unionCase.payloadType)).encode(payload, into: slot, in: runtime)")
+    }
   }
   lines.append("  }")
   let body = lines.joined(separator: "\n")
@@ -438,4 +443,10 @@ private struct UnionFixItMessage: FixItMessage {
     self.message = message
     self.fixItID = MessageID(domain: "ExpoModulesMacros", id: id)
   }
+}
+
+/// How a case's payload converts: through the tuple methods when it holds a tuple (see
+/// `TupleConversion`), and through its own `decode` / `encode` otherwise.
+private func payloadConversion(_ unionCase: UnionCase) -> TupleConversion {
+  return tupleConversion(of: unionCase.payloadType) ?? .conforming(type: unionCase.payloadType)
 }

@@ -73,6 +73,24 @@ internal enum TupleConversion {
     }
   }
 
+  /// The JavaScript value kinds the decode accepts, as an expression of type `JavaScriptValueKinds`, for
+  /// a `@Union` that picks a payload by kind. Mirrors the kinds of the matching `JavaScriptCodable`
+  /// conformances: an array decodes a non-array value as a single element.
+  var decodableKindsExpression: String {
+    switch self {
+    case .conforming(let type):
+      return "\(expressionType(type)).decodableKinds"
+    case .tuple:
+      return "JavaScriptValueKinds.object"
+    case .optional(let wrapped):
+      return "\(wrapped.decodableKindsExpression).union([.null, .undefined])"
+    case .array(let element):
+      return "\(element.decodableKindsExpression).union(JavaScriptValueKinds.object)"
+    case .dictionary:
+      return "JavaScriptValueKinds.object"
+    }
+  }
+
   /// The types in the structure that convert through their own `decode` / `encode`, in order, as
   /// written.
   var conformingTypes: [String] {
