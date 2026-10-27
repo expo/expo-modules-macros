@@ -40,75 +40,76 @@ internal struct ConformanceAssertion {
   let types: [String]
 }
 
+/// One type crossing the boundary for a member, as a parameter of the member's assertion helper: the
+/// type as written, the protocol it must conform to for the direction it travels, and the argument label
+/// it's passed under.
+internal struct AssertedType {
+  /// The argument label, or `nil` for an unlabeled parameter.
+  let label: String?
+  /// The type as written.
+  let type: String
+  /// `JavaScriptDecodable` for a type decoded from JavaScript, `JavaScriptEncodable` for one encoded to it.
+  let constraint: String
+}
+
 /// A directional conformance-assertion peer for a `@JS` member: a never-called `private func` whose
-/// body asserts each argument type is `JavaScriptDecodable` and the return/getter type is
+/// body asserts that each argument type is `JavaScriptDecodable` and the return or getter type is
 /// `JavaScriptEncodable`, matching how the generated binding converts each (decode on the way in,
-/// encode on the way out). The check is a single member-named nested helper with one opaque metatype
-/// parameter per asserted type, called once with every type's metatype; naming the helper after the
-/// member puts the member in the compiler's diagnostic, and the per-parameter constraint reports the
-/// offending type against the protocol for *its* direction.
+/// encode on the way out). The body is a local helper named after the member, with one opaque metatype
+/// parameter per asserted type, called once with every type's metatype (see
+/// `memberConformanceAssertion`). Naming the helper after the member and its labels puts the member in
+/// the compiler's diagnostic, and the per-parameter constraint reports the offending type against the
+/// protocol for its direction.
 ///
-/// `decodableTypes` are the argument types (and a settable property's value type); `encodableType` is
-/// the single return type (or a property's value type on read), or `nil` when there's none.
-/// `callbackArgumentTypes` are the parameter types of closure arguments, which are encoded when native
-/// code calls the closure. Types known to conform are dropped from each; when nothing is left in any of
-/// them, returns `nil` so the caller emits no peer. `isStatic` mirrors a `static`/`class` member so the
-/// peer sits in the right metatype context.
-internal func directionalConformanceAssertion(
-  name: String,
-  decodableTypes: [String],
-  encodableType: String?,
-  callbackArgumentTypes: [String] = [],
-  isStatic: Bool
-) -> DeclSyntax? {
-  guard
-    let body = directionalConformanceAssertionBody(
-      name: name,
-      decodableTypes: decodableTypes,
-      encodableType: encodableType,
-      callbackArgumentTypes: callbackArgumentTypes
-    )
-  else {
+/// Returns `nil` when every type is known to conform, so the caller emits no peer. `isStatic` mirrors a
+/// `static`/`class` member so the peer sits in the right metatype context.
+internal func directionalConformanceAssertion(name: String, types: [AssertedType], isStatic: Bool) -> DeclSyntax? {
+  guard let assertion = memberConformanceAssertion(name: name, types: types) else {
     return nil
   }
   let staticKeyword = isStatic ? "static " : ""
   let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
   return """
     private \(raw: staticKeyword)func \(raw: peerName)() {
-    \(raw: body)
+    \(raw: assertion.helper)
+    \(raw: assertion.call)
     }
     """
 }
 
-/// The body of a directional conformance assertion (see `directionalConformanceAssertion`): the
-/// member-named helper and its call, or `nil` when no type needs an assertion.
-internal func directionalConformanceAssertionBody(
-  name: String,
-  decodableTypes: [String],
-  encodableType: String?,
-  callbackArgumentTypes: [String] = []
-) -> String? {
-  let decodables = distinctAssertableTypes(decodableTypes, constraint: javaScriptDecodableProtocolName)
-  let callbackArguments = distinctAssertableTypes(callbackArgumentTypes, constraint: javaScriptEncodableProtocolName)
-  let encodable = distinctAssertableTypes(encodableType.map { [$0] } ?? [], constraint: javaScriptEncodableProtocolName)
-  guard !decodables.isEmpty || !callbackArguments.isEmpty || !encodable.isEmpty else {
+/// The local helper of a member's conformance assertion and its call, or `nil` when every type is known
+/// to conform. The helper is named after the member and takes the labels of the types, so the
+/// diagnostic reads like the member's signature, such as `local function 'move(_:by:returning:)'
+/// requires that 'Point' conform to 'JavaScriptEncodable'`. A type that holds a tuple contributes the
+/// types in it (see `distinctAssertableTypes`), under its label. Every parameter suppresses `Copyable`,
+/// so a non-copyable boundary type such as `JavaScriptValue` can fill it.
+internal func memberConformanceAssertion(name: String, types: [AssertedType]) -> MemberConformanceAssertion? {
+  var seen: Set<String> = []
+  var parameters: [AssertedType] = []
+  for asserted in types {
+    for type in distinctAssertableTypes([asserted.type], constraint: asserted.constraint) {
+      let key = "\(asserted.label ?? "_") \(type) \(asserted.constraint)"
+      if seen.insert(key).inserted {
+        parameters.append(AssertedType(label: asserted.label, type: type, constraint: asserted.constraint))
+      }
+    }
+  }
+  guard !parameters.isEmpty else {
     return nil
   }
-
-  // Arguments are constrained `JavaScriptDecodable`, and closure-argument parameters and the
-  // return/getter value `JavaScriptEncodable`. Every parameter suppresses `Copyable`, so a
-  // non-copyable boundary type such as `JavaScriptValue` can fill it.
-  let encodables = callbackArguments + encodable
-  let decodableParameter = opaqueMetatypeParameter(constraint: "\(javaScriptDecodableProtocolName) & ~Copyable")
-  let encodableParameter = opaqueMetatypeParameter(constraint: "\(javaScriptEncodableProtocolName) & ~Copyable")
-  let parameters =
-    Array(repeating: decodableParameter, count: decodables.count)
-    + Array(repeating: encodableParameter, count: encodables.count)
-  let arguments = (decodables + encodables).map { "\($0).self" }
-
-  let helper = "func \(name)(\(parameters.joined(separator: ", "))) {}"
-  let call = "\(name)(\(arguments.joined(separator: ", ")))"
-  return "\(helper)\n\(call)"
+  let declared = parameters.map { parameter in
+    let metatype = "(some \(parameter.constraint) & ~Copyable).Type"
+    return parameter.label.map { "\($0) _: \(metatype)" } ?? "_: \(metatype)"
+  }
+  let passed = parameters.map { parameter in
+    return parameter.label.map { "\($0): \(parameter.type).self" } ?? "\(parameter.type).self"
+  }
+  let labels = parameters.map { "\($0.label ?? "_"):" }.joined()
+  return MemberConformanceAssertion(
+    signature: "\(name)(\(labels))",
+    helper: "func \(name)(\(declared.joined(separator: ", "))) {}",
+    call: "\(name)(\(passed.joined(separator: ", ")))"
+  )
 }
 
 /// One conformance-assertion peer covering several members' assertions at once — used by `@Record`,
@@ -233,38 +234,39 @@ private func unwrappedOptional(_ type: String) -> String {
   return String(result)
 }
 
-/// The conformance assertion of one `@JS` member, for an `@ExpoModule` or `@SharedObject` class to fold
-/// into its `_assertTypesConformance()` (see `classConformanceAssertions`): the member-named helper and
-/// its call.
+/// The conformance assertion of one member: a local helper function named after the member, which takes
+/// the metatype of each asserted type, and its call.
 internal struct MemberConformanceAssertion {
-  /// The member's name, which also names the helper.
-  let name: String
-  /// The helper's declaration and its call.
-  let body: String
+  /// The helper's full name with its argument labels, such as `load(_:)`.
+  let signature: String
+  /// The helper's declaration.
+  let helper: String
+  /// The call of the helper with each asserted type's metatype.
+  let call: String
 }
 
 /// One assertion member covering the `@JS` members of an `@ExpoModule` or `@SharedObject` class, which
-/// the class macro emits in place of the `@JS` peers. The helpers are local functions named after their
-/// members, so overloaded members' helpers would redeclare the same function: a helper whose name repeats
-/// sits in its own `do` block. Returns `nil` when no member has a type to assert.
+/// the class macro emits in place of the `@JS` peers: each member's helper and its call, in member order.
+/// The helpers are local functions, so two helpers with the same name and labels (members that differ
+/// only by argument types) would redeclare the same function: such a helper sits in its own `do` block.
+/// Returns `nil` when no member has a type to assert.
 internal func classConformanceAssertions(_ assertions: [MemberConformanceAssertion]) -> DeclSyntax? {
   guard !assertions.isEmpty else {
     return nil
   }
-  var nameCounts: [String: Int] = [:]
+  var signatureCounts: [String: Int] = [:]
   for assertion in assertions {
-    nameCounts[assertion.name, default: 0] += 1
+    signatureCounts[assertion.signature, default: 0] += 1
   }
-  let blocks = assertions.map { assertion in
-    guard nameCounts[assertion.name, default: 0] > 1 else {
-      return assertion.body
+  let lines = assertions.flatMap { assertion in
+    guard signatureCounts[assertion.signature, default: 0] > 1 else {
+      return [assertion.helper, assertion.call]
     }
-    let indented = assertion.body.split(separator: "\n").map { "  \($0)" }.joined(separator: "\n")
-    return "do {\n\(indented)\n}"
+    return ["do {", "  \(assertion.helper)", "  \(assertion.call)", "}"]
   }
   return """
     private func _assertTypesConformance() {
-    \(raw: blocks.joined(separator: "\n"))
+    \(raw: lines.joined(separator: "\n"))
     }
     """
 }

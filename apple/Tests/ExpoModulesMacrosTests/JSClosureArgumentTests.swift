@@ -111,9 +111,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            func measure(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func measure(layout _: (some JavaScriptEncodable & ~Copyable).Type, layout _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            measure(Size.self, Point.self)
+            measure(layout: Point.self, layout: Size.self)
           }
         }
         """
@@ -154,9 +154,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            func lookup(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            func lookup(resolve _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            lookup(Size.self)
+            lookup(resolve: Size.self)
           }
         }
         """
@@ -200,9 +200,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            func load(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func load(fetch _: (some JavaScriptEncodable & ~Copyable).Type, fetch _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            load(Data.self, Request.self)
+            load(fetch: Request.self, fetch: Data.self)
           }
         }
         """
@@ -367,9 +367,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            func observe(_: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func observe(handler _: (some JavaScriptEncodable & ~Copyable).Type, handler _: (some JavaScriptEncodable & ~Copyable).Type, handler _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            observe(Point.self, Size.self, Item.self)
+            observe(handler: Point.self, handler: Size.self, handler: Item.self)
           }
         }
         """
@@ -746,9 +746,9 @@ struct JSClosureArgumentTests {
         func b(callback: (isolated Worker) throws -> Void) {}
 
         private func _assertTypesConformance_b() {
-          func b(_: (some JavaScriptEncodable & ~Copyable).Type) {
+          func b(callback _: (some JavaScriptEncodable & ~Copyable).Type) {
           }
-          b(Worker.self)
+          b(callback: Worker.self)
         }
         func c(callback: (Int...) throws -> Void) {}
         """,

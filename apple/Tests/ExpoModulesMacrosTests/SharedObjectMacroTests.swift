@@ -125,12 +125,12 @@ struct SharedObjectMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            func `init`(image _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            `init`(SharedRef<UIImage>.self)
-            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            `init`(image: SharedRef<UIImage>.self)
+            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            merge(SharedRef<UIImage>.self, SharedRef<UIImage>.self)
+            merge(SharedRef<UIImage>.self, returning: SharedRef<UIImage>.self)
           }
         }
         """
@@ -370,9 +370,9 @@ struct SharedObjectMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            func `init`(origin _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            `init`(Point.self)
+            `init`(origin: Point.self)
           }
         }
         """
@@ -505,9 +505,9 @@ struct SharedObjectMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func open(_: (some JavaScriptEncodable & ~Copyable).Type) {
+            func open(returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            open(Cache.self)
+            open(returning: Cache.self)
           }
         }
         """
@@ -923,9 +923,9 @@ struct SharedObjectMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            func `init`(config _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            `init`(MyRecord.self)
+            `init`(config: MyRecord.self)
           }
         }
         """
@@ -961,9 +961,9 @@ struct SharedObjectMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            func `init`(config _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            `init`(MyRecord.self)
+            `init`(config: MyRecord.self)
           }
         }
         """
@@ -1009,9 +1009,9 @@ struct SharedObjectMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func resolve(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func resolve(_: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            resolve(MyRecord.self, MyRecord.self)
+            resolve(MyRecord.self, returning: MyRecord.self)
           }
         }
         """

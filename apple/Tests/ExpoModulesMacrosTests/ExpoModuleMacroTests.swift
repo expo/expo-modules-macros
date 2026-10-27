@@ -287,9 +287,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func transform(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func transform(value _: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            transform(MyRecord.self, [MyRecord].self)
+            transform(value: MyRecord.self, returning: [MyRecord].self)
           }
         }
         """
@@ -362,9 +362,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func index(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func index(records _: (some JavaScriptDecodable & ~Copyable).Type, names _: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            index([[MyRecord]].self, [Int: String].self, Set<MyRecord>.self)
+            index(records: [[MyRecord]].self, names: [Int: String].self, returning: Set<MyRecord>.self)
           }
         }
         """
@@ -402,9 +402,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func merge(primary _: (some JavaScriptDecodable & ~Copyable).Type, secondary _: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            merge(MyRecord.self, OtherRecord.self, MyRecord.self)
+            merge(primary: MyRecord.self, secondary: OtherRecord.self, returning: MyRecord.self)
           }
         }
         """
@@ -478,9 +478,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func make(_: (some JavaScriptEncodable & ~Copyable).Type) {
+            func make(returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            make(MyRecord.self)
+            make(returning: MyRecord.self)
           }
         }
         """
@@ -2161,9 +2161,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type) {
+            func move(point _: (some JavaScriptDecodable & ~Copyable).Type, by _: (some JavaScriptDecodable & ~Copyable).Type, tag _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            move(Point.self, Delta.self, Tag.self)
+            move(point: Point.self, by: Delta.self, tag: Tag.self)
           }
         }
         """
@@ -2254,9 +2254,9 @@ struct ExpoModuleMacroTests {
         func b(worker: isolated Worker, name: Name) {}
 
         private func _assertTypesConformance_b() {
-          func b(_: (some JavaScriptDecodable & ~Copyable).Type) {
+          func b(name _: (some JavaScriptDecodable & ~Copyable).Type) {
           }
-          b(Name.self)
+          b(name: Name.self)
         }
         """,
       diagnostics: [
@@ -2344,9 +2344,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func move(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func move(_: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            move(Point.self, Point.self)
+            move(Point.self, returning: Point.self)
           }
         }
         """
@@ -2450,9 +2450,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func lengths(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            func lengths(of _: (some JavaScriptDecodable & ~Copyable).Type) {
             }
-            lengths(Point.self)
+            lengths(of: Point.self)
           }
         }
         """
@@ -2547,7 +2547,7 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Overloaded @JS members get their assertion helpers in separate scopes`() {
+  func `Assertion helpers take argument labels, and only helpers with the same labels get separate scopes`() {
     assertExpansion(
       """
       @ExpoModule
@@ -2557,6 +2557,9 @@ struct ExpoModuleMacroTests {
 
         @JS("loadSize")
         func load(_ size: Size) { }
+
+        @JS("loadAt")
+        func load(at point: Point) { }
 
         @JS
         func save(_ record: MyRecord) { }
@@ -2568,6 +2571,8 @@ struct ExpoModuleMacroTests {
           func load(_ point: Point) { }
           @JavaScriptActor
           func load(_ size: Size) { }
+          @JavaScriptActor
+          func load(at point: Point) { }
           @JavaScriptActor
           func save(_ record: MyRecord) { }
 
@@ -2589,6 +2594,13 @@ struct ExpoModuleMacroTests {
               let arg0 = try Size.decode(arguments.unownedValue(at: 0), in: runtime)
               self.load(arg0)
             }
+            object.setProperty("loadAt") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAt", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
+              self.load(at: arg0)
+            }
             object.setProperty("save") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "save", received: arguments.count, required: 1, maximum: 1))
@@ -2609,6 +2621,9 @@ struct ExpoModuleMacroTests {
               }
               load(Size.self)
             }
+            func load(at _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            load(at: Point.self)
             func save(_: (some JavaScriptDecodable & ~Copyable).Type) {
             }
             save(MyRecord.self)
@@ -2660,9 +2675,9 @@ struct ExpoModuleMacroTests {
           }
 
           private func _assertTypesConformance() {
-            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, id _: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
-            merge(Point.self, Identifier.self, Point.self)
+            merge(Point.self, id: Identifier.self, returning: Point.self)
           }
         }
         """
