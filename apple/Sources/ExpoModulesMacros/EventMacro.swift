@@ -53,11 +53,19 @@ public struct EventMacro: AccessorMacro {
     // The closure's parameter and return types are inferred from the property's declared type
     // through the getter, so the body never has to spell the payload type. A sync event calls
     // `emitSync` (inline dispatch, JS thread only); the default calls the scheduling `emit`.
+    // A payload that holds a tuple can't conform to the payload protocols, so it's passed with a
+    // closure that encodes it.
     let emitMethod = event.isSync ? "emitSync" : "emit"
-    let closure =
-      event.hasPayload
-      ? "{ [weak self] payload in self?.\(emitMethod)(event: \"\(event.jsName)\", payload: payload) }"
-      : "{ [weak self] in self?.\(emitMethod)(event: \"\(event.jsName)\") }"
+    let closure: String
+    if let tuple = event.payloadType.flatMap({ tupleConversion(of: $0) }) {
+      let encode = elementClosure(returning: tuple.encodeExpression(of: "value"))
+      closure =
+        "{ [weak self] payload in self?.\(emitMethod)(event: \"\(event.jsName)\", payload: payload, encode: \(encode)) }"
+    } else if event.hasPayload {
+      closure = "{ [weak self] payload in self?.\(emitMethod)(event: \"\(event.jsName)\", payload: payload) }"
+    } else {
+      closure = "{ [weak self] in self?.\(emitMethod)(event: \"\(event.jsName)\") }"
+    }
     return [
       """
       get {
@@ -85,15 +93,20 @@ extension EventMacro: PeerMacro {
     // through `self.emit`). Named after the member so the member shows up in either diagnostic,
     // and asserting the enclosing type by its spelled name so the conformance error names the
     // user's type rather than 'Self'.
+    //
+    // A payload that holds a tuple is encoded element by element (see `TupleConversion`), so the types
+    // in it are asserted `JavaScriptEncodable`, which the encode closure needs, in its place.
     let name = event.swiftName
-    let payload = event.payloadType.flatMap { assertableBoundaryType($0, constraint: jsConvertibleProtocolName) }
+    let tupleElementTypes = event.payloadType.flatMap { tupleConversion(of: $0)?.conformingTypes }
+    let payloadConstraint = tupleElementTypes == nil ? jsConvertibleProtocolName : javaScriptEncodableProtocolName
+    let payloads =
+      tupleElementTypes.map { distinctAssertableTypes($0, constraint: payloadConstraint) }
+      ?? event.payloadType.flatMap { assertableBoundaryType($0, constraint: payloadConstraint) }.map { [$0] } ?? []
     let owner = enclosingTypeName(in: context) ?? "Self"
     let emitterParameter = opaqueMetatypeParameter(constraint: eventEmitterProtocolName)
-    let helper =
-      payload != nil
-      ? "func \(name)(\(opaqueMetatypeParameter(constraint: jsConvertibleProtocolName)), \(emitterParameter)) {}"
-      : "func \(name)(\(emitterParameter)) {}"
-    let call = payload.map { "\(name)(\($0).self, \(owner).self)" } ?? "\(name)(\(owner).self)"
+    let payloadParameters = payloads.map { _ in opaqueMetatypeParameter(constraint: payloadConstraint) }
+    let helper = "func \(name)(\((payloadParameters + [emitterParameter]).joined(separator: ", "))) {}"
+    let call = "\(name)(\((payloads + [owner]).map { "\($0).self" }.joined(separator: ", ")))"
     let peerName = derivedIdentifier(from: name, prefix: "_assertTypesConformance_")
     return [
       """
