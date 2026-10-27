@@ -74,22 +74,57 @@ ExpoModulesMacros <subcommand> [options] <path> [<path> ...]
 subcommands:
   scan-modules   fast scan for top-level @ExpoModule types (autolinking)
   scan-exports   deep scan of the full JS-exported surface (type generation)
+  expand         print the code that the macros generate, and the macro diagnostics
 
 options (scan-modules only):
   --define <flag>   treat a conditional compilation flag as set; repeatable
+
+options (expand only):
+  --symbol <name>      only a type ('MyModule', 'MyModule.Options') or a member ('MyModule.greet'); repeatable
+  --diagnostics-only   only the diagnostics, followed by a summary
+  --json               a JSON report instead of text
 ```
 
-Each path is a `.swift` file or a directory, scanned recursively for `.swift` files. Both subcommands print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
+For the scans, each path is a `.swift` file or a directory, scanned recursively for `.swift` files. Both scans print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
+
+## Expand
+
+`expand` shows the code that the macros generate, as "Expand Macro" does in Xcode, but in a terminal and without a build. It takes `.swift` files and directories, runs the macros of this executable on them in process with swift-syntax, and prints the expanded source to stdout. The syntax errors and the macro diagnostics go to stderr in the compiler's `<file>:<line>:<column>: error: <message>` format, and the exit code is `1` when there is an error. With `--diagnostics-only`, it prints only the diagnostics, so it can check a module in CI or for an agent.
+
+```sh
+ExpoModulesMacros expand ios/HapticsModule.swift
+ExpoModulesMacros expand --symbol HapticsModule.impactAsync ios/HapticsModule.swift
+ExpoModulesMacros expand --diagnostics-only ios/
+```
+
+A file is always expanded and keeps its path as it was passed. A directory is walked like the scans walk it, skipping dependency, build, test and example directories, and only its files that use one of the macros are expanded, with their absolute paths.
+
+`--symbol` limits the output to one declaration:
+
+- A type (`HapticsModule`, `HapticsModule.ImpactStyle`) prints the expanded type and the extensions that its macros add.
+- A member (`HapticsModule.impactAsync`, `HapticsModule.init`) prints its type, expanded with only the declarations of that name (all overloads). So `_decorateModule` holds only the code for that member.
+
+With `--symbol`, only the diagnostics inside those declarations are printed.
+
+With `--json`, `expand` prints an `ExpandResult` with its own `schemaVersion`, and the exit code is `0` also with error diagnostics, because the report holds them. A missing path, a file that isn't Swift, or a symbol that no file declares is a usage error (`2`) in both modes.
+
+The macros only read the syntax tree, so the expansion is what the compiler gets, with two differences:
+
+- The names that a macro makes unique (`makeUniqueName`) can differ.
+- The compiler passes an extension macro only the conformances that the type doesn't have yet. `expand` passes all of them, and the macros skip the ones in the inheritance clause, so the result differs only for a conformance inherited from somewhere else.
+
+Errors that need type checking, for example the conformance assertions in `_assertTypesConformance`, still need a build.
 
 # TypeScript wrapper
 
 Node consumers can call the scanner through this package instead of locating the binary and shelling out themselves:
 
 ```ts
-import { scanModules, scanExports } from 'expo-modules-macros';
+import { expandMacros, scanModules, scanExports } from 'expo-modules-macros';
 
 const { modules, warnings } = await scanModules(['ios/'], { defines: ['DEBUG'], timeout: 30_000 });
 const { exports } = await scanExports(['ios/']);
+const { files } = await expandMacros(['ios/HapticsModule.swift'], { symbols: ['HapticsModule.impactAsync'] });
 ```
 
 The binary is a compiled executable, so each call still spawns a process. What the wrapper owns is the part consumers would otherwise duplicate: resolving the shipped binary, building the arguments, parsing the JSON, checking `schemaVersion`, and turning a non-zero exit or an exceeded `timeout` into a `ScannerError`. The result types are hand-written mirrors of the Swift `Codable` types, which is what the version check guards against drifting.

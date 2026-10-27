@@ -102,7 +102,13 @@ struct MacroPrefilter {
   private let bareNames: [[UInt8]]
 
   init(macros: Set<DetectedMacro>, conformances: Set<String> = []) {
-    attributes = macros.map { Array($0.rawValue.utf8) }
+    self.init(attributeNames: Set(macros.map(\.rawValue)), conformances: conformances)
+  }
+
+  /// A pre-filter for attributes that `DetectedMacro` doesn't list, such as every macro that `expand`
+  /// runs.
+  init(attributeNames: Set<String>, conformances: Set<String> = []) {
+    attributes = attributeNames.map { Array($0.utf8) }
     bareNames = conformances.map { Array($0.utf8) }
   }
 
@@ -196,7 +202,7 @@ func swiftFiles(in paths: [String]) -> [String] {
 }
 
 /// Whether `path` is a directory (following symbolic links), or `nil` if nothing exists there.
-private func isDirectory(atPath path: String, fileManager: FileManager) -> Bool? {
+func isDirectory(atPath path: String, fileManager: FileManager = .default) -> Bool? {
   #if canImport(FoundationEssentials)
   var isDirectory = false
   #else

@@ -2,8 +2,10 @@ import { execFile } from 'node:child_process';
 import path from 'node:path';
 
 import {
+  ExpandResult,
   ScanExportsResult,
   ScanModulesResult,
+  SUPPORTED_EXPAND_SCHEMA_VERSION,
   SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION,
   SUPPORTED_SCAN_MODULES_SCHEMA_VERSION,
 } from './types';
@@ -31,6 +33,25 @@ export interface ScanExportsOptions {
   binaryPath?: string;
 
   /** Milliseconds after which the scanner is killed and the scan fails. No limit by default. */
+  timeout?: number;
+}
+
+/** Options accepted by `expandMacros`, mirroring the CLI's `expand` flags. */
+export interface ExpandMacrosOptions {
+  /**
+   * Limits the result to these symbols: a type (`'MyModule'`, `'MyModule.Options'`) or a member
+   * (`'MyModule.greet'`). A member expands its type with only the declarations of that name. Each
+   * symbol must be declared in one of the files, or the call fails with a `ScannerError`.
+   */
+  symbols?: string[];
+
+  /** Returns only the diagnostics, with no expansions. */
+  diagnosticsOnly?: boolean;
+
+  /** Overrides the scanner binary path. Defaults to the one shipped with this package. */
+  binaryPath?: string;
+
+  /** Milliseconds after which the scanner is killed and the call fails. No limit by default. */
   timeout?: number;
 }
 
@@ -281,6 +302,50 @@ export async function scanExports(
       result.schemaVersion,
       SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION
     );
+  }
+  return result;
+}
+
+/**
+ * Expands the Expo macros in process, without a build, and returns the generated
+ * code with the syntax errors and the macro diagnostics. The macros only read the syntax tree, so
+ * the code is what the compiler gets, except for the names that a macro makes unique. Errors that
+ * need type checking, for example a type that doesn't conform to a protocol, still need a build.
+ *
+ * Each path is a `.swift` file, which is always expanded and keeps its path in the result, or a
+ * directory. A directory is walked like the scans walk it, and only its files that use one of the
+ * macros are expanded, with their absolute paths.
+ *
+ * Error diagnostics don't make the call fail: check `severity` in `diagnostics`. Only an input that
+ * can't be expanded (a missing path, a file that isn't Swift, a symbol that no file declares) throws
+ * a `ScannerError`.
+ */
+export async function expandMacros(
+  paths: string[],
+  options: ExpandMacrosOptions = {}
+): Promise<ExpandResult> {
+  if (paths.length === 0) {
+    throw new TypeError('expandMacros requires at least one path');
+  }
+  assertRepresentablePaths('expandMacros', paths);
+
+  const args = ['expand', '--json'];
+  for (const symbol of options.symbols ?? []) {
+    args.push('--symbol', symbol);
+  }
+  if (options.diagnosticsOnly) {
+    args.push('--diagnostics-only');
+  }
+  args.push(...paths);
+
+  const result = await runScanner<ExpandResult>(
+    options.binaryPath ?? getScannerBinaryPath(),
+    args,
+    options.timeout
+  );
+
+  if (result.schemaVersion !== SUPPORTED_EXPAND_SCHEMA_VERSION) {
+    throw new ScannerSchemaVersionError('expand', result.schemaVersion, SUPPORTED_EXPAND_SCHEMA_VERSION);
   }
   return result;
 }
