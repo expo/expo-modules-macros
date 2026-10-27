@@ -697,4 +697,35 @@ struct EventMacroTests {
       ]
     )
   }
+
+  @Test
+  func `Tuple payload is emitted with an encode closure and asserts its element types`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onMoved: ((x: Int, y: Point)) -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onMoved: ((x: Int, y: Point)) -> Void {
+            get {
+              { [weak self] payload in
+                self?.emit(event: "moved", payload: payload, encode: { value, runtime in
+                    return try JavaScriptValue.encodeTuple(value as (Int, Point), labels: ["x", "y"], in: runtime)
+                  })
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onMoved() {
+            func onMoved(_: (some JavaScriptEncodable).Type, _: (some EventEmitter).Type) {
+            }
+            onMoved(Point.self, MyModule.self)
+          }
+        }
+        """
+    )
+  }
 }

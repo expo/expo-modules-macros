@@ -185,7 +185,7 @@ internal func opaqueMetatypeParameter(constraint: String) -> String {
 /// `assertableBoundaryType` (which drops what needs no assertion) and deduping in first-seen order. A
 /// type that holds a tuple converts element by element (see `TupleConversion`), so the types in it that
 /// convert through their own `decode` / `encode` are asserted in its place.
-private func distinctAssertableTypes(_ types: [String], constraint: String) -> [String] {
+internal func distinctAssertableTypes(_ types: [String], constraint: String) -> [String] {
   var seen: Set<String> = []
   var distinct: [String] = []
   let assertable = types.flatMap { type in
