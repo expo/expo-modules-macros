@@ -25,14 +25,20 @@ internal enum TupleConversion {
   indirect case dictionary(value: TupleConversion)
 
   /// The decode expression, as it appears after `try`, for a value read from `valueExpression` (a
-  /// `JavaScriptUnownedValue`). The element closures take the value and the runtime as parameters,
-  /// which shadow the outer ones, so a closure captures nothing.
+  /// `JavaScriptUnownedValue`). A tuple whose elements all conform passes the element types; any other
+  /// tuple and every container pass closures, which take the value and the runtime as parameters that
+  /// shadow the outer ones, so a closure captures nothing.
   func decodeExpression(of valueExpression: String) -> String {
     switch self {
     case .conforming(let type):
       return "\(expressionType(type)).decode(\(valueExpression), in: runtime)"
     case .tuple(let elements, let labels):
-      let closures = elements.map { "{ value, runtime in try \($0.decodeExpression(of: "value")) }" }
+      if let types = conformingElementTypes(elements) {
+        let metatypes = types.map { "\(expressionType($0)).self" }.joined(separator: ", ")
+        let arguments = [valueExpression] + labelsArgument(labels) + ["as: \(metatypes)", "in: runtime"]
+        return "JavaScriptValue.decodeTuple(\(arguments.joined(separator: ", ")))"
+      }
+      let closures = elements.map { elementClosure(returning: $0.decodeExpression(of: "value")) }
       let arguments = [valueExpression] + labelsArgument(labels) + ["in: runtime"] + closures
       return "JavaScriptValue.decodeTuple(\(arguments.joined(separator: ", ")))"
     case .optional(let wrapped):
@@ -44,15 +50,18 @@ internal enum TupleConversion {
     }
   }
 
-  /// The encode expression, as it appears after `try`, for the value `valueExpression`. The tuple
-  /// method takes an unlabeled tuple, so a labeled one is coerced to its unlabeled type first.
+  /// The encode expression, as it appears after `try`, for the value `valueExpression`. A tuple whose
+  /// elements all conform needs no closures. The tuple method takes an unlabeled tuple, so a labeled one
+  /// is coerced to its unlabeled type first.
   func encodeExpression(of valueExpression: String) -> String {
     switch self {
     case .conforming(let type):
       return "\(expressionType(type)).encode(\(valueExpression), in: runtime)"
     case .tuple(let elements, let labels):
       let value = labels == nil ? valueExpression : "\(valueExpression) as \(unlabeledType)"
-      let closures = elements.map { "{ value, runtime in try \($0.encodeExpression(of: "value")) }" }
+      let closures =
+        conformingElementTypes(elements) == nil
+        ? elements.map { elementClosure(returning: $0.encodeExpression(of: "value")) } : []
       let arguments = [value] + labelsArgument(labels) + ["in: runtime"] + closures
       return "JavaScriptValue.encodeTuple(\(arguments.joined(separator: ", ")))"
     case .optional(let wrapped):
@@ -111,8 +120,8 @@ internal enum TupleConversion {
     inner: TupleConversion,
     of valueExpression: String
   ) -> String {
-    let closure = "{ value, runtime in try \(inner.decodeExpression(of: "value")) }"
-    return "JavaScriptValue.\(method)(\(valueExpression), in: runtime, \(label): \(closure))"
+    return
+      "JavaScriptValue.\(method)(\(valueExpression), in: runtime, \(label): \(elementClosure(returning: inner.decodeExpression(of: "value"))))"
   }
 
   private func containerEncode(
@@ -121,8 +130,21 @@ internal enum TupleConversion {
     inner: TupleConversion,
     of valueExpression: String
   ) -> String {
-    let closure = "{ value, runtime in try \(inner.encodeExpression(of: "value")) }"
-    return "JavaScriptValue.\(method)(\(valueExpression), in: runtime, \(label): \(closure))"
+    return
+      "JavaScriptValue.\(method)(\(valueExpression), in: runtime, \(label): \(elementClosure(returning: inner.encodeExpression(of: "value"))))"
+  }
+
+  /// The types of a tuple's elements when every element converts through its own `decode` /
+  /// `encode`, so the tuple can use the overloads that take no closures; `nil` otherwise.
+  private func conformingElementTypes(_ elements: [TupleConversion]) -> [String]? {
+    var types: [String] = []
+    for element in elements {
+      guard case .conforming(let type) = element else {
+        return nil
+      }
+      types.append(type)
+    }
+    return types
   }
 
   private func labelsArgument(_ labels: [String]?) -> [String] {
@@ -184,4 +206,10 @@ private func structure(of type: TypeSyntax) -> TupleConversion {
     return conforming
   }
   return wrap(inner)
+}
+
+/// An element closure that returns `expression`, as it appears after `try`. It takes the value and
+/// the runtime as parameters, which shadow the outer ones, so it captures nothing.
+internal func elementClosure(returning expression: String) -> String {
+  return "{ value, runtime in return try \(expression) }"
 }

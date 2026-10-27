@@ -2303,17 +2303,9 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "swap", received: arguments.count, required: 1, maximum: 1))
               }
-              let arg0 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 0), in: runtime, { value, runtime in
-                  try Int.decode(value, in: runtime)
-                }, { value, runtime in
-                  try String.decode(value, in: runtime)
-                })
+              let arg0 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 0), as: Int.self, String.self, in: runtime)
               let value = self.swap(pair: arg0)
-              result.emplace(try JavaScriptValue.encodeTuple(value, in: runtime, { value, runtime in
-                    try String.encode(value, in: runtime)
-                  }, { value, runtime in
-                    try Int.encode(value, in: runtime)
-                  }))
+              result.emplace(try JavaScriptValue.encodeTuple(value, in: runtime))
             }
           }
         }
@@ -2351,17 +2343,9 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "move", received: arguments.count, required: 2, maximum: 2))
               }
               let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
-              let arg1 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 1), labels: ["x", "y"], in: runtime, { value, runtime in
-                  try Double.decode(value, in: runtime)
-                }, { value, runtime in
-                  try Double.decode(value, in: runtime)
-                })
+              let arg1 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 1), labels: ["x", "y"], as: Double.self, Double.self, in: runtime)
               let value = self.move(arg0, by: arg1)
-              result.emplace(try JavaScriptValue.encodeTuple(value as (Point, Double), labels: ["point", "distance"], in: runtime, { value, runtime in
-                    try Point.encode(value, in: runtime)
-                  }, { value, runtime in
-                    try Double.encode(value, in: runtime)
-                  }))
+              result.emplace(try JavaScriptValue.encodeTuple(value as (Point, Double), labels: ["point", "distance"], in: runtime))
             }
           }
         }
@@ -2402,11 +2386,7 @@ struct ExpoModuleMacroTests {
                 self.select(nil)
               default:
                 let arg0 = try JavaScriptValue.decodeOptional(arguments.unownedValue(at: 0), in: runtime, wrapped: { value, runtime in
-                    try JavaScriptValue.decodeTuple(value, in: runtime, { value, runtime in
-                        try Int.decode(value, in: runtime)
-                      }, { value, runtime in
-                        try Int.decode(value, in: runtime)
-                      })
+                    return try JavaScriptValue.decodeTuple(value, as: Int.self, Int.self, in: runtime)
                   })
                 self.select(arg0)
               }
@@ -2415,20 +2395,12 @@ struct ExpoModuleMacroTests {
             selectionDescriptor.setProperty("enumerable", value: true)
             selectionDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               result.emplace(try JavaScriptValue.encodeOptional(self.selection, in: runtime, wrapped: { value, runtime in
-                    try JavaScriptValue.encodeTuple(value as (Int, Int), labels: ["start", "end"], in: runtime, { value, runtime in
-                        try Int.encode(value, in: runtime)
-                      }, { value, runtime in
-                        try Int.encode(value, in: runtime)
-                      })
+                    return try JavaScriptValue.encodeTuple(value as (Int, Int), labels: ["start", "end"], in: runtime)
                   }))
             }
             selectionDescriptor.setProperty("set") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               self.selection = try JavaScriptValue.decodeOptional(arguments.unownedValue(at: 0), in: runtime, wrapped: { value, runtime in
-                  try JavaScriptValue.decodeTuple(value, labels: ["start", "end"], in: runtime, { value, runtime in
-                      try Int.decode(value, in: runtime)
-                    }, { value, runtime in
-                      try Int.decode(value, in: runtime)
-                    })
+                  return try JavaScriptValue.decodeTuple(value, labels: ["start", "end"], as: Int.self, Int.self, in: runtime)
                 })
             }
             object.defineProperty("selection", descriptor: selectionDescriptor)
@@ -2468,24 +2440,16 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "lengths", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try JavaScriptValue.decodeArray(arguments.unownedValue(at: 0), in: runtime, element: { value, runtime in
-                  try JavaScriptValue.decodeTuple(value, labels: ["name", "range"], in: runtime, { value, runtime in
-                      try String.decode(value, in: runtime)
+                  return try JavaScriptValue.decodeTuple(value, labels: ["name", "range"], in: runtime, { value, runtime in
+                      return try String.decode(value, in: runtime)
                     }, { value, runtime in
-                      try JavaScriptValue.decodeTuple(value, in: runtime, { value, runtime in
-                          try Int.decode(value, in: runtime)
-                        }, { value, runtime in
-                          try Point.decode(value, in: runtime)
-                        })
+                      return try JavaScriptValue.decodeTuple(value, as: Int.self, Point.self, in: runtime)
                     })
                 })
               let value = self.lengths(of: arg0)
               result.emplace(try JavaScriptValue.encodeDictionary(value, in: runtime, value: { value, runtime in
-                    try JavaScriptValue.encodeOptional(value, in: runtime, wrapped: { value, runtime in
-                        try JavaScriptValue.encodeTuple(value, in: runtime, { value, runtime in
-                            try Int.encode(value, in: runtime)
-                          }, { value, runtime in
-                            try Int.encode(value, in: runtime)
-                          })
+                    return try JavaScriptValue.encodeOptional(value, in: runtime, wrapped: { value, runtime in
+                        return try JavaScriptValue.encodeTuple(value, in: runtime)
                       })
                   }))
             }
