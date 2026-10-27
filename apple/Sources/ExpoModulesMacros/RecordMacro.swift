@@ -555,7 +555,7 @@ private func objectWriteLines(properties: [RecordProperty], of record: String, c
       if let tuple = tupleConversion(of: property.type) {
         return "  object.setProperty(\(propName), value: try \(tuple.encodeExpression(of: value)))"
       }
-      return "  try object.setProperty(\(propName), encoding: \(value), in: runtime)"
+      return "  try object.setProperty(\(propName), encoding: \(value))"
     }
     let propName = propNameArgument(for: property, at: index, cached: cachesPropNames)
     return "  object.setProperty(\(propName), value: \(encode))"

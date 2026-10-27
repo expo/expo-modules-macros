@@ -138,9 +138,9 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.note, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
+            try object.setProperty(_propNames._name1, encoding: value.count)
+            try object.setProperty(_propNames._name2, encoding: value.note)
             return object.takeValue()
           }
 
@@ -154,9 +154,9 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.note, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
+            try object.setProperty(_propNames._name1, encoding: value.count)
+            try object.setProperty(_propNames._name2, encoding: value.note)
             slot.emplace(object)
           }
         }
@@ -246,7 +246,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.owner, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.owner)
             return object.takeValue()
           }
 
@@ -260,7 +260,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.owner, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.owner)
             slot.emplace(object)
           }
         }
@@ -388,9 +388,9 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.primary, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.tags, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.primary)
+            try object.setProperty(_propNames._name1, encoding: value.tags)
+            try object.setProperty(_propNames._name2, encoding: value.count)
             return object.takeValue()
           }
 
@@ -404,9 +404,9 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.primary, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.tags, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.primary)
+            try object.setProperty(_propNames._name1, encoding: value.tags)
+            try object.setProperty(_propNames._name2, encoding: value.count)
             slot.emplace(object)
           }
         }
@@ -531,9 +531,9 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.grid, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.labels, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.tags, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.grid)
+            try object.setProperty(_propNames._name1, encoding: value.labels)
+            try object.setProperty(_propNames._name2, encoding: value.tags)
             return object.takeValue()
           }
 
@@ -547,9 +547,9 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.grid, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.labels, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.tags, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.grid)
+            try object.setProperty(_propNames._name1, encoding: value.labels)
+            try object.setProperty(_propNames._name2, encoding: value.tags)
             slot.emplace(object)
           }
         }
@@ -666,10 +666,10 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.ratio, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
-            try object.setProperty(_propNames._name3, encoding: value.flag, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
+            try object.setProperty(_propNames._name1, encoding: value.ratio)
+            try object.setProperty(_propNames._name2, encoding: value.count)
+            try object.setProperty(_propNames._name3, encoding: value.flag)
             return object.takeValue()
           }
 
@@ -683,10 +683,10 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.ratio, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.count, in: runtime)
-            try object.setProperty(_propNames._name3, encoding: value.flag, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
+            try object.setProperty(_propNames._name1, encoding: value.ratio)
+            try object.setProperty(_propNames._name2, encoding: value.count)
+            try object.setProperty(_propNames._name3, encoding: value.flag)
             slot.emplace(object)
           }
         }
@@ -812,7 +812,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             return object.takeValue()
           }
 
@@ -826,7 +826,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             slot.emplace(object)
           }
         }
@@ -987,8 +987,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.x)
+            try object.setProperty(_propNames._name1, encoding: value.y)
             return object.takeValue()
           }
 
@@ -1002,8 +1002,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.x)
+            try object.setProperty(_propNames._name1, encoding: value.y)
             slot.emplace(object)
           }
         }
@@ -1232,7 +1232,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             return object.takeValue()
           }
 
@@ -1246,7 +1246,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             slot.emplace(object)
           }
         }
@@ -1337,7 +1337,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             return object.takeValue()
           }
 
@@ -1351,7 +1351,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             slot.emplace(object)
           }
         }
@@ -1502,8 +1502,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.x)
+            try object.setProperty(_propNames._name1, encoding: value.y)
             return object.takeValue()
           }
 
@@ -1517,8 +1517,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.x)
+            try object.setProperty(_propNames._name1, encoding: value.y)
             slot.emplace(object)
           }
         }
@@ -1618,8 +1618,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.x)
+            try object.setProperty(_propNames._name1, encoding: value.y)
             return object.takeValue()
           }
 
@@ -1633,8 +1633,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.x, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.y, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.x)
+            try object.setProperty(_propNames._name1, encoding: value.y)
             slot.emplace(object)
           }
         }
@@ -1722,7 +1722,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.`default`)
             return object.takeValue()
           }
 
@@ -1736,7 +1736,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.`default`)
             slot.emplace(object)
           }
         }
@@ -1840,7 +1840,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             object.setProperty(_propNames._name1, value: value.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(value.attributes!, in: runtime))
             return object.takeValue()
           }
@@ -1855,7 +1855,7 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.name, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.name)
             object.setProperty(_propNames._name1, value: value.attributes == nil ? .null() : try JavaScriptValue.encodeAnyDictionary(value.attributes!, in: runtime))
             slot.emplace(object)
           }
@@ -2355,8 +2355,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.`class`, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.`default`)
+            try object.setProperty(_propNames._name1, encoding: value.`class`)
             return object.takeValue()
           }
 
@@ -2370,8 +2370,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.`default`, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.`class`, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.`default`)
+            try object.setProperty(_propNames._name1, encoding: value.`class`)
             slot.emplace(object)
           }
         }
@@ -2473,8 +2473,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.object, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.object)
+            try object.setProperty(_propNames._name1, encoding: value.count)
             return object.takeValue()
           }
 
@@ -2488,8 +2488,8 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.object, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.count, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.object)
+            try object.setProperty(_propNames._name1, encoding: value.count)
             slot.emplace(object)
           }
         }
@@ -2642,11 +2642,11 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.dictionary, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.appContext, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.runtime, in: runtime)
-            try object.setProperty(_propNames._name3, encoding: value.name, in: runtime)
-            try object.setProperty(_propNames._name4, encoding: value.nameValue, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.dictionary)
+            try object.setProperty(_propNames._name1, encoding: value.appContext)
+            try object.setProperty(_propNames._name2, encoding: value.runtime)
+            try object.setProperty(_propNames._name3, encoding: value.name)
+            try object.setProperty(_propNames._name4, encoding: value.nameValue)
             return object.takeValue()
           }
 
@@ -2660,11 +2660,11 @@ struct RecordMacroTests {
             let _propNames = runtime.cached(_PropNames._key) {
               return _PropNames(runtime)
             }
-            try object.setProperty(_propNames._name0, encoding: value.dictionary, in: runtime)
-            try object.setProperty(_propNames._name1, encoding: value.appContext, in: runtime)
-            try object.setProperty(_propNames._name2, encoding: value.runtime, in: runtime)
-            try object.setProperty(_propNames._name3, encoding: value.name, in: runtime)
-            try object.setProperty(_propNames._name4, encoding: value.nameValue, in: runtime)
+            try object.setProperty(_propNames._name0, encoding: value.dictionary)
+            try object.setProperty(_propNames._name1, encoding: value.appContext)
+            try object.setProperty(_propNames._name2, encoding: value.runtime)
+            try object.setProperty(_propNames._name3, encoding: value.name)
+            try object.setProperty(_propNames._name4, encoding: value.nameValue)
             slot.emplace(object)
           }
         }
@@ -2745,7 +2745,7 @@ struct RecordMacroTests {
           @JavaScriptActor
           public static func encode(_ value: Box, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
             let object = runtime.createObject()
-            try object.setProperty("value", encoding: value.value, in: runtime)
+            try object.setProperty("value", encoding: value.value)
             return object.takeValue()
           }
 
@@ -2756,7 +2756,7 @@ struct RecordMacroTests {
             in runtime: borrowing JavaScriptRuntime
           ) throws {
             let object = runtime.createObject()
-            try object.setProperty("value", encoding: value.value, in: runtime)
+            try object.setProperty("value", encoding: value.value)
             slot.emplace(object)
           }
         }
@@ -2834,7 +2834,7 @@ struct RecordMacroTests {
             @JavaScriptActor
             public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
               let object = runtime.createObject()
-              try object.setProperty("name", encoding: value.name, in: runtime)
+              try object.setProperty("name", encoding: value.name)
               return object.takeValue()
             }
 
@@ -2845,7 +2845,7 @@ struct RecordMacroTests {
               in runtime: borrowing JavaScriptRuntime
             ) throws {
               let object = runtime.createObject()
-              try object.setProperty("name", encoding: value.name, in: runtime)
+              try object.setProperty("name", encoding: value.name)
               slot.emplace(object)
             }
           }
