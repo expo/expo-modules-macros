@@ -136,13 +136,14 @@ extension TypeNode {
       )
     case .promise(let value):
       return .promise(value: value.resolvingRefs(using: index, in: scope))
-    case .tuple(let elements):
-      return .tuple(elements: elements.map { $0.resolvingRefs(using: index, in: scope) })
-    case .object(let properties):
+    case .tuple(let elements, let name):
+      return .tuple(elements: elements.map { $0.resolvingRefs(using: index, in: scope) }, name: name)
+    case .object(let properties, let name):
       return .object(
         properties: properties.map {
           TypeNodeProperty(name: $0.name, type: $0.type.resolvingRefs(using: index, in: scope))
-        }
+        },
+        name: name
       )
     case .function(let parameters, let returns, let isAsync, let isThrowing):
       return .function(

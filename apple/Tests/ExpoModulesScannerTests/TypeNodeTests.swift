@@ -244,6 +244,11 @@ struct TypeNodeTests {
       object
         == #"{"kind":"object","properties":[{"name":"x","type":{"kind":"primitive","name":"Int","typeof":"number"}},{"name":"y","type":{"kind":"primitive","name":"Int","typeof":"number"}}],"typeof":"object"}"#
     )
+    let named = TypeNode.tuple(elements: [.primitive(name: "Int", jsType: .number)], name: "MyModule.Pair")
+    #expect(
+      String(decoding: try encoder.encode(named), as: UTF8.self)
+        == #"{"elements":[{"kind":"primitive","name":"Int","typeof":"number"}],"kind":"tuple","name":"MyModule.Pair","typeof":"object"}"#
+    )
   }
 
   @Test

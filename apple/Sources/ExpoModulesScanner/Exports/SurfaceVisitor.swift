@@ -142,7 +142,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       guard scope.isEmpty else {
         return
       }
-      let aliases = TupleTypeAliases(in: members)
+      let aliases = TupleTypeAliases(in: members, scope: qualified)
       let (functions, properties, events, _) = collectJSMembers(members)
       modules.append(
         ExportedModule(
@@ -165,7 +165,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
 
     if let attribute = attributes.firstAttribute(named: DetectedMacro.sharedObject.rawValue) {
-      let aliases = TupleTypeAliases(in: members)
+      let aliases = TupleTypeAliases(in: members, scope: qualified)
       var (functions, properties, events, initializer) = collectJSMembers(members)
       functions = functions.map(aliases.resolving)
       properties = properties.map(aliases.resolving)

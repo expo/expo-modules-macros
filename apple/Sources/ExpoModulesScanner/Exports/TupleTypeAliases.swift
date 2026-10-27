@@ -12,13 +12,17 @@ struct TupleTypeAliases {
   /// The resolved type of each alias, by name.
   private let resolved: [String: TypeNode]
 
-  init(in members: MemberBlockItemListSyntax) {
+  /// Collects the aliases in `members`, the body of the type named `scope`. A tuple alias keeps its name
+  /// qualified with `scope`, like the other declarations in the scan, so a consumer can name the type it
+  /// stands for.
+  init(in members: MemberBlockItemListSyntax, scope: String) {
     var declared: [String: TypeNode] = [:]
     for member in members {
       guard let alias = member.decl.as(TypeAliasDeclSyntax.self), alias.genericParameterClause == nil else {
         continue
       }
-      declared[alias.name.text] = typeNode(from: alias.initializer.value)
+      let name = alias.name.text
+      declared[name] = typeNode(from: alias.initializer.value).named("\(scope).\(name)")
     }
     // Aliases may refer to each other, so each one is resolved through the others. An alias that refers
     // back to itself is invalid Swift, and is left as written after `declared.count` rounds.
@@ -75,11 +79,12 @@ extension TypeNode {
       return .dictionary(key: key.replacingAliases(aliases), value: value.replacingAliases(aliases))
     case .promise(let value):
       return .promise(value: value.replacingAliases(aliases))
-    case .tuple(let elements):
-      return .tuple(elements: elements.map { $0.replacingAliases(aliases) })
-    case .object(let properties):
+    case .tuple(let elements, let name):
+      return .tuple(elements: elements.map { $0.replacingAliases(aliases) }, name: name)
+    case .object(let properties, let name):
       return .object(
-        properties: properties.map { TypeNodeProperty(name: $0.name, type: $0.type.replacingAliases(aliases)) }
+        properties: properties.map { TypeNodeProperty(name: $0.name, type: $0.type.replacingAliases(aliases)) },
+        name: name
       )
     case .function(let parameters, let returns, let isAsync, let isThrowing):
       return .function(
@@ -88,6 +93,19 @@ extension TypeNode {
         isAsync: isAsync,
         isThrowing: isThrowing
       )
+    }
+  }
+
+  /// This node named `name` when it's a tuple or an object, which an alias names. Any other node, such as
+  /// an array of tuples, is returned as it is: its elements carry the names of their own aliases.
+  fileprivate func named(_ name: String) -> TypeNode {
+    switch self {
+    case .tuple(let elements, _):
+      return .tuple(elements: elements, name: name)
+    case .object(let properties, _):
+      return .object(properties: properties, name: name)
+    default:
+      return self
     }
   }
 

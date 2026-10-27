@@ -73,12 +73,14 @@ indirect enum TypeNode: Equatable {
   case ref(name: String, refKind: RefKind? = nil, jsTypeOverride: JSType? = nil)
 
   /// An unlabeled tuple of two or more elements, `(A, B)`, which crosses as an array with one value per
-  /// element, like a TypeScript tuple.
-  case tuple(elements: [TypeNode])
+  /// element, like a TypeScript tuple. `name` is the qualified name of the type alias it was written
+  /// through, such as `MyModule.Pair`, or `nil` when it was spelled out.
+  case tuple(elements: [TypeNode], name: String? = nil)
 
   /// An object with a fixed set of properties, which a labeled tuple of two or more elements,
-  /// `(x: A, y: B)`, crosses as: one property per label.
-  case object(properties: [TypeNodeProperty])
+  /// `(x: A, y: B)`, crosses as: one property per label. `name` is the qualified name of the type alias it
+  /// was written through, such as `MyModule.Span`, or `nil` when it was spelled out.
+  case object(properties: [TypeNodeProperty], name: String? = nil)
 
   /// `SharedRef<T>` (or `ExpoModulesCore.SharedRef<T>`): a shared object holding a native `T`, which
   /// JS sees as an instance of `expo.SharedRef`. `native` is `T` parsed like any other type, but it
@@ -162,12 +164,14 @@ extension TypeNode: Encodable {
       try container.encode("ref", forKey: .kind)
       try container.encode(name, forKey: .name)
       try container.encodeIfPresent(refKind, forKey: .refKind)
-    case .tuple(let elements):
+    case .tuple(let elements, let name):
       try container.encode("tuple", forKey: .kind)
       try container.encode(elements, forKey: .elements)
-    case .object(let properties):
+      try container.encodeIfPresent(name, forKey: .name)
+    case .object(let properties, let name):
       try container.encode("object", forKey: .kind)
       try container.encode(properties, forKey: .properties)
+      try container.encodeIfPresent(name, forKey: .name)
     case .sharedRef(let native):
       try container.encode("sharedRef", forKey: .kind)
       try container.encode(native, forKey: .native)
@@ -351,9 +355,9 @@ extension TypeNode {
       return "Promise<\(value.spelling)>"
     case .sharedRef(let native):
       return "SharedRef<\(native.spelling)>"
-    case .tuple(let elements):
+    case .tuple(let elements, _):
       return "(\(elements.map(\.spelling).joined(separator: ", ")))"
-    case .object(let properties):
+    case .object(let properties, _):
       return "(\(properties.map { "\($0.name): \($0.type.spelling)" }.joined(separator: ", ")))"
     case .function(let parameters, let returns, _, _):
       return "(\(parameters.map { $0.spelling }.joined(separator: ", "))) -> \(returns?.spelling ?? "Void")"
