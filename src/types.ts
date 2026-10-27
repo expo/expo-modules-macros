@@ -456,7 +456,7 @@ export interface Expansion {
 
 /** What the macros generate for one file, and what they report about it. */
 export interface ExpandedFile {
-  /** The path as it was passed. */
+  /** The path as it was passed, or the absolute path of a file found in a directory. */
   file: string;
   /**
    * Without symbols, one expansion of the whole file. With symbols, one per symbol that this file
@@ -470,7 +470,7 @@ export interface ExpandedFile {
 /** The `expand --json` result. */
 export interface ExpandResult {
   schemaVersion: number;
-  /** One entry per file, in the order they were passed. */
+  /** One entry per expanded file: the files in the order they were passed, a directory's files sorted. */
   files: ExpandedFile[];
 }
 

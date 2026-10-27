@@ -8,7 +8,7 @@
 /// Subcommands:
 ///   scan-modules   <path>...   fast: top-level `@ExpoModule` types, for autolinking
 ///   scan-exports   <path>...   deep: full JS-exported surface, for TS type generation
-///   expand         <file>...   the code that the macros generate, and their diagnostics
+///   expand         <path>...   the code that the macros generate, and their diagnostics
 public enum ScannerCLI {
   /// Runs the CLI for the given arguments (argv without the executable path) and returns the
   /// process exit code: `0` on success, `1` if encoding the report fails, `2` on a usage error.
@@ -95,12 +95,12 @@ public enum ScannerCLI {
         return usageError("expand does not support --platform or --define")
       }
       guard !paths.isEmpty else {
-        return usageError("expand requires at least one file")
+        return usageError("expand requires at least one path")
       }
       guard let expander else {
         return usageError("expand is only available in the macro plugin executable")
       }
-      expandOptions.files = paths
+      expandOptions.paths = paths
       return Scanner.runExpand(options: expandOptions, expander: expander)
 
     default:
@@ -126,8 +126,9 @@ private var usageText: String {
   subcommands:
     scan-modules   fast scan for top-level @ExpoModule types (autolinking)
     scan-exports   deep scan of the full JS-exported surface (type generation)
-    expand         print the code that the macros generate in the given .swift files, and the
-                   macro diagnostics on stderr; exits with 1 when there is an error
+    expand         print the code that the macros generate in the given .swift files (and in the
+                   files of the given directories that use a macro), and the macro diagnostics
+                   on stderr; exits with 1 when there is an error
 
   options (scan-modules only):
     --define <flag>   treat a conditional compilation flag (e.g. DEBUG) as set when resolving

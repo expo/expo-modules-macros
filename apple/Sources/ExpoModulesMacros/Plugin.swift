@@ -26,7 +26,11 @@ enum EntryPoint {
     if arguments.isEmpty {
       try ExpoModulesMacrosPlugin.main()
     } else {
-      exit(ScannerCLI.run(arguments: arguments, expander: expandMacros))
+      let expander = MacroExpander(
+        attributeNames: Set(ProvidedMacro.all.map(\.name)),
+        expand: expandMacros
+      )
+      exit(ScannerCLI.run(arguments: arguments, expander: expander))
     }
   }
 }

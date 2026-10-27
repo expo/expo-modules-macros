@@ -89,13 +89,15 @@ For the scans, each path is a `.swift` file or a directory, scanned recursively 
 
 ## Expand
 
-`expand` shows the code that the macros generate, as "Expand Macro" does in Xcode, but in a terminal and without a build. It takes `.swift` files (not directories), runs the macros of this executable on them in process with swift-syntax, and prints the expanded source to stdout. The syntax errors and the macro diagnostics go to stderr in the compiler's `<file>:<line>:<column>: error: <message>` format, and the exit code is `1` when there is an error. With `--diagnostics-only`, it prints only the diagnostics, so it can check a module in CI or for an agent.
+`expand` shows the code that the macros generate, as "Expand Macro" does in Xcode, but in a terminal and without a build. It takes `.swift` files and directories, runs the macros of this executable on them in process with swift-syntax, and prints the expanded source to stdout. The syntax errors and the macro diagnostics go to stderr in the compiler's `<file>:<line>:<column>: error: <message>` format, and the exit code is `1` when there is an error. With `--diagnostics-only`, it prints only the diagnostics, so it can check a module in CI or for an agent.
 
 ```sh
 ExpoModulesMacros expand ios/HapticsModule.swift
 ExpoModulesMacros expand --symbol HapticsModule.impactAsync ios/HapticsModule.swift
-ExpoModulesMacros expand --diagnostics-only ios/*.swift
+ExpoModulesMacros expand --diagnostics-only ios/
 ```
+
+A file is always expanded and keeps its path as it was passed. A directory is walked like the scans walk it, skipping dependency, build, test and example directories, and only its files that use one of the macros are expanded, with their absolute paths.
 
 `--symbol` limits the output to one declaration:
 
@@ -104,7 +106,7 @@ ExpoModulesMacros expand --diagnostics-only ios/*.swift
 
 With `--symbol`, only the diagnostics inside those declarations are printed.
 
-With `--json`, `expand` prints an `ExpandResult` with its own `schemaVersion`, and the exit code is `0` also with error diagnostics, because the report holds them. A missing file, a directory, a file that isn't Swift, or a symbol that no file declares is a usage error (`2`) in both modes.
+With `--json`, `expand` prints an `ExpandResult` with its own `schemaVersion`, and the exit code is `0` also with error diagnostics, because the report holds them. A missing path, a file that isn't Swift, or a symbol that no file declares is a usage error (`2`) in both modes.
 
 The macros only read the syntax tree, so the expansion is what the compiler gets, with two differences:
 

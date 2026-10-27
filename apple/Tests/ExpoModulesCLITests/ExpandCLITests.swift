@@ -9,7 +9,7 @@ private func stubExpander(
   declaring declared: Set<String> = [],
   diagnostics: [ExpansionDiagnostic] = []
 ) -> MacroExpander {
-  { _, file, symbols in
+  MacroExpander(attributeNames: ["ExpoModule", "ViewProps"]) { _, file, symbols in
     ExpandedFile(
       file: file,
       expansions: symbols.isEmpty
@@ -56,12 +56,52 @@ struct ExpandCLITests {
   }
 
   @Test
-  func `expand takes only existing .swift files`() throws {
+  func `expand takes only existing .swift files and directories`() throws {
     try withFile { file, directory in
       let expander = stubExpander()
-      #expect(ScannerCLI.run(arguments: ["expand", directory], expander: expander) == 2)
       #expect(ScannerCLI.run(arguments: ["expand", file + ".txt"], expander: expander) == 2)
       #expect(ScannerCLI.run(arguments: ["expand", directory + "/Missing.swift"], expander: expander) == 2)
+      #expect(ScannerCLI.run(arguments: ["expand", directory + "/Missing"], expander: expander) == 2)
+    }
+  }
+
+  @Test
+  func `A directory expands the files that use one of the macros, and skips test and dependency directories`() throws {
+    try withTree([
+      ("ios/MyModule.swift", "@ExpoModule\nfinal class MyModule: Module {}\n"),
+      ("ios/Props.swift", "@ViewProps\nstruct Props {}\n"),
+      ("ios/Helpers.swift", "struct Helpers {}\n"),
+      ("ios/Notes.txt", "@ExpoModule"),
+      ("ios/Tests/MyModuleTests.swift", "@ExpoModule\nfinal class TestModule: Module {}\n"),
+      ("ios/Pods/Dependency.swift", "@ExpoModule\nfinal class Dependency: Module {}\n"),
+    ]) { root in
+      let result = try expandFiles(options: ExpandOptions(paths: [root + "/ios"]), expander: stubExpander()).get()
+      #expect(
+        result.files.map { URL(fileURLWithPath: $0.file).lastPathComponent } == ["MyModule.swift", "Props.swift"]
+      )
+      // Files from a directory have absolute paths.
+      #expect(result.files.allSatisfy { URL(fileURLWithPath: $0.file).baseURL == nil })
+    }
+  }
+
+  @Test
+  func `A file is always expanded, and only once when a directory also contains it`() throws {
+    try withTree([
+      ("ios/Helpers.swift", "struct Helpers {}\n"),
+      ("ios/MyModule.swift", "@ExpoModule\nfinal class MyModule: Module {}\n"),
+    ]) { root in
+      let options = ExpandOptions(paths: [root + "/ios/Helpers.swift", root + "/ios/MyModule.swift", root + "/ios"])
+      let result = try expandFiles(options: options, expander: stubExpander()).get()
+      #expect(result.files.map(\.file) == [root + "/ios/Helpers.swift", root + "/ios/MyModule.swift"])
+    }
+  }
+
+  @Test
+  func `A directory without macros expands nothing`() throws {
+    try withTree([("ios/Helpers.swift", "struct Helpers {}\n")]) { root in
+      let result = try expandFiles(options: ExpandOptions(paths: [root]), expander: stubExpander()).get()
+      #expect(result.files.isEmpty)
+      #expect(ScannerCLI.run(arguments: ["expand", "--diagnostics-only", root], expander: stubExpander()) == 0)
     }
   }
 
@@ -87,7 +127,7 @@ struct ExpandCLITests {
   @Test
   func `--diagnostics-only leaves out the expansions and keeps the diagnostics`() throws {
     try withFile { file, _ in
-      var options = ExpandOptions(files: [file], diagnosticsOnly: true)
+      var options = ExpandOptions(paths: [file], diagnosticsOnly: true)
       let result = try expandFiles(options: options, expander: stubExpander(diagnostics: [error])).get()
       #expect(result.files.map(\.expansions) == [[]])
       #expect(result.files.map(\.diagnostics) == [[error]])
@@ -110,6 +150,22 @@ struct ExpandCLITests {
     let file = root.appendingPathComponent("MyModule.swift")
     try "@ExpoModule\nfinal class MyModule: Module {}\n".write(to: file, atomically: true, encoding: .utf8)
     try body(file.path, root.path)
+  }
+
+  /// Writes `files` (relative path, contents) into a fresh temporary directory and hands its
+  /// absolute, standardized path to `body`. The directory is removed afterward.
+  private func withTree(_ files: [(String, String)], _ body: (_ root: String) throws -> Void) throws {
+    let fileManager = FileManager.default
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "scanner-expand-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
+    defer { try? fileManager.removeItem(at: root) }
+    for (relativePath, contents) in files {
+      let url = root.appendingPathComponent(relativePath)
+      try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try contents.write(to: url, atomically: true, encoding: .utf8)
+    }
+    try body(root.standardizedFileURL.path)
   }
 }
 

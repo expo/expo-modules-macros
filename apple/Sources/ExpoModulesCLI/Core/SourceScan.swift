@@ -102,7 +102,13 @@ struct MacroPrefilter {
   private let bareNames: [[UInt8]]
 
   init(macros: Set<DetectedMacro>, conformances: Set<String> = []) {
-    attributes = macros.map { Array($0.rawValue.utf8) }
+    self.init(attributeNames: Set(macros.map(\.rawValue)), conformances: conformances)
+  }
+
+  /// A pre-filter for attributes that `DetectedMacro` doesn't list, such as every macro that `expand`
+  /// runs.
+  init(attributeNames: Set<String>, conformances: Set<String> = []) {
+    attributes = attributeNames.map { Array($0.utf8) }
     bareNames = conformances.map { Array($0.utf8) }
   }
 

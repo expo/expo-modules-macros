@@ -6,21 +6,22 @@ import Foundation
 
 /// The options of `expand`, parsed by `ScannerCLI`.
 struct ExpandOptions: Equatable {
-  var files: [String] = []
+  var paths: [String] = []
   var symbols: [String] = []
   var json = false
   var diagnosticsOnly = false
 }
 
 extension Scanner {
-  /// Runs `expand`: expands the macros in each file with `expander` and prints the result.
+  /// Runs `expand`: expands the macros in each file with `expander` and prints the result. A
+  /// directory stands for the `.swift` files in it that use one of the macros.
   ///
   /// As text, the expanded source goes to stdout and the diagnostics go to stderr in the
   /// `<file>:<line>:<column>: <severity>: <message>` format of the compiler. The exit code is `1`
   /// when there is an error diagnostic. With `--json`, the report goes to stdout and the exit code
   /// is `0` also with error diagnostics, because the report holds them; `1` then means that encoding
-  /// failed. An input that can't be expanded (a missing file, a directory, a file that isn't Swift, a
-  /// symbol that no file declares) is a usage error, `2`.
+  /// failed. An input that can't be expanded (a missing path, a file that isn't Swift, a symbol that
+  /// no file declares) is a usage error, `2`.
   static func runExpand(options: ExpandOptions, expander: MacroExpander) -> Int32 {
     let result: ExpandResult
     switch expandFiles(options: options, expander: expander) {
@@ -54,6 +55,13 @@ extension Scanner {
   }
 }
 
+/// The absolute path of `path` with symbolic links resolved, to tell whether two paths name the same
+/// file. A path that the directory walk returns can differ from the one passed for the same file, for
+/// example `/private/var` and `/var` on macOS.
+private func fileIdentity(_ path: String) -> String {
+  URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath().path
+}
+
 /// An input that `expand` can't take.
 struct ExpandInputError: Error, Equatable {
   let message: String
@@ -61,22 +69,45 @@ struct ExpandInputError: Error, Equatable {
 
 /// Reads the files of `options`, expands each with `expander`, and returns the report that `expand`
 /// prints. Separate from `runExpand` so tests can drive it without stdout.
+///
+/// A file keeps its path as it was passed and is always expanded. A directory is walked like the
+/// scans walk it (`swiftFiles(in:)`, which skips dependency, build, test and example directories),
+/// and only the files that use one of the macros are expanded, with their absolute paths. A file that
+/// a directory also contains is expanded once.
 func expandFiles(options: ExpandOptions, expander: MacroExpander) -> Result<ExpandResult, ExpandInputError> {
+  let prefilter = MacroPrefilter(attributeNames: expander.attributeNames)
   var sources: [(file: String, source: String)] = []
-  for file in options.files {
-    guard isDirectory(atPath: file) != true else {
-      return .failure(ExpandInputError(message: "expand takes files, but '\(file)' is a directory"))
+  var seen: Set<String> = []
+  for path in options.paths {
+    switch isDirectory(atPath: path) {
+    case nil:
+      return .failure(ExpandInputError(message: "no such file or directory '\(path)'"))
+    case .some(true):
+      for file in swiftFiles(in: [path]) where !seen.contains(fileIdentity(file)) {
+        guard let source = try? String(contentsOfFile: file, encoding: .utf8) else {
+          return .failure(ExpandInputError(message: "could not read '\(file)'"))
+        }
+        seen.insert(fileIdentity(file))
+        if mightContainMacro(in: source, prefilter: prefilter) {
+          sources.append((file, source))
+        }
+      }
+    case .some(false):
+      guard path.hasSuffix(".swift") else {
+        return .failure(ExpandInputError(message: "expand takes .swift files and directories, but got '\(path)'"))
+      }
+      guard !seen.contains(fileIdentity(path)) else {
+        continue
+      }
+      guard let source = try? String(contentsOfFile: path, encoding: .utf8) else {
+        return .failure(ExpandInputError(message: "could not read '\(path)'"))
+      }
+      seen.insert(fileIdentity(path))
+      sources.append((path, source))
     }
-    guard file.hasSuffix(".swift") else {
-      return .failure(ExpandInputError(message: "expand takes .swift files, but got '\(file)'"))
-    }
-    guard let source = try? String(contentsOfFile: file, encoding: .utf8) else {
-      return .failure(ExpandInputError(message: "could not read '\(file)'"))
-    }
-    sources.append((file, source))
   }
 
-  let files = sources.map { expander($0.source, $0.file, options.symbols) }
+  let files = sources.map { expander.expand($0.source, $0.file, options.symbols) }
 
   let found = Set(files.flatMap { $0.expansions.compactMap(\.symbol) })
   if let missing = options.symbols.first(where: { !found.contains($0) }) {

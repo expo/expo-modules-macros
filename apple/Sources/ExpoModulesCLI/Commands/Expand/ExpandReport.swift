@@ -7,13 +7,14 @@ public let expandSchemaVersion = 1
 public struct ExpandResult: Codable, Equatable, Sendable {
   public let schemaVersion: Int
 
-  /// One entry per file, in argument order.
+  /// One entry per expanded file: the files in argument order, the files of a directory sorted.
   public let files: [ExpandedFile]
 }
 
 /// What the macros generate for one source file, and what they report about it.
 public struct ExpandedFile: Codable, Equatable, Sendable {
-  /// The path as it was passed on the command line.
+  /// The path as it was passed on the command line, or the absolute path of a file found in a
+  /// directory.
   public let file: String
 
   /// Without `--symbol`, one expansion of the whole file. With it, one expansion per symbol found in
@@ -97,10 +98,23 @@ public struct ExpansionNote: Codable, Equatable, Sendable {
 }
 
 /// Expands the macros in one source file. The macro implementations live in the plugin executable,
-/// which the scanner library can't depend on, so the executable passes this in (see `ScannerCLI`).
-///
-/// - Parameters:
-///   - source: The contents of the file.
-///   - file: The path of the file, for the diagnostics and the expansion context.
-///   - symbols: The `--symbol` values. Empty to expand the whole file.
-public typealias MacroExpander = (_ source: String, _ file: String, _ symbols: [String]) -> ExpandedFile
+/// which this library can't depend on, so the executable passes this in (see `ScannerCLI`).
+public struct MacroExpander {
+  /// The attribute names of the macros, such as `ExpoModule`. A file found in a directory is expanded
+  /// only when it contains one of them after an `@`.
+  let attributeNames: Set<String>
+
+  /// - Parameters:
+  ///   - source: The contents of the file.
+  ///   - file: The path of the file, for the diagnostics and the expansion context.
+  ///   - symbols: The `--symbol` values. Empty to expand the whole file.
+  let expand: (_ source: String, _ file: String, _ symbols: [String]) -> ExpandedFile
+
+  public init(
+    attributeNames: Set<String>,
+    expand: @escaping (_ source: String, _ file: String, _ symbols: [String]) -> ExpandedFile
+  ) {
+    self.attributeNames = attributeNames
+    self.expand = expand
+  }
+}

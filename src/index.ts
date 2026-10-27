@@ -307,23 +307,27 @@ export async function scanExports(
 }
 
 /**
- * Expands the Expo macros in `.swift` files in process, without a build, and returns the generated
+ * Expands the Expo macros in process, without a build, and returns the generated
  * code with the syntax errors and the macro diagnostics. The macros only read the syntax tree, so
  * the code is what the compiler gets, except for the names that a macro makes unique. Errors that
  * need type checking, for example a type that doesn't conform to a protocol, still need a build.
  *
+ * Each path is a `.swift` file, which is always expanded and keeps its path in the result, or a
+ * directory. A directory is walked like the scans walk it, and only its files that use one of the
+ * macros are expanded, with their absolute paths.
+ *
  * Error diagnostics don't make the call fail: check `severity` in `diagnostics`. Only an input that
- * can't be expanded (a missing file, a directory, a file that isn't Swift, a symbol that no file
- * declares) throws a `ScannerError`.
+ * can't be expanded (a missing path, a file that isn't Swift, a symbol that no file declares) throws
+ * a `ScannerError`.
  */
 export async function expandMacros(
-  files: string[],
+  paths: string[],
   options: ExpandMacrosOptions = {}
 ): Promise<ExpandResult> {
-  if (files.length === 0) {
-    throw new TypeError('expandMacros requires at least one file');
+  if (paths.length === 0) {
+    throw new TypeError('expandMacros requires at least one path');
   }
-  assertRepresentablePaths('expandMacros', files);
+  assertRepresentablePaths('expandMacros', paths);
 
   const args = ['expand', '--json'];
   for (const symbol of options.symbols ?? []) {
@@ -332,7 +336,7 @@ export async function expandMacros(
   if (options.diagnosticsOnly) {
     args.push('--diagnostics-only');
   }
-  args.push(...files);
+  args.push(...paths);
 
   const result = await runScanner<ExpandResult>(
     options.binaryPath ?? getScannerBinaryPath(),
