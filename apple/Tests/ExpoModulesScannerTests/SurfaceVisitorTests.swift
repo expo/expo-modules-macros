@@ -120,17 +120,16 @@ struct ModuleSurfaceTests {
       }
       """
     )
-    let span = TypeNode.tuple(
-      elements: [.primitive(name: "Int", jsType: .number), .primitive(name: "Int", jsType: .number)],
-      labels: ["start", "end"]
-    )
+    let span = TypeNode.object(properties: [
+      TypeNodeProperty(name: "start", type: .primitive(name: "Int", jsType: .number)),
+      TypeNodeProperty(name: "end", type: .primitive(name: "Int", jsType: .number)),
+    ])
     let merge = try #require(visitor.modules.first?.functions.first)
     #expect(merge.parameters.map(\.type) == [.array(element: span), .ref(name: "Identifier")])
     #expect(merge.returns == .optional(wrapped: span))
 
     let size = TypeNode.tuple(
-      elements: [.primitive(name: "Double", jsType: .number), .primitive(name: "Double", jsType: .number)],
-      labels: nil
+      elements: [.primitive(name: "Double", jsType: .number), .primitive(name: "Double", jsType: .number)]
     )
     let canvas = try #require(visitor.sharedObjects.first)
     #expect(canvas.initializer?.parameters.map(\.type) == [size])

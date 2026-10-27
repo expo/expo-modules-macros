@@ -463,7 +463,7 @@ struct ExportedSurface: Encodable, Equatable {
 /// qualified names and gives a resolved ref the name of its declaration; version 8 reports
 /// declarations in `#if` blocks, adds `platforms` (with deprecations), `accessLevel`, and
 /// `defaultValue`, and replaces `constructorParameters` with `initializer`; version 9 adds the
-/// `sharedRef` type kind and the `sharedRef` of a shared object; version 10 adds the `tuple` type kind
+/// `sharedRef` type kind and the `sharedRef` of a shared object; version 10 adds the `tuple` and `object` type kinds
 /// and resolves the tuple type aliases declared in `@ExpoModule` and `@SharedObject` classes.
 let scanExportsSchemaVersion = 10
 

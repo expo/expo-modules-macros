@@ -57,10 +57,15 @@ export type TypeNode =
       refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
     }
   /**
-   * A tuple of two or more elements. With `labels` (one per element), it crosses as an object with one
-   * property per label; without, as an array with one value per element.
+   * An unlabeled Swift tuple of two or more elements, `(A, B)`. It crosses as an array with one value per
+   * element, like a TypeScript tuple.
    */
-  | { kind: 'tuple'; typeof: JSType; elements: TypeNode[]; labels?: string[] }
+  | { kind: 'tuple'; typeof: JSType; elements: TypeNode[] }
+  /**
+   * An object with a fixed set of properties. A labeled Swift tuple of two or more elements,
+   * `(x: A, y: B)`, crosses as one, with one property per label.
+   */
+  | { kind: 'object'; typeof: JSType; properties: { name: string; type: TypeNode }[] }
   /**
    * `SharedRef<T>`: a shared object that JS sees as an instance of `expo.SharedRef`. `native` is the
    * `T` it holds on the native side. It never reaches JS, so refs in it are not resolved.

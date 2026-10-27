@@ -75,8 +75,12 @@ extension TypeNode {
       return .dictionary(key: key.replacingAliases(aliases), value: value.replacingAliases(aliases))
     case .promise(let value):
       return .promise(value: value.replacingAliases(aliases))
-    case .tuple(let elements, let labels):
-      return .tuple(elements: elements.map { $0.replacingAliases(aliases) }, labels: labels)
+    case .tuple(let elements):
+      return .tuple(elements: elements.map { $0.replacingAliases(aliases) })
+    case .object(let properties):
+      return .object(
+        properties: properties.map { TypeNodeProperty(name: $0.name, type: $0.type.replacingAliases(aliases)) }
+      )
     case .function(let parameters, let returns, let isAsync, let isThrowing):
       return .function(
         parameters: parameters.map { $0.replacingAliases(aliases) },
@@ -87,11 +91,11 @@ extension TypeNode {
     }
   }
 
-  /// True for a type the macros convert through the tuple methods: a tuple, or an optional, array or
-  /// `String`-keyed dictionary that holds one.
+  /// True for a type the macros convert through the tuple methods: a tuple (`.tuple`, or `.object` for a
+  /// labeled one), or an optional, array or `String`-keyed dictionary that holds one.
   fileprivate var holdsTuple: Bool {
     switch self {
-    case .tuple:
+    case .tuple, .object:
       return true
     case .optional(let inner), .array(let inner):
       return inner.holdsTuple

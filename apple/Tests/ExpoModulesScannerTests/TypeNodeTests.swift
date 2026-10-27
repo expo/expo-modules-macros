@@ -212,24 +212,38 @@ struct TypeNodeTests {
   }
 
   @Test
-  func `A tuple is modeled with its elements and labels`() {
+  func `An unlabeled tuple is a tuple and a labeled one an object`() {
     #expect(
       node("(Int, [Point])")
-        == .tuple(
-          elements: [.primitive(name: "Int", jsType: .number), .array(element: .ref(name: "Point"))],
-          labels: nil
-        )
+        == .tuple(elements: [.primitive(name: "Int", jsType: .number), .array(element: .ref(name: "Point"))])
     )
     #expect(
       node("(x: Double, y: Double)?")
         == .optional(
-          wrapped: .tuple(
-            elements: [.primitive(name: "Double", jsType: .number), .primitive(name: "Double", jsType: .number)],
-            labels: ["x", "y"]
-          )
+          wrapped: .object(properties: [
+            TypeNodeProperty(name: "x", type: .primitive(name: "Double", jsType: .number)),
+            TypeNodeProperty(name: "y", type: .primitive(name: "Double", jsType: .number)),
+          ])
         )
     )
     #expect(node("(Int, Int)").jsType == .object)
+    #expect(node("(x: Int, y: Int)").jsType == .object)
+  }
+
+  @Test
+  func `Tuple and object nodes encode their elements and properties`() throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    let tuple = String(decoding: try encoder.encode(node("(Int, String)")), as: UTF8.self)
+    #expect(
+      tuple
+        == #"{"elements":[{"kind":"primitive","name":"Int","typeof":"number"},{"kind":"primitive","name":"String","typeof":"string"}],"kind":"tuple","typeof":"object"}"#
+    )
+    let object = String(decoding: try encoder.encode(node("(x: Int, y: Int)")), as: UTF8.self)
+    #expect(
+      object
+        == #"{"kind":"object","properties":[{"name":"x","type":{"kind":"primitive","name":"Int","typeof":"number"}},{"name":"y","type":{"kind":"primitive","name":"Int","typeof":"number"}}],"typeof":"object"}"#
+    )
   }
 
   @Test

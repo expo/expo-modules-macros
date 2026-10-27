@@ -72,10 +72,13 @@ indirect enum TypeNode: Equatable {
   /// node parsed at a use site has never seen.
   case ref(name: String, refKind: RefKind? = nil, jsTypeOverride: JSType? = nil)
 
-  /// A tuple of two or more elements, `(A, B)` or `(x: A, y: B)`. `labels` holds one label per element
-  /// for a labeled tuple, which crosses as an object with one property per label, and is `nil` for an
-  /// unlabeled one, which crosses as an array with one value per element.
-  case tuple(elements: [TypeNode], labels: [String]?)
+  /// An unlabeled tuple of two or more elements, `(A, B)`, which crosses as an array with one value per
+  /// element, like a TypeScript tuple.
+  case tuple(elements: [TypeNode])
+
+  /// An object with a fixed set of properties, which a labeled tuple of two or more elements,
+  /// `(x: A, y: B)`, crosses as: one property per label.
+  case object(properties: [TypeNodeProperty])
 
   /// `SharedRef<T>` (or `ExpoModulesCore.SharedRef<T>`): a shared object holding a native `T`, which
   /// JS sees as an instance of `expo.SharedRef`. `native` is `T` parsed like any other type, but it
@@ -92,7 +95,7 @@ indirect enum TypeNode: Equatable {
     switch self {
     case .primitive(_, let jsType):
       return jsType
-    case .array, .dictionary, .promise, .tuple, .sharedRef:
+    case .array, .dictionary, .promise, .tuple, .object, .sharedRef:
       return .object
     case .ref(_, _, let jsTypeOverride):
       // An unresolved ref, and every resolved one but an enum, is an object.
@@ -107,6 +110,12 @@ indirect enum TypeNode: Equatable {
   }
 }
 
+/// A property of a `.object` node: its name, and the type of its value.
+struct TypeNodeProperty: Encodable, Equatable {
+  let name: String
+  let type: TypeNode
+}
+
 extension TypeNode: Encodable {
   private enum CodingKeys: String, CodingKey {
     case refKind
@@ -115,7 +124,7 @@ extension TypeNode: Encodable {
     // The `typeof` category. Spelled `typeof` in JSON (what the consumer reads); the Swift property is
     // `jsType` since it's the cleaner Swift name.
     case jsType = "typeof"
-    case wrapped, element, key, value, parameters, returns, text, native, elements, labels
+    case wrapped, element, key, value, parameters, returns, text, native, elements, properties
     // A closure type's effects, matching `ExportedFunction`'s TS-keyword spellings.
     case isAsync = "async"
     case isThrowing = "throws"
@@ -153,10 +162,12 @@ extension TypeNode: Encodable {
       try container.encode("ref", forKey: .kind)
       try container.encode(name, forKey: .name)
       try container.encodeIfPresent(refKind, forKey: .refKind)
-    case .tuple(let elements, let labels):
+    case .tuple(let elements):
       try container.encode("tuple", forKey: .kind)
       try container.encode(elements, forKey: .elements)
-      try container.encodeIfPresent(labels, forKey: .labels)
+    case .object(let properties):
+      try container.encode("object", forKey: .kind)
+      try container.encode(properties, forKey: .properties)
     case .sharedRef(let native):
       try container.encode("sharedRef", forKey: .kind)
       try container.encode(native, forKey: .native)
@@ -243,8 +254,13 @@ func typeNode(from type: TypeSyntax) -> TypeNode {
     tuple.elements.allSatisfy({ $0.ellipsis == nil && $0.inoutKeyword == nil })
   {
     let labels = tuple.elements.compactMap { $0.firstName?.text }
-    if labels.isEmpty || labels.count == tuple.elements.count {
-      return .tuple(elements: tuple.elements.map { typeNode(from: $0.type) }, labels: labels.isEmpty ? nil : labels)
+    if labels.isEmpty {
+      return .tuple(elements: tuple.elements.map { typeNode(from: $0.type) })
+    }
+    if labels.count == tuple.elements.count {
+      return .object(
+        properties: zip(labels, tuple.elements).map { TypeNodeProperty(name: $0, type: typeNode(from: $1.type)) }
+      )
     }
   }
   // Other tuples, metatypes, some/any types, etc.: not modeled, preserve the verbatim spelling.
@@ -335,11 +351,10 @@ extension TypeNode {
       return "Promise<\(value.spelling)>"
     case .sharedRef(let native):
       return "SharedRef<\(native.spelling)>"
-    case .tuple(let elements, let labels):
-      let spelled = elements.enumerated().map { index, element in
-        labels.map { "\($0[index]): \(element.spelling)" } ?? element.spelling
-      }
-      return "(\(spelled.joined(separator: ", ")))"
+    case .tuple(let elements):
+      return "(\(elements.map(\.spelling).joined(separator: ", ")))"
+    case .object(let properties):
+      return "(\(properties.map { "\($0.name): \($0.type.spelling)" }.joined(separator: ", ")))"
     case .function(let parameters, let returns, _, _):
       return "(\(parameters.map { $0.spelling }.joined(separator: ", "))) -> \(returns?.spelling ?? "Void")"
     case .unknown(let text):
