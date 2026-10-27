@@ -2914,4 +2914,137 @@ struct RecordMacroTests {
       ]
     )
   }
+
+  @Test
+  func `Property holding a tuple converts through the tuple methods`() {
+    assertExpansion(
+      """
+      @Record
+      struct Segment {
+        var range: (start: Int, end: Int) = (0, 0)
+        var points: [(Double, Double)]?
+      }
+      """,
+      expandedSource: """
+        struct Segment {
+          var range: (start: Int, end: Int) = (0, 0)
+          var points: [(Double, Double)]?
+
+          public init() {
+          }
+
+          public init(range: (start: Int, end: Int), points: [(Double, Double)]? = nil) {
+            self.range = range
+            self.points = points
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            let entry0 = dictionary["range"]
+            let field0 = entry0 == nil ? (0, 0) : try { () throws -> (start: Int, end: Int) in
+              guard let value = entry0 as? (start: Int, end: Int) else {
+                throw Conversions.ConvertingException<(start: Int, end: Int)>(entry0)
+              };
+              return value
+            }()
+            let entry1 = dictionary["points"]
+            let field1: [(Double, Double)]? = (entry1 == nil || entry1! is NSNull) ? nil : try { () throws -> [(Double, Double)]? in
+              guard let value = entry1 as? [(Double, Double)]? else {
+                throw Conversions.ConvertingException<[(Double, Double)]?>(entry1)
+              };
+              return value
+            }()
+            return Self(range: field0, points: field1)
+          }
+
+          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["range"] = self.range
+            dictionary["points"] = self.points
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+            let _name1: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "range")
+              self._name1 = JavaScriptPropNameID(runtime, string: "points")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { rangeJSValue in
+              return rangeJSValue.isUndefined() ? (0, 0) : try JavaScriptValue.decodeTuple(rangeJSValue, labels: ["start", "end"], as: Int.self, Int.self, in: runtime)
+            }
+            let field1 = try object.withUnownedProperty(_propNames._name1) { pointsJSValue in
+              return try JavaScriptValue.decodeOptional(pointsJSValue, in: runtime, wrapped: { value, runtime in
+                  return try JavaScriptValue.decodeArray(value, in: runtime, element: { value, runtime in
+                      return try JavaScriptValue.decodeTuple(value, as: Double.self, Double.self, in: runtime)
+                    })
+                })
+            }
+            return Self(range: field0, points: field1)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Segment, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeTuple(value.range as (Int, Int), labels: ["start", "end"], in: runtime))
+            object.setProperty(_propNames._name1, value: try JavaScriptValue.encodeOptional(value.points, in: runtime, wrapped: { value, runtime in
+                  return try JavaScriptValue.encodeArray(value, in: runtime, element: { value, runtime in
+                      return try JavaScriptValue.encodeTuple(value, in: runtime)
+                    })
+                }))
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Segment,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            object.setProperty(_propNames._name0, value: try JavaScriptValue.encodeTuple(value.range as (Int, Int), labels: ["start", "end"], in: runtime))
+            object.setProperty(_propNames._name1, value: try JavaScriptValue.encodeOptional(value.points, in: runtime, wrapped: { value, runtime in
+                  return try JavaScriptValue.encodeArray(value, in: runtime, element: { value, runtime in
+                      return try JavaScriptValue.encodeTuple(value, in: runtime)
+                    })
+                }))
+            slot.emplace(object)
+          }
+        }
+
+        extension Segment: Record {
+        }
+        """
+    )
+  }
 }
