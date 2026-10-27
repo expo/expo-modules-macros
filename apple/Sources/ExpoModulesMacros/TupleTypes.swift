@@ -50,26 +50,26 @@ internal enum TupleConversion {
     }
   }
 
-  /// The encode expression, as it appears after `try`, for the value `valueExpression`. A tuple whose
-  /// elements all conform needs no closures. The tuple method takes an unlabeled tuple, so a labeled one
-  /// is coerced to its unlabeled type first.
-  func encodeExpression(of valueExpression: String) -> String {
+  /// The encode expression, as it appears after `try`, for the value `valueExpression` in the runtime
+  /// named `runtime`. A tuple whose elements all conform needs no closures. The tuple method takes an
+  /// unlabeled tuple, so a labeled one is coerced to its unlabeled type first.
+  func encodeExpression(of valueExpression: String, in runtime: String = "runtime") -> String {
     switch self {
     case .conforming(let type):
-      return "\(expressionType(type)).encode(\(valueExpression), in: runtime)"
+      return "\(expressionType(type)).encode(\(valueExpression), in: \(runtime))"
     case .tuple(let elements, let labels):
       let value = labels == nil ? valueExpression : "\(valueExpression) as \(unlabeledType)"
       let closures =
         conformingElementTypes(elements) == nil
         ? elements.map { elementClosure(returning: $0.encodeExpression(of: "value")) } : []
-      let arguments = [value] + labelsArgument(labels) + ["in: runtime"] + closures
+      let arguments = [value] + labelsArgument(labels) + ["in: \(runtime)"] + closures
       return "JavaScriptValue.encodeTuple(\(arguments.joined(separator: ", ")))"
     case .optional(let wrapped):
-      return containerEncode("encodeOptional", label: "wrapped", inner: wrapped, of: valueExpression)
+      return containerEncode("encodeOptional", label: "wrapped", inner: wrapped, of: valueExpression, in: runtime)
     case .array(let element):
-      return containerEncode("encodeArray", label: "element", inner: element, of: valueExpression)
+      return containerEncode("encodeArray", label: "element", inner: element, of: valueExpression, in: runtime)
     case .dictionary(let value):
-      return containerEncode("encodeDictionary", label: "value", inner: value, of: valueExpression)
+      return containerEncode("encodeDictionary", label: "value", inner: value, of: valueExpression, in: runtime)
     }
   }
 
@@ -146,10 +146,11 @@ internal enum TupleConversion {
     _ method: String,
     label: String,
     inner: TupleConversion,
-    of valueExpression: String
+    of valueExpression: String,
+    in runtime: String
   ) -> String {
     return
-      "JavaScriptValue.\(method)(\(valueExpression), in: runtime, \(label): \(elementClosure(returning: inner.encodeExpression(of: "value"))))"
+      "JavaScriptValue.\(method)(\(valueExpression), in: \(runtime), \(label): \(elementClosure(returning: inner.encodeExpression(of: "value"))))"
   }
 
   /// The types of a tuple's elements when every element converts through its own `decode` /

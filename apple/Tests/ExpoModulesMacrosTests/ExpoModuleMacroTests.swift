@@ -2460,6 +2460,95 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Closure argument encodes a tuple parameter and decodes a tuple result`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func transform(with body: ((Int, Int)) throws -> (x: Int, y: Int)) { }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func transform(with body: ((Int, Int)) throws -> (x: Int, y: Int)) { }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("transform") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "transform", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg0: ((Int, Int)) throws -> (x: Int, y: Int) = { @Sendable p0 in
+                try arg0Callback.invokeBlocking(p0, argumentCount: 1, decoding: { value, runtime in
+                    return try JavaScriptValue.decodeTuple(value, labels: ["x", "y"], as: Int.self, Int.self, in: runtime)
+                  }) { _values, _arguments, _runtime in
+                  _arguments.emplace(try JavaScriptValue.encodeTuple(_values, in: _runtime), at: 0)
+                }
+              }
+              self.transform(with: arg0)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Async closure argument with a tuple is diagnosed`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func load(with body: @escaping ((Int, Int)) async -> Void) { }
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func load(with body: @escaping ((Int, Int)) async -> Void) { }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg0: ((Int, Int)) async -> Void = { @Sendable p0 in
+                do {
+                  try await arg0Callback.invokeAsync(p0)
+                } catch {
+                  arg0Callback.reportError(error)
+                }
+              }
+              self.load(with: arg0)
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "An async @JS closure argument can't take or return a tuple. Use a @Record type, or a closure that isn't async.",
+          line: 5,
+          column: 35,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  // MARK: - Free-form (Any) types
+
+  @Test
   func `Free-form dictionary argument decodes through JavaScriptValue.decodeAnyDictionary`() {
     assertExpansion(
       """

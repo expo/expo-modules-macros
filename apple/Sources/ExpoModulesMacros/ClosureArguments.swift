@@ -146,13 +146,20 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
   // parameters instead would send non-`Sendable` values to the `@JavaScriptActor` closure, which
   // Swift 6 rejects. The closure captures nothing, so it needs no allocation. Without parameters
   // there is nothing to emplace, and `invokeAsync` takes the parameters variadically.
-  let emplaces = !closure.isAsync && !parameters.isEmpty
+  //
+  // A result type that holds a tuple can't be passed as `returning:`, so a sync closure returning one
+  // decodes it through a `decoding:` closure, which only the `emplacing` variant takes. With no
+  // parameters it emplaces nothing.
+  let returnTuple = closure.returnType.flatMap { tupleConversion(of: $0) }
+  let emplaces = !closure.isAsync && (!parameters.isEmpty || returnTuple != nil)
   var arguments = parameters
   if emplaces {
     let values = parameters.count == 1 ? "p0" : "(" + parameters.joined(separator: ", ") + ")"
     arguments = [values, "argumentCount: \(parameters.count)"]
   }
-  if let returnType = closure.returnType {
+  if let returnTuple {
+    arguments.append("decoding: \(elementClosure(returning: returnTuple.decodeExpression(of: "value")))")
+  } else if let returnType = closure.returnType {
     arguments.append("returning: \(expressionType(returnType)).self")
   }
   let argumentList = arguments.joined(separator: ", ")
@@ -168,9 +175,14 @@ private func closureLiteralLines(_ closure: JSClosureType, callback: String) -> 
 
   if emplaces {
     var lines = [header, "  \(call) { _values, _arguments, _runtime in"]
-    for index in parameters.indices {
+    for (index, parameter) in closure.parameters.enumerated() {
       let value = parameters.count == 1 ? "_values" : "_values.\(index)"
-      lines.append("    try _arguments.emplace(\(value), at: \(index), in: _runtime)")
+      // A parameter that holds a tuple has no `encode(_:into:in:)`, so its encoded value is moved in.
+      if let tuple = tupleConversion(of: parameter.type) {
+        lines.append("    _arguments.emplace(try \(tuple.encodeExpression(of: value, in: "_runtime")), at: \(index))")
+      } else {
+        lines.append("    try _arguments.emplace(\(value), at: \(index), in: _runtime)")
+      }
     }
     return lines + ["  }", "}"]
   }
@@ -333,6 +345,18 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
           message: ClosureDiagnosticMessage(
             "A @JS closure argument can't use the free-form '\(type.trimmedDescription)'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
             id: "js-closure-free-form"
+          )
+        )
+      )
+    } else if closure.isAsync && tupleConversion(of: type) != nil {
+      // `invokeAsync` takes its arguments and result as `JavaScriptEncodable` / `JavaScriptDecodable`
+      // types, and a type that holds a tuple can't conform.
+      context.diagnose(
+        Diagnostic(
+          node: type,
+          message: ClosureDiagnosticMessage(
+            "An async @JS closure argument can't take or return a tuple. Use a @Record type, or a closure that isn't async.",
+            id: "js-closure-async-tuple"
           )
         )
       )
