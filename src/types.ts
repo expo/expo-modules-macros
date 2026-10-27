@@ -1,6 +1,6 @@
 /**
  * Hand-written mirrors of the scanner's JSON output. The Swift `Codable` types in
- * `apple/Sources/ExpoModulesScanner` are the source of truth; these are kept in sync by hand, which
+ * `apple/Sources/ExpoModulesCLI` are the source of truth; these are kept in sync by hand, which
  * is why each command carries a `schemaVersion` the wrapper checks at runtime.
  */
 

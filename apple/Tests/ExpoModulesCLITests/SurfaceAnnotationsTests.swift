@@ -1,7 +1,7 @@
 import SwiftParser
 import Testing
 
-@testable import ExpoModulesScanner
+@testable import ExpoModulesCLI
 
 /// Parses a source string and returns the exported surface the visitor extracts.
 private func surface(_ source: String) -> SurfaceVisitor {

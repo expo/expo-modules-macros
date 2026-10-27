@@ -20,13 +20,13 @@ let package = Package(
     .macro(
       name: "ExpoModulesMacros",
       dependencies: [
-        "ExpoModulesScanner",
+        "ExpoModulesCLI",
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
       ]
     ),
     .target(
-      name: "ExpoModulesScanner",
+      name: "ExpoModulesCLI",
       dependencies: [
         .product(name: "SwiftSyntax", package: "swift-syntax"),
         .product(name: "SwiftParser", package: "swift-syntax"),
@@ -50,9 +50,9 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
   )
   package.targets.append(
     .testTarget(
-      name: "ExpoModulesScannerTests",
+      name: "ExpoModulesCLITests",
       dependencies: [
-        "ExpoModulesScanner",
+        "ExpoModulesCLI",
         .product(name: "SwiftParser", package: "swift-syntax"),
       ]
     )
