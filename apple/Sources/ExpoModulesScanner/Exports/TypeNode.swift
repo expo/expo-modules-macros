@@ -72,12 +72,17 @@ indirect enum TypeNode: Equatable {
   /// node parsed at a use site has never seen.
   case ref(name: String, refKind: RefKind? = nil, jsTypeOverride: JSType? = nil)
 
+  /// A tuple of two or more elements, `(A, B)` or `(x: A, y: B)`. `labels` holds one label per element
+  /// for a labeled tuple, which crosses as an object with one property per label, and is `nil` for an
+  /// unlabeled one, which crosses as an array with one value per element.
+  case tuple(elements: [TypeNode], labels: [String]?)
+
   /// `SharedRef<T>` (or `ExpoModulesCore.SharedRef<T>`): a shared object holding a native `T`, which
   /// JS sees as an instance of `expo.SharedRef`. `native` is `T` parsed like any other type, but it
   /// never crosses the boundary itself, so refs in it are not resolved.
   case sharedRef(native: TypeNode)
 
-  /// A spelling the parser doesn't model (generic parameter, tuple, metatype, …), kept verbatim so
+  /// A spelling the parser doesn't model (generic parameter, metatype, …), kept verbatim so
   /// nothing is lost. Has no `typeof`.
   case unknown(text: String)
 
@@ -87,7 +92,7 @@ indirect enum TypeNode: Equatable {
     switch self {
     case .primitive(_, let jsType):
       return jsType
-    case .array, .dictionary, .promise, .sharedRef:
+    case .array, .dictionary, .promise, .tuple, .sharedRef:
       return .object
     case .ref(_, _, let jsTypeOverride):
       // An unresolved ref, and every resolved one but an enum, is an object.
@@ -110,7 +115,7 @@ extension TypeNode: Encodable {
     // The `typeof` category. Spelled `typeof` in JSON (what the consumer reads); the Swift property is
     // `jsType` since it's the cleaner Swift name.
     case jsType = "typeof"
-    case wrapped, element, key, value, parameters, returns, text, native
+    case wrapped, element, key, value, parameters, returns, text, native, elements, labels
     // A closure type's effects, matching `ExportedFunction`'s TS-keyword spellings.
     case isAsync = "async"
     case isThrowing = "throws"
@@ -148,6 +153,10 @@ extension TypeNode: Encodable {
       try container.encode("ref", forKey: .kind)
       try container.encode(name, forKey: .name)
       try container.encodeIfPresent(refKind, forKey: .refKind)
+    case .tuple(let elements, let labels):
+      try container.encode("tuple", forKey: .kind)
+      try container.encode(elements, forKey: .elements)
+      try container.encodeIfPresent(labels, forKey: .labels)
     case .sharedRef(let native):
       try container.encode("sharedRef", forKey: .kind)
       try container.encode(native, forKey: .native)
@@ -228,7 +237,17 @@ func typeNode(from type: TypeSyntax) -> TypeNode {
     }
     return .ref(name: member.trimmedDescription)
   }
-  // Tuples, metatypes, some/any types, etc.: not modeled, preserve the verbatim spelling.
+  // `(A, B)` / `(x: A, y: B)`, matching the tuples the macros convert: two or more elements, all
+  // labeled or none, without a variadic or `inout` element.
+  if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count >= 2,
+    tuple.elements.allSatisfy({ $0.ellipsis == nil && $0.inoutKeyword == nil })
+  {
+    let labels = tuple.elements.compactMap { $0.firstName?.text }
+    if labels.isEmpty || labels.count == tuple.elements.count {
+      return .tuple(elements: tuple.elements.map { typeNode(from: $0.type) }, labels: labels.isEmpty ? nil : labels)
+    }
+  }
+  // Other tuples, metatypes, some/any types, etc.: not modeled, preserve the verbatim spelling.
   return .unknown(text: type.trimmedDescription)
 }
 
@@ -316,6 +335,11 @@ extension TypeNode {
       return "Promise<\(value.spelling)>"
     case .sharedRef(let native):
       return "SharedRef<\(native.spelling)>"
+    case .tuple(let elements, let labels):
+      let spelled = elements.enumerated().map { index, element in
+        labels.map { "\($0[index]): \(element.spelling)" } ?? element.spelling
+      }
+      return "(\(spelled.joined(separator: ", ")))"
     case .function(let parameters, let returns, _, _):
       return "(\(parameters.map { $0.spelling }.joined(separator: ", "))) -> \(returns?.spelling ?? "Void")"
     case .unknown(let text):

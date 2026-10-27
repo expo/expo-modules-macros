@@ -136,6 +136,8 @@ extension TypeNode {
       )
     case .promise(let value):
       return .promise(value: value.resolvingRefs(using: index, in: scope))
+    case .tuple(let elements, let labels):
+      return .tuple(elements: elements.map { $0.resolvingRefs(using: index, in: scope) }, labels: labels)
     case .function(let parameters, let returns, let isAsync, let isThrowing):
       return .function(
         parameters: parameters.map { $0.resolvingRefs(using: index, in: scope) },

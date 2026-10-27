@@ -207,8 +207,29 @@ struct TypeNodeTests {
     // A bare identifier is syntactically indistinguishable from a nominal type, so a generic
     // parameter `T` reads as a ref, the generator resolves (or flags) it.
     #expect(node("T") == .ref(name: "T"))
-    // A tuple isn't modeled; its verbatim text survives as .unknown rather than being dropped.
-    #expect(node("(Int, Bool)") == .unknown(text: "(Int, Bool)"))
+    // A tuple the macros don't convert keeps its verbatim text as .unknown rather than being dropped.
+    #expect(node("(x: Int, Bool)") == .unknown(text: "(x: Int, Bool)"))
+  }
+
+  @Test
+  func `A tuple is modeled with its elements and labels`() {
+    #expect(
+      node("(Int, [Point])")
+        == .tuple(
+          elements: [.primitive(name: "Int", jsType: .number), .array(element: .ref(name: "Point"))],
+          labels: nil
+        )
+    )
+    #expect(
+      node("(x: Double, y: Double)?")
+        == .optional(
+          wrapped: .tuple(
+            elements: [.primitive(name: "Double", jsType: .number), .primitive(name: "Double", jsType: .number)],
+            labels: ["x", "y"]
+          )
+        )
+    )
+    #expect(node("(Int, Int)").jsType == .object)
   }
 
   @Test
@@ -231,6 +252,6 @@ struct TypeNodeTests {
     #expect(node("Int?").jsType == .number)
     #expect(node("Point?").jsType == .object)
     // An unmodeled spelling has no known category.
-    #expect(node("(Int, Bool)").jsType == nil)
+    #expect(node("(x: Int, Bool)").jsType == nil)
   }
 }

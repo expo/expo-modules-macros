@@ -57,6 +57,11 @@ export type TypeNode =
       refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
     }
   /**
+   * A tuple of two or more elements. With `labels` (one per element), it crosses as an object with one
+   * property per label; without, as an array with one value per element.
+   */
+  | { kind: 'tuple'; typeof: JSType; elements: TypeNode[]; labels?: string[] }
+  /**
    * `SharedRef<T>`: a shared object that JS sees as an instance of `expo.SharedRef`. `native` is the
    * `T` it holds on the native side. It never reaches JS, so refs in it are not resolved.
    */
@@ -404,4 +409,4 @@ export interface ScanExportsResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 9;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 10;

@@ -142,13 +142,14 @@ final class SurfaceVisitor: SyntaxVisitor {
       guard scope.isEmpty else {
         return
       }
+      let aliases = TupleTypeAliases(in: members)
       let (functions, properties, events, _) = collectJSMembers(members)
       modules.append(
         ExportedModule(
           name: qualified,
           jsName: stringArgument(of: attribute) ?? name,
-          functions: functions,
-          properties: properties,
+          functions: functions.map(aliases.resolving),
+          properties: properties.map(aliases.resolving),
           events: events,
           // `jsName` is filled in by `ExportedSurface.resolvingRefs()`, since the `@SharedObject` can
           // be declared in another file.
@@ -164,7 +165,13 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
 
     if let attribute = attributes.firstAttribute(named: DetectedMacro.sharedObject.rawValue) {
-      let (functions, properties, events, initializer) = collectJSMembers(members)
+      let aliases = TupleTypeAliases(in: members)
+      var (functions, properties, events, initializer) = collectJSMembers(members)
+      functions = functions.map(aliases.resolving)
+      properties = properties.map(aliases.resolving)
+      if let parameters = initializer?.parameters {
+        initializer?.parameters = parameters.map(aliases.resolving)
+      }
       sharedObjects.append(
         ExportedSharedObject(
           name: qualified,

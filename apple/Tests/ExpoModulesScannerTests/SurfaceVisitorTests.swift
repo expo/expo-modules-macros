@@ -95,6 +95,49 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `Tuple type aliases in a module or shared object body resolve in @JS members`() throws {
+    let visitor = surface(
+      """
+      @ExpoModule
+      final class SpansModule {
+        typealias Span = (start: Int, end: Int)
+        typealias Spans = [Self.Span]
+        typealias Identifier = String
+
+        @JS
+        func merge(_ spans: Spans, id: Identifier) -> Span? { nil }
+      }
+
+      @SharedObject
+      final class Canvas: SharedObject {
+        typealias Size = (Double, Double)
+
+        @JS
+        init(size: Size) {}
+
+        @JS
+        var size: Size = (0, 0)
+      }
+      """
+    )
+    let span = TypeNode.tuple(
+      elements: [.primitive(name: "Int", jsType: .number), .primitive(name: "Int", jsType: .number)],
+      labels: ["start", "end"]
+    )
+    let merge = try #require(visitor.modules.first?.functions.first)
+    #expect(merge.parameters.map(\.type) == [.array(element: span), .ref(name: "Identifier")])
+    #expect(merge.returns == .optional(wrapped: span))
+
+    let size = TypeNode.tuple(
+      elements: [.primitive(name: "Double", jsType: .number), .primitive(name: "Double", jsType: .number)],
+      labels: nil
+    )
+    let canvas = try #require(visitor.sharedObjects.first)
+    #expect(canvas.initializer?.parameters.map(\.type) == [size])
+    #expect(canvas.properties.map(\.type) == [size])
+  }
+
+  @Test
   func `Reports closure parameters of a @JS function as function types`() throws {
     let module = try #require(
       surface(
