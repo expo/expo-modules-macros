@@ -95,20 +95,8 @@ struct SharedObjectMacroTests {
           init(image: SharedRef<UIImage>) {
             super.init(image.ref)
           }
-
-          private func `_assertTypesConformance_init`() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            `init`(SharedRef<UIImage>.self)
-          }
           @JavaScriptActor
           func merge(_ other: SharedRef<UIImage>) -> SharedRef<UIImage> { self }
-
-          private func _assertTypesConformance_merge() {
-            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            merge(SharedRef<UIImage>.self, SharedRef<UIImage>.self)
-          }
 
           public override class var _jsName: String {
             "ImageRef"
@@ -134,6 +122,15 @@ struct SharedObjectMacroTests {
             }
             let arg0 = try SharedRef<UIImage>.decode(arguments.unownedValue(at: 0), in: runtime)
             return ImageRef(image: arg0)
+          }
+
+          private func _assertTypesConformance() {
+            func `init`(image _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            `init`(image: SharedRef<UIImage>.self)
+            func merge(_: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            merge(SharedRef<UIImage>.self, returning: SharedRef<UIImage>.self)
           }
         }
         """
@@ -249,12 +246,6 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           var owner: SomeType!
 
-          private func _assertTypesConformance_owner() {
-            func owner(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            owner(SomeType.self, SomeType.self)
-          }
-
           public override class var _jsName: String {
             "Cache"
           }
@@ -272,6 +263,12 @@ struct SharedObjectMacroTests {
               _self.owner = try SomeType?.decode(arguments.unownedValue(at: 0), in: runtime)
             }
             prototype.defineProperty("owner", descriptor: ownerDescriptor)
+          }
+
+          private func _assertTypesConformance() {
+            func owner(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            owner(SomeType.self, SomeType.self)
           }
         }
         """
@@ -359,12 +356,6 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init(origin: borrowing Point) {}
 
-          private func `_assertTypesConformance_init`() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            `init`(Point.self)
-          }
-
           public override class var _jsName: String {
             "Cache"
           }
@@ -376,6 +367,12 @@ struct SharedObjectMacroTests {
             }
             let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
             return Cache(origin: arg0)
+          }
+
+          private func _assertTypesConformance() {
+            func `init`(origin _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            `init`(origin: Point.self)
           }
         }
         """
@@ -491,12 +488,6 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           static func open(_ path: String) -> Cache { Cache() }
 
-          private static func _assertTypesConformance_open() {
-            func open(_: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            open(Cache.self)
-          }
-
           public override class var _jsName: String {
             "Cache"
           }
@@ -511,6 +502,12 @@ struct SharedObjectMacroTests {
               let value = Cache.open(arg0)
               try Cache.encode(value, into: result, in: runtime)
             }
+          }
+
+          private func _assertTypesConformance() {
+            func open(returning _: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            open(returning: Cache.self)
           }
         }
         """
@@ -912,12 +909,6 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init(config: MyRecord) {}
 
-          private func `_assertTypesConformance_init`() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            `init`(MyRecord.self)
-          }
-
           public override class var _jsName: String {
             "Cache"
           }
@@ -929,6 +920,12 @@ struct SharedObjectMacroTests {
             }
             let arg0 = try MyRecord.decode(arguments.unownedValue(at: 0), in: runtime)
             return Cache(config: arg0)
+          }
+
+          private func _assertTypesConformance() {
+            func `init`(config _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            `init`(config: MyRecord.self)
           }
         }
         """
@@ -950,12 +947,6 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           init(config: MyRecord!) {}
 
-          private func `_assertTypesConformance_init`() {
-            func `init`(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            `init`(MyRecord.self)
-          }
-
           public override class var _jsName: String {
             "Cache"
           }
@@ -967,6 +958,12 @@ struct SharedObjectMacroTests {
             }
             let arg0 = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
             return Cache(config: arg0)
+          }
+
+          private func _assertTypesConformance() {
+            func `init`(config _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            `init`(config: MyRecord.self)
           }
         }
         """
@@ -987,12 +984,6 @@ struct SharedObjectMacroTests {
         final class Cache: SharedObject {
           @JavaScriptActor
           func resolve(_ input: MyRecord!) -> MyRecord! { input }
-
-          private func _assertTypesConformance_resolve() {
-            func resolve(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            resolve(MyRecord.self, MyRecord.self)
-          }
 
           public override class var _jsName: String {
             "Cache"
@@ -1015,6 +1006,12 @@ struct SharedObjectMacroTests {
               }
               try MyRecord?.encode(value, into: result, in: runtime)
             }
+          }
+
+          private func _assertTypesConformance() {
+            func resolve(_: (some JavaScriptDecodable & ~Copyable).Type, returning _: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            resolve(MyRecord.self, returning: MyRecord.self)
           }
         }
         """
@@ -1049,6 +1046,47 @@ struct SharedObjectMacroTests {
               }
               _self.`default`()
             }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Tuple type aliases in the shared object body resolve in @JS members`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Canvas: SharedObject {
+        typealias Size = (width: Double, height: Double)
+
+        @JS
+        var size: Size = (0, 0)
+      }
+      """,
+      expandedSource: """
+        final class Canvas: SharedObject {
+          typealias Size = (width: Double, height: Double)
+          @JavaScriptActor
+          var size: Size = (0, 0)
+
+          public override class var _jsName: String {
+            "Canvas"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let sizeDescriptor = runtime.createObject()
+            sizeDescriptor.setProperty("enumerable", value: true)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)
+              result.emplace(try JavaScriptValue.encodeTuple(_self.size as (Double, Double), labels: ["width", "height"], in: runtime))
+            }
+            sizeDescriptor.setProperty("set") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)
+              _self.size = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 0), labels: ["width", "height"], as: Double.self, Double.self, in: runtime)
+            }
+            prototype.defineProperty("size", descriptor: sizeDescriptor)
           }
         }
         """

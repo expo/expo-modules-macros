@@ -37,19 +37,41 @@ public struct JSMacro: PeerMacro {
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
     diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
 
-    guard let member = boundaryMember(of: declaration),
-      let assertion = directionalConformanceAssertion(
-        name: member.name,
-        decodableTypes: member.decodableTypes,
-        encodableType: member.encodableType,
-        callbackArgumentTypes: member.callbackArgumentTypes,
-        isStatic: member.isStatic
-      )
-    else {
+    // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
+    // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
+    guard !isInBindingClass(context), let assertion = jsConformanceAssertion(for: declaration) else {
       return []
     }
     return [assertion]
   }
+}
+
+/// The conformance-assertion peer for a `@JS` member, or `nil` when the member has no type to assert.
+private func jsConformanceAssertion(for declaration: some DeclSyntaxProtocol) -> DeclSyntax? {
+  guard let member = boundaryMember(of: declaration) else {
+    return nil
+  }
+  return directionalConformanceAssertion(name: member.name, types: member.types, isStatic: member.isStatic)
+}
+
+/// The conformance assertion of a `@JS` member, for an `@ExpoModule` or `@SharedObject` class to fold
+/// into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when the member has
+/// no type to assert.
+internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtocol) -> MemberConformanceAssertion? {
+  guard let member = boundaryMember(of: declaration) else {
+    return nil
+  }
+  return memberConformanceAssertion(name: member.name, types: member.types)
+}
+
+/// True when the member is declared directly in an `@ExpoModule` or `@SharedObject` class, whose macro
+/// binds it.
+private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
+  guard let classDecl = context.lexicalContext.first?.as(ClassDeclSyntax.self) else {
+    return false
+  }
+  return classDecl.attributes.firstAttribute(named: "ExpoModule") != nil
+    || classDecl.attributes.firstAttribute(named: "SharedObject") != nil
 }
 
 /// Emits the diagnostic for `@JS(.concurrent)` on a member that can't take it. The option maps to
@@ -323,28 +345,24 @@ private struct JSFixItMessage: FixItMessage {
   }
 }
 
-/// What an assertion peer needs about the `@JS` member it sits beside: a name (to keep the peer unique
-/// among siblings), the boundary types split by conversion direction, and whether the member is
-/// type-level. Arguments (and a settable property's incoming value) are decoded; return values (and a
-/// property's outgoing value) are encoded, so each is asserted against the protocol for its direction.
+/// What an assertion needs about a `@JS` member: a name (which names the helper), the boundary types in
+/// signature order, each with the protocol for the direction it travels and its argument label, and
+/// whether the member is type-level. Arguments (and a settable property's incoming value) are decoded;
+/// return values (and a property's outgoing value) are encoded, so each is asserted against the
+/// protocol for its direction.
 private struct BoundaryMember {
   let name: String
-  /// Types decoded from JS: function/constructor arguments, a settable property's value type, and the
-  /// return types of closure arguments.
-  let decodableTypes: [String]
-  /// The single type encoded to JS: a function's return type, or a property's value type on read;
-  /// `nil` when the member produces nothing JS-visible (a `Void` function).
-  let encodableType: String?
-  /// The parameter types of closure arguments, encoded to JS when native code calls the closure.
-  var callbackArgumentTypes: [String] = []
+  /// The types crossing the boundary, in signature order.
+  let types: [AssertedType]
   /// True for `static`/`class` members, so the peer is emitted in the same metatype context.
   let isStatic: Bool
 }
 
-/// Reads the boundary member off a `@JS` declaration, splitting its types by conversion direction. A
-/// function contributes its parameter types (decodable) and its return type when non-Void (encodable);
-/// an initializer contributes its parameter types; a property contributes its value type as encodable
-/// (the getter) and also as decodable when settable (the setter). Composed types (`[Int]`, `String?`,
+/// Reads the boundary member off a `@JS` declaration, with each type's conversion direction. A function
+/// contributes its parameter types (decodable) under their argument labels and its return type when
+/// non-Void (encodable) under `returning`; an initializer contributes its parameter types; a property
+/// contributes its value type, unlabeled, as decodable when settable (the setter) and as encodable (the
+/// getter). Composed types (`[Int]`, `String?`,
 /// …) are kept verbatim, their conditional conformances transitively constraining the elements. A type
 /// that mentions `Any` is left out: it converts through the free-form methods, or is diagnosed by
 /// `diagnoseFreeFormTypes`. Returns `nil` for declaration kinds `@JS` doesn't read types from, a
@@ -352,30 +370,28 @@ private struct BoundaryMember {
 /// mentions `Any`.
 private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> BoundaryMember? {
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
-    let argumentTypes = argumentBoundaryTypes(of: funcDecl.signature.parameterClause.parameters)
-    let returnType = funcDecl.signature.returnClause?.type
-    let encodableType = returnType.flatMap {
-      isVoidType($0) || containsFunctionType($0) || mentionsFreeFormAny($0) ? nil : $0.trimmedDescription
+    var types = argumentBoundaryTypes(of: funcDecl.signature.parameterClause.parameters)
+    if let returnType = funcDecl.signature.returnClause?.type,
+      !isVoidType(returnType) && !containsFunctionType(returnType) && !mentionsFreeFormAny(returnType)
+    {
+      types.append(
+        AssertedType(
+          label: "returning",
+          type: returnType.trimmedDescription,
+          constraint: javaScriptEncodableProtocolName
+        )
+      )
     }
-    return BoundaryMember(
-      name: funcDecl.name.text,
-      decodableTypes: argumentTypes.decodable,
-      encodableType: encodableType,
-      callbackArgumentTypes: argumentTypes.callbackArguments,
-      isStatic: isTypeLevel(funcDecl.modifiers)
-    )
+    return BoundaryMember(name: funcDecl.name.text, types: types, isStatic: isTypeLevel(funcDecl.modifiers))
   }
 
   if let initDecl = declaration.as(InitializerDeclSyntax.self) {
     // A constructor decodes its arguments like a function does, and the instance it returns isn't
     // encoded. The name is escaped because it also names the assertion's nested helper, and `init` is
     // a keyword.
-    let argumentTypes = argumentBoundaryTypes(of: initDecl.signature.parameterClause.parameters)
     return BoundaryMember(
       name: "`init`",
-      decodableTypes: argumentTypes.decodable,
-      encodableType: nil,
-      callbackArgumentTypes: argumentTypes.callbackArguments,
+      types: argumentBoundaryTypes(of: initDecl.signature.parameterClause.parameters),
       isStatic: false
     )
   }
@@ -395,10 +411,11 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
     let typeText = type.trimmedDescription
     let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
     let isSettable = isVar && !isLazy(varDecl.modifiers) && bindingIsSettable(binding)
+    let decodable = AssertedType(label: nil, type: typeText, constraint: javaScriptDecodableProtocolName)
+    let encodable = AssertedType(label: nil, type: typeText, constraint: javaScriptEncodableProtocolName)
     return BoundaryMember(
       name: identifier.identifier.text,
-      decodableTypes: isSettable ? [typeText] : [],
-      encodableType: typeText,
+      types: (isSettable ? [decodable] : []) + [encodable],
       isStatic: isTypeLevel(varDecl.modifiers)
     )
   }
@@ -406,18 +423,16 @@ private func boundaryMember(of declaration: some DeclSyntaxProtocol) -> Boundary
   return nil
 }
 
-/// The boundary types of a function's or constructor's arguments: an argument is decoded from JS, and
-/// a closure argument instead contributes its parameter types (encoded when native code calls it) and
-/// its return type (decoded).
-private func argumentBoundaryTypes(
-  of parameters: FunctionParameterListSyntax
-) -> (decodable: [String], callbackArguments: [String]) {
+/// The boundary types of a function's or constructor's arguments, under their argument labels: an
+/// argument is decoded from JS, and a closure argument instead contributes its parameter types (encoded
+/// when native code calls it) and its return type (decoded).
+private func argumentBoundaryTypes(of parameters: FunctionParameterListSyntax) -> [AssertedType] {
   // A closure argument moves data the other way: JS receives its parameters and returns its result.
   // A closure in any other position is diagnosed by `diagnoseClosureTypes` and left out here, since
   // its metatype isn't a valid expression in the assertion.
-  var decodableTypes: [String] = []
-  var callbackArgumentTypes: [String] = []
+  var types: [AssertedType] = []
   for parameter in parameters {
+    let label = parameter.firstName.tokenKind == .wildcard ? nil : parameter.firstName.text
     // The specifier isn't part of the asserted type, and a parameter with one the binding can't honor
     // is reported by `diagnoseParameterSpecifiers` and not asserted.
     let specified = SpecifiedType(parameter.type)
@@ -426,23 +441,25 @@ private func argumentBoundaryTypes(
     }
     guard let closure = JSClosureType(specified.type) else {
       if !containsFunctionType(specified.type) && !mentionsFreeFormAny(specified.type) {
-        decodableTypes.append(specified.type.trimmedDescription)
+        let type = specified.type.trimmedDescription
+        types.append(AssertedType(label: label, type: type, constraint: javaScriptDecodableProtocolName))
       }
       continue
     }
     // A closure type that mentions `Any` is reported by `diagnoseClosureTypes` instead.
     for parameter in closure.parameters
     where !containsFunctionType(parameter.type) && !mentionsFreeFormAny(parameter.type) {
-      callbackArgumentTypes.append(parameter.type.trimmedDescription)
+      let type = parameter.type.trimmedDescription
+      types.append(AssertedType(label: label, type: type, constraint: javaScriptEncodableProtocolName))
     }
     let closureReturnType = closure.functionType.returnClause.type
     if let returnType = closure.returnType,
       !containsFunctionType(closureReturnType) && !mentionsFreeFormAny(closureReturnType)
     {
-      decodableTypes.append(returnType)
+      types.append(AssertedType(label: label, type: returnType, constraint: javaScriptDecodableProtocolName))
     }
   }
-  return (decodableTypes, callbackArgumentTypes)
+  return types
 }
 
 /// True when a return clause is written as `Void` / `()` — nothing crosses the boundary, so it needs

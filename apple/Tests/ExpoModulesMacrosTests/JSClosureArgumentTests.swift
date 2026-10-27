@@ -90,12 +90,6 @@ struct JSClosureArgumentTests {
           @JavaScriptActor
           func measure(name: String, layout: (Point, Int) throws -> Size) throws {}
 
-          private func _assertTypesConformance_measure() {
-            func measure(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            measure(Size.self, Point.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -114,6 +108,12 @@ struct JSClosureArgumentTests {
               }
               try self.measure(name: arg0, layout: arg1)
             }
+          }
+
+          private func _assertTypesConformance() {
+            func measure(layout _: (some JavaScriptEncodable & ~Copyable).Type, layout _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            measure(layout: Point.self, layout: Size.self)
           }
         }
         """
@@ -135,12 +135,6 @@ struct JSClosureArgumentTests {
           @JavaScriptActor
           func lookup(resolve: (String?) throws -> Size?) {}
 
-          private func _assertTypesConformance_lookup() {
-            func lookup(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            lookup(Size.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -157,6 +151,12 @@ struct JSClosureArgumentTests {
               }
               self.lookup(resolve: arg0)
             }
+          }
+
+          private func _assertTypesConformance() {
+            func lookup(resolve _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            lookup(resolve: Size.self)
           }
         }
         """
@@ -178,12 +178,6 @@ struct JSClosureArgumentTests {
           @JavaScriptActor
           func load(fetch: @escaping @Sendable (Request) async throws -> Data) async throws -> Int { 0 }
 
-          private func _assertTypesConformance_load() {
-            func load(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            load(Data.self, Request.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -203,6 +197,12 @@ struct JSClosureArgumentTests {
                 }
               }
             }
+          }
+
+          private func _assertTypesConformance() {
+            func load(fetch _: (some JavaScriptEncodable & ~Copyable).Type, fetch _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            load(fetch: Request.self, fetch: Data.self)
           }
         }
         """
@@ -346,12 +346,6 @@ struct JSClosureArgumentTests {
           @JavaScriptActor
           func observe(handler: (borrowing Point, consuming Size, sending Item) throws -> Void) {}
 
-          private func _assertTypesConformance_observe() {
-            func observe(_: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-            }
-            observe(Point.self, Size.self, Item.self)
-          }
-
           public static let _jsName = "MyModule"
 
           @JavaScriptActor
@@ -370,6 +364,12 @@ struct JSClosureArgumentTests {
               }
               self.observe(handler: arg0)
             }
+          }
+
+          private func _assertTypesConformance() {
+            func observe(handler _: (some JavaScriptEncodable & ~Copyable).Type, handler _: (some JavaScriptEncodable & ~Copyable).Type, handler _: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            observe(handler: Point.self, handler: Size.self, handler: Item.self)
           }
         }
         """
@@ -746,9 +746,9 @@ struct JSClosureArgumentTests {
         func b(callback: (isolated Worker) throws -> Void) {}
 
         private func _assertTypesConformance_b() {
-          func b(_: (some JavaScriptEncodable & ~Copyable).Type) {
+          func b(callback _: (some JavaScriptEncodable & ~Copyable).Type) {
           }
-          b(Worker.self)
+          b(callback: Worker.self)
         }
         func c(callback: (Int...) throws -> Void) {}
         """,
