@@ -1,4 +1,4 @@
-import ExpoModulesScanner
+import ExpoModulesCLI
 import SwiftCompilerPlugin
 import SwiftSyntaxMacros
 

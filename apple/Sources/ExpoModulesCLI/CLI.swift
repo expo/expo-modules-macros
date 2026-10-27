@@ -80,7 +80,7 @@ public enum ScannerCLI {
 /// (the `ExpoModulesMacros` shipped in the package, or a locally built `ExpoModulesMacros-tool`).
 private var toolName: String {
   guard let path = CommandLine.arguments.first else {
-    return "ExpoModulesScanner"
+    return "ExpoModulesMacros"
   }
   // Windows paths may use either separator.
   return String(path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last ?? Substring(path))

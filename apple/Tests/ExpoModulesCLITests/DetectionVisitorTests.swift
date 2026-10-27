@@ -2,7 +2,7 @@ import Foundation
 import SwiftParser
 import Testing
 
-@testable import ExpoModulesScanner
+@testable import ExpoModulesCLI
 
 /// Parses a source string and returns the detections the visitor records for it, considering all
 /// macros by default. The file name is fixed so location assertions are stable; only `line`/`column`

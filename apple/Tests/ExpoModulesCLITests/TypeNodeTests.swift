@@ -3,7 +3,7 @@ import SwiftParser
 import SwiftSyntax
 import Testing
 
-@testable import ExpoModulesScanner
+@testable import ExpoModulesCLI
 
 /// Parses a Swift type spelling into a `TypeNode`, the way the surface visitor does for a boundary
 /// type. Wraps the spelling in a throwaway declaration so the parser yields a `TypeSyntax`.

@@ -2,7 +2,7 @@ import Foundation
 import SwiftParser
 import Testing
 
-@testable import ExpoModulesScanner
+@testable import ExpoModulesCLI
 
 /// Parses a source string and returns the exported surface the visitor extracts. The file name is
 /// fixed so any per-type `file` field is stable across runs.
