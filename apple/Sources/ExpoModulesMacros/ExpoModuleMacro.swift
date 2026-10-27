@@ -49,7 +49,7 @@ public struct ExpoModuleMacro: MemberMacro {
     // DSL entry.
     var functions: [JSFunction] = []
     var properties: [JSProperty] = []
-    var assertions: [String] = []
+    var assertions: [MemberConformanceAssertion] = []
     let aliases = TupleTypeAliases(in: classDecl.memberBlock)
 
     for member in classDecl.memberBlock.members {

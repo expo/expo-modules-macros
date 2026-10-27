@@ -111,11 +111,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            do {
-              func measure(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-              }
-              measure(Size.self, Point.self)
+            func measure(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
+            measure(Size.self, Point.self)
           }
         }
         """
@@ -156,11 +154,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            do {
-              func lookup(_: (some JavaScriptDecodable & ~Copyable).Type) {
-              }
-              lookup(Size.self)
+            func lookup(_: (some JavaScriptDecodable & ~Copyable).Type) {
             }
+            lookup(Size.self)
           }
         }
         """
@@ -204,11 +200,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            do {
-              func load(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-              }
-              load(Data.self, Request.self)
+            func load(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
+            load(Data.self, Request.self)
           }
         }
         """
@@ -373,11 +367,9 @@ struct JSClosureArgumentTests {
           }
 
           private func _assertTypesConformance() {
-            do {
-              func observe(_: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
-              }
-              observe(Point.self, Size.self, Item.self)
+            func observe(_: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type, _: (some JavaScriptEncodable & ~Copyable).Type) {
             }
+            observe(Point.self, Size.self, Item.self)
           }
         }
         """

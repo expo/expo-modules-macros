@@ -60,19 +60,21 @@ private func jsConformanceAssertion(for declaration: some DeclSyntaxProtocol) ->
   )
 }
 
-/// The body of a `@JS` member's conformance assertion, for an `@ExpoModule` or `@SharedObject` class
-/// to fold into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when the
-/// member has no type to assert.
-internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtocol) -> String? {
-  guard let member = boundaryMember(of: declaration) else {
+/// The conformance assertion of a `@JS` member, for an `@ExpoModule` or `@SharedObject` class to fold
+/// into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when the member has
+/// no type to assert.
+internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtocol) -> MemberConformanceAssertion? {
+  guard let member = boundaryMember(of: declaration),
+    let body = directionalConformanceAssertionBody(
+      name: member.name,
+      decodableTypes: member.decodableTypes,
+      encodableType: member.encodableType,
+      callbackArgumentTypes: member.callbackArgumentTypes
+    )
+  else {
     return nil
   }
-  return directionalConformanceAssertionBody(
-    name: member.name,
-    decodableTypes: member.decodableTypes,
-    encodableType: member.encodableType,
-    callbackArgumentTypes: member.callbackArgumentTypes
-  )
+  return MemberConformanceAssertion(name: member.name, body: body)
 }
 
 /// True when the member is declared directly in an `@ExpoModule` or `@SharedObject` class, whose macro

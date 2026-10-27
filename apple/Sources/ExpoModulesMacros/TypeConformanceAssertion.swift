@@ -233,16 +233,33 @@ private func unwrappedOptional(_ type: String) -> String {
   return String(result)
 }
 
+/// The conformance assertion of one `@JS` member, for an `@ExpoModule` or `@SharedObject` class to fold
+/// into its `_assertTypesConformance()` (see `classConformanceAssertions`): the member-named helper and
+/// its call.
+internal struct MemberConformanceAssertion {
+  /// The member's name, which also names the helper.
+  let name: String
+  /// The helper's declaration and its call.
+  let body: String
+}
+
 /// One assertion member covering the `@JS` members of an `@ExpoModule` or `@SharedObject` class, which
-/// the class macro emits in place of the `@JS` peers. Each member's helper sits in its own `do` block,
-/// so overloaded members' helpers, which share a name, don't collide. Returns `nil` when no member has a
-/// type to assert.
-internal func classConformanceAssertions(_ bodies: [String]) -> DeclSyntax? {
-  guard !bodies.isEmpty else {
+/// the class macro emits in place of the `@JS` peers. The helpers are local functions named after their
+/// members, so overloaded members' helpers would redeclare the same function: a helper whose name repeats
+/// sits in its own `do` block. Returns `nil` when no member has a type to assert.
+internal func classConformanceAssertions(_ assertions: [MemberConformanceAssertion]) -> DeclSyntax? {
+  guard !assertions.isEmpty else {
     return nil
   }
-  let blocks = bodies.map { body in
-    let indented = body.split(separator: "\n").map { "  \($0)" }.joined(separator: "\n")
+  var nameCounts: [String: Int] = [:]
+  for assertion in assertions {
+    nameCounts[assertion.name, default: 0] += 1
+  }
+  let blocks = assertions.map { assertion in
+    guard nameCounts[assertion.name, default: 0] > 1 else {
+      return assertion.body
+    }
+    let indented = assertion.body.split(separator: "\n").map { "  \($0)" }.joined(separator: "\n")
     return "do {\n\(indented)\n}"
   }
   return """

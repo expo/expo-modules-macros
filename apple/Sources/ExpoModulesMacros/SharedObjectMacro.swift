@@ -50,7 +50,7 @@ public struct SharedObjectMacro: MemberMacro {
     var staticFunctions: [JSFunction] = []
     var staticProperties: [JSProperty] = []
     var constructor: JSConstructor?
-    var assertions: [String] = []
+    var assertions: [MemberConformanceAssertion] = []
     let aliases = TupleTypeAliases(in: classDecl.memberBlock)
 
     for member in classDecl.memberBlock.members {
