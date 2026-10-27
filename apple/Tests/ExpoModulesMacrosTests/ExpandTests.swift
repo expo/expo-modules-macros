@@ -1,5 +1,5 @@
-import ExpoModulesMacros
 import ExpoModulesCLI
+import ExpoModulesMacros
 import Testing
 
 @Suite("expand")
