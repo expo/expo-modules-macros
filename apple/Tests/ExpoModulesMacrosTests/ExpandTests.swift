@@ -32,7 +32,7 @@ struct ExpandTests {
     #expect(expansion.source.contains("public static let _jsName = \"MyModule\""))
     #expect(expansion.source.contains("object.setProperty(\"greet\")"))
     #expect(expansion.source.contains("object.setProperty(\"add\")"))
-    #expect(expansion.source.contains("extension MyModule.Options: Record {"))
+    #expect(expansion.source.contains("extension MyModule.Options: nonisolated Record {"))
     #expect(!expansion.source.contains("@JS"))
   }
 
@@ -71,7 +71,7 @@ struct ExpandTests {
     let result = expandMacros(source: module, file: "MyModule.swift", symbols: ["MyModule.Options"])
     let expansion = try #require(result.expansions.only)
     #expect(expansion.source.hasPrefix("struct Options {\n  var verbose: Bool = false\n"))
-    #expect(expansion.source.contains("\n}\n\nextension MyModule.Options: Record {"))
+    #expect(expansion.source.contains("\n}\n\nextension MyModule.Options: nonisolated Record {"))
     #expect(!expansion.source.contains("_jsName"))
   }
 
@@ -220,8 +220,8 @@ struct ExpandTests {
     let expansion = try #require(
       expandMacros(source: source, file: "f.swift", symbols: ["MyModule.Options"]).expansions.only
     )
-    #expect(expansion.source.contains("extension MyModule.Options: Record {"))
-    #expect(!expansion.source.contains("extension Options: Record {"))
+    #expect(expansion.source.contains("extension MyModule.Options: nonisolated Record {"))
+    #expect(!expansion.source.contains("extension Options: nonisolated Record {"))
   }
 
   @Test

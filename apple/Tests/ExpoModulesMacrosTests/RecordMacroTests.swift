@@ -53,11 +53,11 @@ struct RecordMacroTests {
           var count: Int = 0
           var note: String?
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(name: String, count: Int, note: String? = nil) {
+          nonisolated public init(name: String, count: Int, note: String? = nil) {
             self.name = name
             self.count = count
             self.note = note
@@ -71,7 +71,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["name"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("name")
@@ -84,7 +84,7 @@ struct RecordMacroTests {
             return Self(name: field0, count: field1, note: field2)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["name"] = self.name
             dictionary["count"] = self.count
@@ -97,7 +97,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -161,7 +161,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -186,10 +186,10 @@ struct RecordMacroTests {
             owner(MyRecord.self)
           }
 
-          public init() {
+          nonisolated public init() {
           }
 
-          public init(owner: MyRecord! = nil) {
+          nonisolated public init(owner: MyRecord! = nil) {
             self.owner = owner
           }
 
@@ -201,13 +201,13 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["owner"]
             let field0: MyRecord! = (entry0 == nil || entry0! is NSNull) ? nil : try MyRecord?.getDynamicType().cast(entry0, appContext: appContext) as! MyRecord?
             return Self(owner: field0)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["owner"] = self.owner
             return dictionary
@@ -218,7 +218,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -265,7 +265,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -297,11 +297,11 @@ struct RecordMacroTests {
             tags([Tag].self)
           }
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(primary: MyRecord, tags: [Tag], count: Int) {
+          nonisolated public init(primary: MyRecord, tags: [Tag], count: Int) {
             self.primary = primary
             self.tags = tags
             self.count = count
@@ -315,7 +315,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["primary"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("primary")
@@ -331,7 +331,7 @@ struct RecordMacroTests {
             return Self(primary: field0, tags: field1, count: field2)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["primary"] = self.primary
             dictionary["tags"] = self.tags
@@ -344,7 +344,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -411,7 +411,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -434,11 +434,11 @@ struct RecordMacroTests {
           var labels: [String: String]
           var tags: Set<String>
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(grid: [[Int]], labels: [String: String], tags: Set<String>) {
+          nonisolated public init(grid: [[Int]], labels: [String: String], tags: Set<String>) {
             self.grid = grid
             self.labels = labels
             self.tags = tags
@@ -452,7 +452,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["grid"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("grid")
@@ -471,7 +471,7 @@ struct RecordMacroTests {
             return Self(grid: field0, labels: field1, tags: field2)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["grid"] = self.grid
             dictionary["labels"] = self.labels
@@ -484,7 +484,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -554,7 +554,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Layout: Record {
+        extension Layout: nonisolated Record {
         }
         """
     )
@@ -579,10 +579,10 @@ struct RecordMacroTests {
           var count = 0
           var flag = false
 
-          public init() {
+          nonisolated public init() {
           }
 
-          public init(name: String, ratio: Double, count: Int, flag: Bool) {
+          nonisolated public init(name: String, ratio: Double, count: Int, flag: Bool) {
             self.name = name
             self.ratio = ratio
             self.count = count
@@ -597,7 +597,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["name"]
             let field0 = entry0 == nil ? "foo" : try String.getDynamicType().cast(entry0, appContext: appContext) as! String
             let entry1 = dictionary["ratio"]
@@ -609,7 +609,7 @@ struct RecordMacroTests {
             return Self(name: field0, ratio: field1, count: field2, flag: field3)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["name"] = self.name
             dictionary["ratio"] = self.ratio
@@ -623,7 +623,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -691,7 +691,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -711,7 +711,7 @@ struct RecordMacroTests {
           var items = []
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -745,11 +745,11 @@ struct RecordMacroTests {
           fileprivate var hidden: Bool = false
           var computed: Int { 1 }
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(name: String) {
+          nonisolated public init(name: String) {
             self.name = name
           }
 
@@ -761,7 +761,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["name"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("name")
@@ -770,7 +770,7 @@ struct RecordMacroTests {
             return Self(name: field0)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["name"] = self.name
             return dictionary
@@ -781,7 +781,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -831,7 +831,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -848,7 +848,7 @@ struct RecordMacroTests {
       expandedSource: """
         struct Empty {
 
-          public init() {
+          nonisolated public init() {
 
           }
 
@@ -860,11 +860,11 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             return Self()
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             return dictionary
           }
@@ -897,7 +897,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Empty: Record {
+        extension Empty: nonisolated Record {
         }
         """
     )
@@ -918,10 +918,10 @@ struct RecordMacroTests {
           var x: Double = 0
           var y: Double = 0
 
-          public init() {
+          nonisolated public init() {
           }
 
-          public init(x: Double, y: Double) {
+          nonisolated public init(x: Double, y: Double) {
             self.x = x
             self.y = y
           }
@@ -934,7 +934,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["x"]
             let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
             let entry1 = dictionary["y"]
@@ -942,7 +942,7 @@ struct RecordMacroTests {
             return Self(x: field0, y: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["x"] = self.x
             dictionary["y"] = self.y
@@ -954,7 +954,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1008,7 +1008,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Point: Record {
+        extension Point: nonisolated Record {
         }
         """
     )
@@ -1165,11 +1165,11 @@ struct RecordMacroTests {
         final class Options {
           var name: String
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(name: String) {
+          nonisolated public init(name: String) {
             self.name = name
           }
 
@@ -1181,7 +1181,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["name"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("name")
@@ -1190,7 +1190,7 @@ struct RecordMacroTests {
             return Self(name: field0)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["name"] = self.name
             return dictionary
@@ -1201,7 +1201,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1251,7 +1251,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -1270,11 +1270,11 @@ struct RecordMacroTests {
         struct Options: Record {
           var name: String
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(name: String) {
+          nonisolated public init(name: String) {
             self.name = name
           }
 
@@ -1286,7 +1286,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["name"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("name")
@@ -1295,7 +1295,7 @@ struct RecordMacroTests {
             return Self(name: field0)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["name"] = self.name
             return dictionary
@@ -1306,7 +1306,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1375,7 +1375,7 @@ struct RecordMacroTests {
           @Field var defaultName = "foo"
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -1436,7 +1436,7 @@ struct RecordMacroTests {
             y = 2
           }
 
-          public init(x: Double, y: Double) {
+          nonisolated public init(x: Double, y: Double) {
             self.x = x
             self.y = y
           }
@@ -1449,7 +1449,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["x"]
             let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
             let entry1 = dictionary["y"]
@@ -1457,7 +1457,7 @@ struct RecordMacroTests {
             return Self(x: field0, y: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["x"] = self.x
             dictionary["y"] = self.y
@@ -1469,7 +1469,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1523,7 +1523,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -1554,7 +1554,7 @@ struct RecordMacroTests {
             self.y = y
           }
 
-          public init() {
+          nonisolated public init() {
           }
 
           @JavaScriptActor
@@ -1565,7 +1565,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["x"]
             let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
             let entry1 = dictionary["y"]
@@ -1573,7 +1573,7 @@ struct RecordMacroTests {
             return Self(x: field0, y: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["x"] = self.x
             dictionary["y"] = self.y
@@ -1585,7 +1585,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1639,7 +1639,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -1666,7 +1666,7 @@ struct RecordMacroTests {
             self.default = `default`
           }
 
-          public init() {
+          nonisolated public init() {
           }
 
           @JavaScriptActor
@@ -1677,13 +1677,13 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["default"]
             let field0 = entry0 == nil ? 0 : try Int.getDynamicType().cast(entry0, appContext: appContext) as! Int
             return Self(`default`: field0)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["default"] = self.`default`
             return dictionary
@@ -1694,7 +1694,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1741,7 +1741,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -1764,11 +1764,11 @@ struct RecordMacroTests {
           var name: String
           var attributes: [String: Any]?
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(name: String, attributes: [String: Any]? = nil) {
+          nonisolated public init(name: String, attributes: [String: Any]? = nil) {
             self.name = name
             self.attributes = attributes
           }
@@ -1781,7 +1781,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["name"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("name")
@@ -1792,7 +1792,7 @@ struct RecordMacroTests {
             return Self(name: field0, attributes: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["name"] = self.name
             dictionary["attributes"] = self.attributes
@@ -1804,7 +1804,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1861,7 +1861,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Report: Record {
+        extension Report: nonisolated Record {
         }
         """
     )
@@ -1886,11 +1886,11 @@ struct RecordMacroTests {
           var meta: [String : Any] = [:]
           var groups: [String: [Any]]?
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(items: [Any], meta: [String : Any], groups: [String: [Any]]? = nil) {
+          nonisolated public init(items: [Any], meta: [String : Any], groups: [String: [Any]]? = nil) {
             self.items = items
             self.meta = meta
             self.groups = groups
@@ -1904,7 +1904,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["items"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("items")
@@ -1917,7 +1917,7 @@ struct RecordMacroTests {
             return Self(items: field0, meta: field1, groups: field2)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["items"] = self.items
             dictionary["meta"] = self.meta
@@ -1930,7 +1930,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -1994,7 +1994,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Payload: Record {
+        extension Payload: nonisolated Record {
         }
         """
     )
@@ -2015,11 +2015,11 @@ struct RecordMacroTests {
           var value: Any
           var maybe: Any?
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(value: Any, maybe: Any? = nil) {
+          nonisolated public init(value: Any, maybe: Any? = nil) {
             self.value = value
             self.maybe = maybe
           }
@@ -2032,7 +2032,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["value"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("value")
@@ -2043,7 +2043,7 @@ struct RecordMacroTests {
             return Self(value: field0, maybe: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["value"] = self.value
             dictionary["maybe"] = self.maybe
@@ -2055,7 +2055,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -2112,7 +2112,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Payload: Record {
+        extension Payload: nonisolated Record {
         }
         """
     )
@@ -2132,7 +2132,7 @@ struct RecordMacroTests {
           var value: \(type)
         }
 
-        extension Payload: Record {
+        extension Payload: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -2161,11 +2161,11 @@ struct RecordMacroTests {
           var value: Swift.Any
           var list: [Swift.Any]?
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(value: Swift.Any, list: [Swift.Any]? = nil) {
+          nonisolated public init(value: Swift.Any, list: [Swift.Any]? = nil) {
             self.value = value
             self.list = list
           }
@@ -2178,7 +2178,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["value"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("value")
@@ -2189,7 +2189,7 @@ struct RecordMacroTests {
             return Self(value: field0, list: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["value"] = self.value
             dictionary["list"] = self.list
@@ -2201,7 +2201,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -2258,7 +2258,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Payload: Record {
+        extension Payload: nonisolated Record {
         }
         """
     )
@@ -2279,11 +2279,11 @@ struct RecordMacroTests {
           var `default`: Int = 0
           var `class`: String
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(`default`: Int, `class`: String) {
+          nonisolated public init(`default`: Int, `class`: String) {
             self.`default` = `default`
             self.`class` = `class`
           }
@@ -2296,7 +2296,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["default"]
             let field0 = entry0 == nil ? 0 : try Int.getDynamicType().cast(entry0, appContext: appContext) as! Int
             let entry1 = dictionary["class"]
@@ -2307,7 +2307,7 @@ struct RecordMacroTests {
             return Self(`default`: field0, `class`: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["default"] = self.`default`
             dictionary["class"] = self.`class`
@@ -2319,7 +2319,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -2376,7 +2376,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """
     )
@@ -2397,11 +2397,11 @@ struct RecordMacroTests {
           var object: String
           var count: Int = 0
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(object: String, count: Int) {
+          nonisolated public init(object: String, count: Int) {
             self.object = object
             self.count = count
           }
@@ -2414,7 +2414,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["object"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("object")
@@ -2425,7 +2425,7 @@ struct RecordMacroTests {
             return Self(object: field0, count: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["object"] = self.object
             dictionary["count"] = self.count
@@ -2437,7 +2437,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -2494,7 +2494,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Payload: Record {
+        extension Payload: nonisolated Record {
         }
         """
     )
@@ -2521,11 +2521,11 @@ struct RecordMacroTests {
           var name: String
           var nameValue: Int = 0
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(dictionary: String, appContext: String, runtime: String, name: String, nameValue: Int) {
+          nonisolated public init(dictionary: String, appContext: String, runtime: String, name: String, nameValue: Int) {
             self.dictionary = dictionary
             self.appContext = appContext
             self.runtime = runtime
@@ -2541,7 +2541,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["dictionary"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("dictionary")
@@ -2567,7 +2567,7 @@ struct RecordMacroTests {
             return Self(dictionary: field0, appContext: field1, runtime: field2, name: field3, nameValue: field4)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["dictionary"] = self.dictionary
             dictionary["appContext"] = self.appContext
@@ -2582,7 +2582,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -2669,7 +2669,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Conflicts: Record {
+        extension Conflicts: nonisolated Record {
         }
         """
     )
@@ -2694,11 +2694,11 @@ struct RecordMacroTests {
             value(T.self)
           }
 
-          public init() {
+          nonisolated public init() {
             fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
           }
 
-          public init(value: T) {
+          nonisolated public init(value: T) {
             self.value = value
           }
 
@@ -2710,7 +2710,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["value"]
             guard let entry0 else {
               throw RecordPropertyRequiredException("value")
@@ -2719,7 +2719,7 @@ struct RecordMacroTests {
             return Self(value: field0)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["value"] = self.value
             return dictionary
@@ -2761,7 +2761,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Box: Record {
+        extension Box: nonisolated Record {
         }
         """
     )
@@ -2783,11 +2783,11 @@ struct RecordMacroTests {
           struct Options {
             var name: String
 
-            public init() {
+            nonisolated public init() {
               fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
             }
 
-            public init(name: String) {
+            nonisolated public init(name: String) {
               self.name = name
             }
 
@@ -2799,7 +2799,7 @@ struct RecordMacroTests {
               }
             }
 
-            public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
               let entry0 = dictionary["name"]
               guard let entry0 else {
                 throw RecordPropertyRequiredException("name")
@@ -2808,7 +2808,7 @@ struct RecordMacroTests {
               return Self(name: field0)
             }
 
-            public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
               var dictionary: [String: Any] = [:]
               dictionary["name"] = self.name
               return dictionary
@@ -2851,7 +2851,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Outer.Options: Record {
+        extension Outer.Options: nonisolated Record {
         }
         """
     )
@@ -2873,7 +2873,7 @@ struct RecordMacroTests {
           var onTap: (Int) -> Void
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -2901,7 +2901,7 @@ struct RecordMacroTests {
           var handlers: [String: ((Any) -> Void)?] = [:]
         }
 
-        extension Options: Record {
+        extension Options: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -2930,10 +2930,10 @@ struct RecordMacroTests {
           var range: (start: Int, end: Int) = (0, 0)
           var points: [(Double, Double)]?
 
-          public init() {
+          nonisolated public init() {
           }
 
-          public init(range: (start: Int, end: Int), points: [(Double, Double)]? = nil) {
+          nonisolated public init(range: (start: Int, end: Int), points: [(Double, Double)]? = nil) {
             self.range = range
             self.points = points
           }
@@ -2946,7 +2946,7 @@ struct RecordMacroTests {
             }
           }
 
-          public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
             let entry0 = dictionary["range"]
             let field0 = entry0 == nil ? (0, 0) : try { () throws -> (start: Int, end: Int) in
               guard let value = entry0 as? (start: Int, end: Int) else {
@@ -2964,7 +2964,7 @@ struct RecordMacroTests {
             return Self(range: field0, points: field1)
           }
 
-          public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
             var dictionary: [String: Any] = [:]
             dictionary["range"] = self.range
             dictionary["points"] = self.points
@@ -2976,7 +2976,7 @@ struct RecordMacroTests {
             return try Self.encode(self, in: appContext.runtime).asObject()
           }
 
-          private final class _PropNames {
+          nonisolated private final class _PropNames {
             static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
 
             let _name0: JavaScriptPropNameID
@@ -3050,7 +3050,7 @@ struct RecordMacroTests {
           }
         }
 
-        extension Segment: Record {
+        extension Segment: nonisolated Record {
         }
         """
     )

@@ -98,7 +98,9 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
       return []
     }
 
-    let conformances = missing.map { $0.trimmedDescription }.joined(separator: ", ")
+    // `nonisolated` keeps the conformances usable on the JavaScript thread when the module builds with
+    // a default isolation, which would otherwise isolate them to the main actor.
+    let conformances = missing.map { "nonisolated \($0.trimmedDescription)" }.joined(separator: ", ")
     let ext: DeclSyntax = """
       extension \(type.trimmed): \(raw: conformances) {}
       """
@@ -298,7 +300,7 @@ private func decodableKindsProperty(union: UnionType) -> DeclSyntax {
   // optimizer folds it to a constant after specialization, the same as a chain of `union(_:)` calls.
   let expression = kinds.count == 1 ? kinds[0] : "[\(kinds.joined(separator: ", "))]"
   return """
-    public static var decodableKinds: JavaScriptValueKinds {
+    nonisolated public static var decodableKinds: JavaScriptValueKinds {
       return \(raw: expression)
     }
     """
@@ -367,7 +369,7 @@ private func accessorMethods(union: UnionType) -> [DeclSyntax] {
     let mismatch =
       "(unionName: \"\(union.name)\", received: _payloadTypeName, expected: [\"\(unionCase.payloadType)\"])"
     return """
-      public func `as`(_ type: \(raw: payloadType).Type) throws -> \(raw: payloadType) {
+      nonisolated public func `as`(_ type: \(raw: payloadType).Type) throws -> \(raw: payloadType) {
         if case \(raw: unionCase.pattern) = self {
           return payload
         }
@@ -389,7 +391,7 @@ private func payloadTypeNameProperty(union: UnionType) -> DeclSyntax {
   lines.append("  }")
   let body = lines.joined(separator: "\n")
   return """
-    private var _payloadTypeName: String {
+    nonisolated private var _payloadTypeName: String {
     \(raw: body)
     }
     """
