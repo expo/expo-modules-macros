@@ -13,7 +13,8 @@ import SwiftSyntaxMacros
 ///   synthesizes the `appContext` storage and `init(appContext:)` those base classes provide.
 /// - `MemberAttributeMacro`: stamps `@JavaScriptActor` on `@JS` sync members and
 ///   `@ModuleDefinitionBuilder` on a `definition()` method.
-/// - `ExtensionMacro`: adds the `AnyModule` conformance when the class doesn't inherit it.
+/// - `ExtensionMacro`: adds the `AnyModule` conformance when the class doesn't inherit it, and an
+///   `@unchecked Sendable` conformance when the class isn't `Sendable` yet.
 ///
 /// Inheriting from `Module` is therefore optional — a class can carry any superclass (or
 /// none) and still be a module, because everything inheritance used to provide is synthesized.
@@ -219,15 +220,20 @@ extension ExpoModuleMacro: ExtensionMacro {
     guard !protocols.isEmpty else {
       return []
     }
+    var extensions: [ExtensionDeclSyntax] = []
     // These base types already supply `AnyModule`; emitting a second conformance here
     // would be redundant and error.
-    if let classDecl = declaration.as(ClassDeclSyntax.self),
-      inheritsFromAny(classDecl, names: ["Module", "BaseModule", "AnyModule"])
+    if protocols.contains(where: { $0.trimmedDescription == "AnyModule" }),
+      let classDecl = declaration.as(ClassDeclSyntax.self),
+      !inheritsFromAny(classDecl, names: ["Module", "BaseModule", "AnyModule"])
     {
-      return []
+      let conformance: DeclSyntax = "extension \(type.trimmed): AnyModule {}"
+      extensions.append(conformance.cast(ExtensionDeclSyntax.self))
     }
-    let conformance: DeclSyntax = "extension \(type.trimmed): AnyModule {}"
-    return [conformance.cast(ExtensionDeclSyntax.self)]
+    if let sendable = uncheckedSendableExtension(for: type, of: declaration, conformingTo: protocols) {
+      extensions.append(sendable)
+    }
+    return extensions
   }
 }
 

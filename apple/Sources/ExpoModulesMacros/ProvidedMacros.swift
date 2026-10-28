@@ -16,8 +16,8 @@ struct ProvidedMacro {
       ProvidedMacro(name: "OptimizedFunction", type: OptimizedFunctionAttachedMacro.self),
       ProvidedMacro(name: "JS", type: JSMacro.self),
       ProvidedMacro(name: "Event", type: EventMacro.self),
-      ProvidedMacro(name: "ExpoModule", type: ExpoModuleMacro.self, conformances: ["AnyModule"]),
-      ProvidedMacro(name: "SharedObject", type: SharedObjectMacro.self),
+      ProvidedMacro(name: "ExpoModule", type: ExpoModuleMacro.self, conformances: ["AnyModule", "Sendable"]),
+      ProvidedMacro(name: "SharedObject", type: SharedObjectMacro.self, conformances: ["Sendable"]),
       ProvidedMacro(name: "Record", type: RecordMacro.self, conformances: ["Record"]),
       ProvidedMacro(
         name: "Union",

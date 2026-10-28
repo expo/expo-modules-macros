@@ -21,6 +21,9 @@ import SwiftSyntaxMacros
 ///
 /// The companion `@ExpoModule(classes: [Cache.self])` registers the class with the module, which
 /// exposes it in its JavaScript object.
+///
+/// As an extension macro, it adds an `@unchecked Sendable` conformance when the class isn't
+/// `Sendable` yet.
 public struct SharedObjectMacro: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -166,5 +169,20 @@ extension SharedObjectMacro: MemberAttributeMacro {
       return []
     }
     return ["@JavaScriptActor"]
+  }
+}
+
+extension SharedObjectMacro: ExtensionMacro {
+  public static func expansion(
+    of node: AttributeSyntax,
+    attachedTo declaration: some DeclGroupSyntax,
+    providingExtensionsOf type: some TypeSyntaxProtocol,
+    conformingTo protocols: [TypeSyntax],
+    in context: some MacroExpansionContext
+  ) throws -> [ExtensionDeclSyntax] {
+    guard let sendable = uncheckedSendableExtension(for: type, of: declaration, conformingTo: protocols) else {
+      return []
+    }
+    return [sendable]
   }
 }
