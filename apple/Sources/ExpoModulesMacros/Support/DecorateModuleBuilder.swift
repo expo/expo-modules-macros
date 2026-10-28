@@ -334,13 +334,18 @@ internal struct JSFunction {
     // The parameter list is parenthesized and fully typed, since Swift rejects a type annotation on
     // a shorthand `{ [capture] name, name in }` parameter.
     // A sync function binds through the result-slot overload (`JavaScriptRuntime.HostFunctionClosure`):
-    // it encodes its result into the slot and gets the runtime as a parameter. A function that returns
-    // nothing writes nothing, so JS gets `undefined` without a value being built.
+    // it encodes its result into the slot and gets the runtime as a parameter. A sync function that
+    // returns nothing binds through the `Void` overload (`JavaScriptRuntime.VoidFunctionClosure`)
+    // instead, which leaves JS's result as `undefined`. A call through it is faster than through a
+    // result-slot closure that writes nothing. The closure declares `-> Void` because a body of several
+    // statements without a `return` is otherwise ambiguous between the overloads.
     let captures = receiver.captureClause
     let parameters =
       isAsync
       ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
-      : resultSlotClosureParameters
+      : returnType == nil
+        ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void"
+        : resultSlotClosureParameters
 
     return """
         \(object).setProperty("\(jsName)") { \(captures)\(parameters) in
