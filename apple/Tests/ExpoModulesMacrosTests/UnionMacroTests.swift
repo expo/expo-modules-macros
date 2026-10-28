@@ -59,7 +59,7 @@ struct UnionMacroTests {
             options(SourceOptions.self)
           }
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [String.decodableKinds, SourceOptions.decodableKinds]
           }
 
@@ -99,21 +99,21 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: _payloadTypeName, expected: ["String"]))
           }
 
-          public func `as`(_ type: SourceOptions.Type) throws -> SourceOptions {
+          nonisolated public func `as`(_ type: SourceOptions.Type) throws -> SourceOptions {
             if case .options(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: _payloadTypeName, expected: ["SourceOptions"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .text:
               return "String"
@@ -123,7 +123,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Source: JavaScriptDecodable, JavaScriptEncodable {
+        extension Source: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -144,7 +144,7 @@ struct UnionMacroTests {
           case named(String)
           case points(Double)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [String.decodableKinds, Double.decodableKinds]
           }
 
@@ -184,21 +184,21 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .named(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Size", received: _payloadTypeName, expected: ["String"]))
           }
 
-          public func `as`(_ type: Double.Type) throws -> Double {
+          nonisolated public func `as`(_ type: Double.Type) throws -> Double {
             if case .points(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Size", received: _payloadTypeName, expected: ["Double"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .named:
               return "String"
@@ -208,7 +208,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Size: JavaScriptDecodable, JavaScriptEncodable {
+        extension Size: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -229,7 +229,7 @@ struct UnionMacroTests {
           case grid([[Int]])
           case tags(Set<String>)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [[[Int]].decodableKinds, Set<String>.decodableKinds]
           }
 
@@ -269,21 +269,21 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: [[Int]].Type) throws -> [[Int]] {
+          nonisolated public func `as`(_ type: [[Int]].Type) throws -> [[Int]] {
             if case .grid(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Selection", received: _payloadTypeName, expected: ["[[Int]]"]))
           }
 
-          public func `as`(_ type: Set<String>.Type) throws -> Set<String> {
+          nonisolated public func `as`(_ type: Set<String>.Type) throws -> Set<String> {
             if case .tags(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Selection", received: _payloadTypeName, expected: ["Set<String>"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .grid:
               return "[[Int]]"
@@ -293,7 +293,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Selection: JavaScriptDecodable, JavaScriptEncodable {
+        extension Selection: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -330,7 +330,7 @@ struct UnionMacroTests {
             keyed([String: Point].self)
           }
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [Point.decodableKinds, [Point].decodableKinds, [String: Point].decodableKinds, Int?.decodableKinds]
           }
 
@@ -384,35 +384,35 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: Point.Type) throws -> Point {
+          nonisolated public func `as`(_ type: Point.Type) throws -> Point {
             if case .single(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Input", received: _payloadTypeName, expected: ["Point"]))
           }
 
-          public func `as`(_ type: [Point].Type) throws -> [Point] {
+          nonisolated public func `as`(_ type: [Point].Type) throws -> [Point] {
             if case .many(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Input", received: _payloadTypeName, expected: ["[Point]"]))
           }
 
-          public func `as`(_ type: [String: Point].Type) throws -> [String: Point] {
+          nonisolated public func `as`(_ type: [String: Point].Type) throws -> [String: Point] {
             if case .keyed(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Input", received: _payloadTypeName, expected: ["[String: Point]"]))
           }
 
-          public func `as`(_ type: Int?.Type) throws -> Int? {
+          nonisolated public func `as`(_ type: Int?.Type) throws -> Int? {
             if case .maybe(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Input", received: _payloadTypeName, expected: ["Int?"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .single:
               return "Point"
@@ -426,7 +426,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Input: JavaScriptDecodable, JavaScriptEncodable {
+        extension Input: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -447,7 +447,7 @@ struct UnionMacroTests {
           case id(value: Int)
           case name(_ value: String)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [Int.decodableKinds, String.decodableKinds]
           }
 
@@ -487,21 +487,21 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: Int.Type) throws -> Int {
+          nonisolated public func `as`(_ type: Int.Type) throws -> Int {
             if case .id(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Reference", received: _payloadTypeName, expected: ["Int"]))
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .name(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Reference", received: _payloadTypeName, expected: ["String"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .id:
               return "Int"
@@ -511,7 +511,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Reference: JavaScriptDecodable, JavaScriptEncodable {
+        extension Reference: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -530,7 +530,7 @@ struct UnionMacroTests {
         enum Scalar {
           case flag(Bool), count(Int)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [Bool.decodableKinds, Int.decodableKinds]
           }
 
@@ -570,21 +570,21 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: Bool.Type) throws -> Bool {
+          nonisolated public func `as`(_ type: Bool.Type) throws -> Bool {
             if case .flag(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Scalar", received: _payloadTypeName, expected: ["Bool"]))
           }
 
-          public func `as`(_ type: Int.Type) throws -> Int {
+          nonisolated public func `as`(_ type: Int.Type) throws -> Int {
             if case .count(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Scalar", received: _payloadTypeName, expected: ["Int"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .flag:
               return "Bool"
@@ -594,7 +594,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Scalar: JavaScriptDecodable, JavaScriptEncodable {
+        extension Scalar: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -619,7 +619,7 @@ struct UnionMacroTests {
             record(MyRecord.self)
           }
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return MyRecord?.decodableKinds
           }
 
@@ -652,14 +652,14 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: MyRecord?.Type) throws -> MyRecord? {
+          nonisolated public func `as`(_ type: MyRecord?.Type) throws -> MyRecord? {
             if case .record(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Slot", received: _payloadTypeName, expected: ["MyRecord!"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .record:
               return "MyRecord!"
@@ -667,7 +667,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Slot: JavaScriptDecodable, JavaScriptEncodable {
+        extension Slot: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -700,7 +700,7 @@ struct UnionMacroTests {
             return false
           }
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return String.decodableKinds
           }
 
@@ -733,14 +733,14 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: _payloadTypeName, expected: ["String"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .text:
               return "String"
@@ -748,7 +748,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Source: JavaScriptDecodable, JavaScriptEncodable {
+        extension Source: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -767,7 +767,7 @@ struct UnionMacroTests {
         enum Source: JavaScriptDecodable, Sendable {
           case text(String)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return String.decodableKinds
           }
 
@@ -800,14 +800,14 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: _payloadTypeName, expected: ["String"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .text:
               return "String"
@@ -815,7 +815,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Source: JavaScriptEncodable {
+        extension Source: nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -834,7 +834,7 @@ struct UnionMacroTests {
         enum Source: JavaScriptDecodable, JavaScriptEncodable {
           case text(String)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return String.decodableKinds
           }
 
@@ -867,14 +867,14 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: _payloadTypeName, expected: ["String"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .text:
               return "String"
@@ -1058,7 +1058,7 @@ struct UnionMacroTests {
         enum Source: ExpoModulesJSI.JavaScriptEncodable {
           case text(String)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return String.decodableKinds
           }
 
@@ -1091,14 +1091,14 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .text(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Source", received: _payloadTypeName, expected: ["String"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .text:
               return "String"
@@ -1106,7 +1106,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Source: JavaScriptDecodable {
+        extension Source: nonisolated JavaScriptDecodable {
         }
         """
     )
@@ -1171,7 +1171,7 @@ struct UnionMacroTests {
               children([Node].self)
             }
 
-            public static var decodableKinds: JavaScriptValueKinds {
+            nonisolated public static var decodableKinds: JavaScriptValueKinds {
               return [Int.decodableKinds, [Node].decodableKinds]
             }
 
@@ -1211,21 +1211,21 @@ struct UnionMacroTests {
               }
             }
 
-            public func `as`(_ type: Int.Type) throws -> Int {
+            nonisolated public func `as`(_ type: Int.Type) throws -> Int {
               if case .leaf(let payload) = self {
                 return payload
               }
               throw Exceptions.UnionCaseMismatch((unionName: "Node", received: _payloadTypeName, expected: ["Int"]))
             }
 
-            public func `as`(_ type: [Node].Type) throws -> [Node] {
+            nonisolated public func `as`(_ type: [Node].Type) throws -> [Node] {
               if case .children(let payload) = self {
                 return payload
               }
               throw Exceptions.UnionCaseMismatch((unionName: "Node", received: _payloadTypeName, expected: ["[Node]"]))
             }
 
-            private var _payloadTypeName: String {
+            nonisolated private var _payloadTypeName: String {
               switch self {
               case .leaf:
                 return "Int"
@@ -1236,7 +1236,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Outer.Node: JavaScriptDecodable, JavaScriptEncodable {
+        extension Outer.Node: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )
@@ -1335,7 +1335,7 @@ struct UnionMacroTests {
           case pair((Double, Double))
           case label(String)
 
-          public static var decodableKinds: JavaScriptValueKinds {
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
             return [JavaScriptValueKinds.object, String.decodableKinds]
           }
 
@@ -1377,21 +1377,21 @@ struct UnionMacroTests {
             }
           }
 
-          public func `as`(_ type: (Double, Double).Type) throws -> (Double, Double) {
+          nonisolated public func `as`(_ type: (Double, Double).Type) throws -> (Double, Double) {
             if case .pair(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Coordinate", received: _payloadTypeName, expected: ["(Double, Double)"]))
           }
 
-          public func `as`(_ type: String.Type) throws -> String {
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
             if case .label(let payload) = self {
               return payload
             }
             throw Exceptions.UnionCaseMismatch((unionName: "Coordinate", received: _payloadTypeName, expected: ["String"]))
           }
 
-          private var _payloadTypeName: String {
+          nonisolated private var _payloadTypeName: String {
             switch self {
             case .pair:
               return "(Double, Double)"
@@ -1401,7 +1401,7 @@ struct UnionMacroTests {
           }
         }
 
-        extension Coordinate: JavaScriptDecodable, JavaScriptEncodable {
+        extension Coordinate: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
         }
         """
     )

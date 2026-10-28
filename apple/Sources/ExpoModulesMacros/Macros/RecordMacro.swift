@@ -152,8 +152,10 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
       return []
     }
 
+    // `nonisolated` keeps the conformance usable on the JavaScript thread when the module builds with a
+    // default isolation, which would otherwise isolate it to the main actor.
     let ext: DeclSyntax = """
-      extension \(type.trimmed): Record {}
+      extension \(type.trimmed): nonisolated Record {}
       """
     guard let extDecl = ext.as(ExtensionDeclSyntax.self) else {
       return []
@@ -304,13 +306,13 @@ private func defaultInit(properties: [RecordProperty]) -> DeclSyntax? {
   }
   if properties.contains(where: { $0.isRequired }) {
     return """
-      public init() {
+      nonisolated public init() {
       fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
       }
       """
   }
   return """
-    public init() {
+    nonisolated public init() {
     }
     """
 }
@@ -333,7 +335,7 @@ private func memberwiseInit(properties: [RecordProperty]) -> DeclSyntax {
   let signature = params.joined(separator: ", ")
 
   return """
-    public init(\(raw: signature)) {
+    nonisolated public init(\(raw: signature)) {
     \(raw: assignments)
     }
     """
@@ -360,7 +362,7 @@ private func fromJSObjectFactory() -> DeclSyntax {
 private func fromDictionaryFactory(properties: [RecordProperty]) -> DeclSyntax {
   let body = factoryBody(properties: properties, readLines: dictionaryReadLines(properties: properties))
   return """
-    public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+    nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
     \(raw: body)
     }
     """
@@ -458,7 +460,7 @@ private func toDictionaryMethod(properties: [RecordProperty]) -> DeclSyntax {
   }
   lines.append("  return dictionary")
   return """
-    public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+    nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
     \(raw: lines.joined(separator: "\n"))
     }
     """
@@ -578,7 +580,7 @@ private func propNamesClass(properties: [RecordProperty]) -> DeclSyntax {
     "    self.\(propNameMember(index)) = JavaScriptPropNameID(runtime, string: \"\(property.key)\")"
   }
   return """
-    private final class \(raw: propNamesTypeName) {
+    nonisolated private final class \(raw: propNamesTypeName) {
       static let _key = JavaScriptRuntime.Cache.Key<\(raw: propNamesTypeName)>()
 
     \(raw: storedProperties.joined(separator: "\n"))
