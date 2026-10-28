@@ -479,8 +479,7 @@ extension AttributeListSyntax {
   }
 }
 
-/// A type spelled so it's valid in expression position (before `.decode`/`.encode`, before
-/// `.getDynamicType()`, or after `as!`). Implicitly-unwrapped optionals (`T!`) are only allowed in
+/// A type spelled so it's valid in expression position (before `.decode`/`.encode`). Implicitly-unwrapped optionals (`T!`) are only allowed in
 /// type-annotation position, so a trailing `!` is rewritten to `?` (`T!` and `T?` are both
 /// `Optional<T>`, which the conversion layer treats identically). Other type spellings pass through
 /// unchanged.

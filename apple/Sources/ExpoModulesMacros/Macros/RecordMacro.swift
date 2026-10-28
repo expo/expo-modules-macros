@@ -11,8 +11,9 @@ import SwiftSyntaxMacros
 /// - `decode(_:in:)` and `encode(_:in:)` — the fast paths, reading each property straight off a JS
 ///   object and writing it straight into one,
 /// - `from(object:appContext:)` and `toObject(appContext:)`, which forward to `decode` and `encode`,
-/// - `from(dictionary:appContext:)` and `toDictionary(appContext:)` — converting each property from and
-///   to a `[String: Any]` dictionary.
+/// - `toDictionary(appContext:)`, which puts each property into a `[String: Any]` dictionary,
+/// - `from(dictionary:appContext:)`, which throws `RecordDictionaryConversionException`: a record
+///   converts only from JavaScript values, so it can't be created from a native dictionary.
 ///
 /// The type is auto-conformed to `Record` (a core protocol whose requirements are this surface); the
 /// synthesized methods override `Record`'s reflection-based defaults, and the synthesized `decode` and
@@ -37,23 +38,16 @@ import SwiftSyntaxMacros
 /// have static stored properties. The macro can't tell that an extension extends a generic type, so a
 /// record declared in one doesn't compile.
 ///
-/// The JS-value paths convert through `JavaScriptDecodable.decode` / `JavaScriptEncodable.encode`
-/// (`decode(_:in:)` / `encode(_:in:)`); the native-`Any` dictionary paths still go through the
-/// public dynamic-type API — `T.getDynamicType()` plus `cast(_:appContext:)` / `convertToJS(_:appContext:)`
-/// (`from(dictionary:)` / `toDictionary(appContext:)`), since `JavaScriptCodable` only converts JS
-/// values, not native `Any`. Both spell types as `public` symbols so the synthesized code compiles inside
-/// user modules without any internal core symbols. Every property type must therefore conform to both
-/// `AnyArgument` and `JavaScriptDecodable & JavaScriptEncodable`. The conformance assertion checks only
-/// the JS codable protocols; the compiler reports a missing `AnyArgument` at the `getDynamicType()`
-/// call.
+/// Properties convert through `JavaScriptDecodable.decode` / `JavaScriptEncodable.encode`
+/// (`decode(_:in:)` / `encode(_:in:)`), spelled with `public` symbols so the synthesized code compiles
+/// inside user modules without any internal core symbols. Every property type must conform to
+/// `JavaScriptDecodable & JavaScriptEncodable`, which the conformance assertion checks.
 ///
 /// A property whose type mentions `Any` (`Any?`, `[String: Any]?`, `[String: [Any]]`, …) can't conform to
-/// the JS codable protocols, so it isn't asserted. On the JS-value paths it converts through the
-/// `JavaScriptValue` free-form methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and
-/// the matching `encodeAny…` for `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic
-/// `decodeAny(_:as:in:)` / `encodeAny(_:in:)` for any other type. Such a property only needs
-/// `AnyArgument` for the dictionary paths, and a bare `Any` needs nothing, since the dictionary paths
-/// pass it through unchanged.
+/// the JS codable protocols, so it isn't asserted. It converts through the `JavaScriptValue` free-form
+/// methods instead: `decodeAny`/`decodeAnyArray`/`decodeAnyDictionary` and the matching `encodeAny…` for
+/// `Any`, `[Any]` and `[String: Any]` (optional or not), and the generic `decodeAny(_:as:in:)` /
+/// `encodeAny(_:in:)` for any other type.
 ///
 /// A record class must be `final` and have no inheritance clause. The synthesized factories construct
 /// `Self` through the memberwise init, which only a final class can do without a `required` init, and
@@ -112,7 +106,7 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
       members.append(memberwiseInit(properties: properties))
     }
     members.append(fromJSObjectFactory())
-    members.append(fromDictionaryFactory(properties: properties))
+    members.append(fromDictionaryFactory())
     members.append(toDictionaryMethod(properties: properties))
     members.append(toObjectMethod())
     if cachesPropNames {
@@ -173,8 +167,7 @@ private struct RecordProperty {
   /// every identifier position in the generated code needs them.
   let name: String
   /// The property's declared type, verbatim (e.g. `String`, `Int`, `String?`). Used to build the
-  /// memberwise-init parameter and as the receiver of the per-property `decode`/`encode` (and, on the
-  /// dictionary paths, `getDynamicType()`) conversions.
+  /// memberwise-init parameter and as the receiver of the per-property `decode`/`encode` conversions.
   let type: String
   /// The default-value expression verbatim (`0`, `""`, `[]`), or `nil` when the property has none.
   /// Inlined into the memberwise init and the factories' omitted-property branch so the synthesized
@@ -307,7 +300,7 @@ private func defaultInit(properties: [RecordProperty]) -> DeclSyntax? {
   if properties.contains(where: { $0.isRequired }) {
     return """
       nonisolated public init() {
-      fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+      fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
       }
       """
   }
@@ -357,13 +350,13 @@ private func fromJSObjectFactory() -> DeclSyntax {
     """
 }
 
-/// `from(dictionary:appContext:)` — same as the JS path but reads from `[String: Any]` and
-/// uses the `Any?` cast overload; a missing key is `dictionary[key] == nil`.
-private func fromDictionaryFactory(properties: [RecordProperty]) -> DeclSyntax {
-  let body = factoryBody(properties: properties, readLines: dictionaryReadLines(properties: properties))
+/// `from(dictionary:appContext:)`, a `Record` requirement. A record converts only from JavaScript values,
+/// through `decode(_:in:)`, so it throws. Converting each property from a native `Any` would need the
+/// dynamic types of the 1.0 conversion API.
+private func fromDictionaryFactory() -> DeclSyntax {
   return """
     nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-    \(raw: body)
+      throw RecordDictionaryConversionException(String(describing: Self.self))
     }
     """
 }
@@ -415,44 +408,7 @@ private func jsObjectReadLines(properties: [RecordProperty], cachesPropNames: Bo
   return lines
 }
 
-/// Per-property read statements for the dictionary factory, each producing a `let field<index>` from the
-/// raw dictionary value in `entry<index>`. A bare `Any` property has no dynamic type to cast through, and
-/// the dictionary value already is an `Any`, so it's read unchanged.
-private func dictionaryReadLines(properties: [RecordProperty]) -> [String] {
-  var lines: [String] = []
-  for (index, property) in properties.enumerated() {
-    let field = fieldLocal(index)
-    let entry = "entry\(index)"
-    let exprType = expressionType(property.type)
-    let isBareAny = property.freeForm?.isBareAny == true
-    let cast: String
-    if isBareAny {
-      cast = entry
-    } else if tupleConversion(of: property.type) != nil {
-      // A type that holds a tuple has no dynamic type, so the dictionary value must already be of the
-      // property's type.
-      cast =
-        "try { () throws -> \(exprType) in guard let value = \(entry) as? \(exprType) else { throw Conversions.ConvertingException<\(exprType)>(\(entry)) }; return value }()"
-    } else {
-      cast = "try \(exprType).getDynamicType().cast(\(entry), appContext: appContext) as! \(exprType)"
-    }
-    lines.append("  let \(entry) = dictionary[\"\(property.key)\"]")
-    if property.isRequired {
-      lines.append("  guard let \(entry) else {")
-      lines.append("    throw RecordPropertyRequiredException(\"\(property.key)\")")
-      lines.append("  }")
-      lines.append("  let \(field) = \(cast)")
-    } else if property.isOptional {
-      lines.append("  let \(field): \(property.type) = (\(entry) == nil || \(entry)! is NSNull) ? nil : \(cast)")
-    } else {
-      lines.append("  let \(field) = \(entry) == nil ? \(property.defaultValue!) : \(isBareAny ? entry + "!" : cast)")
-    }
-  }
-  return lines
-}
-
-/// `toDictionary(appContext:)` — converts each property back to a JS-compatible value via the
-/// dynamic type and assembles a `[String: Any]`.
+/// `toDictionary(appContext:)`, which puts each property into a `[String: Any]` as it is.
 private func toDictionaryMethod(properties: [RecordProperty]) -> DeclSyntax {
   var lines = ["  var dictionary: [String: Any] = [:]"]
   for property in properties {
