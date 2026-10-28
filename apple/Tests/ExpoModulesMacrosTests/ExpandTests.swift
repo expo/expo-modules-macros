@@ -37,6 +37,25 @@ struct ExpandTests {
   }
 
   @Test
+  func `Passes the Sendable conformance like the compiler`() throws {
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {}
+
+      @SharedObject
+      final class Cache: SharedObject {}
+
+      @SharedObject
+      final class Session: SharedObject, @unchecked Sendable {}
+      """
+    let result = expandMacros(source: source, file: "MyModule.swift", symbols: [])
+    let expansion = try #require(result.expansions.only)
+    #expect(expansion.source.contains("extension MyModule: @unchecked Sendable {"))
+    #expect(expansion.source.contains("extension Cache: @unchecked Sendable {"))
+    #expect(!expansion.source.contains("extension Session"))
+  }
+
+  @Test
   func `A member symbol expands the type with only that member`() throws {
     let result = expandMacros(source: module, file: "MyModule.swift", symbols: ["MyModule.greet"])
     let expansion = try #require(result.expansions.only)
