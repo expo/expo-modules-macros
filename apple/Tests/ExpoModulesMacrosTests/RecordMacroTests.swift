@@ -54,7 +54,7 @@ struct RecordMacroTests {
           var note: String?
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(name: String, count: Int, note: String? = nil) {
@@ -72,16 +72,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["name"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("name")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            let entry1 = dictionary["count"]
-            let field1 = entry1 == nil ? 0 : try Int.getDynamicType().cast(entry1, appContext: appContext) as! Int
-            let entry2 = dictionary["note"]
-            let field2: String? = (entry2 == nil || entry2! is NSNull) ? nil : try String?.getDynamicType().cast(entry2, appContext: appContext) as! String?
-            return Self(name: field0, count: field1, note: field2)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -168,7 +159,7 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Implicitly-unwrapped optional property normalizes to optional in cast and convert expressions`() {
+  func `Implicitly-unwrapped optional property normalizes to optional in the decode and encode calls`() {
     assertExpansion(
       """
       @Record
@@ -202,9 +193,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["owner"]
-            let field0: MyRecord! = (entry0 == nil || entry0! is NSNull) ? nil : try MyRecord?.getDynamicType().cast(entry0, appContext: appContext) as! MyRecord?
-            return Self(owner: field0)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -298,7 +287,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(primary: MyRecord, tags: [Tag], count: Int) {
@@ -316,19 +305,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["primary"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("primary")
-            }
-            let field0 = try MyRecord.getDynamicType().cast(entry0, appContext: appContext) as! MyRecord
-            let entry1 = dictionary["tags"]
-            guard let entry1 else {
-              throw RecordPropertyRequiredException("tags")
-            }
-            let field1 = try [Tag].getDynamicType().cast(entry1, appContext: appContext) as! [Tag]
-            let entry2 = dictionary["count"]
-            let field2 = entry2 == nil ? 0 : try Int.getDynamicType().cast(entry2, appContext: appContext) as! Int
-            return Self(primary: field0, tags: field1, count: field2)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -435,7 +412,7 @@ struct RecordMacroTests {
           var tags: Set<String>
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(grid: [[Int]], labels: [String: String], tags: Set<String>) {
@@ -453,22 +430,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["grid"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("grid")
-            }
-            let field0 = try [[Int]].getDynamicType().cast(entry0, appContext: appContext) as! [[Int]]
-            let entry1 = dictionary["labels"]
-            guard let entry1 else {
-              throw RecordPropertyRequiredException("labels")
-            }
-            let field1 = try [String: String].getDynamicType().cast(entry1, appContext: appContext) as! [String: String]
-            let entry2 = dictionary["tags"]
-            guard let entry2 else {
-              throw RecordPropertyRequiredException("tags")
-            }
-            let field2 = try Set<String>.getDynamicType().cast(entry2, appContext: appContext) as! Set<String>
-            return Self(grid: field0, labels: field1, tags: field2)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -598,15 +560,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["name"]
-            let field0 = entry0 == nil ? "foo" : try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            let entry1 = dictionary["ratio"]
-            let field1 = entry1 == nil ? 1.0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
-            let entry2 = dictionary["count"]
-            let field2 = entry2 == nil ? 0 : try Int.getDynamicType().cast(entry2, appContext: appContext) as! Int
-            let entry3 = dictionary["flag"]
-            let field3 = entry3 == nil ? false : try Bool.getDynamicType().cast(entry3, appContext: appContext) as! Bool
-            return Self(name: field0, ratio: field1, count: field2, flag: field3)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -746,7 +700,7 @@ struct RecordMacroTests {
           var computed: Int { 1 }
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(name: String) {
@@ -762,12 +716,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["name"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("name")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            return Self(name: field0)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -861,7 +810,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            return Self()
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -935,11 +884,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["x"]
-            let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
-            let entry1 = dictionary["y"]
-            let field1 = entry1 == nil ? 0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
-            return Self(x: field0, y: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1166,7 +1111,7 @@ struct RecordMacroTests {
           var name: String
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(name: String) {
@@ -1182,12 +1127,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["name"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("name")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            return Self(name: field0)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1271,7 +1211,7 @@ struct RecordMacroTests {
           var name: String
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(name: String) {
@@ -1287,12 +1227,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["name"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("name")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            return Self(name: field0)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1450,11 +1385,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["x"]
-            let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
-            let entry1 = dictionary["y"]
-            let field1 = entry1 == nil ? 0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
-            return Self(x: field0, y: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1566,11 +1497,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["x"]
-            let field0 = entry0 == nil ? 0 : try Double.getDynamicType().cast(entry0, appContext: appContext) as! Double
-            let entry1 = dictionary["y"]
-            let field1 = entry1 == nil ? 0 : try Double.getDynamicType().cast(entry1, appContext: appContext) as! Double
-            return Self(x: field0, y: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1678,9 +1605,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["default"]
-            let field0 = entry0 == nil ? 0 : try Int.getDynamicType().cast(entry0, appContext: appContext) as! Int
-            return Self(`default`: field0)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1765,7 +1690,7 @@ struct RecordMacroTests {
           var attributes: [String: Any]?
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(name: String, attributes: [String: Any]? = nil) {
@@ -1782,14 +1707,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["name"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("name")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            let entry1 = dictionary["attributes"]
-            let field1: [String: Any]? = (entry1 == nil || entry1! is NSNull) ? nil : try [String: Any]?.getDynamicType().cast(entry1, appContext: appContext) as! [String: Any]?
-            return Self(name: field0, attributes: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -1887,7 +1805,7 @@ struct RecordMacroTests {
           var groups: [String: [Any]]?
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(items: [Any], meta: [String : Any], groups: [String: [Any]]? = nil) {
@@ -1905,16 +1823,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["items"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("items")
-            }
-            let field0 = try [Any].getDynamicType().cast(entry0, appContext: appContext) as! [Any]
-            let entry1 = dictionary["meta"]
-            let field1 = entry1 == nil ? [:] : try [String : Any].getDynamicType().cast(entry1, appContext: appContext) as! [String : Any]
-            let entry2 = dictionary["groups"]
-            let field2: [String: [Any]]? = (entry2 == nil || entry2! is NSNull) ? nil : try [String: [Any]]?.getDynamicType().cast(entry2, appContext: appContext) as! [String: [Any]]?
-            return Self(items: field0, meta: field1, groups: field2)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2001,7 +1910,7 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Bare Any properties pass through the dictionary paths and skip the conformance assertion`() {
+  func `Bare Any properties skip the conformance assertion`() {
     assertExpansion(
       """
       @Record
@@ -2016,7 +1925,7 @@ struct RecordMacroTests {
           var maybe: Any?
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(value: Any, maybe: Any? = nil) {
@@ -2033,14 +1942,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["value"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("value")
-            }
-            let field0 = entry0
-            let entry1 = dictionary["maybe"]
-            let field1: Any? = (entry1 == nil || entry1! is NSNull) ? nil : entry1
-            return Self(value: field0, maybe: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2162,7 +2064,7 @@ struct RecordMacroTests {
           var list: [Swift.Any]?
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(value: Swift.Any, list: [Swift.Any]? = nil) {
@@ -2179,14 +2081,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["value"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("value")
-            }
-            let field0 = entry0
-            let entry1 = dictionary["list"]
-            let field1: [Swift.Any]? = (entry1 == nil || entry1! is NSNull) ? nil : try [Swift.Any]?.getDynamicType().cast(entry1, appContext: appContext) as! [Swift.Any]?
-            return Self(value: field0, list: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2280,7 +2175,7 @@ struct RecordMacroTests {
           var `class`: String
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(`default`: Int, `class`: String) {
@@ -2297,14 +2192,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["default"]
-            let field0 = entry0 == nil ? 0 : try Int.getDynamicType().cast(entry0, appContext: appContext) as! Int
-            let entry1 = dictionary["class"]
-            guard let entry1 else {
-              throw RecordPropertyRequiredException("class")
-            }
-            let field1 = try String.getDynamicType().cast(entry1, appContext: appContext) as! String
-            return Self(`default`: field0, `class`: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2398,7 +2286,7 @@ struct RecordMacroTests {
           var count: Int = 0
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(object: String, count: Int) {
@@ -2415,14 +2303,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["object"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("object")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            let entry1 = dictionary["count"]
-            let field1 = entry1 == nil ? 0 : try Int.getDynamicType().cast(entry1, appContext: appContext) as! Int
-            return Self(object: field0, count: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2522,7 +2403,7 @@ struct RecordMacroTests {
           var nameValue: Int = 0
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(dictionary: String, appContext: String, runtime: String, name: String, nameValue: Int) {
@@ -2542,29 +2423,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["dictionary"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("dictionary")
-            }
-            let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-            let entry1 = dictionary["appContext"]
-            guard let entry1 else {
-              throw RecordPropertyRequiredException("appContext")
-            }
-            let field1 = try String.getDynamicType().cast(entry1, appContext: appContext) as! String
-            let entry2 = dictionary["runtime"]
-            guard let entry2 else {
-              throw RecordPropertyRequiredException("runtime")
-            }
-            let field2 = try String.getDynamicType().cast(entry2, appContext: appContext) as! String
-            let entry3 = dictionary["name"]
-            guard let entry3 else {
-              throw RecordPropertyRequiredException("name")
-            }
-            let field3 = try String.getDynamicType().cast(entry3, appContext: appContext) as! String
-            let entry4 = dictionary["nameValue"]
-            let field4 = entry4 == nil ? 0 : try Int.getDynamicType().cast(entry4, appContext: appContext) as! Int
-            return Self(dictionary: field0, appContext: field1, runtime: field2, name: field3, nameValue: field4)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2695,7 +2554,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public init() {
-            fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
           }
 
           nonisolated public init(value: T) {
@@ -2711,12 +2570,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["value"]
-            guard let entry0 else {
-              throw RecordPropertyRequiredException("value")
-            }
-            let field0 = try T.getDynamicType().cast(entry0, appContext: appContext) as! T
-            return Self(value: field0)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2784,7 +2638,7 @@ struct RecordMacroTests {
             var name: String
 
             nonisolated public init() {
-              fatalError("\\(Self.self) has required properties and cannot be created with init(); construct it through the @Record-synthesized from(dictionary:) or from(object:) factories")
+              fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
             }
 
             nonisolated public init(name: String) {
@@ -2800,12 +2654,7 @@ struct RecordMacroTests {
             }
 
             nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-              let entry0 = dictionary["name"]
-              guard let entry0 else {
-                throw RecordPropertyRequiredException("name")
-              }
-              let field0 = try String.getDynamicType().cast(entry0, appContext: appContext) as! String
-              return Self(name: field0)
+              throw RecordDictionaryConversionException(String(describing: Self.self))
             }
 
             nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
@@ -2947,21 +2796,7 @@ struct RecordMacroTests {
           }
 
           nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
-            let entry0 = dictionary["range"]
-            let field0 = entry0 == nil ? (0, 0) : try { () throws -> (start: Int, end: Int) in
-              guard let value = entry0 as? (start: Int, end: Int) else {
-                throw Conversions.ConvertingException<(start: Int, end: Int)>(entry0)
-              };
-              return value
-            }()
-            let entry1 = dictionary["points"]
-            let field1: [(Double, Double)]? = (entry1 == nil || entry1! is NSNull) ? nil : try { () throws -> [(Double, Double)]? in
-              guard let value = entry1 as? [(Double, Double)]? else {
-                throw Conversions.ConvertingException<[(Double, Double)]?>(entry1)
-              };
-              return value
-            }()
-            return Self(range: field0, points: field1)
+            throw RecordDictionaryConversionException(String(describing: Self.self))
           }
 
           nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
