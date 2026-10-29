@@ -1,4 +1,4 @@
-import ExpoModulesCLI
+import ExpoModulesMacrosCore
 import SwiftBasicFormat
 import SwiftDiagnostics
 import SwiftParser

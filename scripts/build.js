@@ -35,11 +35,11 @@ function spawnAsync(command, args, options = {}) {
 }
 
 /**
- * The `swift build` arguments for the release tool. The build uses the native build system because
- * Swift Build, the default since Swift 6.4, builds nothing for this package: its only executable is
- * the macro tool, which Swift Build only builds as a dependency of a target that uses the macros.
+ * The `swift build` arguments for the release tool, the `ExpoModulesMacrosTool` executable: the
+ * compiler plugin and the scanner CLI in one binary. The build uses the native build system, which the
+ * Windows and Linux flags below are checked with.
  */
-const releaseBuildArgs = ['build', '-c', 'release', '--build-system', 'native'];
+const releaseBuildArgs = ['build', '-c', 'release', '--build-system', 'native', '--product', 'ExpoModulesMacrosTool'];
 
 /**
  * The extra `swift build` arguments on Windows. `-static-stdlib` links the Swift runtime into the
@@ -83,11 +83,11 @@ async function swiftOutput(args, arch) {
 async function builtToolPath(extraArgs, arch) {
   const stdout = await swiftOutput([...releaseBuildArgs, ...extraArgs, '--show-bin-path'], arch);
   const binDir = stdout.trim();
-  const toolPath = path.join(binDir, process.platform === 'win32' ? 'ExpoModulesMacros-tool.exe' : 'ExpoModulesMacros-tool');
+  const toolPath = path.join(binDir, process.platform === 'win32' ? 'ExpoModulesMacrosTool.exe' : 'ExpoModulesMacrosTool');
   try {
     await fs.access(toolPath);
   } catch {
-    throw new Error(`Could not find the built ExpoModulesMacros-tool at ${toolPath}`);
+    throw new Error(`Could not find the built ExpoModulesMacrosTool at ${toolPath}`);
   }
   return toolPath;
 }
