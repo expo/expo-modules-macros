@@ -284,14 +284,13 @@ jobs:
       - name: Cache SwiftPM build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: apple/.build
-          key: spm-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('apple/Package.resolved') }}
+          path: .build
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
             spm-${{ github.repository }}-${{ runner.os }}-
 
       - name: Resolve dependencies
         run: swift package resolve
-        working-directory: apple
 
       - name: Install dependencies
         # The wrapper's `prepublishOnly` build needs `tsc`; the tool binary needs none.

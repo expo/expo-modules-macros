@@ -15,7 +15,6 @@ concurrency:
 
 defaults:
   run:
-    working-directory: apple
     shell: bash
 
 jobs:
@@ -56,8 +55,8 @@ jobs:
       - name: Cache SwiftPM build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: apple/.build
-          key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('apple/Package.resolved') }}
+          path: .build
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
             spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-
 
@@ -70,14 +69,13 @@ jobs:
       - name: Build release tool
         # Runs `pnpm run build` (scripts/build.js): builds the release plugin binary for this
         # architecture as platforms/linux-<arch>/ExpoModulesMacros.
-        working-directory: ${{ github.workspace }}
         run: pnpm run build
 
       - name: Verify the release tool
         # With no arguments it is the plugin server, which exits when stdin closes; with arguments it
         # is the scanner CLI.
         run: |
-          tool="../platforms/linux-${{ matrix.arch }}/ExpoModulesMacros"
+          tool="platforms/linux-${{ matrix.arch }}/ExpoModulesMacros"
           # The Swift runtime must be linked in statically, so no Swift library may be a dependency.
           needed="$(readelf --dynamic "$tool" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p')"
           echo "Needed libraries:" $needed
@@ -98,7 +96,6 @@ jobs:
         # Checks what `npm pack` would publish from `platforms/linux-<arch>`, where the release build
         # put the tool: the executable with its executable bit, the README, the license and the
         # manifest, with the `os`, `cpu` and `libc` fields for this machine.
-        working-directory: ${{ github.workspace }}
         run: |
           # The `./` matters: npm reads `platforms/linux-<arch>` as a GitHub repository.
           npm pack "./platforms/linux-${{ matrix.arch }}" --pack-destination "$RUNNER_TEMP" --json > "$RUNNER_TEMP/pack.json"
@@ -126,7 +123,6 @@ jobs:
       - name: Scan through the TypeScript wrapper
         # Installs the packed platform package. The wrapper must find the executable in
         # `@expo/modules-macros-linux-<arch>`, as it would in a project, not the local build.
-        working-directory: ${{ github.workspace }}
         run: |
           pnpm install
           pnpm add --save-optional "$PLATFORM_PACKAGE_TARBALL"

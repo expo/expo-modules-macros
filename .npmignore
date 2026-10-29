@@ -3,7 +3,8 @@
 .swift-format
 pnpm-workspace.yaml
 
-/apple/.build/**/*
+/.build/**/*
+/.swiftpm/**/*
 /apple/Tests/**/*
 
 # The TypeScript wrapper ships compiled, from /build.

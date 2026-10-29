@@ -11,10 +11,6 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    working-directory: apple
-
 jobs:
   build-and-test:
     name: Build & test
@@ -34,8 +30,8 @@ jobs:
       - name: Cache SwiftPM build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: apple/.build
-          key: spm-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('apple/Package.resolved') }}
+          path: .build
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
             spm-${{ github.repository }}-${{ runner.os }}-
 
@@ -46,26 +42,24 @@ jobs:
         # Runs `pnpm run build` (scripts/build.js): builds the universal
         # (arm64 + x86_64) release plugin binary, copies it to
         # apple/ExpoModulesMacros, and strips it.
-        working-directory: ${{ github.workspace }}
         run: pnpm run build
 
       - name: Verify universal binary
         run: |
-          archs="$(lipo -archs ExpoModulesMacros)"
+          archs="$(lipo -archs apple/ExpoModulesMacros)"
           echo "Architectures: $archs"
           case "$archs" in *arm64*) ;; *) echo "Missing arm64 slice"; exit 1;; esac
           case "$archs" in *x86_64*) ;; *) echo "Missing x86_64 slice"; exit 1;; esac
-          arch -arm64 ./ExpoModulesMacros < /dev/null
-          arch -x86_64 ./ExpoModulesMacros < /dev/null
+          arch -arm64 apple/ExpoModulesMacros < /dev/null
+          arch -x86_64 apple/ExpoModulesMacros < /dev/null
           # With arguments the same binary runs the scanner CLI instead of the plugin server.
-          arch -arm64 ./ExpoModulesMacros --help > /dev/null
-          arch -x86_64 ./ExpoModulesMacros --help > /dev/null
+          arch -arm64 apple/ExpoModulesMacros --help > /dev/null
+          arch -x86_64 apple/ExpoModulesMacros --help > /dev/null
 
       - name: Test
         run: swift test -v
 
       - name: Typecheck the TypeScript wrapper
-        working-directory: ${{ github.workspace }}
         run: |
           pnpm install
           pnpm run typecheck

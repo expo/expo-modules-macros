@@ -8,8 +8,11 @@ const { promisify } = require('node:util');
 
 const execFile = promisify(childProcess.execFile);
 
-/** The Swift package, where `swift build` runs and the macOS binary is written. */
-const packageDir = path.join(__dirname, '..', 'apple');
+/** The Swift package, where `swift build` runs. */
+const packageDir = path.join(__dirname, '..');
+
+/** Where the macOS binary is written, the path that `expo-modules-autolinking` loads it from. */
+const appleDir = path.join(packageDir, 'apple');
 
 /** The npm packages that ship the Windows and Linux binaries, one per platform and architecture. */
 const platformsDir = path.join(__dirname, '..', 'platforms');
@@ -253,7 +256,7 @@ async function mainLinux() {
 }
 
 async function mainMacOS() {
-  const outputPath = path.join(packageDir, 'ExpoModulesMacros');
+  const outputPath = path.join(appleDir, 'ExpoModulesMacros');
 
   const archs = [];
   for (const arch of ['arm64', 'x86_64']) {

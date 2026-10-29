@@ -4,7 +4,7 @@
 
 ## Layout
 
-- `apple/Package.swift`: the SwiftPM package. The test targets are declared only when `apple/Tests` exists, because the published npm package leaves it out.
+- `Package.swift`: the SwiftPM package, at the root so that its identity is `expo-modules-macros` (an `apple/` manifest would have the identity `apple`, which conflicts with other packages that keep theirs in `apple/`). The targets name their paths under `apple/`. The `ExpoModulesMacrosPlugin` library product vends the macro target to Swift packages, and its name must differ from the target's. The test targets are declared only when `apple/Tests` exists, because the published npm package leaves it out.
 - `apple/Sources/ExpoModulesMacros`: the compiler plugin executable. `Plugin.swift` registers the macros of `ProvidedMacro.all` in `providingMacros` and holds the entry point that sends any invocation with arguments to the CLI. `Macros/` holds one file per macro, and `Support/` the code that several macros share. `ProvidedMacros.swift` lists every macro with its attribute name and conformances in `ProvidedMacro.all`, and `Expand/MacroExpander.swift` runs the macros in process for `expand`, because only this executable target can see them.
 - `apple/Sources/ExpoModulesCLI`: the library behind the command-line tool. `CLI.swift` parses the arguments, `Commands/` holds one directory per subcommand (`ScanModules/` for autolinking, `ScanExports/` for type generation, `Expand/` for the report types and the output of `expand`, which gets the expansion from the executable as a `MacroExpander`), and `Core/` holds the shared parsing, `#if` evaluation and output.
 - `apple/Sources/ExpoModulesOptimized`: declarations for the `@OptimizedFunction` macro.
@@ -20,8 +20,8 @@
 Swift 6.2 is required (Xcode 26 or newer on macOS). The package manager is pnpm, at the version in `packageManager` in `package.json`.
 
 ```sh
-cd apple && swift build      # debug build
-cd apple && swift test       # all Swift tests
+swift build                  # debug build
+swift test                   # all Swift tests
 pnpm install                 # TypeScript dependencies
 pnpm run typecheck           # TypeScript wrapper
 pnpm run build               # release binary (slow; on macOS uses Rosetta for x86_64)
@@ -64,6 +64,7 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 - **Generated code calls `expo-modules-core` API.** An expansion that uses a new core symbol only works with a core version that has it.
 - **Scanner output is versioned.** `scanModulesSchemaVersion` (`Commands/ScanModules/ScanModules.swift`), `scanExportsSchemaVersion` (`Commands/ScanExports/ExportedSurface.swift`) and `expandSchemaVersion` (`Commands/Expand/ExpandReport.swift`) change independently. When the output shape of a command changes, bump its version and update the matching `SUPPORTED_*_SCHEMA_VERSION` constant and mirror types in `src/types.ts`. `expo-modules-autolinking` also checks the `scan-modules` version.
 - **The binary path is part of the contract.** `expo-modules-autolinking` resolves this package from `expo-modules-core` and passes `-load-plugin-executable <package>/apple/<binary>#ExpoModulesMacros` to the compiler. The scanner wrapper in autolinking uses the same path, and `expo-modules-cli` uses `getScannerBinaryPath()`. On Windows the binary is `ExpoModulesMacros.exe` in `@expo/modules-macros-win32-<arch>`, and on Linux `ExpoModulesMacros` in `@expo/modules-macros-linux-<arch>`. Renaming or moving a binary needs a matching change in `expo/expo`.
+- **Swift packages depend on the product.** A Swift package that declares or uses the macros depends on the `ExpoModulesMacrosPlugin` product and builds the plugin from source, without the binary. Renaming the product or the macro target, or moving `Package.swift`, needs a matching change in `expo/expo`.
 
 ## Releases
 
@@ -74,4 +75,4 @@ CI runs on macOS (`.github/workflows/swift.yml`), on Windows x64 and arm64 (`.gi
 
 ## Installed copies
 
-In `node_modules`, the compiler runs the prebuilt binary `apple/ExpoModulesMacros` (on Windows and Linux, the binary from `@expo/modules-macros-<platform>-<arch>`); editing the Swift sources there has no effect. Macro and scanner fixes belong in this repository and ship in a new release. The TypeScript wrapper ships compiled in `build/`, since `src/` is not published.
+In `node_modules`, a CocoaPods build runs the prebuilt binary `apple/ExpoModulesMacros` (on Windows and Linux, the binary from `@expo/modules-macros-<platform>-<arch>`); editing the Swift sources there has no effect. Macro and scanner fixes belong in this repository and ship in a new release. The TypeScript wrapper ships compiled in `build/`, since `src/` is not published.

@@ -13,10 +13,6 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    working-directory: apple
-
 jobs:
   windows:
     name: Build & test (Windows ${{ matrix.arch }})
@@ -56,8 +52,8 @@ jobs:
       - name: Cache SwiftPM build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: apple/.build
-          key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('apple/Package.resolved') }}
+          path: .build
+          key: spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
             spm-${{ github.repository }}-${{ runner.os }}-${{ matrix.arch }}-
 
@@ -70,7 +66,6 @@ jobs:
       - name: Build release tool
         # Runs `pnpm run build` (scripts/build.js): builds the release plugin binary for this
         # architecture as platforms/win32-<arch>/ExpoModulesMacros.exe.
-        working-directory: ${{ github.workspace }}
         run: pnpm run build
 
       - name: Verify the release tool
@@ -79,7 +74,7 @@ jobs:
         # is the scanner CLI.
         shell: pwsh
         run: |
-          $exe = (Resolve-Path "../platforms/win32-${{ matrix.arch }}/ExpoModulesMacros.exe").Path
+          $exe = (Resolve-Path "platforms/win32-${{ matrix.arch }}/ExpoModulesMacros.exe").Path
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           cmd /c "`"$exe`" < NUL"
           if ($LASTEXITCODE -ne 0) { throw "The plugin server exited with $LASTEXITCODE" }
@@ -90,7 +85,6 @@ jobs:
         # Checks what `npm pack` would publish from `platforms/win32-<arch>`, where the release build
         # put the tool: the executable, the README, the license and the manifest, with the `os` and
         # `cpu` fields for this machine.
-        working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
           # The `./` matters: npm reads `platforms/win32-<arch>` as a GitHub repository.
@@ -109,7 +103,6 @@ jobs:
       - name: Scan through the TypeScript wrapper
         # Installs the packed platform package. The wrapper must find the executable in
         # `@expo/modules-macros-win32-<arch>`, as it would in a project, not the local build.
-        working-directory: ${{ github.workspace }}
         shell: pwsh
         run: |
           pnpm install
