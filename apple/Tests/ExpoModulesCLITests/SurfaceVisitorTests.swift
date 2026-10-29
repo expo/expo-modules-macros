@@ -1727,3 +1727,231 @@ struct RefResolutionTests {
     )
   }
 }
+
+@Suite("Inherited shared object members")
+struct InheritedSharedObjectMembersTests {
+  /// Runs a full `scanExports` over the given files, keyed by file name, and returns the surface. The
+  /// members are merged in a whole-scan pass, so it can't be exercised through `SurfaceVisitor` alone.
+  private func scannedSurface(_ files: [String: String]) throws -> ExportedSurface {
+    let fileManager = FileManager.default
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "scanner-inheritance-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
+    try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? fileManager.removeItem(at: root) }
+    for (name, source) in files {
+      try source.write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+    }
+    return scanExports(paths: [root.path]).exports
+  }
+
+  private func sharedObject(_ name: String, in surface: ExportedSurface) throws -> ExportedSharedObject {
+    return try #require(surface.sharedObjects.first { $0.name == name })
+  }
+
+  @Test
+  func `A subclass reports the inherited members first, and its own replace those with the same JS name`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class ImageRef: SharedObject {
+        @JS
+        init(path: String) {}
+
+        @JS
+        func describe() -> String { "" }
+
+        @JS
+        func size() -> Int { 1 }
+
+        @JS
+        var path: String { "" }
+
+        @JS
+        static func clearCache() {}
+
+        @Event
+        var onLoad: () -> Void
+
+        @Event
+        var onError: (String) -> Void
+      }
+
+      @SharedObject
+      final class Thumbnail: ImageRef {
+        @JS
+        var size: Int { 2 }
+
+        @JS
+        func scale() -> Double { 0.5 }
+
+        @JS
+        static func describe() -> String { "" }
+
+        @Event
+        var onError: (Int) -> Void
+      }
+      """
+    ])
+
+    let thumbnail = try sharedObject("Thumbnail", in: surface)
+    // `size` becomes a property; the static `describe` doesn't replace the instance one.
+    #expect(thumbnail.functions.map(\.jsName) == ["describe", "clearCache", "scale", "describe"])
+    #expect(thumbnail.functions.map(\.isStatic) == [false, true, false, true])
+    #expect(thumbnail.properties.map(\.jsName) == ["path", "size"])
+    #expect(thumbnail.events.map(\.jsName) == ["load", "error"])
+    #expect(thumbnail.events.last?.payload == .primitive(name: "Int", jsType: .number))
+    #expect(thumbnail.initializer == nil)
+
+    // The superclass itself doesn't change.
+    let imageRef = try sharedObject("ImageRef", in: surface)
+    #expect(imageRef.functions.map(\.jsName) == ["describe", "size", "clearCache"])
+    #expect(imageRef.initializer != nil)
+  }
+
+  @Test
+  func `Members are inherited through the whole chain, across files and from a nested superclass`() throws {
+    let surface = try scannedSurface([
+      "Base.swift": """
+      enum Media {
+        @SharedObject
+        class Base: SharedObject {
+          @JS
+          func base() {}
+        }
+      }
+      """,
+      "Middle.swift": """
+      extension Media {
+        @SharedObject
+        class Middle: Base {
+          @JS
+          func middle() {}
+        }
+      }
+      """,
+      "Leaf.swift": """
+      @SharedObject
+      final class Leaf: Media.Middle {
+        @JS
+        func leaf() {}
+      }
+      """,
+    ])
+
+    #expect(try sharedObject("Media.Middle", in: surface).functions.map(\.jsName) == ["base", "middle"])
+    #expect(try sharedObject("Leaf", in: surface).functions.map(\.jsName) == ["base", "middle", "leaf"])
+  }
+
+  @Test
+  func `Refs in an inherited member stay resolved from the superclass`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class Player: SharedObject {
+        @Record
+        struct Options {
+          var loop: Bool
+        }
+
+        @JS
+        func play(options: Options) {}
+      }
+
+      @SharedObject
+      final class VideoPlayer: Player {}
+      """
+    ])
+
+    let play = try #require(try sharedObject("VideoPlayer", in: surface).functions.first)
+    #expect(play.parameters.map(\.type) == [.ref(name: "Player.Options", refKind: .record)])
+  }
+
+  @Test
+  func `A subclass of a SharedRef subclass reports its sharedRef, with its own nativeRefType override`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class ImageRef: SharedRef<UIImage> {
+        override var nativeRefType: String { "image" }
+      }
+
+      @SharedObject
+      final class Thumbnail: ImageRef {}
+
+      @SharedObject
+      final class Icon: ImageRef {
+        override var nativeRefType: String { "icon" }
+      }
+      """
+    ])
+
+    #expect(
+      try sharedObject("Thumbnail", in: surface).sharedRef
+        == ExportedSharedRef(native: .ref(name: "UIImage"), nativeRefType: "image")
+    )
+    #expect(
+      try sharedObject("Icon", in: surface).sharedRef
+        == ExportedSharedRef(native: .ref(name: "UIImage"), nativeRefType: "icon")
+    )
+  }
+
+  @Test
+  func `Nothing is inherited through a class the scan doesn't report or through a cycle`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      class Plain: SharedObject {
+        @JS
+        func hidden() {}
+      }
+
+      @SharedObject
+      final class FromPlain: Plain {
+        @JS
+        func own() {}
+      }
+
+      @SharedObject
+      final class FromProtocol: Sendable {
+        @JS
+        func own() {}
+      }
+
+      @SharedObject
+      class A: B {
+        @JS
+        func a() {}
+      }
+
+      @SharedObject
+      class B: A {
+        @JS
+        func b() {}
+      }
+      """
+    ])
+
+    #expect(try sharedObject("FromPlain", in: surface).functions.map(\.jsName) == ["own"])
+    #expect(try sharedObject("FromProtocol", in: surface).functions.map(\.jsName) == ["own"])
+    #expect(try sharedObject("A", in: surface).functions.map(\.jsName) == ["b", "a"])
+    #expect(try sharedObject("B", in: surface).functions.map(\.jsName) == ["a", "b"])
+  }
+
+  @Test
+  func `The superclass isn't encoded`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class Base: SharedObject {}
+
+      @SharedObject
+      final class Sub: Base {}
+      """
+    ])
+
+    let data = try JSONEncoder().encode(try sharedObject("Sub", in: surface))
+    let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(object["superclass"] == nil)
+    #expect(object["ownNativeRefType"] == nil)
+  }
+}

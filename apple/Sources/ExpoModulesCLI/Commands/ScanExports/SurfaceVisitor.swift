@@ -183,7 +183,9 @@ final class SurfaceVisitor: SyntaxVisitor {
           events: events,
           accessLevel: accessLevel,
           platforms: platforms,
-          file: file
+          file: file,
+          superclass: sharedObjectSuperclass(of: node),
+          ownNativeRefType: declaredNativeRefType(in: members)
         )
       )
       return
@@ -759,21 +761,50 @@ private func sharedRefSuperclass(of node: some DeclGroupSyntax) -> ExportedShare
   else {
     return nil
   }
-  return ExportedSharedRef(native: native, nativeRefType: nativeRefType(in: node.memberBlock.members))
+  return ExportedSharedRef(
+    native: native,
+    nativeRefType: declaredNativeRefType(in: node.memberBlock.members) ?? "unknown"
+  )
 }
 
-/// The value of a `nativeRefType` override that returns a plain string literal: `"image"` in
-/// `override var nativeRefType: String { "image" }`, also with `return` or inside a `get` block.
-/// `unknown`, core's default, when the class declares no `nativeRefType`, and `nil` when its getter is
-/// anything else.
-private func nativeRefType(in members: MemberBlockItemListSyntax) -> String? {
+/// The superclass a `@SharedObject` class names, without generic arguments (`Outer.ImageRef`), or `nil`
+/// when it names none, `SharedObject`, or `SharedRef`. The first entry of the inheritance clause is read,
+/// since Swift requires the superclass to come first. It may also be a protocol, which then names no
+/// scanned shared object.
+private func sharedObjectSuperclass(of node: some DeclGroupSyntax) -> String? {
+  guard let type = node.inheritanceClause?.inheritedTypes.first?.type,
+    let spelling = spellingWithoutGenericArguments(of: type)
+  else {
+    return nil
+  }
+  let name = spelling.split(separator: ".").last.map(String.init)
+  return name == "SharedObject" || name == "SharedRef" ? nil : spelling
+}
+
+/// A simple or qualified type name as written, without backticks or generic arguments, or `nil` for any
+/// other kind of type.
+private func spellingWithoutGenericArguments(of type: TypeSyntax) -> String? {
+  if let identifier = type.as(IdentifierTypeSyntax.self) {
+    return identifier.name.text.filter { $0 != "`" }
+  }
+  if let member = type.as(MemberTypeSyntax.self), let base = spellingWithoutGenericArguments(of: member.baseType) {
+    return base + "." + member.name.text.filter { $0 != "`" }
+  }
+  return nil
+}
+
+/// The value of the class's `nativeRefType` override when it returns a plain string literal: `"image"`
+/// in `override var nativeRefType: String { "image" }`, also with `return` or inside a `get` block.
+/// `.none` when the class declares no `nativeRefType` (core's default is `unknown`), and `.some(nil)`
+/// when its getter is anything else.
+private func declaredNativeRefType(in members: MemberBlockItemListSyntax) -> String?? {
   let binding = members.lazy
     .compactMap { $0.decl.as(VariableDeclSyntax.self) }
     .filter { !isTypeLevel($0.modifiers) }
     .flatMap { $0.bindings }
     .first { $0.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "nativeRefType" }
   guard let binding else {
-    return "unknown"
+    return .none
   }
   let statements: CodeBlockItemListSyntax?
   switch binding.accessorBlock?.accessors {
@@ -785,18 +816,18 @@ private func nativeRefType(in members: MemberBlockItemListSyntax) -> String? {
     statements = nil
   }
   guard let statements, statements.count == 1, let item = statements.first?.item else {
-    return nil
+    return .some(nil)
   }
   let expression = item.as(ReturnStmtSyntax.self)?.expression ?? item.as(ExprSyntax.self)
   guard let literal = expression?.as(StringLiteralExprSyntax.self),
     literal.segments.count == 1,
     let segment = literal.segments.first?.as(StringSegmentSyntax.self)
   else {
-    return nil
+    return .some(nil)
   }
   // An escape would need real unescaping, so it's treated as unreadable, as in `writtenRawValue(of:)`.
   let content = segment.content.text
-  return content.contains("\\") ? nil : content
+  return .some(content.contains("\\") ? nil : content)
 }
 
 private func isTypeLevel(_ modifiers: DeclModifierListSyntax) -> Bool {
