@@ -280,8 +280,15 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
    * which every JS object inherits.
    */
   initializer?: ExportedInitializer;
-  /** What the class inherits from `SharedRef<T>`, or absent when its superclass isn't `SharedRef`. */
+  /**
+   * What the class inherits from `SharedRef<T>`, directly or through another scanned `@SharedObject`
+   * class, or absent when it doesn't inherit `SharedRef`.
+   */
   sharedRef?: ExportedSharedRef;
+  /**
+   * The class's `@JS` members include the ones it inherits from scanned `@SharedObject` superclasses,
+   * the inherited ones first. An own member replaces an inherited one with the same JS name.
+   */
   functions: ExportedFunction[];
   properties: ExportedProperty[];
   events: ExportedEvent[];
@@ -289,8 +296,9 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
 }
 
 /**
- * The `SharedRef<T>` superclass of a shared object. Only the superclass written on the class is read,
- * so a class that inherits `SharedRef` through another subclass has none.
+ * The `SharedRef<T>` superclass of a shared object. A class that inherits `SharedRef` through another
+ * `@SharedObject` class reports the `T` of that class. A class that inherits it through a class the
+ * scan doesn't report has none.
  */
 export interface ExportedSharedRef {
   /** The `T` in `SharedRef<T>`: the native type the object holds, which JS never sees. */

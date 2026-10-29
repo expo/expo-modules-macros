@@ -398,7 +398,10 @@ internal struct JSProperty {
   /// closure — and installs it with `object.defineProperty(name, descriptor:)`. Capture matches the
   /// function bindings: a module captures `self` strong, a shared object captures nothing of the
   /// instance. Getter and setter are gated independently.
-  func decorateStatements(object: String, receiver: Receiver) -> String {
+  ///
+  /// With `configurable`, the accessor can be redefined, so a subclass of a shared object class can
+  /// replace it with its own member of the same JS name. A `lazy var` is always configurable.
+  func decorateStatements(object: String, receiver: Receiver, configurable: Bool = false) -> String {
     let descriptorName = derivedIdentifier(from: swiftName, suffix: "Descriptor")
     let callee = receiver.callee
     // A shared object's accessors unwrap the JS `this` into `_self` before reading/writing; a module
@@ -409,8 +412,8 @@ internal struct JSProperty {
 
     lines.append("let \(descriptorName) = runtime.createObject()")
     lines.append("\(descriptorName).setProperty(\"enumerable\", value: true)")
-    if isLazy {
-      // The getter redefines the property on `this`, which needs a configurable accessor when `this`
+    if isLazy || configurable {
+      // A lazy getter redefines the property on `this`, which needs a configurable accessor when `this`
       // is the object that holds it (a module).
       lines.append("\(descriptorName).setProperty(\"configurable\", value: true)")
     }
@@ -523,14 +526,30 @@ private func encodeIntoSlotStatement(_ type: String, freeForm: FreeFormConversio
 /// is the local the bindings decorate (matching the entry point's argument label); `receiver` selects
 /// how each binding reaches its Swift value (module `self`, shared-object instance `_self`, or the
 /// metatype for a static member).
+///
+/// `configurableProperties` makes the property accessors configurable. `replacesInherited` first
+/// redefines the name of each function as a writable data property: the object may already hold an
+/// inherited accessor with that name, which an assignment would call instead of replacing.
 private func decorateBody(
   functions: [JSFunction],
   properties: [JSProperty],
   object: String,
-  receiver: Receiver
+  receiver: Receiver,
+  configurableProperties: Bool = false,
+  replacesInherited: Bool = false
 ) -> String {
-  let functionBody = functions.map { $0.decorateStatements(object: object, receiver: receiver) }
-  let propertyBody = properties.map { $0.decorateStatements(object: object, receiver: receiver) }
+  let functionBody = functions.map { function in
+    let binding = function.decorateStatements(object: object, receiver: receiver)
+    guard replacesInherited else {
+      return binding
+    }
+    let redefine =
+      "  \(object).defineProperty(\"\(function.jsName)\", descriptor: .init(configurable: true, enumerable: true, writable: true))"
+    return redefine + "\n" + binding
+  }
+  let propertyBody = properties.map {
+    $0.decorateStatements(object: object, receiver: receiver, configurable: configurableProperties)
+  }
   return (functionBody + propertyBody).joined(separator: "\n")
 }
 
@@ -573,13 +592,16 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
 /// `@SharedObject` class also gets the inherited `@JS` members. Core builds each JavaScript class on
 /// the base `SharedObject` class, not on the JavaScript class of the superclass, so the inherited
 /// members have to be bound on the subclass's own objects. They are bound first, so a subclass member
-/// with the same JavaScript name replaces the inherited one.
+/// with the same JavaScript name replaces the inherited one. For that, the property accessors of a
+/// class that isn't `final` are configurable, and a subclass redefines the name of each of its functions
+/// before it binds the function.
 internal func buildDecorateSharedObjectPhase(
   phase: Phase,
   functions: [JSFunction],
   properties: [JSProperty],
   typeName: String,
-  callsSuper: Bool
+  callsSuper: Bool,
+  isFinal: Bool
 ) -> DeclSyntax {
   let receiver: Receiver =
     phase == .constructor
@@ -589,7 +611,9 @@ internal func buildDecorateSharedObjectPhase(
     functions: functions,
     properties: properties,
     object: phase.rawValue,
-    receiver: receiver
+    receiver: receiver,
+    configurableProperties: !isFinal,
+    replacesInherited: callsSuper
   )
   let superCall =
     callsSuper

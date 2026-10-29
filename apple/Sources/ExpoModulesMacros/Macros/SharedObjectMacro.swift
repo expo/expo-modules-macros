@@ -126,7 +126,8 @@ public struct SharedObjectMacro: MemberMacro {
           functions: instanceFunctions,
           properties: instanceProperties,
           typeName: typeName,
-          callsSuper: callsSuper
+          callsSuper: callsSuper,
+          isFinal: isFinal
         )
       )
     }
@@ -137,7 +138,8 @@ public struct SharedObjectMacro: MemberMacro {
           functions: staticFunctions,
           properties: staticProperties,
           typeName: typeName,
-          callsSuper: callsSuper
+          callsSuper: callsSuper,
+          isFinal: isFinal
         )
       )
     }

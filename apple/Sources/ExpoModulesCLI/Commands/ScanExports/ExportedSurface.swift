@@ -293,9 +293,12 @@ struct ExportedSharedObject: Encodable, Equatable {
   /// if a malformed source has more. Not named `constructor`, which every JS object inherits.
   var initializer: ExportedInitializer?
 
-  /// What the class inherits from `SharedRef<T>`, or `nil` when its superclass isn't `SharedRef`.
-  let sharedRef: ExportedSharedRef?
+  /// What the class inherits from `SharedRef<T>`, directly or through another scanned `@SharedObject`
+  /// class, or `nil` when it doesn't inherit `SharedRef`.
+  var sharedRef: ExportedSharedRef?
 
+  /// The class's `@JS` members, followed by the ones it inherits from scanned `@SharedObject`
+  /// superclasses (see `ExportedSurface.mergingInheritedMembers()`).
   var functions: [ExportedFunction]
   var properties: [ExportedProperty]
   var events: [ExportedEvent]
@@ -306,10 +309,24 @@ struct ExportedSharedObject: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 
   let file: String
+
+  /// The superclass as written, without generic arguments, or `nil` when there is none or it is
+  /// `SharedObject` or `SharedRef`. Not encoded: it is only read to find the inherited members.
+  var superclass: String? = nil
+
+  /// The value of the class's own `nativeRefType` override (see `ExportedSharedRef.nativeRefType`), or
+  /// `.none` when it declares none. Not encoded: a subclass of a `SharedRef` subclass reports its own
+  /// override in the inherited `sharedRef`.
+  var ownNativeRefType: String?? = .none
+
+  private enum CodingKeys: String, CodingKey {
+    case name, jsName, initializer, sharedRef, functions, properties, events, accessLevel, platforms, file
+  }
 }
 
-/// The `SharedRef<T>` superclass of a shared object. Only the superclass written on the class is read,
-/// so a class that inherits `SharedRef` through another subclass has none.
+/// The `SharedRef<T>` superclass of a shared object. A class that inherits `SharedRef` through another
+/// `@SharedObject` class reports the `T` of that class. A class that inherits it through a class the
+/// scan doesn't report has none.
 struct ExportedSharedRef: Encodable, Equatable {
   /// The `T` in `SharedRef<T>`: the native type the object holds, which JS never sees.
   let native: TypeNode

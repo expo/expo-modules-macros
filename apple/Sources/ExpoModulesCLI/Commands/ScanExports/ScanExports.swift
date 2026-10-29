@@ -57,14 +57,15 @@ func scanExports(paths: [String]) -> ScanExportsResult {
   }
 
   // Refs resolve only once every file has been walked: a type parsed in one file may name a type
-  // declared in another, so the full set of declarations has to exist before any lookup is valid.
+  // declared in another, so the full set of declarations has to exist before any lookup is valid. The
+  // same holds for a superclass, so the inherited members are merged after that.
   let surface = ExportedSurface(
     modules: modules,
     sharedObjects: sharedObjects,
     records: records,
     enums: enums,
     unions: unions
-  ).resolvingRefs()
+  ).resolvingRefs().mergingInheritedMembers()
 
   return ScanExportsResult(
     schemaVersion: scanExportsSchemaVersion,

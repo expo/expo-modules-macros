@@ -159,22 +159,39 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Non-final class guards its constructor against subclasses`() {
+  func `Non-final class guards its constructor and makes its properties configurable`() {
     assertExpansion(
       """
       @SharedObject
       class ImageRef: SharedObject {
         @JS
         init(path: String) {}
+
+        @JS
+        var size: Int { 1 }
       }
       """,
       expandedSource: """
         class ImageRef: SharedObject {
           @JavaScriptActor
           init(path: String) {}
+          @JavaScriptActor
+          var size: Int { 1 }
 
           public override class var _jsName: String {
             "ImageRef"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            let sizeDescriptor = runtime.createObject()
+            sizeDescriptor.setProperty("enumerable", value: true)
+            sizeDescriptor.setProperty("configurable", value: true)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: ImageRef.self)
+              try Int.encode(_self.size, into: result, in: runtime)
+            }
+            prototype.defineProperty("size", descriptor: sizeDescriptor)
           }
 
           @JavaScriptActor
@@ -232,6 +249,7 @@ struct SharedObjectMacroTests {
           @JavaScriptActor
           public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try super._decorateSharedObject(constructor: constructor, in: runtime)
+            constructor.defineProperty("clearCache", descriptor: .init(configurable: true, enumerable: true, writable: true))
             constructor.setProperty("clearCache") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "clearCache", received: arguments.count, required: 0, maximum: 0))
