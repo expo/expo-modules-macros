@@ -54,7 +54,7 @@ let package = Package(
     // The shipped binary, `apple/ExpoModulesMacros` and the Windows and Linux binaries. It is both the
     // compiler plugin and the scanner CLI: the compiler launches it without arguments and speaks the
     // plugin protocol over stdin, while an invocation with arguments dispatches into `ScannerCLI`
-    // (see EntryPoint.swift). CocoaPods builds, `expo-modules-autolinking` and `expo-modules-cli` all
+    // (see main.swift). CocoaPods builds, `expo-modules-autolinking` and `expo-modules-cli` all
     // use this one executable.
     .executableTarget(
       name: "ExpoModulesMacrosTool",
