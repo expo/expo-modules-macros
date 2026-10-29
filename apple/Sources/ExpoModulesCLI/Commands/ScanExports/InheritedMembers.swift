@@ -15,21 +15,21 @@ extension ExportedSurface {
   /// ref. A superclass the scan doesn't report as a shared object (a protocol, a class without
   /// `@SharedObject`, or a class from another module) ends the chain, so nothing is inherited through it.
   ///
+  /// A superclass declared more than once, in `#if` branches, contributes the members of each
+  /// declaration whose platforms overlap the platforms of the class. Each member keeps its own
+  /// `platforms`.
+  ///
   /// The members merge the way the macro binds them: the inherited ones first, then the class's own. An
   /// own member replaces an inherited function or property with the same JS name, separately for static
-  /// and instance members, and an own event replaces an inherited event with the same JS name. The
-  /// `@JS init` isn't inherited: core doesn't construct a subclass through the initializer of its
-  /// superclass.
+  /// and instance members. Events are kept from both: an event is a stored property that emits under its
+  /// JS name, so a subclass can't replace an inherited one, and both are sent. The `@JS init` isn't
+  /// inherited: core doesn't construct a subclass through the initializer of its superclass.
   ///
   /// A class that inherits `SharedRef` through its superclass gets the `sharedRef` of the superclass,
   /// with the class's own `nativeRefType` override when it has one.
   func mergingInheritedMembers() -> ExportedSurface {
     let index = RefIndex(surface: self)
-    // The first declaration of each name wins, as in `RefIndex`.
-    var declarations: [String: ExportedSharedObject] = [:]
-    for sharedObject in sharedObjects where declarations[sharedObject.name] == nil {
-      declarations[sharedObject.name] = sharedObject
-    }
+    let declarations = Dictionary(grouping: sharedObjects, by: \.name)
 
     // `chain` holds the classes being merged, so a malformed cycle in the inheritance ends instead of
     // recursing forever.
@@ -38,12 +38,17 @@ extension ExportedSurface {
       guard let superclass = sharedObject.superclass,
         let entry = index.lookup(superclass, in: scope),
         entry.kind == .sharedObject,
-        !chain.contains(entry.name),
-        let declaration = declarations[entry.name]
+        !chain.contains(entry.name)
       else {
         return sharedObject
       }
-      let parent = merged(declaration, chain: chain.union([sharedObject.name]))
+      let platforms = Set(sharedObject.platforms.map(\.name))
+      let parents = (declarations[entry.name] ?? [])
+        .filter { declaration in declaration.platforms.contains { platforms.contains($0.name) } }
+        .map { merged($0, chain: chain.union([sharedObject.name])) }
+      guard !parents.isEmpty else {
+        return sharedObject
+      }
       var result = sharedObject
 
       let ownMembers = Set(
@@ -51,16 +56,20 @@ extension ExportedSurface {
           + sharedObject.properties.map { MemberKey(jsName: $0.jsName, isStatic: $0.isStatic) }
       )
       result.functions =
-        parent.functions.filter { !ownMembers.contains(MemberKey(jsName: $0.jsName, isStatic: $0.isStatic)) }
+        parents.flatMap(\.functions).filter {
+          !ownMembers.contains(MemberKey(jsName: $0.jsName, isStatic: $0.isStatic))
+        }
         + sharedObject.functions
       result.properties =
-        parent.properties.filter { !ownMembers.contains(MemberKey(jsName: $0.jsName, isStatic: $0.isStatic)) }
+        parents.flatMap(\.properties).filter {
+          !ownMembers.contains(MemberKey(jsName: $0.jsName, isStatic: $0.isStatic))
+        }
         + sharedObject.properties
+      result.events = parents.flatMap(\.events) + sharedObject.events
 
-      let ownEvents = Set(sharedObject.events.map(\.jsName))
-      result.events = parent.events.filter { !ownEvents.contains($0.jsName) } + sharedObject.events
-
-      if result.sharedRef == nil, let inherited = parent.sharedRef {
+      // Every declaration of a superclass names the same superclass in practice, so the first one that
+      // inherits `SharedRef` stands for all of them.
+      if result.sharedRef == nil, let inherited = parents.lazy.compactMap(\.sharedRef).first {
         result.sharedRef = ExportedSharedRef(
           native: inherited.native,
           nativeRefType: sharedObject.ownNativeRefType ?? inherited.nativeRefType

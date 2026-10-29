@@ -1750,7 +1750,10 @@ struct InheritedSharedObjectMembersTests {
   }
 
   @Test
-  func `A subclass reports the inherited members first, and its own replace those with the same JS name`() throws {
+  func
+    `A subclass reports the inherited members first, and its own functions and properties replace those with the same JS name`()
+    throws
+  {
     let surface = try scannedSurface([
       "Source.swift": """
       @SharedObject
@@ -1788,8 +1791,8 @@ struct InheritedSharedObjectMembersTests {
         @JS
         static func describe() -> String { "" }
 
-        @Event
-        var onError: (Int) -> Void
+        @Event("error")
+        var onFailure: (Int) -> Void
       }
       """
     ])
@@ -1799,7 +1802,9 @@ struct InheritedSharedObjectMembersTests {
     #expect(thumbnail.functions.map(\.jsName) == ["describe", "clearCache", "scale", "describe"])
     #expect(thumbnail.functions.map(\.isStatic) == [false, true, false, true])
     #expect(thumbnail.properties.map(\.jsName) == ["path", "size"])
-    #expect(thumbnail.events.map(\.jsName) == ["load", "error"])
+    // Both `error` events are sent, so both are kept, with their payloads.
+    #expect(thumbnail.events.map(\.jsName) == ["load", "error", "error"])
+    #expect(thumbnail.events.map(\.name) == ["onLoad", "onError", "onFailure"])
     #expect(thumbnail.events.last?.payload == .primitive(name: "Int", jsType: .number))
     #expect(thumbnail.initializer == nil)
 
@@ -1841,6 +1846,43 @@ struct InheritedSharedObjectMembersTests {
 
     #expect(try sharedObject("Media.Middle", in: surface).functions.map(\.jsName) == ["base", "middle"])
     #expect(try sharedObject("Leaf", in: surface).functions.map(\.jsName) == ["base", "middle", "leaf"])
+  }
+
+  @Test
+  func `A superclass declared in #if branches contributes the members of each overlapping declaration`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      #if os(iOS)
+      @SharedObject
+      class Player: SharedObject {
+        @JS
+        func iosOnly() {}
+      }
+      #else
+      @SharedObject
+      class Player: SharedObject {
+        @JS
+        func otherOnly() {}
+      }
+      #endif
+
+      @SharedObject
+      final class VideoPlayer: Player {}
+
+      #if os(tvOS)
+      @SharedObject
+      final class TVPlayer: Player {}
+      #endif
+      """
+    ])
+
+    let videoPlayer = try sharedObject("VideoPlayer", in: surface)
+    #expect(videoPlayer.functions.map(\.jsName) == ["iosOnly", "otherOnly"])
+    #expect(
+      videoPlayer.functions.map { $0.platforms.map(\.name) } == [["iOS"], ["macOS", "tvOS", "watchOS", "visionOS"]]
+    )
+    // Only the `#else` declaration builds on tvOS.
+    #expect(try sharedObject("TVPlayer", in: surface).functions.map(\.jsName) == ["otherOnly"])
   }
 
   @Test
