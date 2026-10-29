@@ -159,6 +159,92 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `Non-final class guards its constructor against subclasses`() {
+    assertExpansion(
+      """
+      @SharedObject
+      class ImageRef: SharedObject {
+        @JS
+        init(path: String) {}
+      }
+      """,
+      expandedSource: """
+        class ImageRef: SharedObject {
+          @JavaScriptActor
+          init(path: String) {}
+
+          public override class var _jsName: String {
+            "ImageRef"
+          }
+
+          @JavaScriptActor
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+            guard self == ImageRef.self else {
+              return nil
+            }
+            guard arguments.count == 1 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "ImageRef", received: arguments.count, required: 1, maximum: 1))
+            }
+            let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+            return ImageRef(path: arg0)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Subclass of another shared object class binds the inherited members first`() {
+    assertExpansion(
+      """
+      @SharedObject
+      final class Thumbnail: ImageRef {
+        @JS
+        var size: Int { 64 }
+
+        @JS
+        static func clearCache() {}
+      }
+      """,
+      expandedSource: """
+        final class Thumbnail: ImageRef {
+          @JavaScriptActor
+          var size: Int { 64 }
+          @JavaScriptActor
+          static func clearCache() {}
+
+          public override class var _jsName: String {
+            "Thumbnail"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            try super._decorateSharedObject(prototype: prototype, in: runtime)
+            let sizeDescriptor = runtime.createObject()
+            sizeDescriptor.setProperty("enumerable", value: true)
+            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Thumbnail.self)
+              try Int.encode(_self.size, into: result, in: runtime)
+            }
+            prototype.defineProperty("size", descriptor: sizeDescriptor)
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            try super._decorateSharedObject(constructor: constructor, in: runtime)
+            constructor.setProperty("clearCache") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "clearCache", received: arguments.count, required: 0, maximum: 0))
+              }
+              Thumbnail.clearCache()
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Sync method binds via _decorateSharedObject(prototype:), unwrapping the receiver from this`() {
     assertExpansion(
       """

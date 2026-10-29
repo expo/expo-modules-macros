@@ -41,6 +41,11 @@ public struct SharedObjectMacro: MemberMacro {
     let typeName = classDecl.name.text
     let jsName = jsNameArgument(of: node) ?? withoutBackticks(typeName)
 
+    // A superclass other than `SharedObject` or `SharedRef` may be another `@SharedObject` class, so the
+    // decorator phases call `super` to bind its `@JS` members too. The base classes' phases bind nothing.
+    let callsSuper = !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"])
+    let isFinal = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.final) }
+
     // `@JS func`s/`var`s and the `@JS init` are bound directly into the shared object's JS object by
     // the synthesized `_decorateSharedObject(prototype:)` / `_decorateSharedObject(constructor:)` / `_constructSharedObject`.
     //
@@ -120,7 +125,8 @@ public struct SharedObjectMacro: MemberMacro {
           phase: .prototype,
           functions: instanceFunctions,
           properties: instanceProperties,
-          typeName: typeName
+          typeName: typeName,
+          callsSuper: callsSuper
         )
       )
     }
@@ -130,12 +136,13 @@ public struct SharedObjectMacro: MemberMacro {
           phase: .constructor,
           functions: staticFunctions,
           properties: staticProperties,
-          typeName: typeName
+          typeName: typeName,
+          callsSuper: callsSuper
         )
       )
     }
     if let constructor {
-      emitted.append(constructor.buildConstructor(typeName: typeName))
+      emitted.append(constructor.buildConstructor(typeName: typeName, isFinal: isFinal))
     }
 
     // The conformance assertions of the `@JS` members, which `@JS` leaves to this macro (see
