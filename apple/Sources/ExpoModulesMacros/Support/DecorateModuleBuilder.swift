@@ -568,11 +568,18 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
 /// constructor). The constructor *object* the static members decorate is distinct from the `@JS init`,
 /// which builds an instance and is emitted separately (see `JSConstructor.buildConstructor`). Each phase
 /// is emitted only when the type has a member for it.
+///
+/// With `callsSuper`, the phase first calls the superclass's phase, so a subclass of another
+/// `@SharedObject` class also gets the inherited `@JS` members. Core builds each JavaScript class on
+/// the base `SharedObject` class, not on the JavaScript class of the superclass, so the inherited
+/// members have to be bound on the subclass's own objects. They are bound first, so a subclass member
+/// with the same JavaScript name replaces the inherited one.
 internal func buildDecorateSharedObjectPhase(
   phase: Phase,
   functions: [JSFunction],
   properties: [JSProperty],
-  typeName: String
+  typeName: String,
+  callsSuper: Bool
 ) -> DeclSyntax {
   let receiver: Receiver =
     phase == .constructor
@@ -584,10 +591,14 @@ internal func buildDecorateSharedObjectPhase(
     object: phase.rawValue,
     receiver: receiver
   )
+  let superCall =
+    callsSuper
+    ? "  try super._decorateSharedObject(\(phase.rawValue): \(phase.rawValue), in: runtime)\n"
+    : ""
   return """
     @JavaScriptActor
     public override class func _decorateSharedObject(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-    \(raw: body)
+    \(raw: superCall)\(raw: body)
     }
     """
 }
