@@ -1,6 +1,6 @@
 {
   "name": "expo-modules-macros",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "Swift macro plugin for Expo modules",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -26,9 +26,9 @@
     "typescript": "^5.4.0"
   },
   "optionalDependencies": {
-    "@expo/modules-macros-linux-arm64": "0.28.0",
-    "@expo/modules-macros-linux-x64": "0.28.0",
-    "@expo/modules-macros-win32-arm64": "0.28.0",
-    "@expo/modules-macros-win32-x64": "0.28.0"
+    "@expo/modules-macros-linux-arm64": "0.29.0",
+    "@expo/modules-macros-linux-x64": "0.29.0",
+    "@expo/modules-macros-win32-arm64": "0.29.0",
+    "@expo/modules-macros-win32-x64": "0.29.0"
   }
 }
