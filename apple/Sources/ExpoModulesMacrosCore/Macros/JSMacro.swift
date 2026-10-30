@@ -36,6 +36,7 @@ public struct JSMacro: PeerMacro {
     diagnoseClosureTypes(in: declaration, in: context)
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
     diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
+    diagnoseJavaScriptValuesOffThread(of: node, on: declaration, in: context)
 
     // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
     // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
@@ -248,6 +249,58 @@ private func insertAsyncFixIt(for funcDecl: FunctionDeclSyntax) -> FixIt {
 /// `consuming`, `sending`) are fine: the binding passes the decoded value under whichever convention
 /// the parameter asks for. The specifier is left off the decode and the assertion (see
 /// `SpecifiedType`); a parameter reported here is also left out of the assertion.
+/// The JSI types that own an engine value and release it wherever they are dropped. Such a value is
+/// valid only on the JavaScript thread. `JavaScriptPromise` releases its value on the JavaScript
+/// thread, and `JavaScriptRef` and `JavaScriptCallback` exist to carry a value across threads, so they
+/// aren't listed.
+private let javaScriptThreadBoundTypes: Set<String> = [
+  "JavaScriptValue", "JavaScriptObject", "JavaScriptFunction", "JavaScriptArray", "JavaScriptArrayBuffer",
+  "JavaScriptTypedArray", "JavaScriptBigInt", "JavaScriptWeakObject",
+]
+
+/// Emits the diagnostic for a JSI value parameter of a `@JS(.concurrent)` function or of the variant
+/// that `@JS(.withAsync("name"))` adds. Both run the body on the concurrent thread pool, never on the
+/// JavaScript thread, so the body can't use the value, and the value is released off the JavaScript
+/// thread too.
+private func diagnoseJavaScriptValuesOffThread(
+  of node: AttributeSyntax,
+  on declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
+    return
+  }
+  let option: String
+  let reason: String
+  if hasJSOption(node, named: "concurrent") {
+    option = ".concurrent"
+    reason = "'.concurrent' runs the body on the concurrent thread pool"
+  } else if asyncVariantOption(of: node) != nil {
+    option = ".withAsync"
+    reason = "the variant that '.withAsync' adds runs the function on the concurrent thread pool"
+  } else {
+    return
+  }
+  for parameter in funcDecl.signature.parameterClause.parameters {
+    let type = SpecifiedType(parameter.type).type
+    guard let name = baseIdentifier(of: optionalWrappedType(type) ?? type), javaScriptThreadBoundTypes.contains(name)
+    else {
+      continue
+    }
+    let parameterName = (parameter.secondName ?? parameter.firstName).text
+    context.diagnose(
+      Diagnostic(
+        node: parameter.type,
+        message: JSDiagnosticMessage(
+          "'\(parameterName)' can't be a '\(name)' in a '\(option)' function: \(reason), and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '\(option)'.",
+          id: "js-javascript-value-off-thread",
+          severity: .error
+        )
+      )
+    )
+  }
+}
+
 private func diagnoseParameterSpecifiers(
   in declaration: some DeclSyntaxProtocol,
   in context: some MacroExpansionContext

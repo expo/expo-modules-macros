@@ -1508,6 +1508,187 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `A JavaScript value parameter of a .concurrent function is diagnosed on its type`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.concurrent)
+        func load(_ object: borrowing JavaScriptObject) async {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @concurrent
+          func load(_ object: borrowing JavaScriptObject) async {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try JavaScriptObject.decode(arguments.unownedValue(at: 0), in: runtime)
+              return {
+                await self.load(arg0)
+                return .undefined()
+              }
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func load(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            load(JavaScriptObject.self)
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'object' can't be a 'JavaScriptObject' in a '.concurrent' function: '.concurrent' runs the body on the concurrent thread pool, and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '.concurrent'.",
+          // The test harness expands `@JS` after `@ExpoModule` adds `@concurrent` on its own line, so it
+          // reports the parameter one line lower than the compiler and `expand` do (line 4).
+          line: 5,
+          column: 23,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An optional JavaScript value parameter of a .withAsync function is diagnosed on its type`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.withAsync("readAsync"))
+        func read(value: JavaScriptValue?) {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          func read(value: JavaScriptValue?) {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("read") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count >= 0 && arguments.count <= 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "read", received: arguments.count, required: 0, maximum: 1))
+              }
+              switch arguments.count {
+              case 0:
+                self.read(value: nil)
+              default:
+                let arg0 = try JavaScriptValue?.decode(arguments.unownedValue(at: 0), in: runtime)
+                self.read(value: arg0)
+              }
+            }
+            object.setProperty("readAsync") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count >= 0 && arguments.count <= 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "readAsync", received: arguments.count, required: 0, maximum: 1))
+              }
+              switch arguments.count {
+              case 0:
+                return {
+                  await { @concurrent () async in
+                    self.read(value: nil)
+                  }()
+                  return .undefined()
+                }
+              default:
+                let arg0 = try JavaScriptValue?.decode(arguments.unownedValue(at: 0), in: runtime)
+                return {
+                  await { @concurrent () async in
+                    self.read(value: arg0)
+                  }()
+                  return .undefined()
+                }
+              }
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func read(value _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            read(value: JavaScriptValue.self)
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'value' can't be a 'JavaScriptValue' in a '.withAsync' function: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '.withAsync'.",
+          line: 4,
+          column: 20,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `JavaScript value parameters of synchronous and plain async functions aren't diagnosed`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS
+        func update(_ object: borrowing JavaScriptObject) {}
+
+        @JS
+        func store(_ value: JavaScriptValue) async {}
+      }
+      """,
+      expandedSource: """
+        final class MyModule: Module {
+          @JavaScriptActor
+          func update(_ object: borrowing JavaScriptObject) {}
+          @JavaScriptActor
+          func store(_ value: JavaScriptValue) async {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("update") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "update", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try JavaScriptObject.decode(arguments.unownedValue(at: 0), in: runtime)
+              self.update(arg0)
+            }
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0 = try JavaScriptValue.decode(arguments.unownedValue(at: 0), in: runtime)
+              return {
+                await self.store(arg0)
+                return .undefined()
+              }
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func update(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            update(JavaScriptObject.self)
+            func store(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            store(JavaScriptValue.self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `@JS(.withAsync) variant name that the function's own binding uses is a collision`() {
     assertExpansion(
       """
