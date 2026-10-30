@@ -532,23 +532,39 @@ struct ScanTests {
   }
 
   @Test
-  func `scanModules reports only @ExpoModule, ignoring other macros`() throws {
+  func `scanModules reports @ExpoModule and @SharedObject, ignoring other macros`() throws {
     let files = [
       ("Module.swift", "@ExpoModule\nfinal class MyModule {}"),
-      ("Shared.swift", "@SharedObject\nfinal class Cache: SharedObject {}"),
+      ("Shared.swift", "@SharedObject(\"JSCache\")\npublic final class Cache: SharedObject {}"),
       ("Options.swift", "@Record\nstruct Options { var name: String }"),
     ]
     try withTreeRoot(files) { root in
       let result = scanModules(paths: [root.path])
       #expect(result.modules.map(\.name) == ["MyModule"])
-      // @SharedObject / @Record files aren't even parsed: the modules pre-filter is @ExpoModule-only.
-      #expect(result.stats.filesParsed == 1)
+      #expect(result.sharedObjects.map(\.name) == ["Cache"])
+      #expect(result.sharedObjects.first?.jsName == "JSCache")
+      #expect(result.sharedObjects.first?.accessLevel == "public")
+      #expect(result.sharedObjects.first?.platforms == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
+      // @Record files aren't even parsed: the modules pre-filter covers only the two type macros.
+      #expect(result.stats.filesParsed == 2)
 
-      // The shared core, given the full macro set, surfaces all three — confirming it's the
-      // @ExpoModule-only filter, not the walk, that scopes scanModules.
+      // The shared core, given the full macro set, surfaces all three, confirming it's the
+      // filter, not the walk, that scopes scanModules.
       let all = collectDetections(paths: [root.path], macros: Set(DetectedMacro.allCases))
       #expect(all.detections.map(\.name).sorted() == ["Cache", "MyModule", "Options"])
       #expect(all.stats.filesParsed == 3)
+    }
+  }
+
+  @Test
+  func `scanModules reports only classes`() throws {
+    try withTree([
+      ("Module.swift", "@ExpoModule\npublic struct StructModule {}"),
+      ("Shared.swift", "@SharedObject\npublic struct StructObject {}"),
+    ]) { result in
+      // The macros reject anything but a class, so a struct is never a module or a shared object.
+      #expect(result.modules.isEmpty)
+      #expect(result.sharedObjects.isEmpty)
     }
   }
 

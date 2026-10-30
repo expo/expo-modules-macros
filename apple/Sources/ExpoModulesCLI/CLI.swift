@@ -6,7 +6,7 @@
 /// files).
 ///
 /// Subcommands:
-///   scan-modules   <path>...   fast: top-level `@ExpoModule` types, for autolinking
+///   scan-modules   <path>...   fast: top-level `@ExpoModule` and `@SharedObject` types, for autolinking
 ///   scan-exports   <path>...   deep: full JS-exported surface, for TS type generation
 ///   expand         <path>...   the code that the macros generate, and their diagnostics
 public enum ScannerCLI {
@@ -124,7 +124,7 @@ private var usageText: String {
   usage: \(toolName) <subcommand> [options] <path> [<path> ...]
 
   subcommands:
-    scan-modules   fast scan for top-level @ExpoModule types (autolinking)
+    scan-modules   fast scan for top-level @ExpoModule and @SharedObject types (autolinking)
     scan-exports   deep scan of the full JS-exported surface (type generation)
     expand         print the code that the macros generate in the given .swift files (and in the
                    files of the given directories that use a macro), and the macro diagnostics
