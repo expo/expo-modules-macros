@@ -161,11 +161,11 @@ targets: [
 ]
 ```
 
-SwiftPM then builds the plugin from source for the host and loads it into every target that depends on that target, with no `-load-plugin-executable` flag and no unsafe flags. When the resolved swift-syntax version is a release, SwiftPM and Xcode can use their prebuilt swift-syntax for it, so only the sources of this package compile.
+SwiftPM then builds the plugin from source for the host (the macros, without the scanner CLI) and loads it into every target that depends on that target, with no `-load-plugin-executable` flag and no unsafe flags. When the resolved swift-syntax version is a release, SwiftPM and Xcode can use their prebuilt swift-syntax for it, so only the sources of this package compile.
 
 On Windows and Linux, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` or `ExpoModulesMacros` from `@expo/modules-macros-linux-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows and Linux it falls back to the local `pnpm run build` output in `platforms/<platform>-<arch>` when the platform package isn't installed, for example in this repository.
 
-The module and type names in `#externalMacro` must stay in sync with `apple/Sources/ExpoModulesMacros/Plugin.swift`.
+The module and type names in `#externalMacro` must stay in sync with `ProvidedMacro.all` in `apple/Sources/ExpoModulesMacrosCore/ProvidedMacros.swift`.
 
 # Development
 
@@ -191,7 +191,7 @@ cp "$(cd /tmp/swift-format && swift build -c release --show-bin-path)/swift-form
 
 Then add `~/.local/bin` to `PATH`.
 
-`pnpm run build` runs `scripts/build.js`, which builds the release binary with SwiftPM's native build system (Swift Build, the default since Swift 6.4, doesn't build a macro tool that no target in the package uses).
+`pnpm run build` runs `scripts/build.js`, which builds the release binary, the `ExpoModulesMacrosTool` executable, with SwiftPM's native build system.
 
 - On macOS, it builds for arm64 and x86_64, merges the slices into `apple/ExpoModulesMacros` with `lipo`, strips it, and verifies both slices are present. SwiftPM only builds macro tools for the host architecture, so the x86_64 slice is produced by running the toolchain under Rosetta; the script installs Rosetta if it is missing.
 - On Windows, it builds for the host architecture only, with the Swift runtime linked in statically and without debug info, and writes `platforms/win32-<arch>/ExpoModulesMacros.exe` (`x64` or `arm64`, as Node's `process.arch` names them), the file that the package for that architecture publishes. It strips the executable with `llvm-strip` from the Swift toolchain and checks the architecture in its header.

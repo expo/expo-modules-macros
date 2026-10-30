@@ -110,7 +110,7 @@ public enum ScannerCLI {
 }
 
 /// The invoked executable's basename, so the usage text matches however the tool was launched
-/// (the `ExpoModulesMacros` shipped in the package, or a locally built `ExpoModulesMacros-tool`).
+/// (the `ExpoModulesMacros` shipped in the package, or a locally built `ExpoModulesMacrosTool`).
 private var toolName: String {
   guard let path = CommandLine.arguments.first else {
     return "ExpoModulesMacros"

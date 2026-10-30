@@ -1,4 +1,4 @@
-import ExpoModulesMacros
+import ExpoModulesMacrosCore
 import SwiftSyntax
 import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros

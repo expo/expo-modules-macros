@@ -524,7 +524,7 @@ internal func encodeCall(_ type: String, freeForm: FreeFormConversion?, of value
 /// `name` without the backticks that escape it: `` `default` `` becomes `default`. Swift needs the
 /// backticks in every identifier position, but a name JavaScript sees (a JS member name, an event
 /// name, a record key) is the bare name.
-internal func withoutBackticks(_ name: String) -> String {
+public func withoutBackticks(_ name: String) -> String {
   var name = Substring(name)
   while name.first == "`" {
     name.removeFirst()
