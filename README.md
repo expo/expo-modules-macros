@@ -13,7 +13,7 @@ The same executable doubles as a source scanner CLI.
 
 # Installation
 
-This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains a prebuilt universal (arm64 + x86_64) macOS binary at `apple/ExpoModulesMacros`, so consumers never build the plugin themselves.
+This package is not meant to be installed directly. It is a dependency of `expo-modules-core`, so every Expo project already has it. The published package contains a prebuilt universal (arm64 + x86_64) macOS binary at `apple/ExpoModulesMacros`, so CocoaPods builds never build the plugin themselves. A Swift package can build it from source instead (see [Swift packages](#swift-packages)).
 
 The Windows and Linux binaries ship in their own packages, one per platform and architecture:
 
@@ -145,6 +145,24 @@ The binary is a compiled executable, so each call still spawns a process. What t
 
 to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and their test specs. Expo's SPM prebuilds pass the same flag when they generate `Package.swift`, so both build systems load the same binary.
 
+## Swift packages
+
+The package manifest is `Package.swift` at the root of this package, so a Swift package can depend on it by its path in `node_modules` or by the URL of this repository. Its identity is then `expo-modules-macros`. The `ExpoModulesMacrosPlugin` library product holds the `ExpoModulesMacros` macro target:
+
+```swift
+dependencies: [
+  .package(path: "../node_modules/expo-modules-macros")
+],
+targets: [
+  .target(
+    name: "ExpoModulesCore",
+    dependencies: [.product(name: "ExpoModulesMacrosPlugin", package: "expo-modules-macros")]
+  )
+]
+```
+
+SwiftPM then builds the plugin from source for the host and loads it into every target that depends on that target, with no `-load-plugin-executable` flag and no unsafe flags. When the resolved swift-syntax version is a release, SwiftPM and Xcode can use their prebuilt swift-syntax for it, so only the sources of this package compile.
+
 On Windows and Linux, the compiler loads `ExpoModulesMacros.exe` from `@expo/modules-macros-win32-<arch>` or `ExpoModulesMacros` from `@expo/modules-macros-linux-<arch>` with the same flag. `getScannerBinaryPath()` in the TypeScript wrapper returns the binary for the current platform and architecture. On Windows and Linux it falls back to the local `pnpm run build` output in `platforms/<platform>-<arch>` when the platform package isn't installed, for example in this repository.
 
 The module and type names in `#externalMacro` must stay in sync with `apple/Sources/ExpoModulesMacros/Plugin.swift`.
@@ -154,7 +172,6 @@ The module and type names in `#externalMacro` must stay in sync with `apple/Sour
 Requires a toolchain with Swift 6.2 or newer: on macOS 13 or newer that means Xcode 26 or newer, and on Windows and Linux the Swift toolchain from swift.org (CI uses 6.4).
 
 ```sh
-cd apple
 swift build
 swift test
 ```

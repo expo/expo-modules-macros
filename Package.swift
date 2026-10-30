@@ -8,6 +8,14 @@ import PackageDescription
 let package = Package(
   name: "ExpoModulesMacros",
   platforms: [.macOS(.v13)],
+  products: [
+    // Lets a SwiftPM package depend on the macros, so the compiler builds and loads the plugin from
+    // source, with no `-load-plugin-executable` flag. A target that declares the macros with
+    // `#externalMacro(module: "ExpoModulesMacros", ...)` depends on this product, and the targets that
+    // depend on it get the plugin too. CocoaPods builds keep loading the prebuilt binary. The name
+    // differs from the macro target's, because SwiftPM already has a product of that name for it.
+    .library(name: "ExpoModulesMacrosPlugin", targets: ["ExpoModulesMacros"])
+  ],
   dependencies: [
     .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "604.0.0-latest")
   ],
@@ -28,7 +36,8 @@ let package = Package(
         .product(name: "SwiftParser", package: "swift-syntax"),
         .product(name: "SwiftParserDiagnostics", package: "swift-syntax"),
         .product(name: "SwiftBasicFormat", package: "swift-syntax"),
-      ]
+      ],
+      path: "apple/Sources/ExpoModulesMacros"
     ),
     .target(
       name: "ExpoModulesCLI",
@@ -36,14 +45,15 @@ let package = Package(
         .product(name: "SwiftSyntax", package: "swift-syntax"),
         .product(name: "SwiftParser", package: "swift-syntax"),
         .product(name: "SwiftIfConfig", package: "swift-syntax"),
-      ]
+      ],
+      path: "apple/Sources/ExpoModulesCLI"
     ),
   ]
 )
 
 // The Tests directory is excluded from the published npm package,
 // so only declare the test target when building from the repository.
-if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
+if FileManager.default.fileExists(atPath: Context.packageDirectory + "/apple/Tests") {
   package.targets.append(
     .testTarget(
       name: "ExpoModulesMacrosTests",
@@ -51,7 +61,8 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
         "ExpoModulesMacros",
         "ExpoModulesCLI",
         .product(name: "SwiftSyntaxMacrosGenericTestSupport", package: "swift-syntax"),
-      ]
+      ],
+      path: "apple/Tests/ExpoModulesMacrosTests"
     )
   )
   package.targets.append(
@@ -60,7 +71,8 @@ if FileManager.default.fileExists(atPath: Context.packageDirectory + "/Tests") {
       dependencies: [
         "ExpoModulesCLI",
         .product(name: "SwiftParser", package: "swift-syntax"),
-      ]
+      ],
+      path: "apple/Tests/ExpoModulesCLITests"
     )
   )
 }
