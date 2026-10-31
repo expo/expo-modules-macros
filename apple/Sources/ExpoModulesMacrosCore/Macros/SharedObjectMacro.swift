@@ -8,7 +8,7 @@ import SwiftSyntaxMacros
 /// is emitted as a `_jsName` override.
 ///
 ///   @SharedObject
-///   final class Cache: SharedObject {
+///   public final class Cache: SharedObject {
 ///     @JS
 ///     init(name: String) { self.name = name }
 ///
@@ -34,6 +34,13 @@ public struct SharedObjectMacro: MemberMacro {
     guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
       throw MacroExpansionErrorMessage("@SharedObject can only be applied to a class")
     }
+    diagnoseNonPublicClass(
+      classDecl,
+      macroName: "@SharedObject",
+      reason: "export it",
+      idPrefix: "sharedobject",
+      in: context
+    )
 
     // The superclass isn't checked here: the macro sees only this declaration, so it can't tell an
     // indirect subclass (`class Thumbnail: ImageRef`) from an unrelated class. The compiler reports a
