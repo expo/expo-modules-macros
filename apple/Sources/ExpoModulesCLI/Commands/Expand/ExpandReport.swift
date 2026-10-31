@@ -67,13 +67,23 @@ public struct ExpansionDiagnostic: Codable, Equatable, Sendable {
   /// The messages of the Fix-Its, for example `replace 'var' with 'let'`.
   public let fixIts: [String]
 
+  /// The edits of each Fix-It in `fixIts`, in the original file, for `fix`. The edits of a Fix-It are
+  /// empty when they aren't in the original file, and this is empty for a diagnostic whose Fix-Its
+  /// `fix` doesn't apply, such as a syntax error. Not part of the JSON report.
+  public var fixItEdits: [[ExpansionEdit]] = []
+
+  private enum CodingKeys: String, CodingKey {
+    case severity, message, line, column, notes, fixIts
+  }
+
   public init(
     severity: Severity,
     message: String,
     line: Int,
     column: Int,
     notes: [ExpansionNote] = [],
-    fixIts: [String] = []
+    fixIts: [String] = [],
+    fixItEdits: [[ExpansionEdit]] = []
   ) {
     self.severity = severity
     self.message = message
@@ -81,6 +91,26 @@ public struct ExpansionDiagnostic: Codable, Equatable, Sendable {
     self.column = column
     self.notes = notes
     self.fixIts = fixIts
+    self.fixItEdits = fixItEdits
+  }
+}
+
+/// A change of one range of the original file: `original`, which starts at `offset`, becomes
+/// `replacement`.
+public struct ExpansionEdit: Equatable, Sendable {
+  /// The UTF-8 offset in the original file.
+  public let offset: Int
+
+  /// The text that the edit replaces, so `fix` can check that the file still has it there. Empty
+  /// for an insertion.
+  public let original: String
+
+  public let replacement: String
+
+  public init(offset: Int, original: String, replacement: String) {
+    self.offset = offset
+    self.original = original
+    self.replacement = replacement
   }
 }
 

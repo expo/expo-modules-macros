@@ -34,13 +34,18 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
   }
   let originalDeclarations = OriginalDeclarations(tree)
   diagnostics += context.diagnostics.map { diagnostic in
-    expansionDiagnostic(diagnostic) { position, node in
+    let location = { (position: AbsolutePosition, node: Syntax) -> SourceLocation in
       let location = context.location(for: position, anchoredAt: node, fileName: file)
       if let original = originalDeclarations.position(of: position, in: node, shiftedOffset: location.offset) {
         return converter.location(for: original)
       }
       return location
     }
+    var result = expansionDiagnostic(diagnostic, location: location)
+    result.fixItEdits = diagnostic.fixIts.map { fixIt in
+      originalEdits(of: fixIt) { location($0, $1).offset } ?? []
+    }
+    return result
   }
   diagnostics.sort { ($0.line, $0.column) < ($1.line, $1.column) }
 
@@ -201,6 +206,93 @@ private func expansionDiagnostic(
     },
     fixIts: diagnostic.fixIts.map(\.message.message)
   )
+}
+
+/// The edits of `fixIt` in the original file, or `nil` when one of them isn't in the tree of the node
+/// that it changes. `offset` maps a position in the tree of a node to its UTF-8 offset in the original
+/// file.
+///
+/// A Fix-It that replaces a node replaces all of it, but the tree that a macro gets isn't always the
+/// original declaration: in a module, a `@JS` member also has the attributes that `@ExpoModule` adds.
+/// So each edit is reduced to the bytes that it changes, for example the `async ` that it inserts
+/// into a signature, which are in the original file too. The macro system detaches the attribute
+/// from the declaration, so a change has its own tree, which can differ from the diagnostic's.
+private func originalEdits(
+  of fixIt: FixIt,
+  offset: (AbsolutePosition, Syntax) -> Int
+) -> [ExpansionEdit]? {
+  var edits: [ExpansionEdit] = []
+  for change in fixIt.changes {
+    // `FixIt.edits` drops an edit that overlaps an earlier one; this applies the same rule.
+    guard let edit = FixIt(message: fixIt.message, changes: [change]).edits.first else {
+      continue
+    }
+    let node = changedNode(change)
+    let root = node.root
+    let text = Array(root.description.utf8)
+    let start = edit.range.lowerBound.utf8Offset - root.position.utf8Offset
+    let end = edit.range.upperBound.utf8Offset - root.position.utf8Offset
+    guard 0 <= start, start <= end, end <= text.count else {
+      return nil
+    }
+    let old = text[start..<end]
+    let new = Array(edit.replacement.utf8)
+    let (prefix, suffix) = commonAffixLengths(Array(old), new)
+    guard prefix + suffix < max(old.count, new.count) else {
+      continue
+    }
+    let changedStart = edit.range.lowerBound.advanced(by: prefix)
+    let originalEdit = ExpansionEdit(
+      offset: offset(changedStart, node),
+      original: String(decoding: old.dropFirst(prefix).dropLast(suffix), as: UTF8.self),
+      replacement: String(decoding: new.dropFirst(prefix).dropLast(suffix), as: UTF8.self)
+    )
+    if !edits.contains(where: { overlaps($0, originalEdit) }) {
+      edits.append(originalEdit)
+    }
+  }
+  return edits
+}
+
+/// The node in the tree that `change` edits.
+private func changedNode(_ change: FixIt.Change) -> Syntax {
+  switch change {
+  case .replace(let oldNode, _):
+    oldNode
+  case .replaceLeadingTrivia(let token, _), .replaceTrailingTrivia(let token, _):
+    Syntax(token)
+  case .replaceChild(let data):
+    Syntax(data.parent)
+  case .replaceText(_, _, let node):
+    node
+  }
+}
+
+/// Whether two edits change the same bytes of the original file.
+private func overlaps(_ a: ExpansionEdit, _ b: ExpansionEdit) -> Bool {
+  a.offset < b.offset + b.original.utf8.count && b.offset < a.offset + a.original.utf8.count
+}
+
+/// The lengths of the longest common prefix and suffix of `old` and `new` that don't overlap, at
+/// character boundaries, so the bytes between them are valid UTF-8 on both sides.
+private func commonAffixLengths(_ old: [UInt8], _ new: [UInt8]) -> (prefix: Int, suffix: Int) {
+  let isContinuation = { (bytes: [UInt8], index: Int) in index < bytes.count && bytes[index] & 0xC0 == 0x80 }
+  let shorter = min(old.count, new.count)
+  var prefix = 0
+  while prefix < shorter && old[prefix] == new[prefix] {
+    prefix += 1
+  }
+  while prefix > 0 && (isContinuation(old, prefix) || isContinuation(new, prefix)) {
+    prefix -= 1
+  }
+  var suffix = 0
+  while suffix < shorter - prefix && old[old.count - 1 - suffix] == new[new.count - 1 - suffix] {
+    suffix += 1
+  }
+  while suffix > 0 && (isContinuation(old, old.count - suffix) || isContinuation(new, new.count - suffix)) {
+    suffix -= 1
+  }
+  return (prefix, suffix)
 }
 
 private func severity(_ severity: DiagnosticSeverity) -> ExpansionDiagnostic.Severity {

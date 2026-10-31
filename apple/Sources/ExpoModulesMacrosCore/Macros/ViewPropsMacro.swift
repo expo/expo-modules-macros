@@ -142,20 +142,29 @@ private func fieldAttributeDiagnostic(
   // Rebuild the attribute list without this entry, so the fix-it removes the attribute and the
   // trivia it carried rather than leaving a blank line behind.
   var attributes = varDecl.attributes
-  if let index = attributes.firstIndex(where: { element in
+  let index = attributes.firstIndex(where: { element in
     guard case .attribute(let candidate) = element else {
       return false
     }
     return candidate == attribute
-  }) {
+  })
+  if let index {
     attributes.remove(at: index)
+  }
+  var newDecl = varDecl.with(\.attributes, attributes)
+  // The first attribute carries the line break, indentation and comments before the declaration, so
+  // the token after it takes them over, without its own leading whitespace: `@Field var size` and
+  // `@Field` on its own line both become `var size` on the line of the attribute.
+  if index == varDecl.attributes.startIndex {
+    newDecl.leadingTrivia =
+      varDecl.leadingTrivia + Trivia(pieces: newDecl.leadingTrivia.pieces.drop(while: \.isWhitespace))
   }
   let fixIt = FixIt(
     message: ViewPropsFixItMessage("Remove the '@Field' attribute", id: "viewprops-remove-field"),
     changes: [
       .replace(
         oldNode: Syntax(varDecl),
-        newNode: Syntax(varDecl.with(\.attributes, attributes))
+        newNode: Syntax(newDecl)
       )
     ]
   )

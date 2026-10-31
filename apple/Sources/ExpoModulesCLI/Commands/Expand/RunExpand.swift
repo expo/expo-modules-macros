@@ -75,6 +75,23 @@ struct ExpandInputError: Error, Equatable {
 /// and only the files that use one of the macros are expanded, with their absolute paths. A file that
 /// a directory also contains is expanded once.
 func expandFiles(options: ExpandOptions, expander: MacroExpander) -> Result<ExpandResult, ExpandInputError> {
+  expandSources(options: options, expander: expander).map { sources in
+    let files = sources.map(\.expanded)
+    return ExpandResult(
+      schemaVersion: expandSchemaVersion,
+      files: options.diagnosticsOnly
+        ? files.map { ExpandedFile(file: $0.file, expansions: [], diagnostics: $0.diagnostics) }
+        : files
+    )
+  }
+}
+
+/// The files of `options` with their sources, expanded with `expander`, as `expandFiles` describes.
+/// `fix` uses it too, because it edits the sources.
+func expandSources(
+  options: ExpandOptions,
+  expander: MacroExpander
+) -> Result<[(source: String, expanded: ExpandedFile)], ExpandInputError> {
   let prefilter = MacroPrefilter(attributeNames: expander.attributeNames)
   var sources: [(file: String, source: String)] = []
   var seen: Set<String> = []
@@ -107,9 +124,9 @@ func expandFiles(options: ExpandOptions, expander: MacroExpander) -> Result<Expa
     }
   }
 
-  let files = sources.map { expander.expand($0.source, $0.file, options.symbols) }
+  let files = sources.map { (source: $0.source, expanded: expander.expand($0.source, $0.file, options.symbols)) }
 
-  let found = Set(files.flatMap { $0.expansions.compactMap(\.symbol) })
+  let found = Set(files.flatMap { $0.expanded.expansions.compactMap(\.symbol) })
   if let missing = options.symbols.first(where: { !found.contains($0) }) {
     return .failure(
       ExpandInputError(
@@ -119,14 +136,7 @@ func expandFiles(options: ExpandOptions, expander: MacroExpander) -> Result<Expa
     )
   }
 
-  return .success(
-    ExpandResult(
-      schemaVersion: expandSchemaVersion,
-      files: options.diagnosticsOnly
-        ? files.map { ExpandedFile(file: $0.file, expansions: [], diagnostics: $0.diagnostics) }
-        : files
-    )
-  )
+  return .success(files)
 }
 
 /// The expanded sources as text. A single expansion is printed as it is; more than one each get a

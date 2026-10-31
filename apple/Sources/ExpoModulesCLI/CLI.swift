@@ -9,13 +9,15 @@
 ///   scan-modules   <path>...   fast: top-level `@ExpoModule` and `@SharedObject` types, for autolinking
 ///   scan-exports   <path>...   deep: full JS-exported surface, for TS type generation
 ///   expand         <path>...   the code that the macros generate, and their diagnostics
+///   fix            <path>...   applies the Fix-Its of the macro diagnostics to the files
 public enum ScannerCLI {
   /// Runs the CLI for the given arguments (argv without the executable path) and returns the
   /// process exit code: `0` on success, `1` if encoding the report fails, `2` on a usage error.
-  /// `expand` also returns `1` for an error diagnostic (see `Scanner.runExpand`).
+  /// `expand` also returns `1` for an error diagnostic (see `Scanner.runExpand`), and `fix` when it
+  /// can't write a file (see `Scanner.runFix`).
   ///
-  /// `expander` expands the macros for `expand`. The plugin executable passes it, because the macro
-  /// implementations live there; without it, `expand` is a usage error.
+  /// `expander` expands the macros for `expand` and `fix`. The plugin executable passes it, because the
+  /// macro implementations live there; without it, `expand` and `fix` are usage errors.
   public static func run(arguments: [String], expander: MacroExpander? = nil) -> Int32 {
     // `-h`/`--help` anywhere is treated as a help request: print usage to stdout and exit 0.
     if arguments.contains(where: { $0 == "-h" || $0 == "--help" }) {
@@ -32,6 +34,7 @@ public enum ScannerCLI {
     var platform: String?
     var defines: [String] = []
     var expandOptions = ExpandOptions()
+    var dryRun = false
 
     var rest = arguments.dropFirst().makeIterator()
     while let argument = rest.next() {
@@ -55,14 +58,22 @@ public enum ScannerCLI {
         expandOptions.json = true
       case "--diagnostics-only":
         expandOptions.diagnosticsOnly = true
+      case "--dry-run":
+        dryRun = true
       default:
         paths.append(argument)
       }
     }
 
     // The scans print JSON in any case and have no symbols to filter.
-    if subcommand != "expand" && expandOptions != ExpandOptions() {
-      return usageError("--symbol, --json and --diagnostics-only are options of expand")
+    if subcommand != "expand" && subcommand != "fix" && !expandOptions.symbols.isEmpty {
+      return usageError("--symbol is an option of expand and fix")
+    }
+    if subcommand != "expand" && (expandOptions.json || expandOptions.diagnosticsOnly) {
+      return usageError("--json and --diagnostics-only are options of expand")
+    }
+    if subcommand != "fix" && dryRun {
+      return usageError("--dry-run is an option of fix")
     }
 
     switch subcommand {
@@ -103,6 +114,21 @@ public enum ScannerCLI {
       expandOptions.paths = paths
       return Scanner.runExpand(options: expandOptions, expander: expander)
 
+    case "fix":
+      guard platform == nil, defines.isEmpty else {
+        return usageError("fix does not support --platform or --define")
+      }
+      guard !paths.isEmpty else {
+        return usageError("fix requires at least one path")
+      }
+      guard let expander else {
+        return usageError("fix is only available in the macro plugin executable")
+      }
+      return Scanner.runFix(
+        options: FixOptions(paths: paths, symbols: expandOptions.symbols, dryRun: dryRun),
+        expander: expander
+      )
+
     default:
       return usageError("unknown subcommand '\(subcommand)'")
     }
@@ -129,17 +155,24 @@ private var usageText: String {
     expand         print the code that the macros generate in the given .swift files (and in the
                    files of the given directories that use a macro), and the macro diagnostics
                    on stderr; exits with 1 when there is an error
+    fix            apply the Fix-Its of the macro diagnostics to the files that expand takes, in
+                   place, and print each one; doesn't format the files
 
   options (scan-modules only):
     --define <flag>   treat a conditional compilation flag (e.g. DEBUG) as set when resolving
                       each module's 'platforms' list; repeatable
 
+  options (expand and fix):
+    --symbol <name>      expand only a type ('MyModule', 'MyModule.Options') or a member
+                         ('MyModule.greet'), and use only its diagnostics; repeatable
+
   options (expand only):
-    --symbol <name>      print only the expansion of a type ('MyModule', 'MyModule.Options') or a
-                         member ('MyModule.greet'), and only its diagnostics; repeatable
     --diagnostics-only   print only the diagnostics, followed by a summary
     --json               print a JSON report with the expansions and diagnostics instead; exits with
                          0 also when there is an error
+
+  options (fix only):
+    --dry-run            print the Fix-Its without changing the files
 
   options:
     -h, --help        print this help and exit
