@@ -28,8 +28,7 @@ struct FixedSource: Equatable {
   let source: String
   let fixIts: [FixItReport]
 
-  /// Whether `fixSource` stopped after `maxFixPasses` passes while the last pass still applied a
-  /// Fix-It, so the source can have more.
+  /// Whether `fixSource` stopped after `maxFixPasses` passes while Fix-Its were left to apply.
   var reachedPassLimit = false
 
   var applied: [FixItReport] {
@@ -46,8 +45,14 @@ extension Scanner {
   /// `--dry-run`, the files aren't written. A file that can't be written is reported and the others are
   /// still fixed. The exit code is `0` also when a Fix-It is skipped, `1` when a file can't be written,
   /// and `2` for an input that `expand` doesn't take.
-  static func runFix(options: FixOptions, expander: MacroExpander) -> Int32 {
-    let sources: [(source: String, expanded: ExpandedFile)]
+  ///
+  /// `write` writes a fixed file (see `writeFixedSource`); tests replace it.
+  static func runFix(
+    options: FixOptions,
+    expander: MacroExpander,
+    write: (_ source: String, _ path: String, _ original: Data) throws -> Void = writeFixedSource
+  ) -> Int32 {
+    let sources: [(source: String, contents: Data, expanded: ExpandedFile)]
     switch expandSources(options: ExpandOptions(paths: options.paths, symbols: options.symbols), expander: expander) {
     case .success(let expanded):
       sources = expanded
@@ -58,8 +63,8 @@ extension Scanner {
 
     var appliedCount = 0
     var fixedFiles = 0
-    var failed = false
-    for (source, expanded) in sources {
+    var failedFiles = 0
+    for (source, contents, expanded) in sources {
       let fixed = fixSource(
         source,
         expanded: expanded,
@@ -73,10 +78,10 @@ extension Scanner {
       }
       if !options.dryRun {
         do {
-          try writeSource(fixed.source, toFile: expanded.file)
+          try write(fixed.source, expanded.file, contents)
         } catch {
           writeToStandardError("error: could not write '\(expanded.file)': \(error)\n")
-          failed = true
+          failedFiles += 1
           continue
         }
       }
@@ -85,20 +90,57 @@ extension Scanner {
       fixedFiles += 1
     }
 
-    writeToStandardOutput(renderFixSummary(applied: appliedCount, files: fixedFiles, dryRun: options.dryRun))
-    return failed ? 1 : 0
+    writeToStandardOutput(
+      renderFixSummary(applied: appliedCount, files: fixedFiles, failed: failedFiles, dryRun: options.dryRun)
+    )
+    return failedFiles > 0 ? 1 : 0
   }
 }
 
-/// Writes `source` to the file at `path` in place, so a symbolic link keeps pointing to the file and a
-/// hard link keeps sharing it, and a writable file can be written in a read-only directory. Keeps the
-/// UTF-8 byte order mark of the file, which the source doesn't have because reading it as a `String`
-/// removes it.
-func writeSource(_ source: String, toFile path: String) throws {
-  let url = URL(fileURLWithPath: path)
-  let byteOrderMark: [UInt8] = [0xEF, 0xBB, 0xBF]
-  let hasByteOrderMark = try Data(contentsOf: url).starts(with: byteOrderMark)
-  try Data((hasByteOrderMark ? byteOrderMark : []) + Array(source.utf8)).write(to: url)
+/// Why `writeFixedSource` didn't write a file.
+struct FixWriteError: Error, CustomStringConvertible {
+  let description: String
+}
+
+/// Writes `source`, the fixed source of the file at `path`, whose contents were `original`.
+///
+/// The file must still have the contents that `fix` read, so a change that an editor saved meanwhile
+/// isn't lost. It keeps the UTF-8 byte order mark of the file, which `readSource` removes from the
+/// source. A symbolic link keeps pointing to the file.
+///
+/// The file is written atomically, so it is never left incomplete. When that isn't possible, because
+/// the file has other hard links, which an atomic write would separate, or its directory isn't
+/// writable, it is written in place, and the original contents are written back when that fails.
+func writeFixedSource(_ source: String, toFile path: String, original: Data) throws {
+  let url = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+  guard let current = try? Data(contentsOf: url) else {
+    throw FixWriteError(description: "the file can't be read anymore")
+  }
+  guard current == original else {
+    throw FixWriteError(description: "the file changed after fix read it")
+  }
+  let contents = Data((original.starts(with: utf8ByteOrderMark) ? utf8ByteOrderMark : []) + Array(source.utf8))
+
+  let fileManager = FileManager.default
+  let attributes = try? fileManager.attributesOfItem(atPath: url.path)
+  let linkCount = attributes?[.referenceCount] as? Int ?? 1
+  if linkCount <= 1 && fileManager.isWritableFile(atPath: url.deletingLastPathComponent().path) {
+    try contents.write(to: url, options: .atomic)
+    // The atomic write replaces the file with a new one, which has the default permissions.
+    if let permissions = attributes?[.posixPermissions] {
+      try? fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path)
+    }
+    return
+  }
+  do {
+    try contents.write(to: url)
+  } catch {
+    let restored = (try? original.write(to: url)) != nil
+    throw FixWriteError(
+      description: "\(error); "
+        + (restored ? "the original contents are written back" : "the file can be incomplete")
+    )
+  }
 }
 
 /// The most times that `fixSource` expands a file again after applying Fix-Its.
@@ -126,10 +168,17 @@ func fixSource(
     fixed = applyFixIts(to: fixed.source, diagnostics: selected(diagnostics))
     applied += fixed.applied
   }
+  // After the last pass, expand once more to tell whether Fix-Its are left.
+  let reachedPassLimit =
+    !fixed.applied.isEmpty
+    && !applyFixIts(
+      to: fixed.source,
+      diagnostics: selected(expander.expand(fixed.source, expanded.file, symbols).diagnostics)
+    ).applied.isEmpty
   return FixedSource(
     source: fixed.source,
     fixIts: applied + fixed.fixIts.filter { $0.skipReason != nil },
-    reachedPassLimit: !fixed.applied.isEmpty
+    reachedPassLimit: reachedPassLimit
   )
 }
 
@@ -217,12 +266,16 @@ func renderSkippedFixIts(_ fixed: FixedSource, file: String) -> String {
   return text
 }
 
-/// The summary line of `fix`, for example `Applied 3 Fix-Its in 2 files.`
-func renderFixSummary(applied: Int, files: Int, dryRun: Bool) -> String {
-  guard applied > 0 else {
-    return "No Fix-Its to apply.\n"
+/// The summary line of `fix`, for example `Applied 3 Fix-Its in 2 files.` or, when files couldn't be
+/// written, `Applied 1 Fix-It in 1 file. Could not write 1 file.`
+func renderFixSummary(applied: Int, files: Int, failed: Int = 0, dryRun: Bool) -> String {
+  let count = { (n: Int, noun: String) in "\(n) \(noun)\(n == 1 ? "" : "s")" }
+  var parts: [String] = []
+  if applied > 0 {
+    parts.append("\(dryRun ? "Would apply" : "Applied") \(count(applied, "Fix-It")) in \(count(files, "file")).")
   }
-  let fixIts = "\(applied) Fix-It\(applied == 1 ? "" : "s")"
-  let fileCount = "\(files) file\(files == 1 ? "" : "s")"
-  return "\(dryRun ? "Would apply" : "Applied") \(fixIts) in \(fileCount).\n"
+  if failed > 0 {
+    parts.append("Could not write \(count(failed, "file")).")
+  }
+  return (parts.isEmpty ? "No Fix-Its to apply." : parts.joined(separator: " ")) + "\n"
 }

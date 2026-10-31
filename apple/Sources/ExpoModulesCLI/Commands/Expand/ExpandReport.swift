@@ -107,8 +107,9 @@ public struct ExpansionEdit: Equatable, Sendable {
   /// The UTF-8 offset in the original file.
   public let offset: Int
 
-  /// The text that the edit replaces, so `fix` can check that the file still has it there. Empty
-  /// for an insertion.
+  /// The text that the edit replaces, so `fix` can check that the file still has it there. An
+  /// insertion also replaces a few bytes after it with themselves, so it has text to check too, and
+  /// is empty only at the end of a declaration.
   public let original: String
 
   public let replacement: String

@@ -1562,6 +1562,31 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `A @Field attribute with arguments gets no removal fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field(.keyed("borderColor")) var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field(.keyed("borderColor")) var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 3,
+          column: 3
+        )
+      ]
+    )
+  }
+
+  @Test
   func `The optional-event diagnostic offers an unwrapping fix-it`() {
     assertExpansion(
       """

@@ -86,14 +86,14 @@ func expandFiles(options: ExpandOptions, expander: MacroExpander) -> Result<Expa
   }
 }
 
-/// The files of `options` with their sources, expanded with `expander`, as `expandFiles` describes.
-/// `fix` uses it too, because it edits the sources.
+/// The files of `options` with their sources and the bytes that were read, expanded with `expander`,
+/// as `expandFiles` describes. `fix` uses it too, because it edits the sources.
 func expandSources(
   options: ExpandOptions,
   expander: MacroExpander
-) -> Result<[(source: String, expanded: ExpandedFile)], ExpandInputError> {
+) -> Result<[(source: String, contents: Data, expanded: ExpandedFile)], ExpandInputError> {
   let prefilter = MacroPrefilter(attributeNames: expander.attributeNames)
-  var sources: [(file: String, source: String)] = []
+  var sources: [(file: String, source: String, contents: Data)] = []
   var seen: Set<String> = []
   for path in options.paths {
     switch isDirectory(atPath: path) {
@@ -101,12 +101,12 @@ func expandSources(
       return .failure(ExpandInputError(message: "no such file or directory '\(path)'"))
     case .some(true):
       for file in swiftFiles(in: [path]) where !seen.contains(fileIdentity(file)) {
-        guard let source = try? String(contentsOfFile: file, encoding: .utf8) else {
+        guard let (source, contents) = readSource(atPath: file) else {
           return .failure(ExpandInputError(message: "could not read '\(file)'"))
         }
         seen.insert(fileIdentity(file))
         if mightContainMacro(in: source, prefilter: prefilter) {
-          sources.append((file, source))
+          sources.append((file, source, contents))
         }
       }
     case .some(false):
@@ -116,15 +116,17 @@ func expandSources(
       guard !seen.contains(fileIdentity(path)) else {
         continue
       }
-      guard let source = try? String(contentsOfFile: path, encoding: .utf8) else {
+      guard let (source, contents) = readSource(atPath: path) else {
         return .failure(ExpandInputError(message: "could not read '\(path)'"))
       }
       seen.insert(fileIdentity(path))
-      sources.append((path, source))
+      sources.append((path, source, contents))
     }
   }
 
-  let files = sources.map { (source: $0.source, expanded: expander.expand($0.source, $0.file, options.symbols)) }
+  let files = sources.map {
+    (source: $0.source, contents: $0.contents, expanded: expander.expand($0.source, $0.file, options.symbols))
+  }
 
   let found = Set(files.flatMap { $0.expanded.expansions.compactMap(\.symbol) })
   if let missing = options.symbols.first(where: { !found.contains($0) }) {
@@ -137,6 +139,22 @@ func expandSources(
   }
 
   return .success(files)
+}
+
+/// The bytes of a UTF-8 byte order mark.
+let utf8ByteOrderMark: [UInt8] = [0xEF, 0xBB, 0xBF]
+
+/// The contents of the file at `path` as text, without a UTF-8 byte order mark, and the bytes that
+/// were read. `nil` when the file can't be read or isn't UTF-8.
+func readSource(atPath path: String) -> (source: String, contents: Data)? {
+  guard let contents = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+    return nil
+  }
+  let text = contents.starts(with: utf8ByteOrderMark) ? contents.dropFirst(utf8ByteOrderMark.count) : contents[...]
+  guard let source = String(bytes: text, encoding: .utf8) else {
+    return nil
+  }
+  return (source, contents)
 }
 
 /// The expanded sources as text. A single expansion is printed as it is; more than one each get a

@@ -35,8 +35,10 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
   let originalDeclarations = OriginalDeclarations(tree)
   diagnostics += context.diagnostics.map { diagnostic in
     let location = { (position: AbsolutePosition, node: Syntax) -> SourceLocation in
-      let declarationStart = context.location(for: node.root.position, anchoredAt: node, fileName: file).offset
-      if let original = originalDeclarations.position(of: position, in: node, declarationStart: declarationStart) {
+      let original = originalDeclarations.position(of: position, in: node) {
+        context.location(for: node.root.position, anchoredAt: node, fileName: file).offset
+      }
+      if let original {
         return converter.location(for: original)
       }
       return context.location(for: position, anchoredAt: node, fileName: file)
@@ -241,11 +243,24 @@ private func originalEdits(
     guard prefix + suffix < max(old.count, new.count) else {
       continue
     }
+    var original = Array(old.dropFirst(prefix).dropLast(suffix))
+    var replacement = Array(new.dropFirst(prefix).dropLast(suffix))
+    if original.isEmpty {
+      // An insertion has no text that `fix` can check in the file, so it also replaces the bytes after
+      // it with themselves, up to a character boundary.
+      let insertion = start + prefix
+      var contextEnd = min(insertion + insertionContextLength, text.count)
+      while contextEnd < text.count && text[contextEnd] & 0xC0 == 0x80 {
+        contextEnd += 1
+      }
+      original = Array(text[insertion..<contextEnd])
+      replacement += original
+    }
     let changedStart = edit.range.lowerBound.advanced(by: prefix)
     let originalEdit = ExpansionEdit(
       offset: offset(changedStart, node),
-      original: String(decoding: old.dropFirst(prefix).dropLast(suffix), as: UTF8.self),
-      replacement: String(decoding: new.dropFirst(prefix).dropLast(suffix), as: UTF8.self)
+      original: String(decoding: original, as: UTF8.self),
+      replacement: String(decoding: replacement, as: UTF8.self)
     )
     if !edits.contains(where: { overlaps($0, originalEdit) }) {
       edits.append(originalEdit)
@@ -253,6 +268,9 @@ private func originalEdits(
   }
   return edits
 }
+
+/// The number of bytes after an insertion that its edit also replaces with themselves.
+private let insertionContextLength = 8
 
 /// The node in the tree that `change` edits.
 private func changedNode(_ change: FixIt.Change) -> Syntax {
@@ -320,45 +338,72 @@ private func severity(_ severity: DiagnosticSeverity) -> ExpansionDiagnostic.Sev
 /// `init`) to its end is the same in both, so this moves the position by the offset of the keyword
 /// in the original declaration. A position before the keyword, in the attributes or the modifiers,
 /// isn't mapped.
-private struct OriginalDeclarations {
+///
+/// An accessor macro can get a declaration that swift-syntax rewrote rather than detached, for
+/// example an `@Event` property with a closure in its initializer, and its start doesn't map to the
+/// file. Such a declaration is found by its text when no other declaration in the file has it.
+private final class OriginalDeclarations {
   /// The declarations in the original file by the UTF-8 offset of their start, with their leading
   /// trivia: the text from the keyword to the end of each, and the position of its keyword.
-  private let declarations: [Int: [(text: String, keyword: AbsolutePosition)]]
+  private let declarationsByStart: [Int: [(text: String, keyword: AbsolutePosition)]]
+
+  /// The positions of the keywords of the declarations in the original file, by the text from the
+  /// keyword to the end of the declaration.
+  private let keywordsByText: [String: [AbsolutePosition]]
+
+  /// The positions of the keyword of each declaration that a macro got and of its original
+  /// declaration, or `nil` when it has no original declaration.
+  private var keywords: [SyntaxIdentifier: (keyword: AbsolutePosition, original: AbsolutePosition)?] = [:]
 
   init(_ tree: SourceFileSyntax) {
     let collector = DeclarationCollector(viewMode: .sourceAccurate)
     collector.walk(tree)
-    var declarations: [Int: [(text: String, keyword: AbsolutePosition)]] = [:]
+    var declarationsByStart: [Int: [(text: String, keyword: AbsolutePosition)]] = [:]
+    var keywordsByText: [String: [AbsolutePosition]] = [:]
     for declaration in collector.declarations {
       guard let keyword = keywordToken(of: declaration) else {
         continue
       }
-      declarations[declaration.position.utf8Offset, default: []].append(
-        (textFromKeyword(keyword, of: declaration), keyword.positionAfterSkippingLeadingTrivia)
+      let text = textFromKeyword(keyword, of: declaration)
+      declarationsByStart[declaration.position.utf8Offset, default: []].append(
+        (text, keyword.positionAfterSkippingLeadingTrivia)
       )
+      keywordsByText[text, default: []].append(keyword.positionAfterSkippingLeadingTrivia)
     }
-    self.declarations = declarations
+    self.declarationsByStart = declarationsByStart
+    self.keywordsByText = keywordsByText
   }
 
   /// The position in the original file of `position` in `node`, or `nil` when `node` is in the
-  /// original file, isn't in a detached declaration, is before its keyword, or no declaration with its
-  /// text starts at `declarationStart`.
+  /// original file, isn't in a declaration that a macro got, is before its keyword, or its original
+  /// declaration isn't found.
   ///
-  /// `declarationStart` is the offset that the macro system maps the start of the detached
-  /// declaration to.
-  func position(of position: AbsolutePosition, in node: Syntax, declarationStart: Int) -> AbsolutePosition? {
-    guard !node.root.is(SourceFileSyntax.self),
-      let declaration = node.root.as(DeclSyntax.self),
-      let keyword = keywordToken(of: declaration),
-      position >= keyword.positionAfterSkippingLeadingTrivia,
-      let original = declarations[declarationStart]?.first(where: {
-        $0.text == textFromKeyword(keyword, of: declaration)
-      })
-    else {
+  /// `declarationStart` returns the offset that the macro system maps the start of the declaration
+  /// to. It is called once for each declaration.
+  func position(
+    of position: AbsolutePosition,
+    in node: Syntax,
+    declarationStart: () -> Int
+  ) -> AbsolutePosition? {
+    guard !node.root.is(SourceFileSyntax.self), let declaration = node.root.as(DeclSyntax.self) else {
       return nil
     }
-    let offset = position.utf8Offset - keyword.positionAfterSkippingLeadingTrivia.utf8Offset
-    return AbsolutePosition(utf8Offset: original.keyword.utf8Offset + offset)
+    let found: (keyword: AbsolutePosition, original: AbsolutePosition)?
+    if let cached = keywords[declaration.id] {
+      found = cached
+    } else {
+      found = keywordToken(of: declaration).flatMap { keyword in
+        let text = textFromKeyword(keyword, of: declaration)
+        let byStart = declarationsByStart[declarationStart()]?.first { $0.text == text }?.keyword
+        let byText = keywordsByText[text].flatMap { $0.count == 1 ? $0.first : nil }
+        return (byStart ?? byText).map { (keyword.positionAfterSkippingLeadingTrivia, $0) }
+      }
+      keywords[declaration.id] = found
+    }
+    guard let found, position >= found.keyword else {
+      return nil
+    }
+    return AbsolutePosition(utf8Offset: found.original.utf8Offset + position.utf8Offset - found.keyword.utf8Offset)
   }
 }
 

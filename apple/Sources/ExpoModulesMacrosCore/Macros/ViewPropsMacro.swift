@@ -134,7 +134,8 @@ private let maxValueProps = 64
 /// The error for a leftover `@Field`, attached to the attribute itself and carrying a fix-it that
 /// deletes it. `@ViewProps` treats every stored property as a prop, so the attribute has no meaning
 /// here; left in place it would wrap the value in `Field<T>` and the props type would decode against
-/// the wrong type.
+/// the wrong type. A `@Field` with arguments, such as `@Field(.keyed("borderColor"))`, gets no
+/// fix-it: they can change the prop name, which removing the attribute would change silently.
 private func fieldAttributeDiagnostic(
   for attribute: AttributeSyntax,
   on varDecl: VariableDeclSyntax
@@ -177,7 +178,7 @@ private func fieldAttributeDiagnostic(
     "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
     id: "viewprops-field-attribute"
   )
-  return Diagnostic(node: attribute, message: message, fixIts: [fixIt])
+  return Diagnostic(node: attribute, message: message, fixIts: attribute.arguments == nil ? [fixIt] : [])
 }
 
 /// Replaces the leading trivia of one token.

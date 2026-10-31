@@ -145,10 +145,12 @@ Each applied Fix-It is printed to stdout as `<file>:<line>:<column>: fix-it: <me
 
 `fix` applies the Fix-Its of errors and of warnings, such as "Make the class 'public'" for a module class that isn't `public`. With `--only-errors`, it applies only those of errors.
 
-- A macro can stop at its first error, so after applying the Fix-Its of a file, `fix` expands it again and applies the new ones, until none applies (at most 10 passes). The location of a Fix-It is in the file as it was when the Fix-It was applied.
-- A diagnostic with more than one Fix-It is skipped, because they are alternatives. So is a Fix-It whose edits overlap the edits of another one, or whose text isn't in the file where the edit expects it. Each skipped Fix-It is printed to stderr as a warning.
+- A macro can stop at its first error, so after applying the Fix-Its of a file, `fix` expands it again and applies the new ones, until none applies (at most 10 passes, with a warning when Fix-Its are left after them). The location of a Fix-It is in the file as it was when the Fix-It was applied.
+- A diagnostic with more than one Fix-It is skipped, because they are alternatives. So is a Fix-It whose edits overlap the edits of another one, or whose text isn't in the file where the edit expects it; an insertion is checked against the few bytes after it. Each skipped Fix-It is printed to stderr as a warning.
 - It applies only the Fix-Its of the macros, not those of syntax errors.
 - It changes only the text that a Fix-It changes and doesn't format the file. An inserted keyword can make a line longer than your formatter allows, so run your formatter after `fix` if you use one.
+
+`fix` writes a file only when it still has the contents that `fix` read, so it doesn't overwrite a change saved meanwhile. It writes the file atomically, so a failed write leaves it as it was, and through a symbolic link to the file that the link points to. A file with other hard links, or in a directory that isn't writable, is written in place instead; when that write fails, `fix` writes the original contents back. A file that can't be written is reported, and the other files are still fixed. A UTF-8 byte order mark is kept.
 
 The exit code is `0` also when a Fix-It is skipped or errors remain, `1` when a file can't be written, and `2` for an input that `expand` doesn't take.
 
