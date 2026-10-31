@@ -179,7 +179,7 @@ private func fieldAttributeDiagnostic(
   let message = ViewPropsDiagnosticMessage(
     hasArguments
       ? "@Field is no longer used: @ViewProps treats every stored property as a prop, named after the property. Remove the @Field attribute, and rename the property if its arguments set another prop name"
-      : "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+      : "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
     id: "viewprops-field-attribute"
   )
   return Diagnostic(node: attribute, message: message, fixIts: hasArguments ? [] : [fixIt])
@@ -316,6 +316,22 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
     )
   }
 
+  // `@Field` is the v1 property wrapper and has no meaning here — every stored property is already
+  // part of the surface. Left in place it would wrap the value in `Field<T>`, so the props type
+  // would decode against the wrong type. Flag every one rather than emit code built on them, all at
+  // once, so a `@Field` without a fix-it doesn't hide the fix-its of the others.
+  let fieldDiagnostics = declaration.memberBlock.members.compactMap { member -> Diagnostic? in
+    guard let varDecl = member.decl.as(VariableDeclSyntax.self), !isExcludedByModifier(varDecl.modifiers),
+      let fieldAttribute = varDecl.attributes.firstAttribute(named: "Field")
+    else {
+      return nil
+    }
+    return fieldAttributeDiagnostic(for: fieldAttribute, on: varDecl)
+  }
+  if !fieldDiagnostics.isEmpty {
+    throw DiagnosticsError(diagnostics: fieldDiagnostics)
+  }
+
   var valueProps: [ViewProp] = []
   var eventProps: [ViewProp] = []
 
@@ -326,13 +342,6 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
     if isExcludedByModifier(varDecl.modifiers) {
       continue
     }
-    // `@Field` is the v1 property wrapper and has no meaning here — every stored property is already
-    // part of the surface. Left in place it would wrap the value in `Field<T>`, so the props type
-    // would decode against the wrong type. Flag it rather than emit code built on it.
-    if let fieldAttribute = varDecl.attributes.firstAttribute(named: "Field") {
-      throw DiagnosticsError(diagnostics: [fieldAttributeDiagnostic(for: fieldAttribute, on: varDecl)])
-    }
-
     for binding in varDecl.bindings {
       // A computed property is never a prop, but an accessor block alone doesn't mean computed:
       // `willSet`/`didSet` observers imply stored storage. `bindingIsSettable` draws exactly that

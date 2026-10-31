@@ -204,7 +204,7 @@ struct FixCLITests {
         guard path != file else {
           throw FixWriteError(description: "disk full")
         }
-        try writeFixedSource(source, toFile: path, original: original)
+        return try writeFixedSource(source, toFile: path, original: original)
       }
       #expect(status == 1)
       let unchanged = try String(contentsOfFile: file, encoding: .utf8)
@@ -261,25 +261,24 @@ struct FixCLITests {
       try fileManager.setAttributes([.posixPermissions: 0o640], ofItemAtPath: file)
       let link = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Link.swift").path
       try fileManager.linkItem(atPath: file, toPath: link)
-      // Both paths name the same file, so the second one already has the fixed contents.
-      #expect(ScannerCLI.run(arguments: ["fix", file, link], expander: replacingExpander([("a", "b")])) == 0)
-      let permissions = try fileManager.attributesOfItem(atPath: file)[.posixPermissions] as? Int
-      #expect(permissions == 0o640)
+      let original = try Data(contentsOf: URL(fileURLWithPath: file))
+
+      #expect(try writeFixedSource("let x = \"b\"\n", toFile: file, original: original))
       let linked = try String(contentsOfFile: link, encoding: .utf8)
       #expect(linked == "let x = \"b\"\n")
+      let permissions = try fileManager.attributesOfItem(atPath: file)[.posixPermissions] as? Int
+      #expect(permissions == 0o640)
+      // The link already has the fixed contents, so it isn't written or counted again.
+      #expect(try !writeFixedSource("let x = \"b\"\n", toFile: link, original: original))
     }
   }
 
-  @Test
+  @Test(.disabled(if: getuid() == 0, "root can write a read-only file"))
   func `Doesn't write a read-only file, and reports it unchanged`() throws {
     try withFile("let x = \"a\"\n") { file in
       let fileManager = FileManager.default
       try fileManager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file)
       defer { try? fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file) }
-      // Root, which the Linux CI container runs as, can still write the file.
-      guard !fileManager.isWritableFile(atPath: file) else {
-        return
-      }
       let original = try Data(contentsOf: URL(fileURLWithPath: file))
       #expect {
         try writeFixedSource("let x = \"b\"\n", toFile: file, original: original)

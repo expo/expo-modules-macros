@@ -46,11 +46,13 @@ extension Scanner {
   /// still fixed. The exit code is `0` also when a Fix-It is skipped, `1` when a file can't be written,
   /// and `2` for an input that `expand` doesn't take.
   ///
-  /// `write` writes a fixed file (see `writeFixedSource`); tests replace it.
+  /// `write` writes a fixed file and returns whether it changed it (see `writeFixedSource`); tests
+  /// replace it. A file that another path already fixed, through a hard link, isn't printed or counted
+  /// again.
   static func runFix(
     options: FixOptions,
     expander: MacroExpander,
-    write: (_ source: String, _ path: String, _ original: Data) throws -> Void = writeFixedSource
+    write: (_ source: String, _ path: String, _ original: Data) throws -> Bool = writeFixedSource
   ) -> Int32 {
     let sources: [(source: String, contents: Data, expanded: ExpandedFile)]
     switch expandSources(options: ExpandOptions(paths: options.paths, symbols: options.symbols), expander: expander) {
@@ -78,7 +80,9 @@ extension Scanner {
       }
       if !options.dryRun {
         do {
-          try write(fixed.source, expanded.file, contents)
+          guard try write(fixed.source, expanded.file, contents) else {
+            continue
+          }
         } catch {
           writeToStandardError("error: could not write '\(expanded.file)': \(error)\n")
           failedFiles += 1
@@ -102,24 +106,27 @@ struct FixWriteError: Error, CustomStringConvertible {
   let description: String
 }
 
-/// Writes `source`, the fixed source of the file at `path`, whose contents were `original`.
+/// Writes `source`, the fixed source of the file at `path`, whose contents were `original`, and
+/// returns whether it changed the file.
 ///
 /// The file must still have the contents that `fix` read, so a change that an editor saved meanwhile
 /// isn't lost. A file that already has the fixed contents, because `fix` wrote it through another
 /// hard link, is left as it is. It keeps the UTF-8 byte order mark of the file, which `readSource`
 /// removes from the source.
 ///
-/// The file is written in place, so its links, permissions, owner, extended attributes and ACLs stay,
-/// and a read-only file isn't written. When the write fails, the original contents are written back,
-/// and the error tells whether the file is unchanged.
-func writeFixedSource(_ source: String, toFile path: String, original: Data) throws {
+/// The file is written in place, so on macOS and Linux its links, permissions, owner, extended
+/// attributes and ACLs stay, and a read-only file isn't written. When the write fails, the original contents are written back,
+/// and the error tells whether the file is unchanged. When that fails too, the original contents are
+/// saved to a file in the temporary directory, which the error names.
+@discardableResult
+func writeFixedSource(_ source: String, toFile path: String, original: Data) throws -> Bool {
   let url = URL(fileURLWithPath: path)
   let contents = Data((original.starts(with: utf8ByteOrderMark) ? utf8ByteOrderMark : []) + Array(source.utf8))
   guard let current = try? Data(contentsOf: url) else {
     throw FixWriteError(description: "the file can't be read anymore")
   }
   guard current != contents else {
-    return
+    return false
   }
   guard current == original else {
     throw FixWriteError(description: "the file changed after fix read it")
@@ -130,11 +137,19 @@ func writeFixedSource(_ source: String, toFile path: String, original: Data) thr
     if (try? Data(contentsOf: url)) != original {
       try? original.write(to: url)
     }
-    let unchanged = (try? Data(contentsOf: url)) == original
+    if (try? Data(contentsOf: url)) == original {
+      throw FixWriteError(description: "\(error); the file is unchanged")
+    }
+    let backup = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "\(url.lastPathComponent).\(UUID().uuidString).original"
+    )
+    let saved = (try? original.write(to: backup)) != nil
     throw FixWriteError(
-      description: "\(error); " + (unchanged ? "the file is unchanged" : "the file can be incomplete")
+      description: "\(error); the file can be incomplete"
+        + (saved ? ", and its original contents are in '\(backup.path)'" : "")
     )
   }
+  return true
 }
 
 /// The most times that `fixSource` expands a file again after applying Fix-Its.

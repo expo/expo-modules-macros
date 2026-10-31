@@ -150,7 +150,7 @@ Each applied Fix-It is printed to stdout as `<file>:<line>:<column>: fix-it: <me
 - It applies only the Fix-Its of the macros, not those of syntax errors.
 - It changes only the text that a Fix-It changes and doesn't format the file. An inserted keyword can make a line longer than your formatter allows, so run your formatter after `fix` if you use one.
 
-`fix` writes a file only when it still has the contents that `fix` read, so it doesn't overwrite a change saved meanwhile. It writes the file in place, so symbolic and hard links, permissions, the owner, extended attributes and ACLs stay, and a read-only file isn't written. When a write fails, `fix` writes the original contents back and reports whether the file is unchanged. A file that can't be written is reported, and the other files are still fixed. A UTF-8 byte order mark is kept.
+`fix` writes a file only when it still has the contents that `fix` read, so it doesn't overwrite a change saved meanwhile. It writes the file in place, so on macOS and Linux, symbolic and hard links, permissions, the owner, extended attributes and ACLs stay, and a read-only file isn't written. When a write fails, `fix` writes the original contents back and reports whether the file is unchanged; when that fails too, it saves them to a file in the temporary directory and names it. A file that can't be written is reported, and the other files are still fixed. A UTF-8 byte order mark is kept.
 
 The exit code is `0` also when a Fix-It is skipped or errors remain, `1` when a file can't be written, and `2` for an input that `expand` doesn't take.
 
