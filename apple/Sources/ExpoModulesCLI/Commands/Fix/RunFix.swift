@@ -9,6 +9,7 @@ struct FixOptions: Equatable {
   var paths: [String] = []
   var symbols: [String] = []
   var dryRun = false
+  var onlyErrors = false
 }
 
 /// A Fix-It that `fix` applied or skipped, at the location of its diagnostic.
@@ -59,7 +60,13 @@ extension Scanner {
     var fixedFiles = 0
     var failed = false
     for (source, expanded) in sources {
-      let fixed = fixSource(source, expanded: expanded, symbols: options.symbols, expander: expander)
+      let fixed = fixSource(
+        source,
+        expanded: expanded,
+        symbols: options.symbols,
+        onlyErrors: options.onlyErrors,
+        expander: expander
+      )
       writeToStandardError(renderSkippedFixIts(fixed, file: expanded.file))
       guard !fixed.applied.isEmpty else {
         continue
@@ -100,18 +107,23 @@ let maxFixPasses = 10
 /// Applies the Fix-Its of `expanded`, the expansion of `source`, to `source`. A macro can stop at its
 /// first error, so after applying Fix-Its, this expands the result again and applies the new Fix-Its,
 /// until none applies or after `maxFixPasses` passes. The location of an applied Fix-It is in the
-/// source of its pass. The skipped Fix-Its are those of the last pass.
+/// source of its pass. The skipped Fix-Its are those of the last pass. With `onlyErrors`, the Fix-Its
+/// of warnings and other diagnostics that aren't errors are left out.
 func fixSource(
   _ source: String,
   expanded: ExpandedFile,
   symbols: [String],
+  onlyErrors: Bool = false,
   expander: MacroExpander
 ) -> FixedSource {
-  var fixed = applyFixIts(to: source, diagnostics: expanded.diagnostics)
+  let selected = { (diagnostics: [ExpansionDiagnostic]) in
+    onlyErrors ? diagnostics.filter { $0.severity == .error } : diagnostics
+  }
+  var fixed = applyFixIts(to: source, diagnostics: selected(expanded.diagnostics))
   var applied = fixed.applied
   for _ in 1..<maxFixPasses where !fixed.applied.isEmpty {
     let diagnostics = expander.expand(fixed.source, expanded.file, symbols).diagnostics
-    fixed = applyFixIts(to: fixed.source, diagnostics: diagnostics)
+    fixed = applyFixIts(to: fixed.source, diagnostics: selected(diagnostics))
     applied += fixed.applied
   }
   return FixedSource(

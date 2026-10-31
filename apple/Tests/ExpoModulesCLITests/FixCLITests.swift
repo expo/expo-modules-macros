@@ -138,6 +138,31 @@ struct FixCLITests {
   }
 
   @Test
+  func `With onlyErrors, applies only the Fix-Its of errors`() {
+    let warning = ExpansionDiagnostic(
+      severity: .warning,
+      message: "not public",
+      line: 1,
+      column: 1,
+      fixIts: ["Make it public"],
+      fixItEdits: [[ExpansionEdit(offset: 0, original: "", replacement: "public ")]]
+    )
+    let error = diagnostic([("Rename", [ExpansionEdit(offset: 5, original: "load", replacement: "fetch")])])
+    let source = "func load()"
+    // Reports the diagnostics only for the original source, so the next pass applies nothing.
+    let expander = MacroExpander(attributeNames: []) { text, file, _ in
+      ExpandedFile(file: file, expansions: [], diagnostics: text == source ? [warning, error] : [])
+    }
+    let expanded = expander.expand(source, "f.swift", [])
+
+    let all = fixSource(source, expanded: expanded, symbols: [], expander: expander)
+    #expect(all.source == "public func fetch()")
+    let errors = fixSource(source, expanded: expanded, symbols: [], onlyErrors: true, expander: expander)
+    #expect(errors.source == "func fetch()")
+    #expect(errors.fixIts.map(\.message) == ["Rename"])
+  }
+
+  @Test
   func `Prints the applied Fix-Its, and a warning for each skipped one`() {
     let fixed = FixedSource(
       source: "",
@@ -226,9 +251,10 @@ struct FixCLITests {
     ["fix", "--diagnostics-only", "File.swift"],
     ["fix", "--define", "DEBUG", "File.swift"],
     ["expand", "--dry-run", "File.swift"],
+    ["expand", "--only-errors", "File.swift"],
     ["scan-modules", "--dry-run", "/tmp"],
   ])
-  func `Rejects the options that fix doesn't take, and --dry-run elsewhere`(arguments: [String]) {
+  func `Rejects the options that fix doesn't take, and the options of fix elsewhere`(arguments: [String]) {
     #expect(ScannerCLI.run(arguments: arguments, expander: replacingExpander([])) == 2)
   }
 

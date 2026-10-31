@@ -99,6 +99,7 @@ options (expand only):
 
 options (fix only):
   --dry-run            print the Fix-Its without changing the files
+  --only-errors        apply only the Fix-Its of errors, not those of warnings
 ```
 
 For the scans, each path is a `.swift` file or a directory, scanned recursively for `.swift` files. Both scans print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
@@ -141,6 +142,8 @@ ExpoModulesMacros fix ios/
 ```
 
 Each applied Fix-It is printed to stdout as `<file>:<line>:<column>: fix-it: <message>`, followed by a summary. With `--dry-run`, the files aren't written.
+
+`fix` applies the Fix-Its of errors and of warnings, such as "Make the class 'public'" for a module class that isn't `public`. With `--only-errors`, it applies only those of errors.
 
 - A macro can stop at its first error, so after applying the Fix-Its of a file, `fix` expands it again and applies the new ones, until none applies (at most 10 passes). The location of a Fix-It is in the file as it was when the Fix-It was applied.
 - A diagnostic with more than one Fix-It is skipped, because they are alternatives. So is a Fix-It whose edits overlap the edits of another one, or whose text isn't in the file where the edit expects it. Each skipped Fix-It is printed to stderr as a warning.

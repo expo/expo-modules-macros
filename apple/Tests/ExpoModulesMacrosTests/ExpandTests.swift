@@ -379,6 +379,28 @@ struct FixTests {
     }
   }
 
+  @Test
+  func `Applies the Fix-Its of warnings, and with --only-errors only those of errors`() throws {
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.concurrent)
+        func load() -> Int { 1 }
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", "--only-errors", file], expander: expander) == 0)
+      let errorsFixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(errorsFixed.contains("\nfinal class MyModule: Module {"))
+      #expect(errorsFixed.contains("func load() async -> Int { 1 }"))
+
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let allFixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(allFixed.contains("\npublic final class MyModule: Module {"))
+    }
+  }
+
   private func withFile(_ source: String, _ body: (_ file: String) throws -> Void) throws {
     let fileManager = FileManager.default
     let root = fileManager.temporaryDirectory.appendingPathComponent(

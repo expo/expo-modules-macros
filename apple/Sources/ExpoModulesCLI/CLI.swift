@@ -35,6 +35,7 @@ public enum ScannerCLI {
     var defines: [String] = []
     var expandOptions = ExpandOptions()
     var dryRun = false
+    var onlyErrors = false
 
     var rest = arguments.dropFirst().makeIterator()
     while let argument = rest.next() {
@@ -60,6 +61,8 @@ public enum ScannerCLI {
         expandOptions.diagnosticsOnly = true
       case "--dry-run":
         dryRun = true
+      case "--only-errors":
+        onlyErrors = true
       default:
         paths.append(argument)
       }
@@ -72,8 +75,8 @@ public enum ScannerCLI {
     if subcommand != "expand" && (expandOptions.json || expandOptions.diagnosticsOnly) {
       return usageError("--json and --diagnostics-only are options of expand")
     }
-    if subcommand != "fix" && dryRun {
-      return usageError("--dry-run is an option of fix")
+    if subcommand != "fix" && (dryRun || onlyErrors) {
+      return usageError("--dry-run and --only-errors are options of fix")
     }
 
     switch subcommand {
@@ -125,7 +128,7 @@ public enum ScannerCLI {
         return usageError("fix is only available in the macro plugin executable")
       }
       return Scanner.runFix(
-        options: FixOptions(paths: paths, symbols: expandOptions.symbols, dryRun: dryRun),
+        options: FixOptions(paths: paths, symbols: expandOptions.symbols, dryRun: dryRun, onlyErrors: onlyErrors),
         expander: expander
       )
 
@@ -173,6 +176,7 @@ private var usageText: String {
 
   options (fix only):
     --dry-run            print the Fix-Its without changing the files
+    --only-errors        apply only the Fix-Its of errors, not those of warnings
 
   options:
     -h, --help        print this help and exit
