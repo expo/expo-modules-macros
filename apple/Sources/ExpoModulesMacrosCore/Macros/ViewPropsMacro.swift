@@ -135,7 +135,8 @@ private let maxValueProps = 64
 /// deletes it. `@ViewProps` treats every stored property as a prop, so the attribute has no meaning
 /// here; left in place it would wrap the value in `Field<T>` and the props type would decode against
 /// the wrong type. A `@Field` with arguments, such as `@Field(.keyed("borderColor"))`, gets no
-/// fix-it: they can change the prop name, which removing the attribute would change silently.
+/// fix-it: they can set the prop name, which removing the attribute would change silently, so the
+/// message tells the author to rename the property.
 private func fieldAttributeDiagnostic(
   for attribute: AttributeSyntax,
   on varDecl: VariableDeclSyntax
@@ -174,11 +175,14 @@ private func fieldAttributeDiagnostic(
       )
     ]
   )
+  let hasArguments = attribute.arguments?.as(LabeledExprListSyntax.self)?.isEmpty == false
   let message = ViewPropsDiagnosticMessage(
-    "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+    hasArguments
+      ? "@Field is no longer used: @ViewProps treats every stored property as a prop, named after the property. Remove the @Field attribute, and rename the property if its arguments set another prop name"
+      : "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
     id: "viewprops-field-attribute"
   )
-  return Diagnostic(node: attribute, message: message, fixIts: attribute.arguments == nil ? [fixIt] : [])
+  return Diagnostic(node: attribute, message: message, fixIts: hasArguments ? [] : [fixIt])
 }
 
 /// Replaces the leading trivia of one token.

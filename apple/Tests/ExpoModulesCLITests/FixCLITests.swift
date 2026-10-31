@@ -255,19 +255,39 @@ struct FixCLITests {
   }
 
   @Test
-  func `Writes a file with another hard link in place, and keeps the permissions of a file`() throws {
+  func `Writes a file in place, which keeps its permissions and its other hard links`() throws {
     try withFile("let x = \"a\"\n") { file in
       let fileManager = FileManager.default
       try fileManager.setAttributes([.posixPermissions: 0o640], ofItemAtPath: file)
-      #expect(ScannerCLI.run(arguments: ["fix", file], expander: replacingExpander([("a", "b")])) == 0)
-      let permissions = try fileManager.attributesOfItem(atPath: file)[.posixPermissions] as? Int
-      #expect(permissions == 0o640)
-
       let link = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Link.swift").path
       try fileManager.linkItem(atPath: file, toPath: link)
-      #expect(ScannerCLI.run(arguments: ["fix", file], expander: replacingExpander([("b", "c")])) == 0)
+      // Both paths name the same file, so the second one already has the fixed contents.
+      #expect(ScannerCLI.run(arguments: ["fix", file, link], expander: replacingExpander([("a", "b")])) == 0)
+      let permissions = try fileManager.attributesOfItem(atPath: file)[.posixPermissions] as? Int
+      #expect(permissions == 0o640)
       let linked = try String(contentsOfFile: link, encoding: .utf8)
-      #expect(linked == "let x = \"c\"\n")
+      #expect(linked == "let x = \"b\"\n")
+    }
+  }
+
+  @Test
+  func `Doesn't write a read-only file, and reports it unchanged`() throws {
+    try withFile("let x = \"a\"\n") { file in
+      let fileManager = FileManager.default
+      try fileManager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file)
+      defer { try? fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file) }
+      // Root, which the Linux CI container runs as, can still write the file.
+      guard !fileManager.isWritableFile(atPath: file) else {
+        return
+      }
+      let original = try Data(contentsOf: URL(fileURLWithPath: file))
+      #expect {
+        try writeFixedSource("let x = \"b\"\n", toFile: file, original: original)
+      } throws: { error in
+        "\(error)".hasSuffix("the file is unchanged")
+      }
+      let contents = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(contents == "let x = \"a\"\n")
     }
   }
   #endif

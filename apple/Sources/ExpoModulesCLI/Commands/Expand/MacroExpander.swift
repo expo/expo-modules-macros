@@ -223,13 +223,21 @@ private func originalEdits(
   of fixIt: FixIt,
   offset: (AbsolutePosition, Syntax) -> Int
 ) -> [ExpansionEdit]? {
-  var edits: [ExpansionEdit] = []
+  // The edit of each change in the tree of its node. `FixIt.edits` drops an edit that overlaps an
+  // earlier one; this applies the same rule.
+  var changes: [(edit: SourceEdit, node: Syntax)] = []
   for change in fixIt.changes {
-    // `FixIt.edits` drops an edit that overlaps an earlier one; this applies the same rule.
     guard let edit = FixIt(message: fixIt.message, changes: [change]).edits.first else {
       continue
     }
     let node = changedNode(change)
+    if !changes.contains(where: { $0.node.root.id == node.root.id && $0.edit.range.overlaps(edit.range) }) {
+      changes.append((edit, node))
+    }
+  }
+
+  var edits: [ExpansionEdit] = []
+  for (index, (edit, node)) in changes.enumerated() {
     let root = node.root
     let text = Array(root.description.utf8)
     let start = edit.range.lowerBound.utf8Offset - root.position.utf8Offset
@@ -247,24 +255,25 @@ private func originalEdits(
     var replacement = Array(new.dropFirst(prefix).dropLast(suffix))
     if original.isEmpty {
       // An insertion has no text that `fix` can check in the file, so it also replaces the bytes after
-      // it with themselves, up to a character boundary.
+      // it with themselves, up to a character boundary and not into another change of the Fix-It.
       let insertion = start + prefix
-      var contextEnd = min(insertion + insertionContextLength, text.count)
-      while contextEnd < text.count && text[contextEnd] & 0xC0 == 0x80 {
-        contextEnd += 1
+      let nextChange = changes.enumerated().filter { $0.offset != index && $0.element.node.root.id == root.id }
+        .map { $0.element.edit.range.lowerBound.utf8Offset - root.position.utf8Offset }
+        .filter { $0 >= insertion }.min()
+      var contextEnd = min(insertion + insertionContextLength, text.count, nextChange ?? text.count)
+      while contextEnd > insertion && contextEnd < text.count && text[contextEnd] & 0xC0 == 0x80 {
+        contextEnd -= 1
       }
       original = Array(text[insertion..<contextEnd])
       replacement += original
     }
-    let changedStart = edit.range.lowerBound.advanced(by: prefix)
-    let originalEdit = ExpansionEdit(
-      offset: offset(changedStart, node),
-      original: String(decoding: original, as: UTF8.self),
-      replacement: String(decoding: replacement, as: UTF8.self)
+    edits.append(
+      ExpansionEdit(
+        offset: offset(edit.range.lowerBound.advanced(by: prefix), node),
+        original: String(decoding: original, as: UTF8.self),
+        replacement: String(decoding: replacement, as: UTF8.self)
+      )
     )
-    if !edits.contains(where: { overlaps($0, originalEdit) }) {
-      edits.append(originalEdit)
-    }
   }
   return edits
 }
@@ -284,11 +293,6 @@ private func changedNode(_ change: FixIt.Change) -> Syntax {
   case .replaceText(_, _, let node):
     node
   }
-}
-
-/// Whether two edits change the same bytes of the original file.
-private func overlaps(_ a: ExpansionEdit, _ b: ExpansionEdit) -> Bool {
-  a.offset < b.offset + b.original.utf8.count && b.offset < a.offset + a.original.utf8.count
 }
 
 /// The lengths of the longest common prefix and suffix of `old` and `new` that don't overlap, at

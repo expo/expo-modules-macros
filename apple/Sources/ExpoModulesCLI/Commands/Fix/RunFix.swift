@@ -105,40 +105,34 @@ struct FixWriteError: Error, CustomStringConvertible {
 /// Writes `source`, the fixed source of the file at `path`, whose contents were `original`.
 ///
 /// The file must still have the contents that `fix` read, so a change that an editor saved meanwhile
-/// isn't lost. It keeps the UTF-8 byte order mark of the file, which `readSource` removes from the
-/// source. A symbolic link keeps pointing to the file.
+/// isn't lost. A file that already has the fixed contents, because `fix` wrote it through another
+/// hard link, is left as it is. It keeps the UTF-8 byte order mark of the file, which `readSource`
+/// removes from the source.
 ///
-/// The file is written atomically, so it is never left incomplete. When that isn't possible, because
-/// the file has other hard links, which an atomic write would separate, or its directory isn't
-/// writable, it is written in place, and the original contents are written back when that fails.
+/// The file is written in place, so its links, permissions, owner, extended attributes and ACLs stay,
+/// and a read-only file isn't written. When the write fails, the original contents are written back,
+/// and the error tells whether the file is unchanged.
 func writeFixedSource(_ source: String, toFile path: String, original: Data) throws {
-  let url = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+  let url = URL(fileURLWithPath: path)
+  let contents = Data((original.starts(with: utf8ByteOrderMark) ? utf8ByteOrderMark : []) + Array(source.utf8))
   guard let current = try? Data(contentsOf: url) else {
     throw FixWriteError(description: "the file can't be read anymore")
+  }
+  guard current != contents else {
+    return
   }
   guard current == original else {
     throw FixWriteError(description: "the file changed after fix read it")
   }
-  let contents = Data((original.starts(with: utf8ByteOrderMark) ? utf8ByteOrderMark : []) + Array(source.utf8))
-
-  let fileManager = FileManager.default
-  let attributes = try? fileManager.attributesOfItem(atPath: url.path)
-  let linkCount = attributes?[.referenceCount] as? Int ?? 1
-  if linkCount <= 1 && fileManager.isWritableFile(atPath: url.deletingLastPathComponent().path) {
-    try contents.write(to: url, options: .atomic)
-    // The atomic write replaces the file with a new one, which has the default permissions.
-    if let permissions = attributes?[.posixPermissions] {
-      try? fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path)
-    }
-    return
-  }
   do {
     try contents.write(to: url)
   } catch {
-    let restored = (try? original.write(to: url)) != nil
+    if (try? Data(contentsOf: url)) != original {
+      try? original.write(to: url)
+    }
+    let unchanged = (try? Data(contentsOf: url)) == original
     throw FixWriteError(
-      description: "\(error); "
-        + (restored ? "the original contents are written back" : "the file can be incomplete")
+      description: "\(error); " + (unchanged ? "the file is unchanged" : "the file can be incomplete")
     )
   }
 }

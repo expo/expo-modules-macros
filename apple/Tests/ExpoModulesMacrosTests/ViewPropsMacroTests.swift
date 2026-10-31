@@ -1578,11 +1578,44 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop, named after the property. Remove the @Field attribute, and rename the property if its arguments set another prop name",
           line: 3,
           column: 3
         )
       ]
+    )
+  }
+
+  @Test
+  func `A @Field attribute with empty parentheses gets the removal fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field() var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field() var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        )
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+        }
+        """
     )
   }
 
