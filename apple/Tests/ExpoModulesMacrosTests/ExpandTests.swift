@@ -1,5 +1,6 @@
 import ExpoModulesCLI
 import ExpoModulesMacrosCore
+import Foundation
 import Testing
 
 @Suite("expand")
@@ -165,6 +166,48 @@ struct ExpandTests {
   }
 
   @Test
+  func `Maps the edits of a Fix-It to the bytes that it changes in the original file`() throws {
+    // `@ExpoModule` adds `@JavaScriptActor` to `load`, so the declaration that `@JS` gets is longer
+    // than the one in the file, and the Fix-It replaces the whole signature.
+    let source = """
+      final class Plain {
+        @JS(.concurrent)
+        func load() throws -> Int { 1 }
+      }
+
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.concurrent)
+        func load() throws -> Int { 1 }
+
+        @JS
+        func map(_ transform: (Int) -> Int) {}
+      }
+      """
+    let diagnostics = expandMacros(source: source, file: "f.swift", symbols: []).diagnostics
+    #expect(
+      diagnostics.map(\.fixIts) == [
+        ["Mark the function 'async'"], ["Mark the function 'async'"], ["Mark the closure 'throws'"],
+      ]
+    )
+    let edits = try diagnostics.map { try #require($0.fixItEdits.only?.only) }
+    #expect(edits.map(\.original) == ["", "", ""])
+    #expect(edits.map(\.replacement) == ["async ", "async ", "throws "])
+    // Each edit inserts the keyword in front of `throws` or `->`.
+    let text = Array(source.utf8)
+    #expect(
+      edits.map { String(decoding: text[$0.offset...].prefix(6), as: UTF8.self) } == ["throws", "throws", "-> Int"]
+    )
+  }
+
+  @Test
+  func `A syntax error has no Fix-It edits`() throws {
+    let result = expandMacros(source: "struct S {\n  func f( {}\n}\n", file: "f.swift", symbols: [])
+    #expect(result.diagnostics.contains { !$0.fixIts.isEmpty })
+    #expect(result.diagnostics.allSatisfy { $0.fixItEdits.isEmpty })
+  }
+
+  @Test
   func `A member symbol keeps the type aliases of its type`() throws {
     let source = """
       @ExpoModule
@@ -241,6 +284,133 @@ struct ExpandTests {
   func `Reports syntax errors in the file`() throws {
     let result = expandMacros(source: "struct S {\n  func f( {}\n}\n", file: "f.swift", symbols: [])
     #expect(result.diagnostics.contains { $0.severity == .error && $0.line == 2 })
+  }
+}
+
+@Suite("fix")
+struct FixTests {
+  private let expander = MacroExpander(attributeNames: Set(ProvidedMacro.all.map(\.name)), expand: expandMacros)
+
+  @Test
+  func `Applies the Fix-Its in place, also those that a macro reports after the first is applied`() throws {
+    // `@ViewProps` stops at its first error, so `fix` expands the file again for the next ones.
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.concurrent)
+        func load() -> Int { 1 }
+      }
+
+      @ViewProps
+      struct Props {
+        @Field
+        var title: String = ""
+        @Field var size: Double = 0
+        var onTap: (() -> Void)?
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", "--dry-run", file], expander: expander) == 0)
+      let unchanged = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(unchanged == source)
+
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(
+        fixed == """
+          @ExpoModule
+          public final class MyModule: Module {
+            @JS(.concurrent)
+            func load() async -> Int { 1 }
+          }
+
+          @ViewProps
+          struct Props {
+            var title: String = ""
+            var size: Double = 0
+            var onTap: () -> Void
+          }
+
+          """
+      )
+      #expect(expandMacros(source: fixed, file: file, symbols: []).diagnostics.isEmpty)
+    }
+  }
+
+  @Test
+  func `With a symbol, applies only the Fix-Its inside its declaration`() throws {
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.concurrent)
+        func load() -> Int { 1 }
+
+        @JS(.concurrent)
+        func save() {}
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", "--symbol", "MyModule.save", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(fixed.contains("func load() -> Int { 1 }"))
+      #expect(fixed.contains("func save() async {}"))
+    }
+  }
+
+  @Test
+  func `Edits only the declaration with the diagnostic, also when one with the same text follows closely`() throws {
+    // `@ExpoModule` adds attributes to `a`, so the position that the macro system maps from the
+    // declaration that `@Event` or `@JS` gets is past the declaration and in the next one.
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event(.sync) let a: F; struct S { let a: F }
+        @JS(.concurrent) func b() {}; func b() {}
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(fixed.contains("@Event(.sync) var a: F; struct S { let a: F }"))
+      #expect(fixed.contains("@JS(.concurrent) func b() async {}; func b() {}"))
+    }
+  }
+
+  @Test
+  func `Applies the Fix-Its of warnings, and with --only-errors only those of errors`() throws {
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {
+        @JS(.concurrent)
+        func load() -> Int { 1 }
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", "--only-errors", file], expander: expander) == 0)
+      let errorsFixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(errorsFixed.contains("\nfinal class MyModule: Module {"))
+      #expect(errorsFixed.contains("func load() async -> Int { 1 }"))
+
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let allFixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(allFixed.contains("\npublic final class MyModule: Module {"))
+    }
+  }
+
+  private func withFile(_ source: String, _ body: (_ file: String) throws -> Void) throws {
+    let fileManager = FileManager.default
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "macros-fix-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
+    defer { try? fileManager.removeItem(at: root) }
+    try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+    let file = root.appendingPathComponent("MyModule.swift")
+    try source.write(to: file, atomically: true, encoding: .utf8)
+    try body(file.path)
   }
 }
 

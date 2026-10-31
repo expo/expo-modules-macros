@@ -139,23 +139,37 @@ private func fieldAttributeDiagnostic(
   for attribute: AttributeSyntax,
   on varDecl: VariableDeclSyntax
 ) -> Diagnostic {
-  // Rebuild the attribute list without this entry, so the fix-it removes the attribute and the
-  // trivia it carried rather than leaving a blank line behind.
-  var attributes = varDecl.attributes
-  if let index = attributes.firstIndex(where: { element in
+  // The token after the attribute takes over the trivia of the attribute: the line break,
+  // indentation and comments before it, and the comments after it. Its own leading whitespace is
+  // left out unless a comment comes before it, so `@Field var size` and `@Field` on its own line both
+  // become `var size` on the line of the attribute, and `@Field // note` keeps the line break after
+  // the comment.
+  var newDecl = varDecl
+  if let next = attribute.lastToken(viewMode: .sourceAccurate)?.nextToken(viewMode: .sourceAccurate) {
+    let comments = Trivia(pieces: attribute.trailingTrivia.pieces.drop(while: \.isWhitespace))
+    let nextTrivia =
+      comments.isEmpty ? Trivia(pieces: next.leadingTrivia.pieces.drop(while: \.isWhitespace)) : next.leadingTrivia
+    newDecl =
+      LeadingTriviaRewriter(token: next.id, trivia: attribute.leadingTrivia + comments + nextTrivia)
+      .rewrite(varDecl).cast(VariableDeclSyntax.self)
+  }
+  // Then remove the attribute with its trivia, so it doesn't leave a blank line behind. The rewritten
+  // declaration is a new tree, so the attribute is found by its place in the list.
+  if let index = varDecl.attributes.firstIndex(where: { element in
     guard case .attribute(let candidate) = element else {
       return false
     }
     return candidate == attribute
   }) {
-    attributes.remove(at: index)
+    let offset = varDecl.attributes.distance(from: varDecl.attributes.startIndex, to: index)
+    newDecl.attributes.remove(at: newDecl.attributes.index(newDecl.attributes.startIndex, offsetBy: offset))
   }
   let fixIt = FixIt(
     message: ViewPropsFixItMessage("Remove the '@Field' attribute", id: "viewprops-remove-field"),
     changes: [
       .replace(
         oldNode: Syntax(varDecl),
-        newNode: Syntax(varDecl.with(\.attributes, attributes))
+        newNode: Syntax(newDecl)
       )
     ]
   )
@@ -164,6 +178,22 @@ private func fieldAttributeDiagnostic(
     id: "viewprops-field-attribute"
   )
   return Diagnostic(node: attribute, message: message, fixIts: [fixIt])
+}
+
+/// Replaces the leading trivia of one token.
+private final class LeadingTriviaRewriter: SyntaxRewriter {
+  private let token: SyntaxIdentifier
+  private let trivia: Trivia
+
+  init(token: SyntaxIdentifier, trivia: Trivia) {
+    self.token = token
+    self.trivia = trivia
+    super.init(viewMode: .sourceAccurate)
+  }
+
+  override func visit(_ token: TokenSyntax) -> TokenSyntax {
+    token.id == self.token ? token.with(\.leadingTrivia, trivia) : token
+  }
 }
 
 /// The error for an optional event prop, attached to the declared type and carrying a fix-it that

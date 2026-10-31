@@ -85,14 +85,21 @@ subcommands:
   scan-modules   fast scan for top-level @ExpoModule and @SharedObject types (autolinking)
   scan-exports   deep scan of the full JS-exported surface (type generation)
   expand         print the code that the macros generate, and the macro diagnostics
+  fix            apply the Fix-Its of the macro diagnostics to the files
 
 options (scan-modules only):
   --define <flag>   treat a conditional compilation flag as set; repeatable
 
-options (expand only):
+options (expand and fix):
   --symbol <name>      only a type ('MyModule', 'MyModule.Options') or a member ('MyModule.greet'); repeatable
+
+options (expand only):
   --diagnostics-only   only the diagnostics, followed by a summary
   --json               a JSON report instead of text
+
+options (fix only):
+  --dry-run            print the Fix-Its without changing the files
+  --only-errors        apply only the Fix-Its of errors, not those of warnings
 ```
 
 For the scans, each path is a `.swift` file or a directory, scanned recursively for `.swift` files. Both scans print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
@@ -124,6 +131,26 @@ The macros only read the syntax tree, so the expansion is what the compiler gets
 - The compiler passes an extension macro only the conformances that the type doesn't have yet. `expand` passes all of them, and the macros skip the ones in the inheritance clause, so the result differs only for a conformance inherited from somewhere else.
 
 Errors that need type checking, for example the conformance assertions in `_assertTypesConformance`, still need a build.
+
+## Fix
+
+`fix` applies the Fix-Its that the macros attach to their diagnostics, such as "Mark the function 'async'" for a `.concurrent` function, and writes the files in place. It takes the same paths and `--symbol` options as `expand`, and expands the files in the same way.
+
+```sh
+ExpoModulesMacros fix --dry-run ios/
+ExpoModulesMacros fix ios/
+```
+
+Each applied Fix-It is printed to stdout as `<file>:<line>:<column>: fix-it: <message>`, followed by a summary. With `--dry-run`, the files aren't written.
+
+`fix` applies the Fix-Its of errors and of warnings, such as "Make the class 'public'" for a module class that isn't `public`. With `--only-errors`, it applies only those of errors.
+
+- A macro can stop at its first error, so after applying the Fix-Its of a file, `fix` expands it again and applies the new ones, until none applies (at most 10 passes). The location of a Fix-It is in the file as it was when the Fix-It was applied.
+- A diagnostic with more than one Fix-It is skipped, because they are alternatives. So is a Fix-It whose edits overlap the edits of another one, or whose text isn't in the file where the edit expects it. Each skipped Fix-It is printed to stderr as a warning.
+- It applies only the Fix-Its of the macros, not those of syntax errors.
+- It changes only the text that a Fix-It changes and doesn't format the file. An inserted keyword can make a line longer than your formatter allows, so run your formatter after `fix` if you use one.
+
+The exit code is `0` also when a Fix-It is skipped or errors remain, `1` when a file can't be written, and `2` for an input that `expand` doesn't take.
 
 # TypeScript wrapper
 
