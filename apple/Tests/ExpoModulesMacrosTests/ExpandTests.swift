@@ -359,6 +359,26 @@ struct FixTests {
     }
   }
 
+  @Test
+  func `Edits only the declaration with the diagnostic, also when one with the same text follows closely`() throws {
+    // `@ExpoModule` adds attributes to `a`, so the position that the macro system maps from the
+    // declaration that `@Event` or `@JS` gets is past the declaration and in the next one.
+    let source = """
+      @ExpoModule
+      final class MyModule: Module {
+        @Event(sync: true) let a: F; struct S { let a: F }
+        @JS(.concurrent) func b() {}; func b() {}
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(fixed.contains("@Event(sync: true) var a: F; struct S { let a: F }"))
+      #expect(fixed.contains("@JS(.concurrent) func b() async {}; func b() {}"))
+    }
+  }
+
   private func withFile(_ source: String, _ body: (_ file: String) throws -> Void) throws {
     let fileManager = FileManager.default
     let root = fileManager.temporaryDirectory.appendingPathComponent(

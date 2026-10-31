@@ -35,11 +35,11 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
   let originalDeclarations = OriginalDeclarations(tree)
   diagnostics += context.diagnostics.map { diagnostic in
     let location = { (position: AbsolutePosition, node: Syntax) -> SourceLocation in
-      let location = context.location(for: position, anchoredAt: node, fileName: file)
-      if let original = originalDeclarations.position(of: position, in: node, shiftedOffset: location.offset) {
+      let declarationStart = context.location(for: node.root.position, anchoredAt: node, fileName: file).offset
+      if let original = originalDeclarations.position(of: position, in: node, declarationStart: declarationStart) {
         return converter.location(for: original)
       }
-      return location
+      return context.location(for: position, anchoredAt: node, fileName: file)
     }
     var result = expansionDiagnostic(diagnostic, location: location)
     result.fixItEdits = diagnostic.fixIts.map { fixIt in
@@ -315,51 +315,50 @@ private func severity(_ severity: DiagnosticSeverity) -> ExpansionDiagnostic.Sev
 /// every position after the added attributes is off by their length. A diagnostic in a parameter
 /// type of a `@JS` function would be on the next line.
 ///
-/// The text from the keyword of the declaration (`func`, `var`, `init`) to its end is the same in
-/// both, so this finds the original declaration by that text and moves the position by the offset of
-/// the keyword. A position before the keyword, in the attributes or the modifiers, isn't mapped.
+/// The start of the declaration is before the added attributes, so the macro system maps it to the
+/// start of the original declaration. The text from the keyword of the declaration (`func`, `var`,
+/// `init`) to its end is the same in both, so this moves the position by the offset of the keyword
+/// in the original declaration. A position before the keyword, in the attributes or the modifiers,
+/// isn't mapped.
 private struct OriginalDeclarations {
-  /// The positions of the keywords of the declarations in the original file, in source order, by the
-  /// text from the keyword to the end of the declaration.
-  private let keywordPositions: [String: [AbsolutePosition]]
+  /// The declarations in the original file by the UTF-8 offset of their start, with their leading
+  /// trivia: the text from the keyword to the end of each, and the position of its keyword.
+  private let declarations: [Int: [(text: String, keyword: AbsolutePosition)]]
 
   init(_ tree: SourceFileSyntax) {
     let collector = DeclarationCollector(viewMode: .sourceAccurate)
     collector.walk(tree)
-    var keywordPositions: [String: [AbsolutePosition]] = [:]
+    var declarations: [Int: [(text: String, keyword: AbsolutePosition)]] = [:]
     for declaration in collector.declarations {
       guard let keyword = keywordToken(of: declaration) else {
         continue
       }
-      keywordPositions[textFromKeyword(keyword, of: declaration), default: []].append(
-        keyword.positionAfterSkippingLeadingTrivia
+      declarations[declaration.position.utf8Offset, default: []].append(
+        (textFromKeyword(keyword, of: declaration), keyword.positionAfterSkippingLeadingTrivia)
       )
     }
-    self.keywordPositions = keywordPositions
+    self.declarations = declarations
   }
 
   /// The position in the original file of `position` in `node`, or `nil` when `node` is in the
-  /// original file, isn't in a detached declaration, or is before its keyword.
+  /// original file, isn't in a detached declaration, is before its keyword, or no declaration with its
+  /// text starts at `declarationStart`.
   ///
-  /// `shiftedOffset` is the offset that the macro system maps `position` to. The added attributes
-  /// only move it forward, so when declarations with the same text are in the file, the one it is
-  /// in is the last one that starts at or before that offset.
-  func position(of position: AbsolutePosition, in node: Syntax, shiftedOffset: Int) -> AbsolutePosition? {
+  /// `declarationStart` is the offset that the macro system maps the start of the detached
+  /// declaration to.
+  func position(of position: AbsolutePosition, in node: Syntax, declarationStart: Int) -> AbsolutePosition? {
     guard !node.root.is(SourceFileSyntax.self),
       let declaration = node.root.as(DeclSyntax.self),
       let keyword = keywordToken(of: declaration),
       position >= keyword.positionAfterSkippingLeadingTrivia,
-      let candidates = keywordPositions[textFromKeyword(keyword, of: declaration)]
+      let original = declarations[declarationStart]?.first(where: {
+        $0.text == textFromKeyword(keyword, of: declaration)
+      })
     else {
       return nil
     }
     let offset = position.utf8Offset - keyword.positionAfterSkippingLeadingTrivia.utf8Offset
-    let shiftedKeyword = shiftedOffset - offset
-    guard let originalKeyword = candidates.last(where: { $0.utf8Offset <= shiftedKeyword }) ?? candidates.first
-    else {
-      return nil
-    }
-    return AbsolutePosition(utf8Offset: originalKeyword.utf8Offset + offset)
+    return AbsolutePosition(utf8Offset: original.keyword.utf8Offset + offset)
   }
 }
 

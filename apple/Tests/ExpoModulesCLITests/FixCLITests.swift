@@ -127,6 +127,84 @@ struct FixCLITests {
     let fixed = fixSource(source, expanded: expander.expand(source, "f.swift", []), symbols: [], expander: expander)
     #expect(fixed.source == String(repeating: "a", count: maxFixPasses + 1))
     #expect(fixed.applied.count == maxFixPasses)
+    #expect(fixed.reachedPassLimit)
+    #expect(
+      renderSkippedFixIts(fixed, file: "f.swift")
+        == "f.swift: warning: stopped after \(maxFixPasses) passes; run fix again for the Fix-Its left\n"
+    )
+
+    let once = replacingExpander([("a", "b")])
+    #expect(!fixSource("a", expanded: once.expand("a", "f.swift", []), symbols: [], expander: once).reachedPassLimit)
+  }
+
+  @Test
+  func `Prints the applied Fix-Its, and a warning for each skipped one`() {
+    let fixed = FixedSource(
+      source: "",
+      fixIts: [
+        FixItReport(line: 3, column: 5, message: "Mark the function 'async'", skipReason: nil),
+        FixItReport(line: 7, column: 1, message: "Rename", skipReason: "it overlaps another Fix-It"),
+      ]
+    )
+    #expect(renderAppliedFixIts(fixed, file: "f.swift") == "f.swift:3:5: fix-it: Mark the function 'async'\n")
+    #expect(
+      renderSkippedFixIts(fixed, file: "f.swift")
+        == "f.swift:7:1: warning: skipped fix-it 'Rename': it overlaps another Fix-It\n"
+    )
+  }
+
+  @Test
+  func `A file that can't be written exits with 1, and the other files are still fixed`() throws {
+    try withFile("let x = \"a\"\n") { file in
+      let other = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Other.swift").path
+      try "let y = \"a\"\n".write(toFile: other, atomically: true, encoding: .utf8)
+      // Removing the first file while it is expanded makes its write fail.
+      let replacing = replacingExpander([("a", "b")])
+      let expander = MacroExpander(attributeNames: replacing.attributeNames) { source, path, symbols in
+        if path == file {
+          try? FileManager.default.removeItem(atPath: file)
+        }
+        return replacing.expand(source, path, symbols)
+      }
+      #expect(ScannerCLI.run(arguments: ["fix", file, other], expander: expander) == 1)
+      let fixed = try String(contentsOfFile: other, encoding: .utf8)
+      #expect(fixed == "let y = \"b\"\n")
+    }
+  }
+
+  @Test
+  func `Keeps the byte order mark, the line endings and the non-ASCII text of the file`() throws {
+    try withFile("") { file in
+      let bom: [UInt8] = [0xEF, 0xBB, 0xBF]
+      try Data(bom + Array("// Zürich 🌍\r\nlet x = \"a\"\r\n".utf8)).write(to: URL(fileURLWithPath: file))
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: replacingExpander([("a", "b")])) == 0)
+      let written = try Data(contentsOf: URL(fileURLWithPath: file))
+      #expect(Array(written) == bom + Array("// Zürich 🌍\r\nlet x = \"b\"\r\n".utf8))
+    }
+  }
+
+  #if !os(Windows)
+  // Creating a symbolic link on Windows needs a privilege that CI doesn't have.
+  @Test
+  func `Writes through a symbolic link, which keeps pointing to the file`() throws {
+    try withFile("let x = \"a\"\n") { file in
+      let link = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Link.swift").path
+      try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: file)
+      #expect(ScannerCLI.run(arguments: ["fix", link], expander: replacingExpander([("a", "b")])) == 0)
+      let destination = try FileManager.default.destinationOfSymbolicLink(atPath: link)
+      #expect(destination == file)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(fixed == "let x = \"b\"\n")
+    }
+  }
+  #endif
+
+  @Test
+  func `Equality and the JSON report leave out the Fix-It edits`() throws {
+    let withEdits = diagnostic([("Rename", [ExpansionEdit(offset: 5, original: "load", replacement: "fetch")])])
+    let decoded = try JSONDecoder().decode(ExpansionDiagnostic.self, from: JSONEncoder().encode(withEdits))
+    #expect(decoded.fixItEdits.isEmpty)
+    #expect(decoded == withEdits)
   }
 
   @Test

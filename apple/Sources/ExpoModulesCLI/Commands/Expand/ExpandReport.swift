@@ -69,11 +69,17 @@ public struct ExpansionDiagnostic: Codable, Equatable, Sendable {
 
   /// The edits of each Fix-It in `fixIts`, in the original file, for `fix`. The edits of a Fix-It are
   /// empty when they aren't in the original file, and this is empty for a diagnostic whose Fix-Its
-  /// `fix` doesn't apply, such as a syntax error. Not part of the JSON report.
+  /// `fix` doesn't apply, such as a syntax error. Not part of the JSON report, nor of equality, so a
+  /// diagnostic is equal to itself after a JSON round trip.
   public var fixItEdits: [[ExpansionEdit]] = []
 
   private enum CodingKeys: String, CodingKey {
     case severity, message, line, column, notes, fixIts
+  }
+
+  public static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.severity == rhs.severity && lhs.message == rhs.message && lhs.line == rhs.line
+      && lhs.column == rhs.column && lhs.notes == rhs.notes && lhs.fixIts == rhs.fixIts
   }
 
   public init(

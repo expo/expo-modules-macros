@@ -1460,6 +1460,108 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `The @Field removal fix-it keeps a block comment after an attribute on the line of the property`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field /* red */ var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field /* red */ var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        )
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          /* red */ var color: UIColor = .red
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The @Field removal fix-it keeps a line comment after the attribute`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field // red
+        var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field // red
+          var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        )
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          // red
+          var color: UIColor = .red
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The @Field removal fix-it keeps the attributes before it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @MainActor @Field var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @MainActor @Field var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 3,
+          column: 14,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        )
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          @MainActor var color: UIColor = .red
+        }
+        """
+    )
+  }
+
+  @Test
   func `The optional-event diagnostic offers an unwrapping fix-it`() {
     assertExpansion(
       """

@@ -27,6 +27,10 @@ struct FixedSource: Equatable {
   let source: String
   let fixIts: [FixItReport]
 
+  /// Whether `fixSource` stopped after `maxFixPasses` passes while the last pass still applied a
+  /// Fix-It, so the source can have more.
+  var reachedPassLimit = false
+
   var applied: [FixItReport] {
     fixIts.filter { $0.skipReason == nil }
   }
@@ -36,10 +40,11 @@ extension Scanner {
   /// Runs `fix`: expands the macros in each file like `expand` and applies the Fix-Its of their
   /// diagnostics to the file, in place (see `fixSource`). It doesn't format the file.
   ///
-  /// Each applied Fix-It is printed to stdout as `<file>:<line>:<column>: fix-it: <message>`, followed
-  /// by a summary, and each skipped one to stderr as a warning. With `--dry-run`, the files aren't
-  /// written. The exit code is `0` also when a Fix-It is skipped, `1` when a file can't be written, and
-  /// `2` for an input that `expand` doesn't take.
+  /// Each applied Fix-It is printed to stdout as `<file>:<line>:<column>: fix-it: <message>` after its
+  /// file is written, followed by a summary, and each skipped one to stderr as a warning. With
+  /// `--dry-run`, the files aren't written. A file that can't be written is reported and the others are
+  /// still fixed. The exit code is `0` also when a Fix-It is skipped, `1` when a file can't be written,
+  /// and `2` for an input that `expand` doesn't take.
   static func runFix(options: FixOptions, expander: MacroExpander) -> Int32 {
     let sources: [(source: String, expanded: ExpandedFile)]
     switch expandSources(options: ExpandOptions(paths: options.paths, symbols: options.symbols), expander: expander) {
@@ -52,34 +57,41 @@ extension Scanner {
 
     var appliedCount = 0
     var fixedFiles = 0
+    var failed = false
     for (source, expanded) in sources {
       let fixed = fixSource(source, expanded: expanded, symbols: options.symbols, expander: expander)
-      for fixIt in fixed.fixIts {
-        let location = "\(expanded.file):\(fixIt.line):\(fixIt.column)"
-        if let reason = fixIt.skipReason {
-          writeToStandardError("\(location): warning: skipped fix-it '\(fixIt.message)': \(reason)\n")
-        } else {
-          writeToStandardOutput("\(location): fix-it: \(fixIt.message)\n")
-        }
-      }
+      writeToStandardError(renderSkippedFixIts(fixed, file: expanded.file))
       guard !fixed.applied.isEmpty else {
         continue
       }
-      appliedCount += fixed.applied.count
-      fixedFiles += 1
       if !options.dryRun {
         do {
-          try Data(fixed.source.utf8).write(to: URL(fileURLWithPath: expanded.file), options: .atomic)
+          try writeSource(fixed.source, toFile: expanded.file)
         } catch {
           writeToStandardError("error: could not write '\(expanded.file)': \(error)\n")
-          return 1
+          failed = true
+          continue
         }
       }
+      writeToStandardOutput(renderAppliedFixIts(fixed, file: expanded.file))
+      appliedCount += fixed.applied.count
+      fixedFiles += 1
     }
 
     writeToStandardOutput(renderFixSummary(applied: appliedCount, files: fixedFiles, dryRun: options.dryRun))
-    return 0
+    return failed ? 1 : 0
   }
+}
+
+/// Writes `source` to the file at `path` in place, so a symbolic link keeps pointing to the file and a
+/// hard link keeps sharing it, and a writable file can be written in a read-only directory. Keeps the
+/// UTF-8 byte order mark of the file, which the source doesn't have because reading it as a `String`
+/// removes it.
+func writeSource(_ source: String, toFile path: String) throws {
+  let url = URL(fileURLWithPath: path)
+  let byteOrderMark: [UInt8] = [0xEF, 0xBB, 0xBF]
+  let hasByteOrderMark = try Data(contentsOf: url).starts(with: byteOrderMark)
+  try Data((hasByteOrderMark ? byteOrderMark : []) + Array(source.utf8)).write(to: url)
 }
 
 /// The most times that `fixSource` expands a file again after applying Fix-Its.
@@ -102,7 +114,11 @@ func fixSource(
     fixed = applyFixIts(to: fixed.source, diagnostics: diagnostics)
     applied += fixed.applied
   }
-  return FixedSource(source: fixed.source, fixIts: applied + fixed.fixIts.filter { $0.skipReason != nil })
+  return FixedSource(
+    source: fixed.source,
+    fixIts: applied + fixed.fixIts.filter { $0.skipReason != nil },
+    reachedPassLimit: !fixed.applied.isEmpty
+  )
 }
 
 /// Applies the Fix-Its of `diagnostics` to `source`, which is the file that they were reported for.
@@ -168,6 +184,25 @@ private func overlap(_ a: ExpansionEdit, _ b: ExpansionEdit) -> Bool {
   let aEnd = a.offset + a.original.utf8.count
   let bEnd = b.offset + b.original.utf8.count
   return a.offset == b.offset || (a.offset < bEnd && b.offset < aEnd)
+}
+
+/// The applied Fix-Its of `fixed`, one line each.
+func renderAppliedFixIts(_ fixed: FixedSource, file: String) -> String {
+  fixed.applied.map { "\(file):\($0.line):\($0.column): fix-it: \($0.message)\n" }.joined()
+}
+
+/// The warnings for the skipped Fix-Its of `fixed`, and for reaching the pass limit.
+func renderSkippedFixIts(_ fixed: FixedSource, file: String) -> String {
+  var text = ""
+  for fixIt in fixed.fixIts {
+    if let reason = fixIt.skipReason {
+      text += "\(file):\(fixIt.line):\(fixIt.column): warning: skipped fix-it '\(fixIt.message)': \(reason)\n"
+    }
+  }
+  if fixed.reachedPassLimit {
+    text += "\(file): warning: stopped after \(maxFixPasses) passes; run fix again for the Fix-Its left\n"
+  }
+  return text
 }
 
 /// The summary line of `fix`, for example `Applied 3 Fix-Its in 2 files.`
