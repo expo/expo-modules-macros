@@ -15,6 +15,7 @@ private func assertExpansion(
   _ original: String,
   expandedSource expected: String,
   diagnostics: [DiagnosticSpec] = [],
+  fixedSource: String? = nil,
   fileID: StaticString = #fileID,
   filePath: StaticString = #filePath,
   line: UInt = #line,
@@ -25,6 +26,7 @@ private func assertExpansion(
     expandedSource: expected,
     diagnostics: diagnostics,
     macroSpecs: sharedObjectMacroSpecs,
+    fixedSource: fixedSource,
     indentationWidth: .spaces(2),
     failureHandler: recordIssue,
     fileID: fileID,
@@ -41,11 +43,11 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
 
           public override class var _jsName: String {
             "Cache"
@@ -56,15 +58,105 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `A shared object class without an access modifier produces a warning with a fix-it`() {
+    assertExpansion(
+      """
+      @SharedObject
+      class Cache: SharedObject {
+      }
+      """,
+      expandedSource: """
+        class Cache: SharedObject {
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@SharedObject class 'Cache' should be public or open, so that the modules provider that autolinking generates in the app target can export it",
+          line: 2,
+          column: 1,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Make the class 'public'")]
+        )
+      ],
+      fixedSource: """
+        @SharedObject
+        public class Cache: SharedObject {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The public fix-it replaces the access modifier of a private shared object class`() {
+    assertExpansion(
+      """
+      @SharedObject
+      private final class Cache: SharedObject {
+      }
+      """,
+      expandedSource: """
+        private final class Cache: SharedObject {
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@SharedObject class 'Cache' should be public or open, so that the modules provider that autolinking generates in the app target can export it",
+          line: 2,
+          column: 1,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Make the class 'public'")]
+        )
+      ],
+      fixedSource: """
+        @SharedObject
+        public final class Cache: SharedObject {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A shared object class declared in a function produces no warning`() {
+    assertExpansion(
+      """
+      func makeCache() {
+        @SharedObject
+        final class Cache: SharedObject {
+        }
+      }
+      """,
+      expandedSource: """
+        func makeCache() {
+          final class Cache: SharedObject {
+
+            public override class var _jsName: String {
+              "Cache"
+            }
+          }
+        }
+        """
+    )
+  }
+  @Test
   func `Custom JS name overrides the class name`() {
     assertExpansion(
       """
       @SharedObject("MyCache")
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
 
           public override class var _jsName: String {
             "MyCache"
@@ -79,7 +171,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class ImageRef: SharedRef<UIImage> {
+      public final class ImageRef: SharedRef<UIImage> {
         @JS
         init(image: SharedRef<UIImage>) {
           super.init(image.ref)
@@ -90,7 +182,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        final class ImageRef: SharedRef<UIImage> {
+        public final class ImageRef: SharedRef<UIImage> {
           @JavaScriptActor
           init(image: SharedRef<UIImage>) {
             super.init(image.ref)
@@ -144,11 +236,11 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Thumbnail: ImageRef {
+      public final class Thumbnail: ImageRef {
       }
       """,
       expandedSource: """
-        final class Thumbnail: ImageRef {
+        public final class Thumbnail: ImageRef {
 
           public override class var _jsName: String {
             "Thumbnail"
@@ -163,7 +255,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      class ImageRef: SharedObject {
+      public class ImageRef: SharedObject {
         @JS
         init(path: String) {}
 
@@ -172,7 +264,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        class ImageRef: SharedObject {
+        public class ImageRef: SharedObject {
           @JavaScriptActor
           init(path: String) {}
           @JavaScriptActor
@@ -215,7 +307,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Thumbnail: ImageRef {
+      public final class Thumbnail: ImageRef {
         @JS
         var size: Int { 64 }
 
@@ -224,7 +316,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        final class Thumbnail: ImageRef {
+        public final class Thumbnail: ImageRef {
           @JavaScriptActor
           var size: Int { 64 }
           @JavaScriptActor
@@ -267,13 +359,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         func get(_ key: String) -> String? { nil }
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           func get(_ key: String) -> String? { nil }
 
@@ -303,13 +395,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS("loadAsync")
         func load() async throws {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           func load() async throws {}
 
@@ -340,13 +432,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         var owner: SomeType!
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           var owner: SomeType!
 
@@ -384,13 +476,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         var size: Int { 42 }
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           var size: Int { 42 }
 
@@ -418,13 +510,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init(name: String) {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init(name: String) {}
 
@@ -450,13 +542,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init(origin: borrowing Point) {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init(origin: borrowing Point) {}
 
@@ -488,13 +580,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init(config: [String: Any]) {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init(config: [String: Any]) {}
 
@@ -520,7 +612,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init(name: String) {}
 
@@ -532,7 +624,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init(name: String) {}
           @JavaScriptActor
@@ -582,13 +674,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         static func open(_ path: String) -> Cache { Cache() }
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           static func open(_ path: String) -> Cache { Cache() }
 
@@ -623,13 +715,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         static func warmUp(_ path: String) async throws {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           static func warmUp(_ path: String) async throws {}
 
@@ -660,13 +752,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         static var shared: Int = 0
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           static var shared: Int = 0
 
@@ -696,7 +788,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         func get(_ key: String) -> String? { nil }
 
@@ -705,7 +797,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           func get(_ key: String) -> String? { nil }
           @JavaScriptActor
@@ -749,7 +841,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         var size: Int { 0 }
 
@@ -761,7 +853,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           var size: Int { 0 }
           @JavaScriptActor
@@ -820,13 +912,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         func resize(width: Int, height: Int = 100) -> Bool { true }
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           func resize(width: Int, height: Int = 100) -> Bool { true }
 
@@ -863,13 +955,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         var name: String = ""
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           var name: String = ""
 
@@ -901,13 +993,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         lazy var size: Int = computeSize()
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           lazy var size: Int = computeSize()
 
@@ -938,13 +1030,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         func clear() {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           func clear() {}
 
@@ -972,13 +1064,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init() {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init() {}
 
@@ -1003,13 +1095,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init(config: MyRecord) {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init(config: MyRecord) {}
 
@@ -1041,13 +1133,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         init(config: MyRecord!) {}
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           init(config: MyRecord!) {}
 
@@ -1079,13 +1171,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS
         func resolve(_ input: MyRecord!) -> MyRecord! { input }
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @JavaScriptActor
           func resolve(_ input: MyRecord!) -> MyRecord! { input }
 
@@ -1127,13 +1219,13 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class `Type`: SharedObject {
+      public final class `Type`: SharedObject {
         @JS
         func `default`() {}
       }
       """,
       expandedSource: """
-        final class `Type`: SharedObject {
+        public final class `Type`: SharedObject {
           @JavaScriptActor
           func `default`() {}
 
@@ -1161,7 +1253,7 @@ struct SharedObjectMacroTests {
     assertExpansion(
       """
       @SharedObject
-      final class Canvas: SharedObject {
+      public final class Canvas: SharedObject {
         typealias Size = (width: Double, height: Double)
 
         @JS
@@ -1169,7 +1261,7 @@ struct SharedObjectMacroTests {
       }
       """,
       expandedSource: """
-        final class Canvas: SharedObject {
+        public final class Canvas: SharedObject {
           typealias Size = (width: Double, height: Double)
           @JavaScriptActor
           var size: Size = (0, 0)
@@ -1205,11 +1297,11 @@ struct ExpoModuleClassesTests {
     assertExpansion(
       """
       @ExpoModule(classes: [Cache.self, UserSession.self])
-      final class MyModule: Module {
+      public final class MyModule: Module {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
 
           public static let _jsName = "MyModule"
 
@@ -1224,13 +1316,13 @@ struct ExpoModuleClassesTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
         @JS(.concurrent)
         func fetch() async -> Int { 1 }
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
           @concurrent
           func fetch() async -> Int { 1 }
 
@@ -1263,7 +1355,7 @@ struct ExpoModuleClassesTests {
     assertExpansion(
       """
       @SharedObject
-      final class Document: SharedObject {
+      public final class Document: SharedObject {
         @JS("readSync", .withAsync("read"))
         func read(_ count: Int) throws -> String { "" }
 
@@ -1272,7 +1364,7 @@ struct ExpoModuleClassesTests {
       }
       """,
       expandedSource: """
-        final class Document: SharedObject {
+        public final class Document: SharedObject {
           func read(_ count: Int) throws -> String { "" }
           static func exists(_ path: String) -> Bool { true }
 
@@ -1343,13 +1435,13 @@ struct ExpoModuleClassesTests {
     assertExpansion(
       """
       @ExpoModule("CustomName", classes: [Cache.self])
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func ping() -> String { "pong" }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func ping() -> String { "pong" }
 

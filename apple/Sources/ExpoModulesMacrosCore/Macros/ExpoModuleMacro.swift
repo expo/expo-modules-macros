@@ -38,6 +38,13 @@ public struct ExpoModuleMacro: MemberMacro {
     guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
       throw MacroExpansionErrorMessage("@ExpoModule can only be applied to a class")
     }
+    diagnoseNonPublicClass(
+      classDecl,
+      macroName: "@ExpoModule",
+      reason: "register it",
+      idPrefix: "expomodule",
+      in: context
+    )
 
     // The module name is fully resolved here (the explicit `@ExpoModule("…")` argument, else the
     // class name) and emitted as a non-optional `_jsName` static below — so the

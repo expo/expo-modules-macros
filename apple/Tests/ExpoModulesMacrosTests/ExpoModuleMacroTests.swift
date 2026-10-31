@@ -43,11 +43,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
 
           public static let _jsName = "MyModule"
         }
@@ -56,15 +56,95 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Custom module name overrides the class name`() {
+  func `A module class without an access modifier produces a warning with a fix-it`() {
     assertExpansion(
       """
-      @ExpoModule("CustomName")
+      @ExpoModule
       final class MyModule: Module {
       }
       """,
       expandedSource: """
         final class MyModule: Module {
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ExpoModule class 'MyModule' should be public or open, so that the modules provider that autolinking generates in the app target can register it",
+          line: 2,
+          column: 7,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Make the class 'public'")]
+        )
+      ],
+      fixedSource: """
+        @ExpoModule
+        public final class MyModule: Module {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The public fix-it replaces the access modifier of an internal module class`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      internal final class MyModule: Module {
+      }
+      """,
+      expandedSource: """
+        internal final class MyModule: Module {
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ExpoModule class 'MyModule' should be public or open, so that the modules provider that autolinking generates in the app target can register it",
+          line: 2,
+          column: 1,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Make the class 'public'")]
+        )
+      ],
+      fixedSource: """
+        @ExpoModule
+        public final class MyModule: Module {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An open module class produces no warning`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      open class MyModule: Module {
+      }
+      """,
+      expandedSource: """
+        open class MyModule: Module {
+
+          public static let _jsName = "MyModule"
+        }
+        """
+    )
+  }
+  @Test
+  func `Custom module name overrides the class name`() {
+    assertExpansion(
+      """
+      @ExpoModule("CustomName")
+      public final class MyModule: Module {
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
 
           public static let _jsName = "CustomName"
         }
@@ -77,13 +157,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func greet(name: String) -> String { "Hi" }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func greet(name: String) -> String { "Hi" }
 
@@ -110,13 +190,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func add(_ a: Double, to b: Double) -> Double { a + b }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func add(_ a: Double, to b: Double) -> Double { a + b }
 
@@ -144,13 +224,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func resize(width: Int, height: Int = 100) -> Bool { true }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func resize(width: Int, height: Int = 100) -> Bool { true }
 
@@ -184,13 +264,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func tag(name: String, note: String?) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func tag(name: String, note: String?) { }
 
@@ -222,13 +302,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func ping(times: Int = 1) -> Int { times }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func ping(times: Int = 1) -> Int { times }
 
@@ -261,13 +341,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func transform(value: MyRecord, count: Int) -> [MyRecord] { [] }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func transform(value: MyRecord, count: Int) -> [MyRecord] { [] }
 
@@ -301,13 +381,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func group(values: [[Int]], weights: [String: Double]?, flags: Set<Bool>) -> Dictionary<String, Array<String?>> { [:] }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func group(values: [[Int]], weights: [String: Double]?, flags: Set<Bool>) -> Dictionary<String, Array<String?>> { [:] }
 
@@ -336,13 +416,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func index(records: [[MyRecord]], names: [Int: String]) -> Set<MyRecord> { [] }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func index(records: [[MyRecord]], names: [Int: String]) -> Set<MyRecord> { [] }
 
@@ -376,13 +456,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func merge(primary: MyRecord, secondary: OtherRecord) -> MyRecord { primary }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func merge(primary: MyRecord, secondary: OtherRecord) -> MyRecord { primary }
 
@@ -416,13 +496,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var cache: MyRecord { MyRecord() }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var cache: MyRecord { MyRecord() }
 
@@ -453,13 +533,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func make(count: Int) -> MyRecord! { nil }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func make(count: Int) -> MyRecord! { nil }
 
@@ -492,13 +572,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         static func describe(_ value: MyRecord) -> String { "" }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           static func describe(_ value: MyRecord) -> String { "" }
 
@@ -531,13 +611,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS("doReset")
         func reset() throws {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func reset() throws {}
 
@@ -562,13 +642,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS("doWork")
         func performWork() async throws {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func performWork() async throws {}
 
@@ -596,13 +676,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func fetchValue(key: String) async throws -> Int { 0 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func fetchValue(key: String) async throws -> Int { 0 }
 
@@ -633,7 +713,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func performWork() async {}
 
@@ -642,7 +722,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func performWork() async {}
           @JavaScriptActor
@@ -684,13 +764,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func find(key: String, limit: Int?) async throws -> Int { 0 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func find(key: String, limit: Int?) async throws -> Int { 0 }
 
@@ -732,13 +812,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var status: String { "ok" }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var status: String { "ok" }
 
@@ -763,13 +843,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         lazy var config: MyRecord = loadConfig()
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           lazy var config: MyRecord = loadConfig()
 
@@ -805,13 +885,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS("token")
         lazy var cachedToken = makeToken()
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           lazy var cachedToken = makeToken()
 
@@ -841,13 +921,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         lazy var info: [String: Any] = loadInfo()
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           lazy var info: [String: Any] = loadInfo()
 
@@ -877,7 +957,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         lazy var cache: MyRecord = MyRecord() {
           didSet {}
@@ -885,7 +965,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           lazy var cache: MyRecord = MyRecord() {
             didSet {}
@@ -923,13 +1003,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var ready: Bool = false
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var ready: Bool = false
 
@@ -957,13 +1037,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var config: MyRecord
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var config: MyRecord
 
@@ -997,13 +1077,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var config: MyRecord!
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var config: MyRecord!
 
@@ -1037,7 +1117,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func greet(name: String) -> String { "Hi" }
 
@@ -1048,7 +1128,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func greet(name: String) -> String { "Hi" }
           @JavaScriptActor
@@ -1085,13 +1165,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func load(url: String) async throws -> String { url }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @concurrent
           func load(url: String) async throws -> String { url }
 
@@ -1122,13 +1202,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS("loadAsync", [.concurrent])
         func load(url: String) async throws -> String { url }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @concurrent
           func load(url: String) async throws -> String { url }
 
@@ -1159,13 +1239,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class FileModule: Module {
+      public final class FileModule: Module {
         @JS("textSync", .withAsync("text"))
         func text(path: String) throws -> String { path }
       }
       """,
       expandedSource: """
-        final class FileModule: Module {
+        public final class FileModule: Module {
           func text(path: String) throws -> String { path }
 
           public static let _jsName = "FileModule"
@@ -1205,13 +1285,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class LogModule: Module {
+      public final class LogModule: Module {
         @JS(.withAsync("writeAsync"))
         func write(_ message: String, level: Int = 0) {}
       }
       """,
       expandedSource: """
-        final class LogModule: Module {
+        public final class LogModule: Module {
           func write(_ message: String, level: Int = 0) {}
 
           public static let _jsName = "LogModule"
@@ -1265,13 +1345,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("loadAsync"))
         func load() async -> Int { 0 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           func load() async -> Int { 0 }
 
           public static let _jsName = "MyModule"
@@ -1309,13 +1389,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("statusAsync"))
         var status: String { "ok" }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           var status: String { "ok" }
 
           public static let _jsName = "MyModule"
@@ -1347,13 +1427,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync(variantName))
         func load() -> Int { 0 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           func load() -> Int { 0 }
 
           public static let _jsName = "MyModule"
@@ -1388,7 +1468,7 @@ struct ExpoModuleMacroTests {
       """
       @MainActor
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("loadAsync"))
         func load() {}
 
@@ -1398,7 +1478,7 @@ struct ExpoModuleMacroTests {
       """,
       expandedSource: """
         @MainActor
-        final class MyModule: Module {
+        public final class MyModule: Module {
           func load() {}
           nonisolated func save() {}
 
@@ -1460,14 +1540,14 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("loadAsync"))
         @MainActor
         func load() {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @MainActor
           func load() {}
 
@@ -1512,13 +1592,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func load(_ object: borrowing JavaScriptObject) async {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @concurrent
           func load(_ object: borrowing JavaScriptObject) async {}
 
@@ -1564,13 +1644,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("readAsync"))
         func read(value: JavaScriptValue?) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           func read(value: JavaScriptValue?) {}
 
           public static let _jsName = "MyModule"
@@ -1637,7 +1717,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func update(_ object: borrowing JavaScriptObject) {}
 
@@ -1646,7 +1726,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func update(_ object: borrowing JavaScriptObject) {}
           @JavaScriptActor
@@ -1693,13 +1773,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("load"))
         func load() {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           func load() {}
 
           public static let _jsName = "MyModule"
@@ -1744,7 +1824,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func load() {}
 
@@ -1753,7 +1833,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func load() {}
           func fetch() {}
@@ -1806,13 +1886,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.withAsync("loadAsync"), .withAsync("fetchAsync"))
         func load() {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           func load() {}
 
           public static let _jsName = "MyModule"
@@ -1855,13 +1935,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func compute() -> Int { 42 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @concurrent
           func compute() -> Int { 42 }
 
@@ -1897,13 +1977,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func compute() throws -> Int { 42 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @concurrent
           func compute() throws -> Int { 42 }
 
@@ -1998,13 +2078,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         nonisolated func compute() -> Int { 42 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           nonisolated func compute() -> Int { 42 }
 
           public static let _jsName = "MyModule"
@@ -2029,7 +2109,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @Event(sync: true)
         var onTick: () -> Void
 
@@ -2038,7 +2118,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var onTick: () -> Void {
             get {
@@ -2078,11 +2158,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule {
+      public final class MyModule {
       }
       """,
       expandedSource: """
-        final class MyModule {
+        public final class MyModule {
 
           public static let _jsName = "MyModule"
 
@@ -2104,11 +2184,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: SomeOtherBase {
+      public final class MyModule: SomeOtherBase {
       }
       """,
       expandedSource: """
-        final class MyModule: SomeOtherBase {
+        public final class MyModule: SomeOtherBase {
 
           public static let _jsName = "MyModule"
 
@@ -2130,11 +2210,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
 
           public static let _jsName = "MyModule"
         }
@@ -2147,11 +2227,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: BaseModule {
+      public final class MyModule: BaseModule {
       }
       """,
       expandedSource: """
-        final class MyModule: BaseModule {
+        public final class MyModule: BaseModule {
 
           public static let _jsName = "MyModule"
         }
@@ -2164,11 +2244,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: AnyModule {
+      public final class MyModule: AnyModule {
       }
       """,
       expandedSource: """
-        final class MyModule: AnyModule {
+        public final class MyModule: AnyModule {
 
           public static let _jsName = "MyModule"
 
@@ -2187,12 +2267,12 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule {
+      public final class MyModule {
         public weak var appContext: AppContext?
       }
       """,
       expandedSource: """
-        final class MyModule {
+        public final class MyModule {
           public weak var appContext: AppContext?
 
           public static let _jsName = "MyModule"
@@ -2213,12 +2293,12 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule {
+      public final class MyModule {
         public required init(appContext: AppContext) {}
       }
       """,
       expandedSource: """
-        final class MyModule {
+        public final class MyModule {
           public required init(appContext: AppContext) {}
 
           public static let _jsName = "MyModule"
@@ -2237,12 +2317,12 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule {
+      public final class MyModule {
         public required init(c: AppContext) {}
       }
       """,
       expandedSource: """
-        final class MyModule {
+        public final class MyModule {
           public required init(c: AppContext) {}
 
           public static let _jsName = "MyModule"
@@ -2265,14 +2345,14 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         public func definition() -> ModuleDefinition {
           Name("MyModule")
         }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @ModuleDefinitionBuilder
           public func definition() -> ModuleDefinition {
             Name("MyModule")
@@ -2289,7 +2369,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @ModuleDefinitionBuilder
         public func definition() -> ModuleDefinition {
           Name("MyModule")
@@ -2297,7 +2377,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @ModuleDefinitionBuilder
           public func definition() -> ModuleDefinition {
             Name("MyModule")
@@ -2316,13 +2396,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func move(point: borrowing Point, by delta: consuming Delta, tag: sending Tag) {}
 
@@ -2356,13 +2436,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func tag(name: String, note: borrowing String?) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func tag(name: String, note: borrowing String?) { }
 
@@ -2394,13 +2474,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func store(config: borrowing [String: Any]) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func store(config: borrowing [String: Any]) { }
 
@@ -2466,13 +2546,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func swap(pair: (Int, String)) -> (String, Int) { (pair.1, pair.0) }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func swap(pair: (Int, String)) -> (String, Int) { (pair.1, pair.0) }
 
@@ -2499,13 +2579,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func move(_ point: Point, by offset: (x: Double, y: Double)) -> (point: Point, distance: Double) { fatalError() }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func move(_ point: Point, by offset: (x: Double, y: Double)) -> (point: Point, distance: Double) { fatalError() }
 
@@ -2539,7 +2619,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var selection: (start: Int, end: Int)?
 
@@ -2548,7 +2628,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var selection: (start: Int, end: Int)?
           @JavaScriptActor
@@ -2596,13 +2676,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func lengths(of ranges: [(name: String, range: (Int, Point))]) -> [String: (Int, Int)?] { [:] }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func lengths(of ranges: [(name: String, range: (Int, Point))]) -> [String: (Int, Int)?] { [:] }
 
@@ -2645,13 +2725,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func transform(with body: ((Int, Int)) throws -> (x: Int, y: Int)) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func transform(with body: ((Int, Int)) throws -> (x: Int, y: Int)) { }
 
@@ -2686,13 +2766,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func load(with body: @escaping ((Int, Int)) async -> Void) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func load(with body: @escaping ((Int, Int)) async -> Void) { }
 
@@ -2734,7 +2814,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func load(_ point: Point) { }
 
@@ -2749,7 +2829,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func load(_ point: Point) { }
           @JavaScriptActor
@@ -2821,7 +2901,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         typealias Span = (start: Int, end: Point)
         typealias Spans = [Self.Span]
         typealias Identifier = String
@@ -2831,7 +2911,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           typealias Span = (start: Int, end: Point)
           typealias Spans = [Self.Span]
           typealias Identifier = String
@@ -2874,13 +2954,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func store(config: [String: Any]) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func store(config: [String: Any]) { }
 
@@ -2906,13 +2986,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func keep(config: [String: Any]?) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func keep(config: [String: Any]?) { }
 
@@ -2943,13 +3023,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func store(groups: [String: [Any]], rows: [[String: Any]]?) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func store(groups: [String: [Any]], rows: [[String: Any]]?) { }
 
@@ -2981,13 +3061,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func inspect(list: [Any], value: Any) { }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func inspect(list: [Any], value: Any) { }
 
@@ -3014,7 +3094,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func load() -> [String: Any] { [:] }
         @JS
@@ -3024,7 +3104,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func load() -> [String: Any] { [:] }
           @JavaScriptActor
@@ -3068,7 +3148,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func find() -> [String: Any]? { nil }
         @JS
@@ -3078,7 +3158,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func find() -> [String: Any]? { nil }
           @JavaScriptActor
@@ -3122,13 +3202,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func fetch() async throws -> [String: Any] { [:] }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func fetch() async throws -> [String: Any] { [:] }
 
@@ -3158,7 +3238,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var metadata: [String: Any] = [:]
         @JS
@@ -3166,7 +3246,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var metadata: [String: Any] = [:]
           @JavaScriptActor
@@ -3205,13 +3285,13 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func keyed(map: [Int: Any]) -> Set<[String: Any]> { [] }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func keyed(map: [Int: Any]) -> Set<[String: Any]> { [] }
 
@@ -3254,11 +3334,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule(views: [CardView.self, BadgeView.self])
-      class MyModule: Module {
+      public class MyModule: Module {
       }
       """,
       expandedSource: """
-        class MyModule: Module {
+        public class MyModule: Module {
 
           public static let _jsName = "MyModule"
 
@@ -3273,11 +3353,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule(classes: [Cache.self], views: [CardView.self])
-      class MyModule: Module {
+      public class MyModule: Module {
       }
       """,
       expandedSource: """
-        class MyModule: Module {
+        public class MyModule: Module {
 
           public static let _jsName = "MyModule"
 
@@ -3294,11 +3374,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      class MyModule: Module {
+      public class MyModule: Module {
       }
       """,
       expandedSource: """
-        class MyModule: Module {
+        public class MyModule: Module {
 
           public static let _jsName = "MyModule"
         }
@@ -3313,11 +3393,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule(views: [Outer.CardView.self])
-      class MyModule: Module {
+      public class MyModule: Module {
       }
       """,
       expandedSource: """
-        class MyModule: Module {
+        public class MyModule: Module {
 
           public static let _jsName = "MyModule"
 
@@ -3332,11 +3412,11 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule(views: [])
-      class MyModule: Module {
+      public class MyModule: Module {
       }
       """,
       expandedSource: """
-        class MyModule: Module {
+        public class MyModule: Module {
 
           public static let _jsName = "MyModule"
         }
@@ -3349,7 +3429,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func `default`(`in` value: Int) -> Int { value }
 
@@ -3361,7 +3441,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func `default`(`in` value: Int) -> Int { value }
           @JavaScriptActor
@@ -3412,7 +3492,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func greet(name: String) -> String { "Hi" }
 
@@ -3421,7 +3501,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func greet(name: String) -> String { "Hi" }
           @JavaScriptActor
@@ -3468,7 +3548,7 @@ struct ExpoModuleMacroTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         var status: String { "ok" }
 
@@ -3477,7 +3557,7 @@ struct ExpoModuleMacroTests {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           var status: String { "ok" }
           @JavaScriptActor

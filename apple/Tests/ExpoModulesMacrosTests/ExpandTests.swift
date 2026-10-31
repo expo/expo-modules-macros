@@ -8,7 +8,7 @@ struct ExpandTests {
     import ExpoModulesCore
 
     @ExpoModule
-    final class MyModule: Module {
+    public final class MyModule: Module {
       @JS
       func greet(name: String) -> String { "Hi" }
 
@@ -40,13 +40,13 @@ struct ExpandTests {
   func `Passes the Sendable conformance like the compiler`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {}
+      public final class MyModule: Module {}
 
       @SharedObject
-      final class Cache: SharedObject {}
+      public final class Cache: SharedObject {}
 
       @SharedObject
-      final class Session: SharedObject, @unchecked Sendable {}
+      public final class Session: SharedObject, @unchecked Sendable {}
       """
     let result = expandMacros(source: source, file: "MyModule.swift", symbols: [])
     let expansion = try #require(result.expansions.only)
@@ -60,7 +60,7 @@ struct ExpandTests {
     let result = expandMacros(source: module, file: "MyModule.swift", symbols: ["MyModule.greet"])
     let expansion = try #require(result.expansions.only)
     #expect(expansion.symbol == "MyModule.greet")
-    #expect(expansion.source.hasPrefix("final class MyModule: Module {"))
+    #expect(expansion.source.hasPrefix("public final class MyModule: Module {"))
     #expect(expansion.source.contains("object.setProperty(\"greet\")"))
     #expect(!expansion.source.contains("add"))
     #expect(!expansion.source.contains("struct Options"))
@@ -79,7 +79,7 @@ struct ExpandTests {
   func `A member inside #if keeps the #if block`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         #if os(iOS)
         @JS
         func vibrate() {}
@@ -106,7 +106,7 @@ struct ExpandTests {
   func `Reports macro diagnostics at their location in the original file`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func ok() {}
 
@@ -126,7 +126,7 @@ struct ExpandTests {
   func `With symbols, reports only the diagnostics inside their declarations`() {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func ok() {}
 
@@ -144,13 +144,13 @@ struct ExpandTests {
     // `@ExpoModule` adds `@JavaScriptActor` to `take`, so the `@JS` macro gets a declaration with one
     // more line. The same declaration in `Plain` gets no attribute.
     let source = """
-      final class Plain {
+      public final class Plain {
         @JS
         func take(callbacks: [() -> Void]) {}
       }
 
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func take(callbacks: [() -> Void]) {}
 
@@ -168,7 +168,7 @@ struct ExpandTests {
   func `A member symbol keeps the type aliases of its type`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         typealias Point = (x: Double, y: Double)
 
         @JS
@@ -205,7 +205,7 @@ struct ExpandTests {
   func `A nested type symbol leaves out the extensions of a top-level type with the same name`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @Record
         struct Options {
           var verbose: Bool = false
@@ -228,7 +228,7 @@ struct ExpandTests {
   func `A member symbol is written without backticks`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func `default`() {}
       }

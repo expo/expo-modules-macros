@@ -40,11 +40,11 @@ struct SendableConformanceTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
 
           public static let _jsName = "MyModule"
         }
@@ -60,11 +60,11 @@ struct SendableConformanceTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule {
+      public final class MyModule {
       }
       """,
       expandedSource: """
-        final class MyModule {
+        public final class MyModule {
 
           public static let _jsName = "MyModule"
 
@@ -89,11 +89,11 @@ struct SendableConformanceTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module, @unchecked Sendable {
+      public final class MyModule: Module, @unchecked Sendable {
       }
       """,
       expandedSource: """
-        final class MyModule: Module, @unchecked Sendable {
+        public final class MyModule: Module, @unchecked Sendable {
 
           public static let _jsName = "MyModule"
         }
@@ -106,11 +106,11 @@ struct SendableConformanceTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject {
+      public final class Cache: SharedObject {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject {
+        public final class Cache: SharedObject {
 
           public override class var _jsName: String {
             "Cache"
@@ -128,11 +128,11 @@ struct SendableConformanceTests {
     assertExpansion(
       """
       @SharedObject
-      final class Cache: SharedObject, Sendable {
+      public final class Cache: SharedObject, Sendable {
       }
       """,
       expandedSource: """
-        final class Cache: SharedObject, Sendable {
+        public final class Cache: SharedObject, Sendable {
 
           public override class var _jsName: String {
             "Cache"
