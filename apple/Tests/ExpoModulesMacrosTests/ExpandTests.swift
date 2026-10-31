@@ -191,13 +191,12 @@ struct ExpandTests {
       ]
     )
     let edits = try diagnostics.map { try #require($0.fixItEdits.only?.only) }
-    #expect(edits.map(\.original) == ["", "", ""])
-    #expect(edits.map(\.replacement) == ["async ", "async ", "throws "])
-    // Each edit inserts the keyword in front of `throws` or `->`.
+    // Each edit inserts the keyword in front of `throws` or `->`, and replaces the 8 bytes after it
+    // with themselves, so that `fix` can check them.
+    #expect(edits.map(\.original) == ["throws -", "throws -", "-> Int) "])
+    #expect(edits.map(\.replacement) == ["async throws -", "async throws -", "throws -> Int) "])
     let text = Array(source.utf8)
-    #expect(
-      edits.map { String(decoding: text[$0.offset...].prefix(6), as: UTF8.self) } == ["throws", "throws", "-> Int"]
-    )
+    #expect(edits.allSatisfy { text[$0.offset...].starts(with: Array($0.original.utf8)) })
   }
 
   @Test
@@ -205,6 +204,26 @@ struct ExpandTests {
     let result = expandMacros(source: "struct S {\n  func f( {}\n}\n", file: "f.swift", symbols: [])
     #expect(result.diagnostics.contains { !$0.fixIts.isEmpty })
     #expect(result.diagnostics.allSatisfy { $0.fixItEdits.isEmpty })
+  }
+
+  @Test
+  func `Reports a diagnostic and maps a Fix-It in a property that swift-syntax rewrites before a macro gets it`() throws
+  {
+    // The closure in the initializer of `onA` makes the macro system rewrite the property, so the
+    // declaration that `@Event` gets doesn't map back to the file by its start.
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event let onA: F = make { 1 }
+        @Event let onB: F
+      }
+      """
+    let diagnostics = expandMacros(source: source, file: "f.swift", symbols: []).diagnostics
+    #expect(diagnostics.map { [$0.line, $0.column] } == [[3, 10], [4, 10]])
+    let text = Array(source.utf8)
+    let edits = try diagnostics.map { try #require($0.fixItEdits.only?.only) }
+    #expect(edits.allSatisfy { text[$0.offset...].starts(with: Array($0.original.utf8)) })
+    #expect(edits.allSatisfy { $0.original.hasPrefix("let") && $0.replacement.hasPrefix("var") })
   }
 
   @Test

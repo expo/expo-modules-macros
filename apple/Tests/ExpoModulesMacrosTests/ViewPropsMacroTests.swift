@@ -473,7 +473,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1366,7 +1366,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1401,7 +1401,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 4,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1441,7 +1441,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 4,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1476,7 +1476,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1511,7 +1511,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1545,7 +1545,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
@@ -1556,6 +1556,106 @@ struct ViewPropsMacroTests {
         @ViewProps
         struct Props {
           @MainActor var color: UIColor = .red
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A @Field attribute with arguments gets no removal fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field(.keyed("borderColor")) var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field(.keyed("borderColor")) var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @ViewProps treats every stored property as a prop, named after the property. Remove the @Field attribute, and rename the property if its arguments set another prop name",
+          line: 3,
+          column: 3
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A @Field attribute with empty parentheses gets the removal fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field() var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field() var color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        )
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Reports every @Field attribute, also after one without a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Field(.keyed("borderColor")) var color: UIColor = .red
+        @Field var radius: Double = 0
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Field(.keyed("borderColor")) var color: UIColor = .red
+          @Field var radius: Double = 0
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @ViewProps treats every stored property as a prop, named after the property. Remove the @Field attribute, and rename the property if its arguments set another prop name",
+          line: 3,
+          column: 3
+        ),
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 4,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        ),
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          @Field(.keyed("borderColor")) var color: UIColor = .red
+          var radius: Double = 0
         }
         """
     )

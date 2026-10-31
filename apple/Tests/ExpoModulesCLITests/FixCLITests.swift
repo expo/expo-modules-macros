@@ -138,6 +138,19 @@ struct FixCLITests {
   }
 
   @Test
+  func `Doesn't warn when the last of the maximum number of passes applies the last Fix-It`() {
+    // Doubles the first `a` until the source has one more `a` than there are passes.
+    let replacing = replacingExpander([("a", "aa")])
+    let expander = MacroExpander(attributeNames: []) { source, file, symbols in
+      source.count <= maxFixPasses
+        ? replacing.expand(source, file, symbols) : ExpandedFile(file: file, expansions: [], diagnostics: [])
+    }
+    let fixed = fixSource("a", expanded: expander.expand("a", "f.swift", []), symbols: [], expander: expander)
+    #expect(fixed.applied.count == maxFixPasses)
+    #expect(!fixed.reachedPassLimit)
+  }
+
+  @Test
   func `With onlyErrors, applies only the Fix-Its of errors`() {
     let warning = ExpansionDiagnostic(
       severity: .warning,
@@ -183,17 +196,34 @@ struct FixCLITests {
     try withFile("let x = \"a\"\n") { file in
       let other = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Other.swift").path
       try "let y = \"a\"\n".write(toFile: other, atomically: true, encoding: .utf8)
-      // Removing the first file while it is expanded makes its write fail.
-      let replacing = replacingExpander([("a", "b")])
-      let expander = MacroExpander(attributeNames: replacing.attributeNames) { source, path, symbols in
-        if path == file {
-          try? FileManager.default.removeItem(atPath: file)
+      let options = FixOptions(paths: [file, other])
+      let status = Scanner.runFix(options: options, expander: replacingExpander([("a", "b")])) {
+        source,
+        path,
+        original in
+        guard path != file else {
+          throw FixWriteError(description: "disk full")
         }
-        return replacing.expand(source, path, symbols)
+        return try writeFixedSource(source, toFile: path, original: original)
       }
-      #expect(ScannerCLI.run(arguments: ["fix", file, other], expander: expander) == 1)
+      #expect(status == 1)
+      let unchanged = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(unchanged == "let x = \"a\"\n")
       let fixed = try String(contentsOfFile: other, encoding: .utf8)
       #expect(fixed == "let y = \"b\"\n")
+    }
+  }
+
+  @Test
+  func `Doesn't write a file that changed after fix read it`() throws {
+    try withFile("let x = \"a\"\n") { file in
+      let original = try Data(contentsOf: URL(fileURLWithPath: file))
+      try "let x = \"edited\"\n".write(toFile: file, atomically: true, encoding: .utf8)
+      #expect(throws: FixWriteError.self) {
+        try writeFixedSource("let x = \"b\"\n", toFile: file, original: original)
+      }
+      let contents = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(contents == "let x = \"edited\"\n")
     }
   }
 
@@ -209,7 +239,8 @@ struct FixCLITests {
   }
 
   #if !os(Windows)
-  // Creating a symbolic link on Windows needs a privilege that CI doesn't have.
+  // Creating a symbolic link on Windows needs a privilege that CI doesn't have, and Windows has no POSIX
+  // permissions.
   @Test
   func `Writes through a symbolic link, which keeps pointing to the file`() throws {
     try withFile("let x = \"a\"\n") { file in
@@ -220,6 +251,42 @@ struct FixCLITests {
       #expect(destination == file)
       let fixed = try String(contentsOfFile: file, encoding: .utf8)
       #expect(fixed == "let x = \"b\"\n")
+    }
+  }
+
+  @Test
+  func `Writes a file in place, which keeps its permissions and its other hard links`() throws {
+    try withFile("let x = \"a\"\n") { file in
+      let fileManager = FileManager.default
+      try fileManager.setAttributes([.posixPermissions: 0o640], ofItemAtPath: file)
+      let link = URL(fileURLWithPath: file).deletingLastPathComponent().appendingPathComponent("Link.swift").path
+      try fileManager.linkItem(atPath: file, toPath: link)
+      let original = try Data(contentsOf: URL(fileURLWithPath: file))
+
+      #expect(try writeFixedSource("let x = \"b\"\n", toFile: file, original: original))
+      let linked = try String(contentsOfFile: link, encoding: .utf8)
+      #expect(linked == "let x = \"b\"\n")
+      let permissions = try fileManager.attributesOfItem(atPath: file)[.posixPermissions] as? Int
+      #expect(permissions == 0o640)
+      // The link already has the fixed contents, so it isn't written or counted again.
+      #expect(try !writeFixedSource("let x = \"b\"\n", toFile: link, original: original))
+    }
+  }
+
+  @Test(.disabled(if: getuid() == 0, "root can write a read-only file"))
+  func `Doesn't write a read-only file, and reports it unchanged`() throws {
+    try withFile("let x = \"a\"\n") { file in
+      let fileManager = FileManager.default
+      try fileManager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file)
+      defer { try? fileManager.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file) }
+      let original = try Data(contentsOf: URL(fileURLWithPath: file))
+      #expect {
+        try writeFixedSource("let x = \"b\"\n", toFile: file, original: original)
+      } throws: { error in
+        "\(error)".hasSuffix("the file is unchanged")
+      }
+      let contents = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(contents == "let x = \"a\"\n")
     }
   }
   #endif
@@ -275,6 +342,11 @@ struct FixCLITests {
     #expect(renderFixSummary(applied: 0, files: 0, dryRun: false) == "No Fix-Its to apply.\n")
     #expect(renderFixSummary(applied: 1, files: 1, dryRun: false) == "Applied 1 Fix-It in 1 file.\n")
     #expect(renderFixSummary(applied: 3, files: 2, dryRun: true) == "Would apply 3 Fix-Its in 2 files.\n")
+    #expect(
+      renderFixSummary(applied: 1, files: 1, failed: 2, dryRun: false)
+        == "Applied 1 Fix-It in 1 file. Could not write 2 files.\n"
+    )
+    #expect(renderFixSummary(applied: 0, files: 0, failed: 1, dryRun: false) == "Could not write 1 file.\n")
   }
 
   private func withFile(_ contents: String, _ body: (_ file: String) throws -> Void) throws {
