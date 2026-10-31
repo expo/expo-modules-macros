@@ -176,7 +176,7 @@ struct ExpandTests {
       }
 
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func load() throws -> Int { 1 }
 
@@ -296,7 +296,7 @@ struct FixTests {
     // `@ViewProps` stops at its first error, so `fix` expands the file again for the next ones.
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func load() -> Int { 1 }
       }
@@ -320,7 +320,7 @@ struct FixTests {
       #expect(
         fixed == """
           @ExpoModule
-          final class MyModule: Module {
+          public final class MyModule: Module {
             @JS(.concurrent)
             func load() async -> Int { 1 }
           }
@@ -342,7 +342,7 @@ struct FixTests {
   func `With a symbol, applies only the Fix-Its inside its declaration`() throws {
     let source = """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS(.concurrent)
         func load() -> Int { 1 }
 
@@ -365,8 +365,8 @@ struct FixTests {
     // declaration that `@Event` or `@JS` gets is past the declaration and in the next one.
     let source = """
       @ExpoModule
-      final class MyModule: Module {
-        @Event(sync: true) let a: F; struct S { let a: F }
+      public final class MyModule: Module {
+        @Event(.sync) let a: F; struct S { let a: F }
         @JS(.concurrent) func b() {}; func b() {}
       }
 
@@ -374,7 +374,7 @@ struct FixTests {
     try withFile(source) { file in
       #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
       let fixed = try String(contentsOfFile: file, encoding: .utf8)
-      #expect(fixed.contains("@Event(sync: true) var a: F; struct S { let a: F }"))
+      #expect(fixed.contains("@Event(.sync) var a: F; struct S { let a: F }"))
       #expect(fixed.contains("@JS(.concurrent) func b() async {}; func b() {}"))
     }
   }
