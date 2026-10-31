@@ -704,8 +704,9 @@ private func isVoidEventReturn(_ type: TypeSyntax) -> Bool {
   return text == "Void" || text == "()" || text == "Swift.Void"
 }
 
-/// True if an `@Event` attribute lists the given option member (`@Event(.sync)`). Mirrors `hasOption`
-/// in the macros.
+/// True if an `@Event` attribute lists the given option member (`@Event(.sync)` or
+/// `@Event("name", EventOptions.sync)`). Like `hasOption` in the macros, but without the array-literal
+/// branch, which `EventOptions...` doesn't accept.
 private func hasEventOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return false

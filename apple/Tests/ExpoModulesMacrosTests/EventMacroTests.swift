@@ -387,6 +387,35 @@ struct EventMacroTests {
   }
 
   @Test
+  func `Sync event spelled with the qualified option dispatches through emitSync`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event(EventOptions.sync)
+        var onTick: () -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onTick: () -> Void {
+            get {
+              { [weak self] in
+                self?.emitSync(event: "tick")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onTick() {
+            func onTick(_: (some EventEmitter).Type) {
+            }
+            onTick(MyModule.self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Sync event combines with a name override`() {
     assertExpansion(
       """

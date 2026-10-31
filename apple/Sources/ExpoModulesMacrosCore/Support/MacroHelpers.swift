@@ -14,9 +14,10 @@ internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
 }
 
 /// True if the attribute lists the given option member, e.g. `@JS(.concurrent)`, `@Event(.sync)` or
-/// `@JS("name", [.concurrent])` -> true for "concurrent". Options are written as member-access
-/// expressions (`.concurrent`), optionally inside an array literal when more than one is combined, so
-/// both spellings are scanned. The leading string literal, when present, is the JS name and is skipped.
+/// `@Event("name", EventOptions.sync)` -> true for the matching name. Options are written as
+/// member-access expressions, one per variadic argument. Array literals are scanned too, though the
+/// variadic declarations in `expo-modules-core` don't accept them. The leading string literal, when
+/// present, is the JS name and is skipped.
 internal func hasOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return false
