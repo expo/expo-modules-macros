@@ -362,7 +362,7 @@ struct EventMacroTests {
     assertExpansion(
       """
       class MyModule: Module {
-        @Event(sync: true)
+        @Event(.sync)
         var onTick: (TickEvent) -> Void
       }
       """,
@@ -391,7 +391,7 @@ struct EventMacroTests {
     assertExpansion(
       """
       class MyModule: Module {
-        @Event("onTick", sync: true)
+        @Event("onTick", .sync)
         var onTick: () -> Void
       }
       """,

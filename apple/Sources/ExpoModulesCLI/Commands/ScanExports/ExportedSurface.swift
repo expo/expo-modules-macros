@@ -207,7 +207,7 @@ struct ExportedEvent: Encodable, Equatable {
   /// The single payload parameter's type, or `nil` for a no-payload `() -> Void` event.
   var payload: TypeNode?
 
-  /// `@Event(sync: true)`, dispatching inline on the JS thread instead of scheduling.
+  /// `@Event(.sync)`, dispatching inline on the JS thread instead of scheduling.
   let isSync: Bool
 
   /// The spelled access modifier, or `nil` when none is written.

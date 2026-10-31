@@ -84,7 +84,7 @@ private func diagnoseConcurrentOption(
   on declaration: some DeclSyntaxProtocol,
   in context: some MacroExpansionContext
 ) {
-  guard hasJSOption(node, named: "concurrent") else {
+  guard hasOption(node, named: "concurrent") else {
     return
   }
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
@@ -272,7 +272,7 @@ private func diagnoseJavaScriptValuesOffThread(
   }
   let option: String
   let reason: String
-  if hasJSOption(node, named: "concurrent") {
+  if hasOption(node, named: "concurrent") {
     option = ".concurrent"
     reason = "'.concurrent' runs the body on the concurrent thread pool"
   } else if asyncVariantOption(of: node) != nil {

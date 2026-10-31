@@ -909,7 +909,7 @@ struct EventSurfaceTests {
           @Event("legacyName")
           var onRenamed: (Int) -> Void
 
-          @Event(sync: true)
+          @Event(.sync)
           var onTick: (Double) -> Void
 
           // Not an event: a plain @JS member.
