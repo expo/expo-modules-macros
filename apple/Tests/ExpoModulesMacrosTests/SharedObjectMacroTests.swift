@@ -9,6 +9,7 @@ private let sharedObjectMacroSpecs: [String: MacroSpec] = [
   "JS": MacroSpec(type: JSMacro.self),
   "ExpoModule": MacroSpec(type: ExpoModuleMacro.self, conformances: ["AnyModule"]),
   "SharedObject": MacroSpec(type: SharedObjectMacro.self),
+  "Event": MacroSpec(type: EventMacro.self),
 ]
 
 private func assertExpansion(
@@ -244,6 +245,57 @@ struct SharedObjectMacroTests {
 
           public override class var _jsName: String {
             "Thumbnail"
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Sync @Event member is stamped with @JavaScriptActor while the async default is not`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Player: SharedObject {
+        @Event(.sync)
+        var onTick: () -> Void
+
+        @Event
+        var onReady: () -> Void
+      }
+      """,
+      expandedSource: """
+        public final class Player: SharedObject {
+          @JavaScriptActor
+          var onTick: () -> Void {
+            get {
+              { [weak self] in
+                self?.emitSync(event: "tick")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onTick() {
+            func onTick(_: (some EventEmitter).Type) {
+            }
+            onTick(Player.self)
+          }
+          var onReady: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "ready")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onReady() {
+            func onReady(_: (some EventEmitter).Type) {
+            }
+            onReady(Player.self)
+          }
+
+          public override class var _jsName: String {
+            "Player"
           }
         }
         """

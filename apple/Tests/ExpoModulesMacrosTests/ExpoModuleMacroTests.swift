@@ -2110,7 +2110,7 @@ struct ExpoModuleMacroTests {
       """
       @ExpoModule
       public final class MyModule: Module {
-        @Event(sync: true)
+        @Event(.sync)
         var onTick: () -> Void
 
         @Event

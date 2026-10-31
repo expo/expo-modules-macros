@@ -32,7 +32,7 @@ import SwiftSyntaxMacros
 /// also self-contained: `@ExpoModule`/`@SharedObject` neither collect `@Event` members nor register
 /// their names anywhere.
 ///
-/// `@Event(sync: true)` opts into **synchronous dispatch**: the closure calls `emitSync` (inline
+/// `@Event(.sync)` opts into **synchronous dispatch**: the closure calls `emitSync` (inline
 /// conversion + dispatch, no scheduling) instead of `emit`, and `@ExpoModule`/`@SharedObject` stamp
 /// the member `@JavaScriptActor` so the compiler forces the call site onto the JS thread, the
 /// inverse of the async default. The isolation is on the property access, so it guards the inline
@@ -127,7 +127,7 @@ private struct EventMember {
   let jsName: String
   /// The payload type as written, or `nil` for a no-payload `() -> Void` event.
   let payloadType: String?
-  /// Whether the event dispatches synchronously (`@Event(sync: true)`) via `emitSync`.
+  /// Whether the event dispatches synchronously (`@Event(.sync)`) via `emitSync`.
   let isSync: Bool
 
   var hasPayload: Bool {
@@ -212,7 +212,7 @@ private func validatedEvent(
     swiftName: swiftName,
     jsName: jsNameArgument(of: node) ?? defaultEventName(for: withoutBackticks(swiftName)),
     payloadType: functionType.parameters.first?.type.trimmedDescription,
-    isSync: boolArgument(of: node, label: "sync") == true
+    isSync: hasOption(node, named: "sync")
   )
 }
 

@@ -909,8 +909,14 @@ struct EventSurfaceTests {
           @Event("legacyName")
           var onRenamed: (Int) -> Void
 
-          @Event(sync: true)
+          @Event(.sync)
           var onTick: (Double) -> Void
+
+          @Event("tock", .sync)
+          var onTock: () -> Void
+
+          @Event(EventOptions.sync)
+          var onBeat: () -> Void
 
           // Not an event: a plain @JS member.
           @JS
@@ -920,7 +926,7 @@ struct EventSurfaceTests {
       ).modules.first
     )
 
-    #expect(module.events.map(\.name) == ["onStatusChange", "onFinish", "onRenamed", "onTick"])
+    #expect(module.events.map(\.name) == ["onStatusChange", "onFinish", "onRenamed", "onTick", "onTock", "onBeat"])
 
     // The conventional `on` prefix is stripped for the JS name; the Swift name is kept separately.
     let status = try #require(module.events.first { $0.name == "onStatusChange" })
@@ -939,6 +945,14 @@ struct EventSurfaceTests {
 
     let tick = try #require(module.events.first { $0.name == "onTick" })
     #expect(tick.isSync == true)
+
+    // The option combines with a name override, and the qualified spelling counts too.
+    let tock = try #require(module.events.first { $0.name == "onTock" })
+    #expect(tock.jsName == "tock")
+    #expect(tock.isSync == true)
+    let beat = try #require(module.events.first { $0.name == "onBeat" })
+    #expect(beat.jsName == "beat")
+    #expect(beat.isSync == true)
 
     // Events are collected separately from functions and properties.
     #expect(module.functions.map(\.name) == ["play"])

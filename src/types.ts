@@ -257,7 +257,7 @@ export interface ExportedEvent extends ExportedAccess, ExportedAvailability {
   jsName: string;
   /** The payload type, absent for a no-payload `() -> Void` event. */
   payload?: TypeNode;
-  /** `@Event(sync: true)`, dispatching inline on the JS thread instead of scheduling. */
+  /** `@Event(.sync)`, dispatching inline on the JS thread instead of scheduling. */
   sync: boolean;
 }
 

@@ -13,26 +13,12 @@ internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
   return segment.content.text
 }
 
-/// Reads a labeled boolean-literal argument of an attribute, e.g. `@Event(sync: true)` -> true.
-/// Returns nil if the attribute has no argument with that label or its value isn't a boolean literal.
-internal func boolArgument(of attribute: AttributeSyntax, label: String) -> Bool? {
-  guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
-    return nil
-  }
-  for arg in args where arg.label?.text == label {
-    guard let literal = arg.expression.as(BooleanLiteralExprSyntax.self) else {
-      return nil
-    }
-    return literal.literal.tokenKind == .keyword(.true)
-  }
-  return nil
-}
-
-/// True if the attribute lists the given `JSOptions` member, e.g. `@JS(.concurrent)` or
-/// `@JS("name", [.concurrent])` -> true for "concurrent". Options are written as member-access
-/// expressions (`.concurrent`), optionally inside an array literal when more than one is combined, so
-/// both spellings are scanned. The leading string literal, when present, is the JS name and is skipped.
-internal func hasJSOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
+/// True if the attribute lists the given option member, e.g. `@JS(.concurrent)`, `@Event(.sync)` or
+/// `@Event("name", EventOptions.sync)` -> true for the matching name. Options are written as
+/// member-access expressions, one per variadic argument. Array literals are scanned too, though the
+/// variadic declarations in `expo-modules-core` don't accept them. The leading string literal, when
+/// present, is the JS name and is skipped.
+internal func hasOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return false
   }
@@ -49,7 +35,7 @@ internal func hasJSOption(_ attribute: AttributeSyntax, named option: String) ->
   return false
 }
 
-/// True when the expression is the member access `.<option>` (or `JSOptions.<option>`).
+/// True when the expression is the member access `.<option>` (or `JSOptions.<option>`, `EventOptions.<option>`).
 private func namesOption(_ expression: ExprSyntax, _ option: String) -> Bool {
   guard let member = expression.as(MemberAccessExprSyntax.self) else {
     return false
@@ -64,7 +50,7 @@ internal func isConcurrentJSMember(_ decl: DeclSyntaxProtocol) -> Bool {
   guard let attribute = memberAttributes(of: decl).firstAttribute(named: "JS") else {
     return false
   }
-  return hasJSOption(attribute, named: "concurrent")
+  return hasOption(attribute, named: "concurrent")
 }
 
 /// The `.withAsync("name")` option of a `@JS` attribute, e.g. `@JS(.withAsync("loadAsync"))` or
@@ -74,7 +60,7 @@ internal func asyncVariantOption(of attribute: AttributeSyntax) -> FunctionCallE
   return asyncVariantOptions(of: attribute).first
 }
 
-/// Every `.withAsync(...)` option of a `@JS` attribute, in source order. Like `hasJSOption`, it scans
+/// Every `.withAsync(...)` option of a `@JS` attribute, in source order. Like `hasOption`, it scans
 /// the arguments and the elements of an array literal.
 internal func asyncVariantOptions(of attribute: AttributeSyntax) -> [FunctionCallExprSyntax] {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
@@ -290,7 +276,7 @@ internal func hasDefaultValue(_ parameter: FunctionParameterSyntax) -> Bool {
   return parameter.defaultValue != nil
 }
 
-/// True if the declaration is a `@Event(sync: true)` property. A sync event dispatches inline on the
+/// True if the declaration is a `@Event(.sync)` property. A sync event dispatches inline on the
 /// JS thread instead of scheduling, so `@ExpoModule`/`@SharedObject` stamp it with `@JavaScriptActor`,
 /// making "must be called on the JS thread" a compile-time guarantee at the call site. Async events
 /// (the default) are deliberately not stamped: their `emit` schedules onto the JS thread itself, so
@@ -301,7 +287,7 @@ internal func isSyncEventMember(_ decl: DeclSyntaxProtocol) -> Bool {
   else {
     return false
   }
-  return boolArgument(of: attribute, label: "sync") == true
+  return hasOption(attribute, named: "sync")
 }
 
 /// Reads a labeled array-literal argument of an attribute, e.g. `@ExpoModule(classes: [Foo.self, Bar.self])`,

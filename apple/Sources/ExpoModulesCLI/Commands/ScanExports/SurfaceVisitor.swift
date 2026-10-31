@@ -285,7 +285,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       return []
     }
     let override = stringArgument(of: attribute)
-    let isSync = boolArgument(of: attribute, label: "sync") == true
+    let isSync = hasEventOption(attribute, named: "sync")
     var result: [ExportedEvent] = []
 
     for binding in varDecl.bindings {
@@ -704,18 +704,16 @@ private func isVoidEventReturn(_ type: TypeSyntax) -> Bool {
   return text == "Void" || text == "()" || text == "Swift.Void"
 }
 
-/// The value of a labeled boolean macro argument (`@Event(sync: true)`), or `nil` when absent.
-private func boolArgument(of attribute: AttributeSyntax, label: String) -> Bool? {
+/// True if an `@Event` attribute lists the given option member (`@Event(.sync)` or
+/// `@Event("name", EventOptions.sync)`). Like `hasOption` in the macros, but without the array-literal
+/// branch, which `EventOptions...` doesn't accept.
+private func hasEventOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
-    return nil
+    return false
   }
-  for argument in arguments where argument.label?.text == label {
-    guard let literal = argument.expression.as(BooleanLiteralExprSyntax.self) else {
-      return nil
-    }
-    return literal.literal.tokenKind == .keyword(.true)
+  return arguments.contains { argument in
+    argument.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == option
   }
-  return nil
 }
 
 /// The name in a `@JS` attribute's `.withAsync("name")` option, in the arguments or inside an array
