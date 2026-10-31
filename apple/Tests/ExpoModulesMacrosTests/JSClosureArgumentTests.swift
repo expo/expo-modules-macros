@@ -43,13 +43,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func subscribe(onChange: @escaping (Int) -> Void) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func subscribe(onChange: @escaping (Int) -> Void) {}
 
@@ -80,13 +80,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func measure(name: String, layout: (Point, Int) throws -> Size) throws {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func measure(name: String, layout: (Point, Int) throws -> Size) throws {}
 
@@ -125,13 +125,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func lookup(resolve: (String?) throws -> Size?) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func lookup(resolve: (String?) throws -> Size?) {}
 
@@ -168,13 +168,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func load(fetch: @escaping @Sendable (Request) async throws -> Data) async throws -> Int { 0 }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func load(fetch: @escaping @Sendable (Request) async throws -> Data) async throws -> Int { 0 }
 
@@ -214,13 +214,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func run(task: () async -> Void) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func run(task: () async -> Void) {}
 
@@ -253,13 +253,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func start(onDone: ((Bool) throws -> Void)?) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func start(onDone: ((Bool) throws -> Void)?) {}
 
@@ -299,13 +299,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @SharedObject
-      final class Watcher: SharedObject {
+      public final class Watcher: SharedObject {
         @JS
         init(onEvent: @escaping (String) -> Void) {}
       }
       """,
       expandedSource: """
-        final class Watcher: SharedObject {
+        public final class Watcher: SharedObject {
           @JavaScriptActor
           init(onEvent: @escaping (String) -> Void) {}
 
@@ -336,13 +336,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func observe(handler: (borrowing Point, consuming Size, sending Item) throws -> Void) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func observe(handler: (borrowing Point, consuming Size, sending Item) throws -> Void) {}
 
@@ -381,13 +381,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @SharedObject
-      final class Downloader: SharedObject {
+      public final class Downloader: SharedObject {
         @JS
         func download(onProgress: @escaping (Double) async throws -> Void) async {}
       }
       """,
       expandedSource: """
-        final class Downloader: SharedObject {
+        public final class Downloader: SharedObject {
           @JavaScriptActor
           func download(onProgress: @escaping (Double) async throws -> Void) async {}
 
@@ -422,13 +422,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func sync(onProgress: ((Double) -> Void)?) async throws -> Bool { true }
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func sync(onProgress: ((Double) -> Void)?) async throws -> Bool { true }
 
@@ -478,13 +478,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func run(onDone: @escaping () -> Void = {}) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func run(onDone: @escaping () -> Void = {}) {}
 
@@ -520,13 +520,13 @@ struct JSClosureArgumentTests {
     assertExpansion(
       """
       @ExpoModule
-      final class MyModule: Module {
+      public final class MyModule: Module {
         @JS
         func sort(compare: (Int, Int) -> Bool) {}
       }
       """,
       expandedSource: """
-        final class MyModule: Module {
+        public final class MyModule: Module {
           @JavaScriptActor
           func sort(compare: (Int, Int) -> Bool) {}
 

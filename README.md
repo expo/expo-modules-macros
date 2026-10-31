@@ -70,6 +70,10 @@ The author-facing documentation for each macro lives next to its declaration in 
 
 Native code calls a module or shared object from more than one thread: a `.withAsync` variant runs on the concurrent thread pool, and events and closure arguments can be called from any thread. So the generated code needs the class to be `Sendable`. A subclass of `Module` or `SharedObject` can't be checked `Sendable`, because those base classes aren't, so `@ExpoModule` and `@SharedObject` add `extension MyModule: @unchecked Sendable {}`. The compiler doesn't check the class's mutable state then: keep state that more than one thread uses behind a lock or an actor. The macros add nothing when the class already declares `Sendable` or `@unchecked Sendable`, or inherits it. Swift warns on a subclass of a module or shared object until the subclass restates `@unchecked Sendable`.
 
+## Access level
+
+Autolinking generates the modules provider in the app target, so it can reference only the `public` and `open` classes of other modules. `@ExpoModule` and `@SharedObject` warn when the class isn't `public` or `open`, with a fix-it that makes it `public`. The fix-it replaces an `internal`, `package`, `fileprivate` or `private` modifier, or adds `public` before the other modifiers. A class declared in a function can't have an access modifier, so it gets no warning.
+
 # Scanner
 
 The Swift compiler launches a plugin executable with no arguments and speaks the plugin protocol over stdin, so the binary treats any argument as a scanner invocation instead:
