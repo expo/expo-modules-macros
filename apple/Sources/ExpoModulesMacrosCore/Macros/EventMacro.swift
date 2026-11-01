@@ -95,9 +95,13 @@ extension EventMacro: PeerMacro {
     //
     // A payload that holds a tuple is encoded element by element (see `TupleConversion`), so the types
     // in it are asserted `JavaScriptEncodable`, which the encode closure needs, in its place.
+    // `emitInline` and `emitBlocking` take only `JavaScriptEncodable` payloads, so with those options
+    // the payload is asserted `JavaScriptEncodable` too.
     let name = event.swiftName
     let tupleElementTypes = event.payloadType.flatMap { tupleConversion(of: $0)?.conformingTypes }
-    let payloadConstraint = tupleElementTypes == nil ? jsConvertibleProtocolName : javaScriptEncodableProtocolName
+    let payloadConstraint =
+      tupleElementTypes == nil && event.dispatch == .scheduled
+      ? jsConvertibleProtocolName : javaScriptEncodableProtocolName
     let payloads =
       tupleElementTypes.map { distinctAssertableTypes($0, constraint: payloadConstraint) }
       ?? event.payloadType.flatMap { assertableBoundaryType($0, constraint: payloadConstraint) }.map { [$0] } ?? []

@@ -377,7 +377,7 @@ struct EventMacroTests {
           }
 
           private func _assertTypesConformance_onTick() {
-            func onTick(_: (some AnyArgument).Type, _: (some EventEmitter).Type) {
+            func onTick(_: (some JavaScriptEncodable).Type, _: (some EventEmitter).Type) {
             }
             onTick(TickEvent.self, MyModule.self)
           }
