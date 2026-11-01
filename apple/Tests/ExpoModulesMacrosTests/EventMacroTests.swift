@@ -358,11 +358,11 @@ struct EventMacroTests {
   }
 
   @Test
-  func `Sync event dispatches through emitSync`() {
+  func `Inline event dispatches through emitInline`() {
     assertExpansion(
       """
       class MyModule: Module {
-        @Event(.sync)
+        @Event(.inline)
         var onTick: (TickEvent) -> Void
       }
       """,
@@ -371,7 +371,7 @@ struct EventMacroTests {
           var onTick: (TickEvent) -> Void {
             get {
               { [weak self] payload in
-                self?.emitSync(event: "tick", payload: payload)
+                self?.emitInline(event: "tick", payload: payload)
               }
             }
           }
@@ -387,11 +387,11 @@ struct EventMacroTests {
   }
 
   @Test
-  func `Sync event spelled with the qualified option dispatches through emitSync`() {
+  func `Blocking event spelled with the qualified option dispatches through emitBlocking`() {
     assertExpansion(
       """
       class MyModule: Module {
-        @Event(EventOptions.sync)
+        @Event(EventOptions.blocking)
         var onTick: () -> Void
       }
       """,
@@ -400,7 +400,7 @@ struct EventMacroTests {
           var onTick: () -> Void {
             get {
               { [weak self] in
-                self?.emitSync(event: "tick")
+                self?.emitBlocking(event: "tick")
               }
             }
           }
@@ -416,11 +416,11 @@ struct EventMacroTests {
   }
 
   @Test
-  func `Sync event combines with a name override`() {
+  func `Blocking event combines with a name override`() {
     assertExpansion(
       """
       class MyModule: Module {
-        @Event("onTick", .sync)
+        @Event("onTick", .blocking)
         var onTick: () -> Void
       }
       """,
@@ -429,7 +429,7 @@ struct EventMacroTests {
           var onTick: () -> Void {
             get {
               { [weak self] in
-                self?.emitSync(event: "onTick")
+                self?.emitBlocking(event: "onTick")
               }
             }
           }
@@ -441,6 +441,31 @@ struct EventMacroTests {
           }
         }
         """
+    )
+  }
+
+  @Test
+  func `Inline and blocking options together are diagnosed`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event(.inline, .blocking)
+        var onTick: () -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onTick: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+          line: 2,
+          column: 3
+        )
+      ]
     )
   }
 

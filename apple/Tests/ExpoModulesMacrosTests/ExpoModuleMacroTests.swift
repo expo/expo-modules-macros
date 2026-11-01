@@ -2105,12 +2105,12 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Sync @Event member is stamped with @JavaScriptActor while the async default is not`() {
+  func `@Event members aren't stamped with @JavaScriptActor, with or without a dispatch option`() {
     assertExpansion(
       """
       @ExpoModule
       public final class MyModule: Module {
-        @Event(.sync)
+        @Event(.blocking)
         var onTick: () -> Void
 
         @Event
@@ -2119,11 +2119,10 @@ struct ExpoModuleMacroTests {
       """,
       expandedSource: """
         public final class MyModule: Module {
-          @JavaScriptActor
           var onTick: () -> Void {
             get {
               { [weak self] in
-                self?.emitSync(event: "tick")
+                self?.emitBlocking(event: "tick")
               }
             }
           }

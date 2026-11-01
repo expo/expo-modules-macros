@@ -171,10 +171,7 @@ extension SharedObjectMacro: MemberAttributeMacro {
     providingAttributesFor member: some DeclSyntaxProtocol,
     in context: some MacroExpansionContext
   ) throws -> [AttributeSyntax] {
-    // `@Event(.sync)` members are stamped alongside `@JS` ones: a sync event dispatches
-    // inline, so the isolation forces its call site onto the JS thread. Async events (the
-    // default) stay unstamped — their `emit` schedules onto the JS thread itself.
-    guard memberHasJSAttribute(member) || isSyncEventMember(member) else {
+    guard memberHasJSAttribute(member) else {
       return []
     }
     // `@JS(.concurrent)` opts the member out of the JS-thread stamp and onto the concurrent pool.

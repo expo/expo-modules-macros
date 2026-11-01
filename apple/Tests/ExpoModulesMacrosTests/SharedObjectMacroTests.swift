@@ -252,12 +252,12 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Sync @Event member is stamped with @JavaScriptActor while the async default is not`() {
+  func `@Event members aren't stamped with @JavaScriptActor, with or without a dispatch option`() {
     assertExpansion(
       """
       @SharedObject
       public final class Player: SharedObject {
-        @Event(.sync)
+        @Event(.inline)
         var onTick: () -> Void
 
         @Event
@@ -266,11 +266,10 @@ struct SharedObjectMacroTests {
       """,
       expandedSource: """
         public final class Player: SharedObject {
-          @JavaScriptActor
           var onTick: () -> Void {
             get {
               { [weak self] in
-                self?.emitSync(event: "tick")
+                self?.emitInline(event: "tick")
               }
             }
           }

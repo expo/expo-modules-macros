@@ -285,7 +285,9 @@ final class SurfaceVisitor: SyntaxVisitor {
       return []
     }
     let override = stringArgument(of: attribute)
-    let isSync = hasEventOption(attribute, named: "sync")
+    let dispatch: ExportedEventDispatch =
+      hasEventOption(attribute, named: "inline")
+      ? .inline : hasEventOption(attribute, named: "blocking") ? .blocking : .scheduled
     var result: [ExportedEvent] = []
 
     for binding in varDecl.bindings {
@@ -306,7 +308,7 @@ final class SurfaceVisitor: SyntaxVisitor {
           name: name,
           jsName: override ?? defaultEventName(for: name),
           payload: functionType.parameters.first.map { typeNode(from: $0.type) },
-          isSync: isSync,
+          dispatch: dispatch,
           accessLevel: spelledAccessLevel(of: varDecl.modifiers),
           platforms: platforms
         )
@@ -704,8 +706,8 @@ private func isVoidEventReturn(_ type: TypeSyntax) -> Bool {
   return text == "Void" || text == "()" || text == "Swift.Void"
 }
 
-/// True if an `@Event` attribute lists the given option member (`@Event(.sync)` or
-/// `@Event("name", EventOptions.sync)`). Like `hasOption` in the macros, but without the array-literal
+/// True if an `@Event` attribute lists the given option member (`@Event(.inline)` or
+/// `@Event("name", EventOptions.inline)`). Like `hasOption` in the macros, but without the array-literal
 /// branch, which `EventOptions...` doesn't accept.
 private func hasEventOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
