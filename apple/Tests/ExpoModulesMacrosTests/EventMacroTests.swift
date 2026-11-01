@@ -463,9 +463,48 @@ struct EventMacroTests {
           message:
             "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
           line: 2,
-          column: 3
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove '.blocking'")]
         )
-      ]
+      ],
+      fixedSource: """
+        class MyModule: Module {
+          @Event(.inline)
+          var onTick: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The Fix-It for conflicting options removes the one written last and keeps the name`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event("tick", .blocking, .inline)
+        var onTick: () -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onTick: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+          line: 2,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove '.inline'")]
+        )
+      ],
+      fixedSource: """
+        class MyModule: Module {
+          @Event("tick", .blocking)
+          var onTick: () -> Void
+        }
+        """
     )
   }
 

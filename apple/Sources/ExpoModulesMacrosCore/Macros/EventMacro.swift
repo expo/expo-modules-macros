@@ -243,9 +243,7 @@ private func eventDispatch(of node: AttributeSyntax) throws -> EventDispatch {
   let isInline = hasOption(node, named: "inline")
   let isBlocking = hasOption(node, named: "blocking")
   if isInline && isBlocking {
-    throw MacroExpansionErrorMessage(
-      "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options"
-    )
+    throw conflictingOptionsDiagnostic(in: node)
   }
   if isInline {
     return .inline
@@ -254,6 +252,45 @@ private func eventDispatch(of node: AttributeSyntax) throws -> EventDispatch {
     return .blocking
   }
   return .scheduled
+}
+
+/// The error for `@Event(.inline, .blocking)`, with a single Fix-It that removes the option written
+/// last. One Fix-It (rather than one for each option) lets the `fix` command apply it, since it skips
+/// a diagnostic with alternatives.
+private func conflictingOptionsDiagnostic(in node: AttributeSyntax) -> DiagnosticsError {
+  let message = EventDiagnosticMessage(
+    "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+    id: "event-conflicting-options"
+  )
+  guard let arguments = node.arguments?.as(LabeledExprListSyntax.self),
+    let index = arguments.lastIndex(where: { isDispatchOption($0.expression) })
+  else {
+    return DiagnosticsError(diagnostics: [Diagnostic(node: node, message: message)])
+  }
+  let removed = arguments[index]
+  var remaining = Array(arguments)
+  remaining.removeAll { $0.id == removed.id }
+  // The argument before the removed one keeps its comma only when another argument follows it.
+  if let last = remaining.indices.last {
+    remaining[last] = remaining[last].with(\.trailingComma, nil)
+  }
+  let optionName = removed.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text ?? "option"
+  let fixIt = FixIt(
+    message: EventFixItMessage("Remove '.\(optionName)'", id: "event-remove-option"),
+    changes: [
+      .replace(oldNode: Syntax(arguments), newNode: Syntax(LabeledExprListSyntax(remaining)))
+    ]
+  )
+  return DiagnosticsError(diagnostics: [Diagnostic(node: node, message: message, fixIts: [fixIt])])
+}
+
+/// True when the expression is the `.inline` or `.blocking` option (or `EventOptions.<option>`).
+private func isDispatchOption(_ expression: ExprSyntax) -> Bool {
+  guard let member = expression.as(MemberAccessExprSyntax.self) else {
+    return false
+  }
+  let name = member.declName.baseName.text
+  return name == "inline" || name == "blocking"
 }
 
 // MARK: - Default event name
