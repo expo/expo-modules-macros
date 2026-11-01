@@ -207,8 +207,8 @@ struct ExportedEvent: Encodable, Equatable {
   /// The single payload parameter's type, or `nil` for a no-payload `() -> Void` event.
   var payload: TypeNode?
 
-  /// `@Event(.sync)`, dispatching inline on the JS thread instead of scheduling.
-  let isSync: Bool
+  /// How the event is dispatched: the default `scheduled`, or the `.inline` or `.blocking` option.
+  let dispatch: ExportedEventDispatch
 
   /// The spelled access modifier, or `nil` when none is written.
   let accessLevel: String?
@@ -216,8 +216,7 @@ struct ExportedEvent: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, payload, accessLevel, platforms
-    case isSync = "sync"
+    case name, jsName, payload, dispatch, accessLevel, platforms
   }
 
   func encode(to encoder: Encoder) throws {
@@ -225,7 +224,7 @@ struct ExportedEvent: Encodable, Equatable {
     try container.encode(name, forKey: .name)
     try container.encode(jsName, forKey: .jsName)
     try container.encodeIfPresent(payload, forKey: .payload)
-    try container.encode(isSync, forKey: .isSync)
+    try container.encode(dispatch, forKey: .dispatch)
     try container.encodeIfPresent(accessLevel, forKey: .accessLevel)
     try container.encode(platforms, forKey: .platforms)
   }
@@ -471,6 +470,13 @@ struct ExportedSurface: Encodable, Equatable {
   let unions: [ExportedUnion]
 }
 
+/// How an `@Event` is dispatched to JavaScript, from its option. Mirrors `EventDispatch` in the macros.
+enum ExportedEventDispatch: String, Encodable, Equatable {
+  case scheduled
+  case inline
+  case blocking
+}
+
 /// Version of the `scan-exports` output shape. Bumped on any breaking change to the envelope or to
 /// anything under `exports`, so a consumer can verify it understands the output before trusting it.
 /// Versioned independently of `scanModulesSchemaVersion`: the two commands serve different consumers
@@ -481,8 +487,9 @@ struct ExportedSurface: Encodable, Equatable {
 /// declarations in `#if` blocks, adds `platforms` (with deprecations), `accessLevel`, and
 /// `defaultValue`, and replaces `constructorParameters` with `initializer`; version 9 adds the
 /// `sharedRef` type kind and the `sharedRef` of a shared object; version 10 adds the `tuple` and `object` type kinds (named after a tuple alias)
-/// and resolves the tuple type aliases declared in `@ExpoModule` and `@SharedObject` classes.
-let scanExportsSchemaVersion = 10
+/// and resolves the tuple type aliases declared in `@ExpoModule` and `@SharedObject` classes; version 11
+/// replaces the `sync` flag of an event with `dispatch`.
+let scanExportsSchemaVersion = 11
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanModulesResult` (different consumer: TS generation vs. autolinking).

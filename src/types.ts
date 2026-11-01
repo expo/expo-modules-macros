@@ -257,8 +257,8 @@ export interface ExportedEvent extends ExportedAccess, ExportedAvailability {
   jsName: string;
   /** The payload type, absent for a no-payload `() -> Void` event. */
   payload?: TypeNode;
-  /** `@Event(.sync)`, dispatching inline on the JS thread instead of scheduling. */
-  sync: boolean;
+  /** How the event is dispatched: the default `scheduled`, or the `.inline` or `.blocking` option. */
+  dispatch: 'scheduled' | 'inline' | 'blocking';
 }
 
 /** The `@JS init` of a shared object: the constructor JS calls with `new`. */
@@ -497,5 +497,5 @@ export interface ExpandResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 10;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 11;
 export const SUPPORTED_EXPAND_SCHEMA_VERSION = 1;

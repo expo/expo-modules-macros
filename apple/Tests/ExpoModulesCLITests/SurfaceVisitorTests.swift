@@ -894,7 +894,7 @@ struct UnionSurfaceTests {
 @Suite("Exports surface: events")
 struct EventSurfaceTests {
   @Test
-  func `Extracts @Event members with payload, JS name, and sync flag`() throws {
+  func `Extracts @Event members with payload, JS name, and dispatch`() throws {
     let module = try #require(
       surface(
         """
@@ -909,13 +909,13 @@ struct EventSurfaceTests {
           @Event("legacyName")
           var onRenamed: (Int) -> Void
 
-          @Event(.sync)
+          @Event(.inline)
           var onTick: (Double) -> Void
 
-          @Event("tock", .sync)
+          @Event("tock", .blocking)
           var onTock: () -> Void
 
-          @Event(EventOptions.sync)
+          @Event(EventOptions.inline)
           var onBeat: () -> Void
 
           // Not an event: a plain @JS member.
@@ -932,7 +932,7 @@ struct EventSurfaceTests {
     let status = try #require(module.events.first { $0.name == "onStatusChange" })
     #expect(status.jsName == "statusChange")
     #expect(status.payload == .ref(name: "StatusPayload"))
-    #expect(status.isSync == false)
+    #expect(status.dispatch == .scheduled)
 
     // A `() -> Void` event has no payload.
     let finish = try #require(module.events.first { $0.name == "onFinish" })
@@ -944,15 +944,15 @@ struct EventSurfaceTests {
     #expect(renamed.jsName == "legacyName")
 
     let tick = try #require(module.events.first { $0.name == "onTick" })
-    #expect(tick.isSync == true)
+    #expect(tick.dispatch == .inline)
 
     // The option combines with a name override, and the qualified spelling counts too.
     let tock = try #require(module.events.first { $0.name == "onTock" })
     #expect(tock.jsName == "tock")
-    #expect(tock.isSync == true)
+    #expect(tock.dispatch == .blocking)
     let beat = try #require(module.events.first { $0.name == "onBeat" })
     #expect(beat.jsName == "beat")
-    #expect(beat.isSync == true)
+    #expect(beat.dispatch == .inline)
 
     // Events are collected separately from functions and properties.
     #expect(module.functions.map(\.name) == ["play"])

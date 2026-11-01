@@ -385,7 +385,7 @@ struct FixTests {
     let source = """
       @ExpoModule
       public final class MyModule: Module {
-        @Event(.sync) let a: F; struct S { let a: F }
+        @Event(.inline) let a: F; struct S { let a: F }
         @JS(.concurrent) func b() {}; func b() {}
       }
 
@@ -393,7 +393,7 @@ struct FixTests {
     try withFile(source) { file in
       #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
       let fixed = try String(contentsOfFile: file, encoding: .utf8)
-      #expect(fixed.contains("@Event(.sync) var a: F; struct S { let a: F }"))
+      #expect(fixed.contains("@Event(.inline) var a: F; struct S { let a: F }"))
       #expect(fixed.contains("@JS(.concurrent) func b() async {}; func b() {}"))
     }
   }

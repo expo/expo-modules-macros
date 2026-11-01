@@ -32,12 +32,12 @@ import SwiftSyntaxMacros
 /// also self-contained: `@ExpoModule`/`@SharedObject` neither collect `@Event` members nor register
 /// their names anywhere.
 ///
-/// `@Event(.sync)` opts into **synchronous dispatch**: the closure calls `emitSync` (inline
-/// conversion + dispatch, no scheduling) instead of `emit`, and `@ExpoModule`/`@SharedObject` stamp
-/// the member `@JavaScriptActor` so the compiler forces the call site onto the JS thread, the
-/// inverse of the async default. The isolation is on the property access, so it guards the inline
-/// `self.onTick(…)` usage; a closure stored or handed off escapes it, after which `emitSync` runs
-/// wherever the caller invokes it.
+/// Two options change how the event is dispatched, and each one calls its own `EventEmitter` method,
+/// which is callable from any thread as well:
+/// - `@Event(.inline)` calls `emitInline`: on the JS thread the listeners run before the call
+///   returns; on any other thread the event is scheduled, the same as `emit`. It never blocks.
+/// - `@Event(.blocking)` calls `emitBlocking`: the listeners run before the call returns on any
+///   thread, so a call from another thread blocks until the JS thread runs them.
 ///
 /// As a **peer**, the macro emits a never-called conformance assertion (see
 /// `TypeConformanceAssertion.swift`) checking that the payload type is JS-convertible and that the
@@ -51,11 +51,10 @@ public struct EventMacro: AccessorMacro {
   ) throws -> [AccessorDeclSyntax] {
     let event = try validatedEvent(of: node, on: declaration)
     // The closure's parameter and return types are inferred from the property's declared type
-    // through the getter, so the body never has to spell the payload type. A sync event calls
-    // `emitSync` (inline dispatch, JS thread only); the default calls the scheduling `emit`.
-    // A payload that holds a tuple can't conform to the payload protocols, so it's passed with a
-    // closure that encodes it.
-    let emitMethod = event.isSync ? "emitSync" : "emit"
+    // through the getter, so the body never has to spell the payload type. The dispatch option
+    // picks the `EventEmitter` method. A payload that holds a tuple can't conform to the payload
+    // protocols, so it's passed with a closure that encodes it.
+    let emitMethod = event.dispatch.emitMethod
     let closure: String
     if let tuple = event.payloadType.flatMap({ tupleConversion(of: $0) }) {
       let encode = encoderClosure(encoding: tuple.encodeCall(of: "value", into: "slot"))
@@ -96,9 +95,13 @@ extension EventMacro: PeerMacro {
     //
     // A payload that holds a tuple is encoded element by element (see `TupleConversion`), so the types
     // in it are asserted `JavaScriptEncodable`, which the encode closure needs, in its place.
+    // `emitInline` and `emitBlocking` take only `JavaScriptEncodable` payloads, so with those options
+    // the payload is asserted `JavaScriptEncodable` too.
     let name = event.swiftName
     let tupleElementTypes = event.payloadType.flatMap { tupleConversion(of: $0)?.conformingTypes }
-    let payloadConstraint = tupleElementTypes == nil ? jsConvertibleProtocolName : javaScriptEncodableProtocolName
+    let payloadConstraint =
+      tupleElementTypes == nil && event.dispatch == .scheduled
+      ? jsConvertibleProtocolName : javaScriptEncodableProtocolName
     let payloads =
       tupleElementTypes.map { distinctAssertableTypes($0, constraint: payloadConstraint) }
       ?? event.payloadType.flatMap { assertableBoundaryType($0, constraint: payloadConstraint) }.map { [$0] } ?? []
@@ -127,8 +130,8 @@ private struct EventMember {
   let jsName: String
   /// The payload type as written, or `nil` for a no-payload `() -> Void` event.
   let payloadType: String?
-  /// Whether the event dispatches synchronously (`@Event(.sync)`) via `emitSync`.
-  let isSync: Bool
+  /// How the event is dispatched, from the `.inline` or `.blocking` option.
+  let dispatch: EventDispatch
 
   var hasPayload: Bool {
     return payloadType != nil
@@ -208,12 +211,86 @@ private func validatedEvent(
   }
 
   let swiftName = identifier.identifier.text
+  let dispatch = try eventDispatch(of: node)
   return EventMember(
     swiftName: swiftName,
     jsName: jsNameArgument(of: node) ?? defaultEventName(for: withoutBackticks(swiftName)),
     payloadType: functionType.parameters.first?.type.trimmedDescription,
-    isSync: hasOption(node, named: "sync")
+    dispatch: dispatch
   )
+}
+
+/// How an `@Event` is dispatched to JavaScript, picked by its option.
+private enum EventDispatch {
+  case scheduled
+  case inline
+  case blocking
+
+  var emitMethod: String {
+    switch self {
+    case .scheduled:
+      return "emit"
+    case .inline:
+      return "emitInline"
+    case .blocking:
+      return "emitBlocking"
+    }
+  }
+}
+
+/// Reads the dispatch option of an `@Event` attribute. `.inline` and `.blocking` exclude each other.
+private func eventDispatch(of node: AttributeSyntax) throws -> EventDispatch {
+  let isInline = hasOption(node, named: "inline")
+  let isBlocking = hasOption(node, named: "blocking")
+  if isInline && isBlocking {
+    throw conflictingOptionsDiagnostic(in: node)
+  }
+  if isInline {
+    return .inline
+  }
+  if isBlocking {
+    return .blocking
+  }
+  return .scheduled
+}
+
+/// The error for `@Event(.inline, .blocking)`, with a single Fix-It that removes the option written
+/// last. One Fix-It (rather than one for each option) lets the `fix` command apply it, since it skips
+/// a diagnostic with alternatives.
+private func conflictingOptionsDiagnostic(in node: AttributeSyntax) -> DiagnosticsError {
+  let message = EventDiagnosticMessage(
+    "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+    id: "event-conflicting-options"
+  )
+  guard let arguments = node.arguments?.as(LabeledExprListSyntax.self),
+    let index = arguments.lastIndex(where: { isDispatchOption($0.expression) })
+  else {
+    return DiagnosticsError(diagnostics: [Diagnostic(node: node, message: message)])
+  }
+  let removed = arguments[index]
+  var remaining = Array(arguments)
+  remaining.removeAll { $0.id == removed.id }
+  // The argument before the removed one keeps its comma only when another argument follows it.
+  if let last = remaining.indices.last {
+    remaining[last] = remaining[last].with(\.trailingComma, nil)
+  }
+  let optionName = removed.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text ?? "option"
+  let fixIt = FixIt(
+    message: EventFixItMessage("Remove '.\(optionName)'", id: "event-remove-option"),
+    changes: [
+      .replace(oldNode: Syntax(arguments), newNode: Syntax(LabeledExprListSyntax(remaining)))
+    ]
+  )
+  return DiagnosticsError(diagnostics: [Diagnostic(node: node, message: message, fixIts: [fixIt])])
+}
+
+/// True when the expression is the `.inline` or `.blocking` option (or `EventOptions.<option>`).
+private func isDispatchOption(_ expression: ExprSyntax) -> Bool {
+  guard let member = expression.as(MemberAccessExprSyntax.self) else {
+    return false
+  }
+  let name = member.declName.baseName.text
+  return name == "inline" || name == "blocking"
 }
 
 // MARK: - Default event name

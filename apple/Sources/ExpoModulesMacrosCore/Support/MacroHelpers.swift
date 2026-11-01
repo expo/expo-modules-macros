@@ -13,8 +13,8 @@ internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
   return segment.content.text
 }
 
-/// True if the attribute lists the given option member, e.g. `@JS(.concurrent)`, `@Event(.sync)` or
-/// `@Event("name", EventOptions.sync)` -> true for the matching name. Options are written as
+/// True if the attribute lists the given option member, e.g. `@JS(.concurrent)`, `@Event(.inline)` or
+/// `@Event("name", EventOptions.inline)` -> true for the matching name. Options are written as
 /// member-access expressions, one per variadic argument. Array literals are scanned too, though the
 /// variadic declarations in `expo-modules-core` don't accept them. The leading string literal, when
 /// present, is the JS name and is skipped.
@@ -274,20 +274,6 @@ internal func isOmittable(_ parameter: FunctionParameterSyntax) -> Bool {
 /// (passed `nil`).
 internal func hasDefaultValue(_ parameter: FunctionParameterSyntax) -> Bool {
   return parameter.defaultValue != nil
-}
-
-/// True if the declaration is a `@Event(.sync)` property. A sync event dispatches inline on the
-/// JS thread instead of scheduling, so `@ExpoModule`/`@SharedObject` stamp it with `@JavaScriptActor`,
-/// making "must be called on the JS thread" a compile-time guarantee at the call site. Async events
-/// (the default) are deliberately not stamped: their `emit` schedules onto the JS thread itself, so
-/// they stay callable from any thread.
-internal func isSyncEventMember(_ decl: DeclSyntaxProtocol) -> Bool {
-  guard let varDecl = decl.as(VariableDeclSyntax.self),
-    let attribute = varDecl.attributes.firstAttribute(named: "Event")
-  else {
-    return false
-  }
-  return hasOption(attribute, named: "sync")
 }
 
 /// Reads a labeled array-literal argument of an attribute, e.g. `@ExpoModule(classes: [Foo.self, Bar.self])`,
