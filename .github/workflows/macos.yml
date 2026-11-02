@@ -1,4 +1,6 @@
-name: Swift
+name: macOS
+
+# Builds and tests the package on macOS, and checks the universal release tool there.
 
 on:
   push:
@@ -12,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build & test
+  macos:
+    name: Build & test (macOS)
     # The package declares swift-tools-version 6.2, which requires Xcode 26+.
     runs-on: macos-26
     steps:
