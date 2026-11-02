@@ -1,0 +1,830 @@
+{
+  "exports": {
+    "enums": [
+      {
+        "cases": [
+          {
+            "name": "idle",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "rawValue": "idle"
+          },
+          {
+            "name": "playing",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "rawValue": "play"
+          },
+          {
+            "name": "pictureInPicture",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "rawValue": "pictureInPicture"
+          }
+        ],
+        "file": "Types/Models.swift",
+        "name": "Status",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "rawType": {
+          "kind": "primitive",
+          "name": "String",
+          "typeof": "string"
+        }
+      },
+      {
+        "cases": [
+          {
+            "name": "low",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "rawValue": "1"
+          },
+          {
+            "name": "high",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          }
+        ],
+        "file": "Types/Models.swift",
+        "name": "Quality",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "rawType": {
+          "kind": "primitive",
+          "name": "Int",
+          "typeof": "number"
+        }
+      }
+    ],
+    "modules": [
+      {
+        "accessLevel": "public",
+        "classes": [
+          {
+            "jsName": "Player",
+            "name": "Player"
+          }
+        ],
+        "events": [
+          {
+            "dispatch": "scheduled",
+            "jsName": "statusChange",
+            "name": "onStatusChange",
+            "payload": {
+              "kind": "ref",
+              "name": "Status",
+              "refKind": "enum",
+              "typeof": "string"
+            },
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          },
+          {
+            "dispatch": "inline",
+            "jsName": "tick",
+            "name": "onTick",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          },
+          {
+            "dispatch": "scheduled",
+            "jsName": "pictureInPictureChange",
+            "name": "onPictureInPictureChange",
+            "payload": {
+              "kind": "primitive",
+              "name": "Bool",
+              "typeof": "boolean"
+            },
+            "platforms": [
+              {
+                "name": "iOS"
+              }
+            ]
+          }
+        ],
+        "file": "PlayerModule.swift",
+        "functions": [
+          {
+            "async": false,
+            "jsName": "greet",
+            "name": "greet",
+            "parameters": [
+              {
+                "label": "_",
+                "name": "name",
+                "optional": false,
+                "type": {
+                  "kind": "primitive",
+                  "name": "String",
+                  "typeof": "string"
+                }
+              },
+              {
+                "defaultValue": "\"!\"",
+                "label": "punctuation",
+                "name": "punctuation",
+                "optional": true,
+                "type": {
+                  "kind": "primitive",
+                  "name": "String",
+                  "typeof": "string"
+                }
+              }
+            ],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            },
+            "static": false,
+            "throws": false
+          },
+          {
+            "async": true,
+            "jsName": "loadAsync",
+            "name": "load",
+            "parameters": [
+              {
+                "label": "source",
+                "name": "source",
+                "optional": false,
+                "type": {
+                  "kind": "ref",
+                  "name": "Source",
+                  "refKind": "union",
+                  "typeof": "object"
+                }
+              },
+              {
+                "label": "options",
+                "name": "options",
+                "optional": true,
+                "type": {
+                  "kind": "optional",
+                  "typeof": "object",
+                  "wrapped": {
+                    "kind": "ref",
+                    "name": "LoadOptions",
+                    "refKind": "record",
+                    "typeof": "object"
+                  }
+                }
+              }
+            ],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "key": {
+                "kind": "primitive",
+                "name": "String",
+                "typeof": "string"
+              },
+              "kind": "dictionary",
+              "typeof": "object",
+              "value": {
+                "kind": "primitive",
+                "name": "Double",
+                "typeof": "number"
+              }
+            },
+            "static": false,
+            "throws": true
+          },
+          {
+            "async": false,
+            "jsName": "newerFeature",
+            "name": "newerFeature",
+            "parameters": [],
+            "platforms": [
+              {
+                "introduced": "17.0",
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "kind": "primitive",
+              "name": "Bool",
+              "typeof": "boolean"
+            },
+            "static": false,
+            "throws": false
+          }
+        ],
+        "jsName": "ScanCheckPlayer",
+        "name": "PlayerModule",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": [
+          {
+            "defaultValue": "1.0",
+            "jsName": "volume",
+            "name": "volume",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "readonly": false,
+            "static": false,
+            "type": {
+              "kind": "primitive",
+              "name": "Double",
+              "typeof": "number"
+            }
+          },
+          {
+            "jsName": "version",
+            "name": "version",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "readonly": true,
+            "static": false,
+            "type": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            }
+          }
+        ]
+      }
+    ],
+    "records": [
+      {
+        "file": "Types/Models.swift",
+        "name": "LoadOptions",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": [
+          {
+            "defaultValue": "\"Zażółć gęślą jaźń\"",
+            "name": "title",
+            "optional": false,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "required": false,
+            "type": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            }
+          },
+          {
+            "defaultValue": "3",
+            "name": "retries",
+            "optional": false,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "required": false,
+            "type": {
+              "kind": "primitive",
+              "name": "Int",
+              "typeof": "number"
+            }
+          },
+          {
+            "name": "headers",
+            "optional": true,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "required": false,
+            "type": {
+              "kind": "optional",
+              "typeof": "object",
+              "wrapped": {
+                "key": {
+                  "kind": "primitive",
+                  "name": "String",
+                  "typeof": "string"
+                },
+                "kind": "dictionary",
+                "typeof": "object",
+                "value": {
+                  "kind": "primitive",
+                  "name": "String",
+                  "typeof": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "startAt",
+            "optional": false,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "required": true,
+            "type": {
+              "kind": "primitive",
+              "name": "Double",
+              "typeof": "number"
+            }
+          }
+        ]
+      }
+    ],
+    "sharedObjects": [
+      {
+        "accessLevel": "public",
+        "events": [],
+        "file": "PlayerModule.swift",
+        "functions": [
+          {
+            "async": false,
+            "jsName": "play",
+            "name": "play",
+            "parameters": [
+              {
+                "defaultValue": "0",
+                "label": "at",
+                "name": "time",
+                "optional": true,
+                "type": {
+                  "kind": "primitive",
+                  "name": "Double",
+                  "typeof": "number"
+                }
+              }
+            ],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "static": false,
+            "throws": false
+          },
+          {
+            "async": false,
+            "jsName": "supportedFormats",
+            "name": "supportedFormats",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "element": {
+                "kind": "primitive",
+                "name": "String",
+                "typeof": "string"
+              },
+              "kind": "array",
+              "typeof": "object"
+            },
+            "static": true,
+            "throws": false
+          }
+        ],
+        "initializer": {
+          "parameters": [
+            {
+              "label": "url",
+              "name": "url",
+              "optional": false,
+              "type": {
+                "kind": "primitive",
+                "name": "String",
+                "typeof": "string"
+              }
+            }
+          ],
+          "platforms": [
+            {
+              "name": "iOS"
+            },
+            {
+              "name": "macOS"
+            },
+            {
+              "name": "tvOS"
+            },
+            {
+              "name": "watchOS"
+            },
+            {
+              "name": "visionOS"
+            }
+          ]
+        },
+        "jsName": "Player",
+        "name": "Player",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": [],
+        "sharedRef": {
+          "native": {
+            "kind": "ref",
+            "name": "Data",
+            "typeof": "object"
+          },
+          "nativeRefType": "unknown"
+        }
+      }
+    ],
+    "unions": [
+      {
+        "file": "Types/Models.swift",
+        "members": [
+          {
+            "name": "url",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "type": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            }
+          },
+          {
+            "name": "options",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "type": {
+              "kind": "ref",
+              "name": "LoadOptions",
+              "refKind": "record",
+              "typeof": "object"
+            }
+          }
+        ],
+        "name": "Source",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ]
+      }
+    ]
+  },
+  "filesScanned": 2,
+  "filesParsed": 2
+}

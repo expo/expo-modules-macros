@@ -65,3 +65,10 @@ jobs:
         run: |
           pnpm install
           pnpm run typecheck
+
+      - name: Scan through the TypeScript wrapper
+        # The wrapper must find the release tool in `apple/`, and `scanExports` must report the
+        # surface in `scripts/check-scan-exports.json`, which the Windows and Linux workflows also check.
+        run: |
+          pnpm run build:ts
+          node scripts/check-scan.js .
