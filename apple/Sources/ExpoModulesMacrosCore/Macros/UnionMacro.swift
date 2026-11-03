@@ -35,7 +35,9 @@ import SwiftSyntaxMacros
 /// Discrimination is structural and order-dependent: the first case whose payload decodes wins. When
 /// two payload shapes overlap (two records with compatible fields, `Int` and `Double`), the earlier
 /// case matches; the author orders the more specific case first. A case may not repeat another case's
-/// payload type, since it could never be chosen.
+/// payload type, since it could never be chosen. A case after a `JavaScriptValue` case, or with a
+/// number-only payload after a `Double`, `Float` or `CGFloat` case, can't be chosen either, so the macro
+/// warns about it.
 ///
 /// The named-union counterpart of core's `Either`: any number of named cases instead of two anonymous
 /// slots, no `Any?` box, and an exhaustive `switch` as the primary way to read it (`as(_:)` covers the
@@ -48,6 +50,7 @@ public struct UnionMacro: MemberMacro, ExtensionMacro {
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
     let union = try validatedUnion(of: declaration)
+    diagnoseUnreachableCases(of: declaration, in: context)
 
     var members: [DeclSyntax] = []
 
@@ -223,8 +226,8 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
       let payloadType = parameter.type.trimmedDescription
       // Alternatives decode in declaration order and the first success wins, so a case whose payload
       // type repeats an earlier case's is unreachable: an exact-spelling duplicate is an error. (An
-      // overlap between *different* types, like `Int` and `Double`, is the author's ordering call and
-      // isn't checked here.)
+      // overlap between *different* types, like `Int` and `Double`, is the author's ordering call;
+      // `diagnoseUnreachableCases` warns about the overlaps that make a case unreachable.)
       let normalizedType = payloadType.filter { !$0.isWhitespace }
       if let earlierCase = seenPayloadTypes[normalizedType] {
         diagnostics.append(
@@ -254,6 +257,88 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
     throw MacroExpansionErrorMessage("@Union requires at least one case carrying an associated value")
   }
   return UnionType(name: enumDecl.name.text, cases: cases)
+}
+
+/// The payload types whose decode accepts every JavaScript number: they convert the number with
+/// `asDouble()`, so they never fail on one.
+private let anyNumberPayloadTypes: Set<String> = ["Double", "Float", "CGFloat"]
+
+/// The payload types that decode only a JavaScript number, so a case before them with a type of
+/// `anyNumberPayloadTypes` decodes every value they could. `Int`, `Int64`, `UInt` and `UInt64` aren't
+/// listed, since they also decode a `bigint`.
+private let numberOnlyPayloadTypes: Set<String> = [
+  "Double", "Float", "CGFloat", "Int8", "Int16", "Int32", "UInt8", "UInt16", "UInt32",
+]
+
+/// Warns about each case that an earlier case always decodes first, so it is never chosen. Cases are
+/// tried in declaration order and the first that decodes wins. The macro knows that only for some
+/// payload types: a `JavaScriptValue` payload decodes every value, and a floating-point payload every
+/// number, so a later case that decodes only numbers can't be reached. Types with the same spelling
+/// are reported as an error by `validatedUnion`, which runs first.
+private func diagnoseUnreachableCases(of declaration: some DeclGroupSyntax, in context: some MacroExpansionContext) {
+  var catchAllCase: (name: TokenSyntax, type: String)?
+  var anyNumberCase: (name: TokenSyntax, type: String)?
+
+  for member in declaration.memberBlock.members {
+    guard let caseDecl = member.decl.as(EnumCaseDeclSyntax.self) else {
+      continue
+    }
+    for element in caseDecl.elements {
+      guard let parameter = element.parameterClause?.parameters.first else {
+        continue
+      }
+      let type = unqualifiedPayloadTypeName(parameter.type)
+      let reason: String?
+      let earlier: (name: TokenSyntax, type: String)?
+      if let catchAllCase {
+        earlier = catchAllCase
+        reason = "'\(catchAllCase.type)' decodes every JavaScript value"
+      } else if let anyNumberCase, numberOnlyPayloadTypes.contains(type) {
+        earlier = anyNumberCase
+        reason = "'\(anyNumberCase.type)' decodes every JavaScript number, and '\(type)' decodes only numbers"
+      } else {
+        earlier = nil
+        reason = nil
+      }
+      if let earlier, let reason {
+        let name = element.name.text
+        context.diagnose(
+          Diagnostic(
+            node: element,
+            message: UnionDiagnosticMessage(
+              "@Union case '\(name)' is never decoded: case '\(earlier.name.text)' is tried first, and \(reason). Move case '\(name)' before case '\(earlier.name.text)'.",
+              id: "union-unreachable-case",
+              severity: .warning
+            ),
+            notes: [
+              Note(
+                node: Syntax(earlier.name),
+                message: UnionNoteMessage(
+                  "case '\(earlier.name.text)' is declared here",
+                  id: "union-unreachable-case-earlier"
+                )
+              )
+            ]
+          )
+        )
+        continue
+      }
+      if type == "JavaScriptValue" {
+        catchAllCase = (element.name, type)
+      } else if anyNumberCase == nil, anyNumberPayloadTypes.contains(type) {
+        anyNumberCase = (element.name, type)
+      }
+    }
+  }
+}
+
+/// The name of a payload type without the module that it may be qualified with, such as `Swift.Double`.
+private func unqualifiedPayloadTypeName(_ type: TypeSyntax) -> String {
+  let modules = ["Swift", "CoreGraphics", "CoreFoundation", "Foundation", "ExpoModulesCore", "ExpoModulesJSI"]
+  if let memberType = type.as(MemberTypeSyntax.self), modules.contains(memberType.baseType.trimmedDescription) {
+    return memberType.name.text
+  }
+  return type.trimmedDescription
 }
 
 // MARK: - Synthesized members
@@ -429,11 +514,22 @@ private func defaultValueDiagnostic(
 private struct UnionDiagnosticMessage: DiagnosticMessage {
   let message: String
   let diagnosticID: MessageID
-  let severity: DiagnosticSeverity = .error
+  let severity: DiagnosticSeverity
+
+  init(_ message: String, id: String, severity: DiagnosticSeverity = .error) {
+    self.message = message
+    self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+    self.severity = severity
+  }
+}
+
+private struct UnionNoteMessage: NoteMessage {
+  let message: String
+  let noteID: MessageID
 
   init(_ message: String, id: String) {
     self.message = message
-    self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+    self.noteID = MessageID(domain: "ExpoModulesMacros", id: id)
   }
 }
 

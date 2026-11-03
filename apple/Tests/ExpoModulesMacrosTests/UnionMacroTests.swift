@@ -1406,4 +1406,202 @@ struct UnionMacroTests {
         """
     )
   }
+
+  @Test
+  func `Cases after a JavaScriptValue case or of number types after a Double case are warnings`() {
+    assertExpansion(
+      """
+      @Union
+      enum Value {
+        case int(Int)
+        case double(Swift.Double)
+        case float(Float)
+        case int32(Int32)
+        case any(JavaScriptValue)
+        case text(String)
+      }
+      """,
+      expandedSource: """
+        enum Value {
+          case int(Int)
+          case double(Swift.Double)
+          case float(Float)
+          case int32(Int32)
+          case any(JavaScriptValue)
+          case text(String)
+
+          private func _assertTypesConformance() {
+            func double(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
+            }
+            double(Swift.Double.self)
+            func float(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
+            }
+            float(Float.self)
+            func int32(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
+            }
+            int32(Int32.self)
+            func any(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
+            }
+            any(JavaScriptValue.self)
+          }
+
+          nonisolated public static var decodableKinds: JavaScriptValueKinds {
+            return [Int.decodableKinds, Swift.Double.decodableKinds, Float.decodableKinds, Int32.decodableKinds, JavaScriptValue.decodableKinds, String.decodableKinds]
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let kind = JavaScriptValueKinds(of: value)
+            if Int.decodableKinds.contains(kind), let payload = try? Int.decode(value, in: runtime) {
+              return .int(payload)
+            }
+            if Swift.Double.decodableKinds.contains(kind), let payload = try? Swift.Double.decode(value, in: runtime) {
+              return .double(payload)
+            }
+            if Float.decodableKinds.contains(kind), let payload = try? Float.decode(value, in: runtime) {
+              return .float(payload)
+            }
+            if Int32.decodableKinds.contains(kind), let payload = try? Int32.decode(value, in: runtime) {
+              return .int32(payload)
+            }
+            if JavaScriptValue.decodableKinds.contains(kind), let payload = try? JavaScriptValue.decode(value, in: runtime) {
+              return .any(payload)
+            }
+            if String.decodableKinds.contains(kind), let payload = try? String.decode(value, in: runtime) {
+              return .text(payload)
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: value.copied(in: runtime).kind.rawValue, expected: ["Int", "Swift.Double", "Float", "Int32", "JavaScriptValue", "String"]))
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Self, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            switch value {
+            case .int(let payload):
+              return try Int.encode(payload, in: runtime)
+            case .double(let payload):
+              return try Swift.Double.encode(payload, in: runtime)
+            case .float(let payload):
+              return try Float.encode(payload, in: runtime)
+            case .int32(let payload):
+              return try Int32.encode(payload, in: runtime)
+            case .any(let payload):
+              return try JavaScriptValue.encode(payload, in: runtime)
+            case .text(let payload):
+              return try String.encode(payload, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Self,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            switch value {
+            case .int(let payload):
+              try Int.encode(payload, into: slot, in: runtime)
+            case .double(let payload):
+              try Swift.Double.encode(payload, into: slot, in: runtime)
+            case .float(let payload):
+              try Float.encode(payload, into: slot, in: runtime)
+            case .int32(let payload):
+              try Int32.encode(payload, into: slot, in: runtime)
+            case .any(let payload):
+              try JavaScriptValue.encode(payload, into: slot, in: runtime)
+            case .text(let payload):
+              try String.encode(payload, into: slot, in: runtime)
+            }
+          }
+
+          nonisolated public func `as`(_ type: Int.Type) throws -> Int {
+            if case .int(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: _payloadTypeName, expected: ["Int"]))
+          }
+
+          nonisolated public func `as`(_ type: Swift.Double.Type) throws -> Swift.Double {
+            if case .double(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: _payloadTypeName, expected: ["Swift.Double"]))
+          }
+
+          nonisolated public func `as`(_ type: Float.Type) throws -> Float {
+            if case .float(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: _payloadTypeName, expected: ["Float"]))
+          }
+
+          nonisolated public func `as`(_ type: Int32.Type) throws -> Int32 {
+            if case .int32(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: _payloadTypeName, expected: ["Int32"]))
+          }
+
+          nonisolated public func `as`(_ type: JavaScriptValue.Type) throws -> JavaScriptValue {
+            if case .any(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: _payloadTypeName, expected: ["JavaScriptValue"]))
+          }
+
+          nonisolated public func `as`(_ type: String.Type) throws -> String {
+            if case .text(let payload) = self {
+              return payload
+            }
+            throw Exceptions.UnionCaseMismatch((unionName: "Value", received: _payloadTypeName, expected: ["String"]))
+          }
+
+          nonisolated private var _payloadTypeName: String {
+            switch self {
+            case .int:
+              return "Int"
+            case .double:
+              return "Swift.Double"
+            case .float:
+              return "Float"
+            case .int32:
+              return "Int32"
+            case .any:
+              return "JavaScriptValue"
+            case .text:
+              return "String"
+            }
+          }
+        }
+
+        extension Value: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Union case 'float' is never decoded: case 'double' is tried first, and 'Double' decodes every JavaScript number, and 'Float' decodes only numbers. Move case 'float' before case 'double'.",
+          line: 5,
+          column: 8,
+          severity: .warning,
+          notes: [NoteSpec(message: "case 'double' is declared here", line: 4, column: 8)]
+        ),
+        DiagnosticSpec(
+          message:
+            "@Union case 'int32' is never decoded: case 'double' is tried first, and 'Double' decodes every JavaScript number, and 'Int32' decodes only numbers. Move case 'int32' before case 'double'.",
+          line: 6,
+          column: 8,
+          severity: .warning,
+          notes: [NoteSpec(message: "case 'double' is declared here", line: 4, column: 8)]
+        ),
+        DiagnosticSpec(
+          message:
+            "@Union case 'text' is never decoded: case 'any' is tried first, and 'JavaScriptValue' decodes every JavaScript value. Move case 'text' before case 'any'.",
+          line: 8,
+          column: 8,
+          severity: .warning,
+          notes: [NoteSpec(message: "case 'any' is declared here", line: 7, column: 8)]
+        ),
+      ]
+    )
+  }
 }
