@@ -32,6 +32,19 @@ public struct JSMacro: PeerMacro {
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
     diagnosePlacement(of: node, on: declaration, in: context)
+    if let genericParameterClause = jsGenericParameterClause(of: declaration) {
+      context.diagnose(
+        Diagnostic(
+          node: genericParameterClause,
+          message: JSDiagnosticMessage(
+            "A @JS function or initializer can't be generic: the binding decodes each argument and encodes the result by its static type, which a generic parameter doesn't have. Use a concrete type, a @Union of the types, or 'JavaScriptValue'.",
+            id: "js-generic-member",
+            severity: .error
+          )
+        )
+      )
+      return []
+    }
     diagnoseParameterSpecifiers(in: declaration, in: context)
     diagnoseFreeFormTypes(in: declaration, in: context)
     diagnoseClosureTypes(in: declaration, in: context)

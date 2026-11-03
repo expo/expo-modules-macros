@@ -71,6 +71,10 @@ public struct SharedObjectMacro: MemberMacro {
     for member in classDecl.memberBlock.members {
       // The types of a `@JS` member are read with the class's tuple aliases resolved.
       let decl = aliases.resolving(member.decl)
+      // A generic member is reported by `@JS` and left out, so the build has no errors in its binding.
+      if memberHasJSAttribute(decl) && jsGenericParameterClause(of: decl) != nil {
+        continue
+      }
       if memberHasJSAttribute(decl), let assertion = jsConformanceAssertionBody(for: decl) {
         assertions.append(assertion)
       }

@@ -3797,4 +3797,34 @@ struct ExpoModuleMacroTests {
       ]
     )
   }
+
+  @Test
+  func `A generic @JS function is diagnosed and left out of the binding`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        func echo<T: JavaScriptCodable>(_ value: T) -> T { value }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          func echo<T: JavaScriptCodable>(_ value: T) -> T { value }
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS function or initializer can't be generic: the binding decodes each argument and encodes the result by its static type, which a generic parameter doesn't have. Use a concrete type, a @Union of the types, or 'JavaScriptValue'.",
+          line: 5,
+          column: 12,
+          severity: .error
+        )
+      ]
+    )
+  }
 }

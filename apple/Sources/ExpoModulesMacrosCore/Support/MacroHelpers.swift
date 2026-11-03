@@ -349,6 +349,19 @@ internal func memberHasJSAttribute(_ decl: DeclSyntaxProtocol) -> Bool {
   return false
 }
 
+/// The generic parameter clause of a `@JS` function or initializer, or `nil` when it has none. The
+/// binding decodes each argument by its static type, so a generic member can't be bound: `@JS` reports
+/// it, and `@ExpoModule` and `@SharedObject` leave it out.
+internal func jsGenericParameterClause(of decl: DeclSyntaxProtocol) -> GenericParameterClauseSyntax? {
+  if let funcDecl = decl.as(FunctionDeclSyntax.self) {
+    return funcDecl.genericParameterClause
+  }
+  if let initDecl = decl.as(InitializerDeclSyntax.self) {
+    return initDecl.genericParameterClause
+  }
+  return nil
+}
+
 /// Decides whether the macro should stamp `@JavaScriptActor` on a `@JS`-marked member.
 /// The macro defers to the user when they've already chosen an isolation:
 /// - the member opted out with `@JS(.concurrent)`
