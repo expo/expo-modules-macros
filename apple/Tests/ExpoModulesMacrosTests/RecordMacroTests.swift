@@ -2928,4 +2928,38 @@ struct RecordMacroTests {
         """
     )
   }
+
+  @Test
+  func `A private property without a default value is an error`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var name: String
+        private var cache: [String: Int]
+        private var note: String?
+        private let id = 0
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var name: String
+          private var cache: [String: Int]
+          private var note: String?
+          private let id = 0
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Record leaves out the private property 'cache', so the synthesized initializer doesn't set it. Give it a default value, or remove 'private' to make it a record property",
+          line: 4,
+          column: 15
+        )
+      ]
+    )
+  }
 }

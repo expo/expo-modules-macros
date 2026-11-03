@@ -81,6 +81,12 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     // the author's version stand — the factories only need *an* `init(<properties>)` and `Record` only
     // needs *an* `init()`, regardless of who wrote them.
     let existingInitLabels = initializerParameterLabels(of: declaration)
+    if !existingInitLabels.contains(properties.map { $0.key }) {
+      let diagnostics = unsetPrivatePropertyDiagnostics(of: declaration)
+      guard diagnostics.isEmpty else {
+        throw DiagnosticsError(diagnostics: diagnostics)
+      }
+    }
 
     var members: [DeclSyntax] = []
 
@@ -637,6 +643,44 @@ private func unsupportedClassDiagnostics(of declaration: some DeclGroupSyntax) -
         )
       )
     )
+  }
+  return diagnostics
+}
+
+/// The errors for the `private` and `fileprivate` stored properties that the synthesized memberwise
+/// initializer would leave without a value. Such a property isn't a record property, so the initializer
+/// doesn't set it, and it needs a default value. An optional `var` starts as `nil`, so it needs none.
+private func unsetPrivatePropertyDiagnostics(of declaration: some DeclGroupSyntax) -> [Diagnostic] {
+  var diagnostics: [Diagnostic] = []
+  for member in declaration.memberBlock.members {
+    guard let varDecl = member.decl.as(VariableDeclSyntax.self),
+      let access = varDecl.modifiers.first(where: {
+        $0.name.tokenKind == .keyword(.private) || $0.name.tokenKind == .keyword(.fileprivate)
+      }),
+      !varDecl.modifiers.contains(where: {
+        $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
+          || $0.name.tokenKind == .keyword(.lazy)
+      })
+    else {
+      continue
+    }
+    let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
+    for binding in varDecl.bindings where binding.accessorBlock == nil && binding.initializer == nil {
+      guard let ident = binding.pattern.as(IdentifierPatternSyntax.self),
+        !(isVar && binding.typeAnnotation.map { isOptionalType($0.type) } == true)
+      else {
+        continue
+      }
+      diagnostics.append(
+        Diagnostic(
+          node: ident,
+          message: RecordDiagnosticMessage(
+            "@Record leaves out the \(access.name.text) property '\(ident.identifier.text)', so the synthesized initializer doesn't set it. Give it a default value, or remove '\(access.name.text)' to make it a record property",
+            id: "record-unset-private-property"
+          )
+        )
+      )
+    }
   }
   return diagnostics
 }
