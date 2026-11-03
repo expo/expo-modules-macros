@@ -31,6 +31,7 @@ public struct JSMacro: PeerMacro {
     providingPeersOf declaration: some DeclSyntaxProtocol,
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
+    diagnosePlacement(of: node, on: declaration, in: context)
     diagnoseParameterSpecifiers(in: declaration, in: context)
     diagnoseFreeFormTypes(in: declaration, in: context)
     diagnoseClosureTypes(in: declaration, in: context)
@@ -73,6 +74,28 @@ private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
   }
   return classDecl.attributes.firstAttribute(named: "ExpoModule") != nil
     || classDecl.attributes.firstAttribute(named: "SharedObject") != nil
+}
+
+/// Reports a `@JS` member of an extension: `@ExpoModule` and `@SharedObject` read only the class body,
+/// so no macro binds it, and the member would be missing in JavaScript without an error.
+private func diagnosePlacement(
+  of node: AttributeSyntax,
+  on declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  if let extensionDecl = context.lexicalContext.first?.as(ExtensionDeclSyntax.self) {
+    let typeName = extensionDecl.extendedType.trimmedDescription
+    context.diagnose(
+      Diagnostic(
+        node: node,
+        message: JSDiagnosticMessage(
+          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'.",
+          id: "js-in-extension",
+          severity: .error
+        )
+      )
+    )
+  }
 }
 
 /// Emits the diagnostic for `@JS(.concurrent)` on a member that can't take it. The option maps to

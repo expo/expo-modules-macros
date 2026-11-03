@@ -3594,4 +3594,30 @@ struct ExpoModuleMacroTests {
       ]
     )
   }
+
+  @Test
+  func `@JS in an extension is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      extension MyModule {
+        @JS
+        func greet(name: String) -> String { name }
+      }
+      """,
+      expandedSource: """
+        extension MyModule {
+          func greet(name: String) -> String { name }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of 'MyModule'.",
+          line: 2,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
 }
