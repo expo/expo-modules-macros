@@ -227,6 +227,10 @@ private func recordProperties(
       guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
         continue
       }
+      // The memberwise init sets every property, and a `let` with a default value can't be set again.
+      if varDecl.bindingSpecifier.tokenKind == .keyword(.let), binding.initializer != nil {
+        throw DiagnosticsError(diagnostics: [letWithDefaultDiagnostic(for: varDecl, name: ident.identifier.text)])
+      }
       // Prefer the explicit annotation. When it's omitted, recover the type from a literal default
       // (Swift's own default-literal type) — covers the common `var name = "foo"` case. Anything
       // whose type a syntactic macro can't determine (calls, collections, member access) still needs
@@ -635,6 +639,26 @@ private func unsupportedClassDiagnostics(of declaration: some DeclGroupSyntax) -
     )
   }
   return diagnostics
+}
+
+/// The error for a `let` property with a default value, attached to the `let` keyword and carrying a
+/// fix-it that replaces it with `var`. The default still applies when JavaScript omits the property.
+private func letWithDefaultDiagnostic(for varDecl: VariableDeclSyntax, name: String) -> Diagnostic {
+  let specifier = varDecl.bindingSpecifier
+  let fixIt = FixIt(
+    message: RecordFixItMessage("Replace 'let' with 'var'", id: "record-let-to-var"),
+    changes: [
+      .replace(oldNode: Syntax(specifier), newNode: Syntax(specifier.with(\.tokenKind, .keyword(.var))))
+    ]
+  )
+  return Diagnostic(
+    node: specifier,
+    message: RecordDiagnosticMessage(
+      "@Record property '\(name)' is a 'let' with a default value, so the synthesized initializer can't set it from JavaScript. Make it a 'var', and the default applies when JavaScript omits the property, or make it 'static' or 'private' to leave it out of the record",
+      id: "record-let-with-default"
+    ),
+    fixIts: [fixIt]
+  )
 }
 
 /// The fix-it for a record class that isn't `final`: add the modifier right before `class`.

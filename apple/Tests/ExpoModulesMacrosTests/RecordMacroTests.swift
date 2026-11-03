@@ -2890,4 +2890,42 @@ struct RecordMacroTests {
         """
     )
   }
+
+  @Test
+  func `A let property with a default value is an error with a fix-it that makes it a var`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var name: String
+        let count: Int = 0
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var name: String
+          let count: Int = 0
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Record property 'count' is a 'let' with a default value, so the synthesized initializer can't set it from JavaScript. Make it a 'var', and the default applies when JavaScript omits the property, or make it 'static' or 'private' to leave it out of the record",
+          line: 4,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ],
+      fixedSource: """
+        @Record
+        struct Options {
+          var name: String
+          var count: Int = 0
+        }
+        """
+    )
+  }
 }
