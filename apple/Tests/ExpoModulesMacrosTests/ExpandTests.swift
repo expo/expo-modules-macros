@@ -143,12 +143,10 @@ struct ExpandTests {
   @Test
   func `Reports a diagnostic in a member at its line, also when the module adds attributes to the member`() throws {
     // `@ExpoModule` adds `@JavaScriptActor` to `take`, so the `@JS` macro gets a declaration with one
-    // more line. The same declaration in `Plain` gets no attribute.
+    // more line. The same declaration at the top level gets no attribute.
     let source = """
-      public final class Plain {
-        @JS
-        func take(callbacks: [() -> Void]) {}
-      }
+      @JS
+      func take(callbacks: [() -> Void]) {}
 
       @ExpoModule
       public final class MyModule: Module {
@@ -159,10 +157,10 @@ struct ExpandTests {
       }
       """
     let diagnostics = expandMacros(source: source, file: "f.swift", symbols: []).diagnostics
-    #expect(diagnostics.map { [$0.line, $0.column] } == [[3, 25], [9, 25], [11, 38]])
+    #expect(diagnostics.map { [$0.line, $0.column] } == [[2, 23], [7, 25], [9, 38]])
 
     let member = expandMacros(source: source, file: "f.swift", symbols: ["MyModule.take"]).diagnostics
-    #expect(member.map { [$0.line, $0.column] } == [[9, 25]])
+    #expect(member.map { [$0.line, $0.column] } == [[7, 25]])
   }
 
   @Test
@@ -170,10 +168,8 @@ struct ExpandTests {
     // `@ExpoModule` adds `@JavaScriptActor` to `load`, so the declaration that `@JS` gets is longer
     // than the one in the file, and the Fix-It replaces the whole signature.
     let source = """
-      final class Plain {
-        @JS(.concurrent)
-        func load() throws -> Int { 1 }
-      }
+      @JS(.concurrent)
+      func load() throws -> Int { 1 }
 
       @ExpoModule
       public final class MyModule: Module {

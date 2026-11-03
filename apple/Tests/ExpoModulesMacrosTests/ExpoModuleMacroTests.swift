@@ -3771,4 +3771,30 @@ struct ExpoModuleMacroTests {
       ]
     )
   }
+
+  @Test
+  func `@JS on a member of a type without a binding macro is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      final class Helper {
+        @JS
+        func greet() {}
+      }
+      """,
+      expandedSource: """
+        final class Helper {
+          func greet() {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS member of 'Helper' isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to 'Helper', or move the member into such a class.",
+          line: 2,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
 }
