@@ -40,6 +40,60 @@ internal func diagnoseJSNameCollisions(
   }
 }
 
+/// The JavaScript object that a set of `@JS` members binds onto, for `diagnoseReservedJSNames`.
+internal enum JSBindingTarget {
+  /// The module object of an `@ExpoModule` class.
+  case module
+  /// The prototype of a shared object class, which holds the instance members.
+  case prototype
+  /// The constructor of a shared object class, which holds the static members.
+  case constructor
+
+  /// The names that JavaScript already gives a meaning on this object, with what binding a member
+  /// under one would break.
+  var reservedNames: [String: String] {
+    let proto = "setting '__proto__' on an object replaces its prototype instead of adding a member"
+    switch self {
+    case .module:
+      return ["__proto__": proto]
+    case .prototype:
+      return [
+        "__proto__": proto,
+        "constructor": "a member named 'constructor' replaces the prototype's reference to the class",
+      ]
+    case .constructor:
+      return [
+        "__proto__": proto,
+        "prototype": "a static member named 'prototype' replaces the prototype that holds the instance members",
+      ]
+    }
+  }
+}
+
+/// Reports each `@JS` member whose JavaScript name JavaScript already gives a meaning on the object that
+/// the member binds onto, such as `constructor` on a shared object's prototype.
+internal func diagnoseReservedJSNames(
+  functions: [JSFunction],
+  properties: [JSProperty],
+  on target: JSBindingTarget,
+  in context: some MacroExpansionContext
+) {
+  let members = functions.map(BoundMember.init(function:)) + properties.map(BoundMember.init(property:))
+  for member in members {
+    guard let reason = target.reservedNames[member.jsName] else {
+      continue
+    }
+    context.diagnose(
+      Diagnostic(
+        node: member.nameToken,
+        message: ReservedJSNameMessage(
+          "The JavaScript name '\(member.jsName)' can't be bound: \(reason). Give the \(member.kind) another name with \(member.renaming)."
+        )
+      )
+    )
+  }
+}
+
 /// Reports each `@Event` property of a class body whose JavaScript event name an earlier `@Event`
 /// property already uses. Both properties emit under that name, so a listener can't tell which one fired.
 internal func diagnoseEventNameCollisions(in memberBlock: MemberBlockSyntax, in context: some MacroExpansionContext) {
@@ -101,6 +155,16 @@ private struct BoundMember {
 private struct JSNameCollisionMessage: DiagnosticMessage {
   let message: String
   let diagnosticID = MessageID(domain: "ExpoModulesMacros", id: "js-name-collision")
+  let severity: DiagnosticSeverity = .error
+
+  init(_ message: String) {
+    self.message = message
+  }
+}
+
+private struct ReservedJSNameMessage: DiagnosticMessage {
+  let message: String
+  let diagnosticID = MessageID(domain: "ExpoModulesMacros", id: "js-reserved-name")
   let severity: DiagnosticSeverity = .error
 
   init(_ message: String) {

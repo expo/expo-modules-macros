@@ -1608,4 +1608,80 @@ struct ExpoModuleClassesTests {
         """
     )
   }
+
+  @Test
+  func `Members named constructor on the prototype or prototype on the constructor are errors`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Player: SharedObject {
+        @JS("constructor")
+        func make() {}
+
+        @JS
+        static var prototype: Int { 0 }
+
+        @JS
+        static func constructor() {}
+      }
+      """,
+      expandedSource: """
+        public final class Player: SharedObject {
+          @JavaScriptActor
+          func make() {}
+          @JavaScriptActor
+          static var prototype: Int { 0 }
+          @JavaScriptActor
+          static func constructor() {}
+
+          public override class var _jsName: String {
+            "Player"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Player.self)
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "constructor", received: arguments.count, required: 0, maximum: 0))
+              }
+              _self.make()
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            constructor.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "constructor", received: arguments.count, required: 0, maximum: 0))
+              }
+              Player.constructor()
+            }
+            let prototypeDescriptor = runtime.createObject()
+            prototypeDescriptor.setProperty("enumerable", value: true)
+            prototypeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              try Int.encode(Player.prototype, into: result, in: runtime)
+            }
+            constructor.defineProperty("prototype", descriptor: prototypeDescriptor)
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'constructor' can't be bound: a member named 'constructor' replaces the prototype's reference to the class. Give the @JS function another name with @JS(\"...\").",
+          line: 4,
+          column: 8,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message:
+            "The JavaScript name 'prototype' can't be bound: a static member named 'prototype' replaces the prototype that holds the instance members. Give the @JS property another name with @JS(\"...\").",
+          line: 7,
+          column: 14,
+          severity: .error
+        ),
+      ]
+    )
+  }
 }

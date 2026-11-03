@@ -123,6 +123,18 @@ public struct SharedObjectMacro: MemberMacro {
 
     diagnoseJSNameCollisions(functions: instanceFunctions, properties: instanceProperties, in: context)
     diagnoseJSNameCollisions(functions: staticFunctions, properties: staticProperties, in: context)
+    diagnoseReservedJSNames(
+      functions: instanceFunctions,
+      properties: instanceProperties,
+      on: .prototype,
+      in: context
+    )
+    diagnoseReservedJSNames(
+      functions: staticFunctions,
+      properties: staticProperties,
+      on: .constructor,
+      in: context
+    )
     diagnoseEventNameCollisions(in: classDecl.memberBlock, in: context)
 
     // The resolved JS class name, read by core when it builds the class. An `override` of the
