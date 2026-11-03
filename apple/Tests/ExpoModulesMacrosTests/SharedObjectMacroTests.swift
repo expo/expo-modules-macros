@@ -1573,4 +1573,39 @@ struct ExpoModuleClassesTests {
       ]
     )
   }
+
+  @Test
+  func `A class without a superclass is an error with a fix-it that inherits from SharedObject`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Cache {
+        @JS
+        func clear() {}
+      }
+      """,
+      expandedSource: """
+        public final class Cache {
+          @JavaScriptActor
+          func clear() {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@SharedObject class 'Cache' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration.",
+          line: 2,
+          column: 20,
+          fixIts: [FixItSpec(message: "Inherit from 'SharedObject'")]
+        )
+      ],
+      fixedSource: """
+        @SharedObject
+        public final class Cache: SharedObject {
+          @JS
+          func clear() {}
+        }
+        """
+    )
+  }
 }

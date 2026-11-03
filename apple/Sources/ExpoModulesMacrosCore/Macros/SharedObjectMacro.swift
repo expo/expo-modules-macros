@@ -1,3 +1,4 @@
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
@@ -42,9 +43,13 @@ public struct SharedObjectMacro: MemberMacro {
       in: context
     )
 
-    // The superclass isn't checked here: the macro sees only this declaration, so it can't tell an
+    // A class without an inheritance clause has no superclass, so it can't be a `SharedObject`. Any
+    // other superclass isn't checked: the macro sees only this declaration, so it can't tell an
     // indirect subclass (`class Thumbnail: ImageRef`) from an unrelated class. The compiler reports a
     // class that isn't a `SharedObject` subclass on the `_jsName` override, which is always emitted.
+    if classDecl.inheritanceClause == nil {
+      throw DiagnosticsError(diagnostics: [missingBaseClassDiagnostic(for: classDecl)])
+    }
     let typeName = classDecl.name.text
     let jsName = jsNameArgument(of: node) ?? withoutBackticks(typeName)
 
@@ -202,5 +207,61 @@ extension SharedObjectMacro: ExtensionMacro {
       return []
     }
     return [sendable]
+  }
+}
+
+/// The error for a `@SharedObject` class without an inheritance clause, with a fix-it that makes it
+/// inherit from `SharedObject`: `class Cache {` becomes `class Cache: SharedObject {`.
+private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagnostic {
+  // The name carries the space before `{` as trailing trivia, so move it onto the clause to keep the
+  // spacing.
+  let name = classDecl.name
+  let clause = InheritanceClauseSyntax(
+    colon: .colonToken(trailingTrivia: .space),
+    inheritedTypes: InheritedTypeListSyntax([
+      InheritedTypeSyntax(type: TypeSyntax(IdentifierTypeSyntax(name: .identifier("SharedObject"))))
+    ])
+  )
+  let fixIt = FixIt(
+    message: SharedObjectFixItMessage("Inherit from 'SharedObject'", id: "sharedobject-add-base-class"),
+    changes: [
+      .replace(
+        oldNode: Syntax(classDecl),
+        newNode: Syntax(
+          classDecl
+            .with(\.name, name.with(\.trailingTrivia, []))
+            .with(\.inheritanceClause, clause.with(\.trailingTrivia, name.trailingTrivia))
+        )
+      )
+    ]
+  )
+  return Diagnostic(
+    node: name,
+    message: SharedObjectDiagnosticMessage(
+      "@SharedObject class '\(name.text)' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration.",
+      id: "sharedobject-missing-base-class"
+    ),
+    fixIts: [fixIt]
+  )
+}
+
+private struct SharedObjectDiagnosticMessage: DiagnosticMessage {
+  let message: String
+  let diagnosticID: MessageID
+  let severity: DiagnosticSeverity = .error
+
+  init(_ message: String, id: String) {
+    self.message = message
+    self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+  }
+}
+
+private struct SharedObjectFixItMessage: FixItMessage {
+  let message: String
+  let fixItID: MessageID
+
+  init(_ message: String, id: String) {
+    self.message = message
+    self.fixItID = MessageID(domain: "ExpoModulesMacros", id: id)
   }
 }
