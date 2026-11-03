@@ -40,6 +40,40 @@ internal func diagnoseJSNameCollisions(
   }
 }
 
+/// Reports each `@Event` property of a class body whose JavaScript event name an earlier `@Event`
+/// property already uses. Both properties emit under that name, so a listener can't tell which one fired.
+internal func diagnoseEventNameCollisions(in memberBlock: MemberBlockSyntax, in context: some MacroExpansionContext) {
+  var firstEvents: [String: TokenSyntax] = [:]
+
+  for member in memberBlock.members {
+    guard let varDecl = member.decl.as(VariableDeclSyntax.self),
+      let attribute = varDecl.attributes.firstAttribute(named: "Event"),
+      let jsName = eventJSName(of: varDecl, attribute: attribute),
+      let nameToken = varDecl.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier
+    else {
+      continue
+    }
+    guard let first = firstEvents[jsName] else {
+      firstEvents[jsName] = nameToken
+      continue
+    }
+    context.diagnose(
+      Diagnostic(
+        node: nameToken,
+        message: EventNameCollisionMessage(
+          "The event name '\(jsName)' is already used by the earlier @Event '\(first.text)'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\")."
+        ),
+        notes: [
+          Note(
+            node: Syntax(first),
+            message: JSNameCollisionNote("'\(jsName)' is first used here", id: "event-name-collision-first")
+          )
+        ]
+      )
+    )
+  }
+}
+
 private struct BoundMember {
   let jsName: String
   /// How the message names the member, such as `@JS function`.
@@ -74,11 +108,22 @@ private struct JSNameCollisionMessage: DiagnosticMessage {
   }
 }
 
-private struct JSNameCollisionNote: NoteMessage {
+private struct EventNameCollisionMessage: DiagnosticMessage {
   let message: String
-  let noteID = MessageID(domain: "ExpoModulesMacros", id: "js-name-collision-first")
+  let diagnosticID = MessageID(domain: "ExpoModulesMacros", id: "event-name-collision")
+  let severity: DiagnosticSeverity = .warning
 
   init(_ message: String) {
     self.message = message
+  }
+}
+
+private struct JSNameCollisionNote: NoteMessage {
+  let message: String
+  let noteID: MessageID
+
+  init(_ message: String, id: String = "js-name-collision-first") {
+    self.message = message
+    self.noteID = MessageID(domain: "ExpoModulesMacros", id: id)
   }
 }

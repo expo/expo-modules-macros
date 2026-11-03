@@ -86,6 +86,7 @@ public struct ExpoModuleMacro: MemberMacro {
     }
 
     diagnoseJSNameCollisions(functions: functions, properties: properties, in: context)
+    diagnoseEventNameCollisions(in: classDecl.memberBlock, in: context)
 
     var emitted: [DeclSyntax] = []
 

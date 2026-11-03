@@ -29,8 +29,8 @@ import SwiftSyntaxMacros
 /// The synthesized property is deliberately **not** isolated to `@JavaScriptActor`, unlike `@JS`
 /// members: `emit` is itself non-isolated and schedules the dispatch onto the JS thread internally,
 /// so the event is callable from any thread or isolation with no actor hop at the call site. It is
-/// also self-contained: `@ExpoModule`/`@SharedObject` neither collect `@Event` members nor register
-/// their names anywhere.
+/// also self-contained: `@ExpoModule`/`@SharedObject` don't register `@Event` members anywhere. They
+/// read the event names only to warn when two events share one (see `diagnoseEventNameCollisions`).
 ///
 /// Two options change how the event is dispatched, and each one calls its own `EventEmitter` method,
 /// which is callable from any thread as well:
@@ -291,6 +291,16 @@ private func isDispatchOption(_ expression: ExprSyntax) -> Bool {
   }
   let name = member.declName.baseName.text
   return name == "inline" || name == "blocking"
+}
+
+/// The JS name of an `@Event` property: the `@Event("…")` override, or the default name derived from
+/// the property name. `nil` when the declaration isn't a single named property, which the macro reports.
+internal func eventJSName(of varDecl: VariableDeclSyntax, attribute: AttributeSyntax) -> String? {
+  guard varDecl.bindings.count == 1, let identifier = varDecl.bindings.first?.pattern.as(IdentifierPatternSyntax.self)
+  else {
+    return nil
+  }
+  return jsNameArgument(of: attribute) ?? defaultEventName(for: withoutBackticks(identifier.identifier.text))
 }
 
 // MARK: - Default event name

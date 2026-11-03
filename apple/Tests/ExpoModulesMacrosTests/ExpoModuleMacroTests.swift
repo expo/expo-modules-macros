@@ -3714,4 +3714,61 @@ struct ExpoModuleMacroTests {
       ]
     )
   }
+
+  @Test
+  func `Two events with the same JS name are a warning on the later one`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event
+        var onProgress: () -> Void
+        @Event
+        var progress: () -> Void
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          var onProgress: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "progress")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onProgress() {
+            func onProgress(_: (some EventEmitter).Type) {
+            }
+            onProgress(MyModule.self)
+          }
+          var progress: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "progress")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_progress() {
+            func progress(_: (some EventEmitter).Type) {
+            }
+            progress(MyModule.self)
+          }
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The event name 'progress' is already used by the earlier @Event 'onProgress'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\").",
+          line: 6,
+          column: 7,
+          severity: .warning,
+          notes: [NoteSpec(message: "'progress' is first used here", line: 4, column: 7)]
+        )
+      ]
+    )
+  }
 }

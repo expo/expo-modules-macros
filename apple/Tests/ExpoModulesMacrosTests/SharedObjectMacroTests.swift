@@ -1514,4 +1514,63 @@ struct ExpoModuleClassesTests {
         """
     )
   }
+
+  @Test
+  func `An event renamed to another event's JS name is a warning on the later one`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Player: SharedObject {
+        @Event
+        var onStatusChange: () -> Void
+        @Event("statusChange")
+        var onChange: () -> Void
+      }
+      """,
+      expandedSource: """
+        public final class Player: SharedObject {
+          var onStatusChange: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "statusChange")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onStatusChange() {
+            func onStatusChange(_: (some EventEmitter).Type) {
+            }
+            onStatusChange(Player.self)
+          }
+          var onChange: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "statusChange")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onChange() {
+            func onChange(_: (some EventEmitter).Type) {
+            }
+            onChange(Player.self)
+          }
+
+          public override class var _jsName: String {
+            "Player"
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The event name 'statusChange' is already used by the earlier @Event 'onStatusChange'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\").",
+          line: 6,
+          column: 7,
+          severity: .warning,
+          notes: [NoteSpec(message: "'statusChange' is first used here", line: 4, column: 7)]
+        )
+      ]
+    )
+  }
 }

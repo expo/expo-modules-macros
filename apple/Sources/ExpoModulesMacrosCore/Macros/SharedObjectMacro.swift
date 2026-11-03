@@ -114,6 +114,7 @@ public struct SharedObjectMacro: MemberMacro {
 
     diagnoseJSNameCollisions(functions: instanceFunctions, properties: instanceProperties, in: context)
     diagnoseJSNameCollisions(functions: staticFunctions, properties: staticProperties, in: context)
+    diagnoseEventNameCollisions(in: classDecl.memberBlock, in: context)
 
     // The resolved JS class name, read by core when it builds the class. An `override` of the
     // `SharedObject` class property, so core reads it through the concrete type's metatype.
