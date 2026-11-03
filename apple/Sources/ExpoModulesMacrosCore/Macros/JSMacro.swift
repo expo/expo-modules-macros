@@ -76,8 +76,10 @@ private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
     || classDecl.attributes.firstAttribute(named: "SharedObject") != nil
 }
 
-/// Reports a `@JS` member of an extension: `@ExpoModule` and `@SharedObject` read only the class body,
-/// so no macro binds it, and the member would be missing in JavaScript without an error.
+/// Reports a `@JS` attribute that no macro binds, so the member would be missing in JavaScript without
+/// an error:
+/// - on a member of an extension, since `@ExpoModule` and `@SharedObject` read only the class body;
+/// - on an initializer of an `@ExpoModule` class, since JavaScript doesn't construct a module.
 private func diagnosePlacement(
   of node: AttributeSyntax,
   on declaration: some DeclSyntaxProtocol,
@@ -95,7 +97,41 @@ private func diagnosePlacement(
         )
       )
     )
+    return
   }
+  if let initDecl = declaration.as(InitializerDeclSyntax.self),
+    let classDecl = context.lexicalContext.first?.as(ClassDeclSyntax.self),
+    classDecl.attributes.firstAttribute(named: "ExpoModule") != nil
+  {
+    context.diagnose(
+      Diagnostic(
+        node: node,
+        message: JSDiagnosticMessage(
+          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead.",
+          id: "js-module-initializer",
+          severity: .error
+        ),
+        fixIts: removeAttributeFixIts(node, before: initDecl.initKeyword)
+      )
+    )
+  }
+}
+
+/// The fix-it that removes a `@JS` attribute written on its own line, with the line break and
+/// indentation before it. The macro gets the attribute without the trivia after it, so when the
+/// declaration starts on the line of the attribute (`@JS init()`), the fix-it can't tell how much
+/// space to remove, and there is none. It edits only the text of the attribute, since the declaration
+/// that a peer macro gets can carry attributes that other macros added.
+private func removeAttributeFixIts(_ node: AttributeSyntax, before keyword: TokenSyntax) -> [FixIt] {
+  guard keyword.leadingTrivia.contains(where: \.isNewline) else {
+    return []
+  }
+  return [
+    FixIt(
+      message: JSFixItMessage("Remove '@JS'", id: "js-remove-attribute"),
+      changes: [.replaceText(range: node.position..<node.endPosition, with: "", in: Syntax(node))]
+    )
+  ]
 }
 
 /// Emits the diagnostic for `@JS(.concurrent)` on a member that can't take it. The option maps to

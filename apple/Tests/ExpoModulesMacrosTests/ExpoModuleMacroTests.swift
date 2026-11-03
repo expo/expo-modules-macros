@@ -3620,4 +3620,69 @@ struct ExpoModuleMacroTests {
       ]
     )
   }
+
+  @Test
+  func `@JS on a module initializer is diagnosed with a fix-it that removes it`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        init() {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          init() {}
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead.",
+          line: 3,
+          column: 3,
+          severity: .error,
+          fixIts: [FixItSpec(message: "Remove '@JS'")]
+        )
+      ],
+      fixedSource: """
+        @ExpoModule
+        public final class MyModule: Module {
+          init() {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@JS on a module initializer on the same line has no fix-it`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS init() {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor init() {}
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead.",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
 }
