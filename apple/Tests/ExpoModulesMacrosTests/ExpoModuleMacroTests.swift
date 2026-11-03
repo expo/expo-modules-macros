@@ -3685,4 +3685,33 @@ struct ExpoModuleMacroTests {
       ]
     )
   }
+
+  @Test
+  func `@JS on a subscript is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        subscript(index: Int) -> Int { index }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          subscript(index: Int) -> Int { index }
+
+          public static let _jsName = "MyModule"
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@JS applies to a function, property or initializer, so a subscript isn't bound to JavaScript. Expose a @JS function instead.",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
 }

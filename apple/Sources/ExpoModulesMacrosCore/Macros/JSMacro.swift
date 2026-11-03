@@ -78,6 +78,7 @@ private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
 
 /// Reports a `@JS` attribute that no macro binds, so the member would be missing in JavaScript without
 /// an error:
+/// - on a declaration other than a function, property or initializer, such as a subscript;
 /// - on a member of an extension, since `@ExpoModule` and `@SharedObject` read only the class body;
 /// - on an initializer of an `@ExpoModule` class, since JavaScript doesn't construct a module.
 private func diagnosePlacement(
@@ -85,6 +86,23 @@ private func diagnosePlacement(
   on declaration: some DeclSyntaxProtocol,
   in context: some MacroExpansionContext
 ) {
+  guard
+    declaration.is(FunctionDeclSyntax.self) || declaration.is(VariableDeclSyntax.self)
+      || declaration.is(InitializerDeclSyntax.self)
+  else {
+    let kind = declaration.is(SubscriptDeclSyntax.self) ? "a subscript" : "this declaration"
+    context.diagnose(
+      Diagnostic(
+        node: node,
+        message: JSDiagnosticMessage(
+          "@JS applies to a function, property or initializer, so \(kind) isn't bound to JavaScript. Expose a @JS function instead.",
+          id: "js-unsupported-declaration",
+          severity: .error
+        )
+      )
+    )
+    return
+  }
   if let extensionDecl = context.lexicalContext.first?.as(ExtensionDeclSyntax.self) {
     let typeName = extensionDecl.extendedType.trimmedDescription
     context.diagnose(
