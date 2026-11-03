@@ -568,7 +568,7 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
-  func `Static function emits a static conformance-assertion peer`() {
+  func `A static @JS member of a module is diagnosed and left out of the binding`() {
     assertExpansion(
       """
       @ExpoModule
@@ -583,26 +583,17 @@ struct ExpoModuleMacroTests {
           static func describe(_ value: MyRecord) -> String { "" }
 
           public static let _jsName = "MyModule"
-
-          @JavaScriptActor
-          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("describe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
-              guard arguments.count == 1 else {
-                throw Exceptions.ArgumentsRangeMismatch((functionName: "describe", received: arguments.count, required: 1, maximum: 1))
-              }
-              let arg0 = try MyRecord.decode(arguments.unownedValue(at: 0), in: runtime)
-              let value = self.describe(arg0)
-              try String.encode(value, into: result, in: runtime)
-            }
-          }
-
-          private func _assertTypesConformance() {
-            func describe(_: (some JavaScriptDecodable & ~Copyable).Type) {
-            }
-            describe(MyRecord.self)
-          }
         }
-        """
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS member of an @ExpoModule class can't be 'static' or 'class': JavaScript gets one module object, and @ExpoModule binds the members of the instance to it. Make the member an instance member.",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
     )
   }
 

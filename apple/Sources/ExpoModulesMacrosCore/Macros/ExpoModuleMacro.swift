@@ -67,6 +67,12 @@ public struct ExpoModuleMacro: MemberMacro {
       if memberHasJSAttribute(decl) && jsGenericParameterClause(of: decl) != nil {
         continue
       }
+      // So is a `static` or `class` member: the module object binds only instance members.
+      if memberHasJSAttribute(decl),
+        let modifiers = decl.asProtocol(WithModifiersSyntax.self)?.modifiers, isTypeLevel(modifiers)
+      {
+        continue
+      }
       if memberHasJSAttribute(decl), let assertion = jsConformanceAssertionBody(for: decl) {
         assertions.append(assertion)
       }
