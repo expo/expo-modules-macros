@@ -76,6 +76,36 @@ struct DetectionVisitorTests {
   }
 
   @Test
+  func `Detects a top-level @ExpoView class with its props type`() throws {
+    let detections = detect(
+      """
+      @ExpoView<CardProps>
+      public final class CardView: ExpoNativeView {}
+      """
+    )
+    #expect(detections.count == 1)
+    let detection = try #require(detections.first)
+    #expect(detection.macro == .expoView)
+    #expect(detection.name == "CardView")
+    #expect(detection.genericArgument == "CardProps")
+    #expect(detection.arguments.isEmpty)
+  }
+
+  @Test
+  func `Detects a top-level @ViewProps struct`() {
+    let detections = detect(
+      """
+      @ViewProps
+      struct CardProps {
+        var title = ""
+      }
+      """
+    )
+    #expect(detections.map(\.macro) == [.viewProps])
+    #expect(detections.first?.genericArgument == nil)
+  }
+
+  @Test
   func `Detects a top-level @ExpoModule struct`() {
     let detections = detect(
       """
@@ -255,6 +285,8 @@ struct MacroPrefilterTests {
     #expect(mightContainMacro(in: "struct S {\n  @JS func f() {}\n}"))
     #expect(mightContainMacro(in: "@Record\nstruct Options {}"))
     #expect(mightContainMacro(in: "@Union\nenum Source { case text(String) }"))
+    #expect(mightContainMacro(in: "@ExpoView<CardProps>\nclass CardView: ExpoNativeView {}"))
+    #expect(mightContainMacro(in: "@ViewProps\nstruct CardProps {}"))
   }
 
   @Test
@@ -557,14 +589,35 @@ struct ScanTests {
   }
 
   @Test
+  func `scanModules reports @ExpoView classes in views`() throws {
+    try withTree([
+      ("CardView.swift", "@ExpoView<CardProps>\npublic final class CardView: ExpoNativeView {}"),
+      ("CardProps.swift", "@ViewProps\nstruct CardProps { var title = \"\" }"),
+      ("Module.swift", "@ExpoModule(views: [CardView.self])\npublic final class CardModule: Module {}"),
+    ]) { result in
+      #expect(result.modules.map(\.name) == ["CardModule"])
+      #expect(result.sharedObjects.isEmpty)
+      #expect(result.views.map(\.name) == ["CardView"])
+      // `@ExpoView` takes no name, so the JS name is the class name.
+      #expect(result.views.first?.jsName == "CardView")
+      #expect(result.views.first?.accessLevel == "public")
+      #expect(result.views.first?.platforms == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
+      // The `@ViewProps` file isn't parsed: the modules pre-filter covers only the class macros.
+      #expect(result.stats.filesParsed == 2)
+    }
+  }
+
+  @Test
   func `scanModules reports only classes`() throws {
     try withTree([
       ("Module.swift", "@ExpoModule\npublic struct StructModule {}"),
       ("Shared.swift", "@SharedObject\npublic struct StructObject {}"),
+      ("View.swift", "@ExpoView<Props>\npublic struct StructView {}"),
     ]) { result in
       // The macros reject anything but a class, so a struct is never a module or a shared object.
       #expect(result.modules.isEmpty)
       #expect(result.sharedObjects.isEmpty)
+      #expect(result.views.isEmpty)
     }
   }
 

@@ -401,14 +401,14 @@ export interface ScanStats {
 }
 
 /**
- * One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, or a `@SharedObject`
- * class in `sharedObjects`.
+ * One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
+ * class in `sharedObjects`, or an `@ExpoView` class in `views`.
  */
 export interface ScannedClass {
   name: string;
   /**
    * The resolved JS name: the `@ExpoModule("Foo")` or `@SharedObject("Foo")` override, else the class
-   * name.
+   * name. A view's JS name is its class name.
    */
   jsName: string;
   /**
@@ -432,6 +432,8 @@ export interface ScanModulesResult {
   modules: ScannedClass[];
   /** The top-level `@SharedObject` classes, with the same platform rules as `modules`. */
   sharedObjects: ScannedClass[];
+  /** The top-level `@ExpoView` classes, with the same platform rules as `modules`. */
+  views: ScannedClass[];
   warnings: ScanWarning[];
   stats: ScanStats;
 }

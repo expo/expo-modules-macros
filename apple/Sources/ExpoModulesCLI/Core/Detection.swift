@@ -7,6 +7,8 @@ enum DetectedMacro: String, Codable, CaseIterable {
   case sharedObject = "SharedObject"
   case record = "Record"
   case union = "Union"
+  case expoView = "ExpoView"
+  case viewProps = "ViewProps"
 }
 
 /// A single argument passed to a macro, e.g. `"Foo"` or `classes: [Bar.self]`. The label is `nil`
@@ -42,6 +44,10 @@ struct Detection: Codable, Equatable {
   /// The explicit JS name override when written as `@ExpoModule("Foo")` / `@JS("bar")` /
   /// `@SharedObject("Baz")`, otherwise `nil` (the name defaults to `name` at expansion time).
   let jsName: String?
+
+  /// The generic argument of the attribute as written, which is the props type of `@ExpoView<CardProps>`,
+  /// otherwise `nil`.
+  var genericArgument: String? = nil
 
   /// Every argument passed to the macro, in source order, e.g. `@ExpoModule("Foo", classes: [Bar.self])`
   /// yields a positional `"Foo"` and a `classes:` argument. Empty when the macro is written bare.

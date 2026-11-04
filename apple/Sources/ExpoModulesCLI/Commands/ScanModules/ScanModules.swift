@@ -34,8 +34,8 @@ public enum Scanner {
   }
 }
 
-/// One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, or a `@SharedObject`
-/// class in `sharedObjects`. Trimmed to what `expo-modules-autolinking` needs to register the class:
+/// One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
+/// class in `sharedObjects`, or an `@ExpoView` class in `views`. Trimmed to what `expo-modules-autolinking` needs to register the class:
 /// the Swift class name, the JS name it registers under, the platforms that include it, and the file
 /// it's in. The richer fields the visitor captures (declaration kind, raw macro arguments,
 /// line/column) are dropped here, because this command doesn't need them (the macro is always on a
@@ -45,7 +45,7 @@ struct ScannedClass: Codable, Equatable {
   let name: String
 
   /// The fully-resolved JS name: the `@ExpoModule("Foo")` or `@SharedObject("Foo")` override when
-  /// present, otherwise the class name. Resolved here (rather than left `nil`) so it matches how the
+  /// present, otherwise the class name. `@ExpoView` takes no name, so a view's JS name is its class name. Resolved here (rather than left `nil`) so it matches how the
   /// macro derives the name and the consumer never has to apply the fallback itself.
   let jsName: String
 
@@ -70,7 +70,7 @@ struct ScannedClass: Codable, Equatable {
 /// `ScannedClass`, so `expo-modules-autolinking` can verify it understands the output before
 /// trusting it (and fall back to config-declared modules when it doesn't). Version 2 added the
 /// per-module `platforms` list and made the module list platform-agnostic. A new field that older
-/// consumers can ignore, such as `sharedObjects`, doesn't change the version.
+/// consumers can ignore, such as `sharedObjects` or `views`, doesn't change the version.
 let scanModulesSchemaVersion = 2
 
 /// The `scan-modules` result: the detected modules plus the stats describing the run. Encoded as the
@@ -83,6 +83,10 @@ struct ScanModulesResult: Codable, Equatable {
   /// The top-level `@SharedObject` classes, in the same order and with the same platform rules as
   /// `modules`.
   let sharedObjects: [ScannedClass]
+
+  /// The top-level `@ExpoView` classes, in the same order and with the same platform rules as
+  /// `modules`.
+  let views: [ScannedClass]
 
   /// Warnings for `#if` conditions the scan couldn't answer statically (see `ScanWarning`). Carried
   /// in the report rather than on stderr so the consumer can attach them to its own output.
@@ -102,7 +106,7 @@ private let platformUniverse: [(condition: String, reported: String)] = [
   (condition: "visionOS", reported: "visionOS"),
 ]
 
-/// Scans the given paths for top-level `@ExpoModule` and `@SharedObject` types and returns every one
+/// Scans the given paths for top-level `@ExpoModule`, `@SharedObject` and `@ExpoView` types and returns every one
 /// found in any
 /// `#if` branch (in file then source order), each with the platforms whose builds include it, plus
 /// the stats for the run — the `scan-modules` command. Kept separate from the public entry (and
@@ -115,10 +119,11 @@ private let platformUniverse: [(condition: String, reported: String)] = [
 func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResult {
   var modules: [ScannedClass] = []
   var sharedObjects: [ScannedClass] = []
+  var views: [ScannedClass] = []
   var warnings: [ScanWarning] = []
   var seenWarnings = Set<ScanWarning>()
 
-  let macros: Set<DetectedMacro> = [.expoModule, .sharedObject]
+  let macros: Set<DetectedMacro> = [.expoModule, .sharedObject, .expoView]
   let stats = scanFiles(paths: paths, macros: macros) { source, file in
     let tree = Parser.parse(source: source)
 
@@ -162,6 +167,8 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
       switch detection.macro {
       case .sharedObject:
         sharedObjects.append(scanned)
+      case .expoView:
+        views.append(scanned)
       default:
         modules.append(scanned)
       }
@@ -172,6 +179,7 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
     schemaVersion: scanModulesSchemaVersion,
     modules: modules,
     sharedObjects: sharedObjects,
+    views: views,
     warnings: warnings,
     stats: stats
   )
