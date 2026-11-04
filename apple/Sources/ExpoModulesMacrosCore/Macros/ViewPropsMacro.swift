@@ -571,7 +571,7 @@ private func validatedViewProps(
   var unusableInitializerDiagnosticsFound: [Diagnostic] = []
   var declaresUsableInitializer = false
   var declaresOtherInitializer = false
-  for member in declaration.memberBlock.members {
+  for member in flattenedMembers(declaration.memberBlock.members) {
     guard let initializer = member.decl.as(InitializerDeclSyntax.self) else {
       continue
     }
@@ -718,6 +718,23 @@ private func validatedViewProps(
   )
 }
 
+/// The members of a type body in source order, with the members of every `#if` clause in place of
+/// the conditional declaration. The original conditions remain in the source; this is only for
+/// discovering declarations that exist in one or more compilation configurations.
+private func flattenedMembers(_ members: MemberBlockItemListSyntax) -> [MemberBlockItemSyntax] {
+  return members.flatMap { member -> [MemberBlockItemSyntax] in
+    guard let ifConfig = member.decl.as(IfConfigDeclSyntax.self) else {
+      return [member]
+    }
+    return ifConfig.clauses.flatMap { clause -> [MemberBlockItemSyntax] in
+      guard case .decls(let declarations) = clause.elements else {
+        return []
+      }
+      return flattenedMembers(declarations)
+    }
+  }
+}
+
 /// Whether Swift's own `init()` can't satisfy `AnyViewProps`, so the macro generates a public one.
 /// Swift synthesizes `init()` only when every stored property has a default and the type declares
 /// no initializer, and that `init()` is `internal`, which the conformance of a `public` or `package`
@@ -804,12 +821,30 @@ private func unsetPrivatePropertyDiagnostics(of varDecl: VariableDeclSyntax) -> 
   return varDecl.bindings.compactMap { binding in
     guard binding.initializer == nil, isStoredBinding(binding),
       let ident = binding.pattern.as(IdentifierPatternSyntax.self),
-      !(isVar && binding.typeAnnotation.map { hasImplicitNilDefault($0.type) } == true)
+      !(isVar && resolvedTypeAnnotation(of: binding, in: varDecl).map { hasImplicitNilDefault($0.type) } == true)
     else {
       return nil
     }
     return unsetPrivatePropertyDiagnostic(for: ident, access: access.name.text)
   }
+}
+
+/// The binding's own type annotation, or the trailing annotation shared with preceding bindings.
+private func resolvedTypeAnnotation(
+  of binding: PatternBindingSyntax,
+  in varDecl: VariableDeclSyntax
+) -> TypeAnnotationSyntax? {
+  if let typeAnnotation = binding.typeAnnotation {
+    return typeAnnotation
+  }
+  var foundBinding = false
+  for candidate in varDecl.bindings {
+    if foundBinding, let typeAnnotation = candidate.typeAnnotation {
+      return typeAnnotation
+    }
+    foundBinding = candidate.id == binding.id
+  }
+  return nil
 }
 
 /// True if the function type returns `Void`, written as `Void`, `Swift.Void` or `()`, in any number

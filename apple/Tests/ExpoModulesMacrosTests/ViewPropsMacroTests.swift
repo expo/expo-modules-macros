@@ -4138,4 +4138,146 @@ struct ViewPropsMacroTests {
         """
     )
   }
+
+  @Test
+  func `Conditional init() declarations are not duplicated`() {
+    assertExpansion(
+      """
+      @ViewProps
+      public struct Props {
+        var color: Int = 0
+
+        #if os(iOS)
+        public init() {
+          color = 1
+        }
+        #else
+        public init() {
+          color = 2
+        }
+        #endif
+      }
+      """,
+      expandedSource: """
+        public struct Props {
+          var color: Int = 0
+
+          #if os(iOS)
+          public init() {
+            color = 1
+          }
+          #else
+          public init() {
+            color = 2
+          }
+          #endif
+
+          public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Shared trailing optional annotations count as private property defaults`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        private var first, second: Int?
+        fileprivate var third, fourth: String?
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          private var first, second: Int?
+          fileprivate var third, fourth: String?
+
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+        }
+        """
+    )
+  }
 }
