@@ -74,6 +74,11 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
+
+          public init() {
+            self.onTap = { _ in
+            }
+          }
         }
 
         extension CardProps: AnyViewProps {
@@ -88,6 +93,26 @@ struct ViewPropsMacroTests {
               return .color
             case .radius:
               return .radius
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              case .radius:
+                self.radius = defaults.radius
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            case .radius:
+              self.radius = try _decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -151,6 +176,30 @@ struct ViewPropsMacroTests {
               return .c
             }
           }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .a:
+                self.a = defaults.a
+              case .b:
+                self.b = defaults.b
+              case .c:
+                self.c = defaults.c
+              }
+              return
+            }
+            switch name {
+            case .a:
+              self.a = try _decodeViewProp(value, in: runtime)
+            case .b:
+              self.b = try _decodeViewProp(value, in: runtime)
+            case .c:
+              self.c = try _decodeViewProp(value, in: runtime)
+            }
+          }
         }
         """
     )
@@ -171,7 +220,15 @@ struct ViewPropsMacroTests {
           var onTap: () -> Void
           var onClose: (CloseEvent) -> Void
 
-          public enum PropName: String, CaseIterable {
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
           }
 
           public struct PropSet: OptionSet, Sendable {
@@ -185,6 +242,13 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = ["onTap", "onClose"]
 
           public typealias Diff = PropsDiff<Self>
+
+          public init() {
+            self.onTap = {
+            }
+            self.onClose = { _ in
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -195,6 +259,10 @@ struct ViewPropsMacroTests {
           @inlinable
           public static func propSet(for name: PropName) -> PropSet {
             return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
           }
         }
         """
@@ -214,7 +282,15 @@ struct ViewPropsMacroTests {
         struct Props {
           var onTap: @Sendable (TapEvent) -> Void
 
-          public enum PropName: String, CaseIterable {
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
           }
 
           public struct PropSet: OptionSet, Sendable {
@@ -228,6 +304,11 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
+
+          public init() {
+            self.onTap = { _ in
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -238,6 +319,10 @@ struct ViewPropsMacroTests {
           @inlinable
           public static func propSet(for name: PropName) -> PropSet {
             return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
           }
         }
         """
@@ -300,6 +385,22 @@ struct ViewPropsMacroTests {
               return .color
             }
           }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
         }
         """
     )
@@ -349,6 +450,22 @@ struct ViewPropsMacroTests {
               return .radius
             }
           }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .radius:
+                self.radius = defaults.radius
+              }
+              return
+            }
+            switch name {
+            case .radius:
+              self.radius = try _decodeViewProp(value, in: runtime)
+            }
+          }
         }
         """
     )
@@ -396,6 +513,22 @@ struct ViewPropsMacroTests {
             switch name {
             case .color:
               return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -1083,6 +1216,274 @@ struct ViewPropsMacroTests {
               return .p63
             }
           }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .p0:
+                self.p0 = defaults.p0
+              case .p1:
+                self.p1 = defaults.p1
+              case .p2:
+                self.p2 = defaults.p2
+              case .p3:
+                self.p3 = defaults.p3
+              case .p4:
+                self.p4 = defaults.p4
+              case .p5:
+                self.p5 = defaults.p5
+              case .p6:
+                self.p6 = defaults.p6
+              case .p7:
+                self.p7 = defaults.p7
+              case .p8:
+                self.p8 = defaults.p8
+              case .p9:
+                self.p9 = defaults.p9
+              case .p10:
+                self.p10 = defaults.p10
+              case .p11:
+                self.p11 = defaults.p11
+              case .p12:
+                self.p12 = defaults.p12
+              case .p13:
+                self.p13 = defaults.p13
+              case .p14:
+                self.p14 = defaults.p14
+              case .p15:
+                self.p15 = defaults.p15
+              case .p16:
+                self.p16 = defaults.p16
+              case .p17:
+                self.p17 = defaults.p17
+              case .p18:
+                self.p18 = defaults.p18
+              case .p19:
+                self.p19 = defaults.p19
+              case .p20:
+                self.p20 = defaults.p20
+              case .p21:
+                self.p21 = defaults.p21
+              case .p22:
+                self.p22 = defaults.p22
+              case .p23:
+                self.p23 = defaults.p23
+              case .p24:
+                self.p24 = defaults.p24
+              case .p25:
+                self.p25 = defaults.p25
+              case .p26:
+                self.p26 = defaults.p26
+              case .p27:
+                self.p27 = defaults.p27
+              case .p28:
+                self.p28 = defaults.p28
+              case .p29:
+                self.p29 = defaults.p29
+              case .p30:
+                self.p30 = defaults.p30
+              case .p31:
+                self.p31 = defaults.p31
+              case .p32:
+                self.p32 = defaults.p32
+              case .p33:
+                self.p33 = defaults.p33
+              case .p34:
+                self.p34 = defaults.p34
+              case .p35:
+                self.p35 = defaults.p35
+              case .p36:
+                self.p36 = defaults.p36
+              case .p37:
+                self.p37 = defaults.p37
+              case .p38:
+                self.p38 = defaults.p38
+              case .p39:
+                self.p39 = defaults.p39
+              case .p40:
+                self.p40 = defaults.p40
+              case .p41:
+                self.p41 = defaults.p41
+              case .p42:
+                self.p42 = defaults.p42
+              case .p43:
+                self.p43 = defaults.p43
+              case .p44:
+                self.p44 = defaults.p44
+              case .p45:
+                self.p45 = defaults.p45
+              case .p46:
+                self.p46 = defaults.p46
+              case .p47:
+                self.p47 = defaults.p47
+              case .p48:
+                self.p48 = defaults.p48
+              case .p49:
+                self.p49 = defaults.p49
+              case .p50:
+                self.p50 = defaults.p50
+              case .p51:
+                self.p51 = defaults.p51
+              case .p52:
+                self.p52 = defaults.p52
+              case .p53:
+                self.p53 = defaults.p53
+              case .p54:
+                self.p54 = defaults.p54
+              case .p55:
+                self.p55 = defaults.p55
+              case .p56:
+                self.p56 = defaults.p56
+              case .p57:
+                self.p57 = defaults.p57
+              case .p58:
+                self.p58 = defaults.p58
+              case .p59:
+                self.p59 = defaults.p59
+              case .p60:
+                self.p60 = defaults.p60
+              case .p61:
+                self.p61 = defaults.p61
+              case .p62:
+                self.p62 = defaults.p62
+              case .p63:
+                self.p63 = defaults.p63
+              }
+              return
+            }
+            switch name {
+            case .p0:
+              self.p0 = try _decodeViewProp(value, in: runtime)
+            case .p1:
+              self.p1 = try _decodeViewProp(value, in: runtime)
+            case .p2:
+              self.p2 = try _decodeViewProp(value, in: runtime)
+            case .p3:
+              self.p3 = try _decodeViewProp(value, in: runtime)
+            case .p4:
+              self.p4 = try _decodeViewProp(value, in: runtime)
+            case .p5:
+              self.p5 = try _decodeViewProp(value, in: runtime)
+            case .p6:
+              self.p6 = try _decodeViewProp(value, in: runtime)
+            case .p7:
+              self.p7 = try _decodeViewProp(value, in: runtime)
+            case .p8:
+              self.p8 = try _decodeViewProp(value, in: runtime)
+            case .p9:
+              self.p9 = try _decodeViewProp(value, in: runtime)
+            case .p10:
+              self.p10 = try _decodeViewProp(value, in: runtime)
+            case .p11:
+              self.p11 = try _decodeViewProp(value, in: runtime)
+            case .p12:
+              self.p12 = try _decodeViewProp(value, in: runtime)
+            case .p13:
+              self.p13 = try _decodeViewProp(value, in: runtime)
+            case .p14:
+              self.p14 = try _decodeViewProp(value, in: runtime)
+            case .p15:
+              self.p15 = try _decodeViewProp(value, in: runtime)
+            case .p16:
+              self.p16 = try _decodeViewProp(value, in: runtime)
+            case .p17:
+              self.p17 = try _decodeViewProp(value, in: runtime)
+            case .p18:
+              self.p18 = try _decodeViewProp(value, in: runtime)
+            case .p19:
+              self.p19 = try _decodeViewProp(value, in: runtime)
+            case .p20:
+              self.p20 = try _decodeViewProp(value, in: runtime)
+            case .p21:
+              self.p21 = try _decodeViewProp(value, in: runtime)
+            case .p22:
+              self.p22 = try _decodeViewProp(value, in: runtime)
+            case .p23:
+              self.p23 = try _decodeViewProp(value, in: runtime)
+            case .p24:
+              self.p24 = try _decodeViewProp(value, in: runtime)
+            case .p25:
+              self.p25 = try _decodeViewProp(value, in: runtime)
+            case .p26:
+              self.p26 = try _decodeViewProp(value, in: runtime)
+            case .p27:
+              self.p27 = try _decodeViewProp(value, in: runtime)
+            case .p28:
+              self.p28 = try _decodeViewProp(value, in: runtime)
+            case .p29:
+              self.p29 = try _decodeViewProp(value, in: runtime)
+            case .p30:
+              self.p30 = try _decodeViewProp(value, in: runtime)
+            case .p31:
+              self.p31 = try _decodeViewProp(value, in: runtime)
+            case .p32:
+              self.p32 = try _decodeViewProp(value, in: runtime)
+            case .p33:
+              self.p33 = try _decodeViewProp(value, in: runtime)
+            case .p34:
+              self.p34 = try _decodeViewProp(value, in: runtime)
+            case .p35:
+              self.p35 = try _decodeViewProp(value, in: runtime)
+            case .p36:
+              self.p36 = try _decodeViewProp(value, in: runtime)
+            case .p37:
+              self.p37 = try _decodeViewProp(value, in: runtime)
+            case .p38:
+              self.p38 = try _decodeViewProp(value, in: runtime)
+            case .p39:
+              self.p39 = try _decodeViewProp(value, in: runtime)
+            case .p40:
+              self.p40 = try _decodeViewProp(value, in: runtime)
+            case .p41:
+              self.p41 = try _decodeViewProp(value, in: runtime)
+            case .p42:
+              self.p42 = try _decodeViewProp(value, in: runtime)
+            case .p43:
+              self.p43 = try _decodeViewProp(value, in: runtime)
+            case .p44:
+              self.p44 = try _decodeViewProp(value, in: runtime)
+            case .p45:
+              self.p45 = try _decodeViewProp(value, in: runtime)
+            case .p46:
+              self.p46 = try _decodeViewProp(value, in: runtime)
+            case .p47:
+              self.p47 = try _decodeViewProp(value, in: runtime)
+            case .p48:
+              self.p48 = try _decodeViewProp(value, in: runtime)
+            case .p49:
+              self.p49 = try _decodeViewProp(value, in: runtime)
+            case .p50:
+              self.p50 = try _decodeViewProp(value, in: runtime)
+            case .p51:
+              self.p51 = try _decodeViewProp(value, in: runtime)
+            case .p52:
+              self.p52 = try _decodeViewProp(value, in: runtime)
+            case .p53:
+              self.p53 = try _decodeViewProp(value, in: runtime)
+            case .p54:
+              self.p54 = try _decodeViewProp(value, in: runtime)
+            case .p55:
+              self.p55 = try _decodeViewProp(value, in: runtime)
+            case .p56:
+              self.p56 = try _decodeViewProp(value, in: runtime)
+            case .p57:
+              self.p57 = try _decodeViewProp(value, in: runtime)
+            case .p58:
+              self.p58 = try _decodeViewProp(value, in: runtime)
+            case .p59:
+              self.p59 = try _decodeViewProp(value, in: runtime)
+            case .p60:
+              self.p60 = try _decodeViewProp(value, in: runtime)
+            case .p61:
+              self.p61 = try _decodeViewProp(value, in: runtime)
+            case .p62:
+              self.p62 = try _decodeViewProp(value, in: runtime)
+            case .p63:
+              self.p63 = try _decodeViewProp(value, in: runtime)
+            }
+          }
         }
         """
     )
@@ -1140,6 +1541,22 @@ struct ViewPropsMacroTests {
               return .color
             }
           }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
         }
         """
     )
@@ -1193,6 +1610,26 @@ struct ViewPropsMacroTests {
               return .b
             }
           }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .a:
+                self.a = defaults.a
+              case .b:
+                self.b = defaults.b
+              }
+              return
+            }
+            switch name {
+            case .a:
+              self.a = try _decodeViewProp(value, in: runtime)
+            case .b:
+              self.b = try _decodeViewProp(value, in: runtime)
+            }
+          }
         }
         """
     )
@@ -1240,6 +1677,22 @@ struct ViewPropsMacroTests {
             switch name {
             case .`default`:
               return .`default`
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .`default`:
+                self.`default` = defaults.`default`
+              }
+              return
+            }
+            switch name {
+            case .`default`:
+              self.`default` = try _decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -1691,6 +2144,486 @@ struct ViewPropsMacroTests {
           var onTap: (TapEvent) -> Void
         }
         """
+    )
+  }
+
+  @Test
+  func `Decodes each value prop and resets a removed one to its default`() {
+    // `value` is also the name of a `_decode` parameter, so the generated code reaches the prop
+    // through `self.`.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var title = ""
+        var radius: CGFloat = 4
+        var value: Int?
+        var tint: UIColor?
+        var onTap: (TapEvent) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var title = ""
+          var radius: CGFloat = 4
+          var value: Int?
+          var tint: UIColor?
+          var onTap: (TapEvent) -> Void
+
+          public enum PropName: String, CaseIterable {
+            case title
+            case radius
+            case value
+            case tint
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let title = PropSet(rawValue: 1 << 0)
+            public static let radius = PropSet(rawValue: 1 << 1)
+            public static let value = PropSet(rawValue: 1 << 2)
+            public static let tint = PropSet(rawValue: 1 << 3)
+          }
+
+          public static let _eventNames: [String] = ["onTap"]
+
+          public typealias Diff = PropsDiff<Self>
+
+          public init() {
+            self.onTap = { _ in
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1111)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .title:
+              return .title
+            case .radius:
+              return .radius
+            case .value:
+              return .value
+            case .tint:
+              return .tint
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .title:
+                self.title = defaults.title
+              case .radius:
+                self.radius = defaults.radius
+              case .value:
+                self.value = defaults.value
+              case .tint:
+                self.tint = defaults.tint
+              }
+              return
+            }
+            switch name {
+            case .title:
+              self.title = try _decodeViewProp(value, in: runtime)
+            case .radius:
+              self.radius = try _decodeViewProp(value, in: runtime)
+            case .value:
+              self.value = try _decodeViewProp(value, in: runtime)
+            case .tint:
+              self.tint = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A value prop without a default produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+        var radius: CGFloat
+        var onTap: (TapEvent) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+          var radius: CGFloat
+          var onTap: (TapEvent) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'radius' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+          line: 4,
+          column: 7
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Reports every value prop without a default, including one written as Optional<T>`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var radius: CGFloat
+        var `default`: Int, opacity: Double = 1
+        var tint: Optional<UIColor>
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var radius: CGFloat
+          var `default`: Int, opacity: Double = 1
+          var tint: Optional<UIColor>
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'radius' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+          line: 3,
+          column: 7
+        ),
+        DiagnosticSpec(
+          message:
+            "View prop 'default' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+          line: 4,
+          column: 7
+        ),
+        DiagnosticSpec(
+          message:
+            "View prop 'tint' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+          line: 5,
+          column: 7
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `A let value prop produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let color: UIColor = .red
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'color' can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ],
+      applyFixIts: ["Replace 'let' with 'var'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A let value prop without a default produces both diagnostics`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let radius: CGFloat
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let radius: CGFloat
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'radius' can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        ),
+        DiagnosticSpec(
+          message:
+            "View prop 'radius' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+          line: 3,
+          column: 7
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `A let declaring several value props gets one diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let width: Double = 0, height: Double = 0
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let width: Double = 0, height: Double = 0
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'width' can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Generates init() that gives events without an initial value an empty closure`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> Void
+        var onMove: @Sendable (Double, Double) throws -> ()
+        var `default`: (Int) async -> Swift.Void
+        var onClose: (CloseEvent) -> Void = { _ in }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> Void
+          var onMove: @Sendable (Double, Double) throws -> ()
+          var `default`: (Int) async -> Swift.Void
+          var onClose: (CloseEvent) -> Void = { _ in }
+
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          public static let _eventNames: [String] = ["onTap", "onMove", "default", "onClose"]
+
+          public typealias Diff = PropsDiff<Self>
+
+          public init() {
+            self.onTap = {
+            }
+            self.onMove = { _, _ in
+            }
+            self.`default` = { _ in
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `No init() is generated when every event has an initial value`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> Void = {}
+        var onClose: (CloseEvent) -> Void = { _ in }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> Void = {}
+          var onClose: (CloseEvent) -> Void = { _ in }
+
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          public static let _eventNames: [String] = ["onTap", "onClose"]
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `No init() is generated when the type declares its own`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (TapEvent) -> Void
+
+        init() {
+          onTap = { event in print(event) }
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (TapEvent) -> Void
+
+          init() {
+            onTap = { event in print(event) }
+          }
+
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          public static let _eventNames: [String] = ["onTap"]
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An event that returns a value produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (TapEvent) -> Bool
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (TapEvent) -> Bool
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' must return Void, because an event is sent to JavaScript, which can't return a value. Remove the return type 'Bool'",
+          line: 3,
+          column: 28
+        )
+      ]
     )
   }
 }

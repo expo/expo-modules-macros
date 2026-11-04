@@ -11,6 +11,11 @@ import SwiftSyntaxMacros
 ///   name through the view's event emitter. No JS function object is ever decoded into it.
 /// - every other property is a **value prop**, decoded from the raw props Fabric delivers.
 ///
+/// Every value prop is a `var` with a default: an initial value, or a type written as `T?`, which
+/// defaults to `nil` (`Optional<T>` doesn't). Core starts from `Self()` and resets a prop that React
+/// removes (sends as `null`) to its value there, so a value prop without a default, or declared with
+/// `let`, is an error.
+///
 /// The macro synthesizes the identity surface the batched reaction model reads:
 ///
 /// - `PropName`: a `String`-backed `CaseIterable` enum, one case per value prop, whose raw value is
@@ -21,6 +26,20 @@ import SwiftSyntaxMacros
 ///   allocation and no hashing.
 /// - `_eventNames`: the event props' names, verbatim, for core to register at view creation.
 /// - `typealias Diff = PropsDiff<Self>`, the nested spelling of core's one generic diff.
+/// - `init()`, which `AnyViewProps` requires, when an event prop has no initial value. It gives each
+///   such event an empty closure (`{}`, `{ _ in }`, ...) and leaves the value props at their initial
+///   values. It isn't generated when the type declares its own `init()`, or when every event has an
+///   initial value, since Swift then synthesizes `init()`. Like any initializer in the struct body,
+///   the generated one removes the memberwise initializer.
+///
+/// An event's function type must return `Void`, because JavaScript can't return a value to it.
+///
+/// The extension that conforms the type to `AnyViewProps` adds:
+///
+/// - `allProps`: every bit set, the changed set on the first application.
+/// - `propSet(for:)`: one name's bit, for folding raw changed keys into the mask.
+/// - `_decode(_:from:in:)`: assigns one value prop from a JavaScript value. `null` and `undefined`
+///   reset it to its value in `Self()`, and any other value decodes through `JavaScriptDecodable`.
 ///
 /// Author-facing shape — no conformance to spell out:
 ///
@@ -53,12 +72,16 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     members.append(propSetStruct(valueProps: props.valueProps))
     members.append(eventNamesConstant(eventProps: props.eventProps))
     members.append(diffTypealias())
+    if let initializer = defaultInitializer(props: props) {
+      members.append(initializer)
+    }
     return members
   }
 
-  /// Auto-conforms the type to `AnyViewProps`, supplying the two requirements that can only be written
-  /// per-props: `allProps` (every bit set, the changed set on the first application) and
-  /// `propSet(for:)` (one name's bit, for folding raw changed keys into the mask).
+  /// Auto-conforms the type to `AnyViewProps`, supplying the requirements that can only be written
+  /// per-props: `allProps` (every bit set, the changed set on the first application),
+  /// `propSet(for:)` (one name's bit, for folding raw changed keys into the mask) and `_decode`
+  /// (one value prop assigned from a JavaScript value).
   ///
   /// A conformance the author already spelled out in the inheritance clause is not repeated.
   public static func expansion(
@@ -89,8 +112,7 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
       ? "0"
       : "0b" + String(repeating: "1", count: props.valueProps.count)
 
-    // With no value prop there's nothing to switch over, and an empty `switch` over an uninhabited
-    // enum doesn't compile — return the empty set instead.
+    // With no value prop there's nothing to switch over, so return the empty set.
     let propSetBody: String
     if props.valueProps.isEmpty {
       propSetBody = "    return []"
@@ -100,6 +122,8 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
         .joined(separator: "\n")
       propSetBody = "    switch name {\n\(cases)\n    }"
     }
+
+    let decodeBody = decodeFunctionBody(valueProps: props.valueProps)
 
     let conformanceClause = alreadyConforms ? "" : ": \(viewPropsProtocolName)"
     let ext: DeclSyntax = """
@@ -111,6 +135,10 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
         @inlinable
         public static func propSet(for name: PropName) -> PropSet {
       \(raw: propSetBody)
+        }
+
+        @JavaScriptActor
+        public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {\(raw: decodeBody)
         }
       }
       """
@@ -249,6 +277,49 @@ private func innerFunctionType(of type: TypeSyntax) -> TypeSyntax? {
   return only.type
 }
 
+/// The error for a value prop declared with `let`, attached to the `let` keyword and carrying a
+/// fix-it that changes it to `var`. `_decode` assigns each value prop when React sets or removes it,
+/// which a constant doesn't allow.
+private func letValuePropDiagnostic(for varDecl: VariableDeclSyntax, name: String) -> Diagnostic {
+  let specifier = varDecl.bindingSpecifier
+  let fixIt = FixIt(
+    message: ViewPropsFixItMessage("Replace 'let' with 'var'", id: "viewprops-let-to-var"),
+    changes: [
+      .replace(
+        oldNode: Syntax(specifier),
+        newNode: Syntax(specifier.with(\.tokenKind, .keyword(.var)))
+      )
+    ]
+  )
+  let message = ViewPropsDiagnosticMessage(
+    "View prop '\(withoutBackticks(name))' can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'",
+    id: "viewprops-let-prop"
+  )
+  return Diagnostic(node: specifier, message: message, fixIts: [fixIt])
+}
+
+/// The error for an event prop whose function type returns something other than `Void`, attached to
+/// the return type. Core dispatches the event to JavaScript, which can't return a value to the
+/// caller, and the generated `init()` couldn't give the event an empty closure.
+private func eventReturnTypeDiagnostic(for returnType: TypeSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "Event prop '\(withoutBackticks(name))' must return Void, because an event is sent to JavaScript, which can't return a value. Remove the return type '\(returnType.trimmedDescription)'",
+    id: "viewprops-event-return-type"
+  )
+  return Diagnostic(node: returnType, message: message)
+}
+
+/// The error for a value prop with no default, attached to the property name. A value prop starts
+/// from its value in `Self()` and returns to it when React removes the prop, so it needs an initial
+/// value, or a type written as `T?`, whose default is `nil`.
+private func missingDefaultDiagnostic(for pattern: IdentifierPatternSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "View prop '\(withoutBackticks(name))' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+    id: "viewprops-missing-default"
+  )
+  return Diagnostic(node: pattern, message: message)
+}
+
 private struct ViewPropsDiagnosticMessage: DiagnosticMessage {
   let message: String
   let diagnosticID: MessageID
@@ -277,8 +348,8 @@ private struct ViewProp {
   /// The property name as written, backticks included for an escaped name. Every identifier position
   /// in the generated code uses this, since `case default` and `static let default` don't parse.
   let name: String
-  /// The property's declared type, verbatim. Retained for the decode surface, which lands with the
-  /// core props contract.
+  /// The property's declared type, verbatim, or the type of its literal initial value. `_decode`
+  /// doesn't spell it: the decoded type is inferred from the assignment.
   let type: String
 
   /// The name with any escaping backticks removed: the JS-visible key, so the enum's raw value and
@@ -288,19 +359,34 @@ private struct ViewProp {
   }
 }
 
+/// An event prop declared without an initial value, which the generated `init()` assigns.
+private struct EventDefault {
+  /// The property name as written, backticks included.
+  let name: String
+  /// A closure literal that ignores its arguments and does nothing: `{}`, `{ _ in }`, `{ _, _ in }`
+  /// and so on, by the arity of the event's function type.
+  let emptyClosure: String
+}
+
 private struct ViewPropsModel {
   /// Value props, in declaration order. The order is the bit order, so it is part of the ABI
   /// between a compiled view and the runtime that fills the mask.
   let valueProps: [ViewProp]
   /// Event props, in declaration order.
   let eventProps: [ViewProp]
+  /// The event props without an initial value, in declaration order.
+  let eventDefaults: [EventDefault]
+  /// Whether the type declares its own `init()` (or `init?()`), which the macro then doesn't
+  /// generate.
+  let declaresEmptyInitializer: Bool
 }
 
 /// Reads and validates the props type's stored properties, splitting them into value props and events.
 ///
 /// Rejects what can't be expressed: a non-`struct` declaration (the class form is the SwiftUI path and
 /// needs the observable protocol, which is deferred), a leftover `@Field` attribute, an optional
-/// function type, a property with no determinable type, and more than 64 value props.
+/// function type, an event whose function type returns a value, a property with no determinable type,
+/// a value prop declared with `let` or without a default, and more than 64 value props.
 private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> ViewPropsModel {
   guard let structDecl = declaration.as(StructDeclSyntax.self) else {
     throw MacroExpansionErrorMessage(
@@ -334,6 +420,10 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
 
   var valueProps: [ViewProp] = []
   var eventProps: [ViewProp] = []
+  var eventDefaults: [EventDefault] = []
+  // Reported together after the loop, so one run names every prop that the generated code can't
+  // reset, assign or default.
+  var propDiagnostics: [Diagnostic] = []
 
   for member in declaration.memberBlock.members {
     guard let varDecl = member.decl.as(VariableDeclSyntax.self) else {
@@ -342,6 +432,8 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
     if isExcludedByModifier(varDecl.modifiers) {
       continue
     }
+    // One `let` can declare several props, but its diagnostic and fix-it belong to the keyword.
+    var reportedLet = false
     for binding in varDecl.bindings {
       // A computed property is never a prop, but an accessor block alone doesn't mean computed:
       // `willSet`/`didSet` observers imply stored storage. `bindingIsSettable` draws exactly that
@@ -386,7 +478,8 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
         ])
       }
 
-      let isEvent = declaredType.map { underlyingFunctionType(of: $0) != nil } ?? false
+      let eventFunctionType = declaredType.flatMap(underlyingFunctionType)
+      let isEvent = eventFunctionType != nil
       // `PropSet` stores its mask in `rawValue`, so a value prop of that name would emit a static
       // member shadowing it and the option set would not compile ("circular reference"). The error
       // would point at generated code, so catch it here and name the property.
@@ -396,12 +489,34 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
         )
       }
       let prop = ViewProp(name: name, type: resolvedType)
-      if isEvent {
+      if let eventFunctionType {
+        // An event is dispatched to JavaScript, which can't hand a value back to the caller.
+        if !returnsVoid(eventFunctionType) {
+          propDiagnostics.append(eventReturnTypeDiagnostic(for: eventFunctionType.returnClause.type, name: name))
+        }
+        if binding.initializer == nil {
+          eventDefaults.append(
+            EventDefault(name: name, emptyClosure: emptyClosure(arity: eventFunctionType.parameters.count))
+          )
+        }
         eventProps.append(prop)
-      } else {
-        valueProps.append(prop)
+        continue
       }
+      // `_decode` assigns every value prop, so none can be a constant.
+      if varDecl.bindingSpecifier.tokenKind == .keyword(.let) && !reportedLet {
+        propDiagnostics.append(letValuePropDiagnostic(for: varDecl, name: name))
+        reportedLet = true
+      }
+      // A removed prop is reset to its value in a fresh `Self()`, so every value prop needs a
+      // default: its initial value, or the `nil` that Swift gives an optional `var` without one.
+      if binding.initializer == nil && !(declaredType.map(hasImplicitNilDefault) ?? false) {
+        propDiagnostics.append(missingDefaultDiagnostic(for: ident, name: name))
+      }
+      valueProps.append(prop)
     }
+  }
+  if !propDiagnostics.isEmpty {
+    throw DiagnosticsError(diagnostics: propDiagnostics)
   }
 
   guard valueProps.count <= maxValueProps else {
@@ -409,7 +524,38 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       "@ViewProps supports at most \(maxValueProps) value props (the changed-props mask is a UInt64), but this type declares \(valueProps.count); '\(valueProps[maxValueProps].name)' is the first over the limit. Event props don't count toward it"
     )
   }
-  return ViewPropsModel(valueProps: valueProps, eventProps: eventProps)
+  let declaresEmptyInitializer = declaration.memberBlock.members.contains { member in
+    member.decl.as(InitializerDeclSyntax.self)?.signature.parameterClause.parameters.isEmpty == true
+  }
+  return ViewPropsModel(
+    valueProps: valueProps,
+    eventProps: eventProps,
+    eventDefaults: eventDefaults,
+    declaresEmptyInitializer: declaresEmptyInitializer
+  )
+}
+
+/// True if the function type returns `Void`, written as `Void`, `Swift.Void` or `()`.
+private func returnsVoid(_ functionType: FunctionTypeSyntax) -> Bool {
+  let returnType = functionType.returnClause.type
+  if let tuple = returnType.as(TupleTypeSyntax.self) {
+    return tuple.elements.isEmpty
+  }
+  return ["Void", "Swift.Void"].contains(returnType.trimmedDescription)
+}
+
+/// A closure literal that takes `arity` arguments, ignores them and does nothing.
+private func emptyClosure(arity: Int) -> String {
+  if arity == 0 {
+    return "{}"
+  }
+  return "{ \(Array(repeating: "_", count: arity).joined(separator: ", ")) in }"
+}
+
+/// True if Swift gives a `var` of this type an implicit `nil` initial value, so `Self()` can leave it
+/// out. Only the `T?` and `T!` sugar does: a property written as `Optional<T>` has no default.
+private func hasImplicitNilDefault(_ type: TypeSyntax) -> Bool {
+  return type.is(OptionalTypeSyntax.self) || type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self)
 }
 
 /// The function type a props property declares, unwrapping any number of enclosing parentheses and an
@@ -447,8 +593,9 @@ private func underlyingFunctionType(of type: TypeSyntax) -> FunctionTypeSyntax? 
 // MARK: - Synthesized members
 
 /// The `PropName` enum: one case per value prop, `String`-backed so the raw value is the wire key.
-/// Emitted even when empty (an uninhabited enum is legal and keeps the conformance's associated type
-/// satisfied), so a props type with only events still conforms.
+/// Emitted even when empty, so a props type with only events still conforms. An enum with no cases
+/// can't declare a raw type, so the empty one conforms to `RawRepresentable` by hand, with `String`
+/// as its `RawValue` like the others.
 private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
   // An escaped case takes its raw value from the bare identifier already, but spelling it out keeps
   // the wire key visible in the generated source and independent of that implicit rule.
@@ -462,7 +609,15 @@ private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
     .joined(separator: "\n")
   if valueProps.isEmpty {
     return """
-      public enum PropName: String, CaseIterable {
+      public enum PropName: RawRepresentable, CaseIterable {
+        public init?(rawValue: String) {
+          return nil
+        }
+
+        public var rawValue: String {
+          switch self {
+          }
+        }
       }
       """
   }
@@ -514,6 +669,60 @@ private func eventNamesConstant(eventProps: [ViewProp]) -> DeclSyntax {
   let names = eventProps.map { "\"\($0.wireName)\"" }.joined(separator: ", ")
   return """
     public static let _eventNames: [String] = [\(raw: names)]
+    """
+}
+
+/// The body of `_decode`, which core calls once per changed prop. React sends a removed prop as
+/// `null`, so `null` and `undefined` reset the prop to its value in a fresh `Self()`; any other value
+/// decodes through `JavaScriptDecodable`, with the type inferred from the assignment. The checks run
+/// once, before the switch, so each case is a single assignment. Members are reached through `self.`
+/// so that a prop named like a parameter (`value`, `runtime`) isn't shadowed by it.
+///
+/// With no value prop the body is empty: `PropName` is uninhabited, so the function is never called.
+private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
+  if valueProps.isEmpty {
+    return ""
+  }
+  let resetCases =
+    valueProps
+    .map { "      case .\($0.name):\n        self.\($0.name) = defaults.\($0.name)" }
+    .joined(separator: "\n")
+  let decodeCases =
+    valueProps
+    .map { "    case .\($0.name):\n      self.\($0.name) = try _decodeViewProp(value, in: runtime)" }
+    .joined(separator: "\n")
+  // Starts with a line break, so the empty body closes on the next line instead of leaving a blank
+  // one.
+  return """
+
+        if value.isNull() || value.isUndefined() {
+          let defaults = Self()
+          switch name {
+    \(resetCases)
+          }
+          return
+        }
+        switch name {
+    \(decodeCases)
+        }
+    """
+}
+
+/// The `init()` that `AnyViewProps` requires, when Swift doesn't synthesize one: it gives each event
+/// prop without an initial value an empty closure, and leaves the value props at their initial
+/// values. `nil` when every event has an initial value (Swift then synthesizes `init()` from the
+/// defaults) or when the type declares its own `init()`.
+private func defaultInitializer(props: ViewPropsModel) -> DeclSyntax? {
+  if props.eventDefaults.isEmpty || props.declaresEmptyInitializer {
+    return nil
+  }
+  let assignments = props.eventDefaults
+    .map { "  self.\($0.name) = \($0.emptyClosure)" }
+    .joined(separator: "\n")
+  return """
+    public init() {
+    \(raw: assignments)
+    }
     """
 }
 
