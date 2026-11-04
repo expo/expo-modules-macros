@@ -110,9 +110,9 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             case .radius:
-              self.radius = try _decodeViewProp(value, in: runtime)
+              self.radius = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -193,11 +193,11 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .a:
-              self.a = try _decodeViewProp(value, in: runtime)
+              self.a = try Self._decodeViewProp(value, in: runtime)
             case .b:
-              self.b = try _decodeViewProp(value, in: runtime)
+              self.b = try Self._decodeViewProp(value, in: runtime)
             case .c:
-              self.c = try _decodeViewProp(value, in: runtime)
+              self.c = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -398,7 +398,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -463,7 +463,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .radius:
-              self.radius = try _decodeViewProp(value, in: runtime)
+              self.radius = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -528,7 +528,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -1355,133 +1355,133 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .p0:
-              self.p0 = try _decodeViewProp(value, in: runtime)
+              self.p0 = try Self._decodeViewProp(value, in: runtime)
             case .p1:
-              self.p1 = try _decodeViewProp(value, in: runtime)
+              self.p1 = try Self._decodeViewProp(value, in: runtime)
             case .p2:
-              self.p2 = try _decodeViewProp(value, in: runtime)
+              self.p2 = try Self._decodeViewProp(value, in: runtime)
             case .p3:
-              self.p3 = try _decodeViewProp(value, in: runtime)
+              self.p3 = try Self._decodeViewProp(value, in: runtime)
             case .p4:
-              self.p4 = try _decodeViewProp(value, in: runtime)
+              self.p4 = try Self._decodeViewProp(value, in: runtime)
             case .p5:
-              self.p5 = try _decodeViewProp(value, in: runtime)
+              self.p5 = try Self._decodeViewProp(value, in: runtime)
             case .p6:
-              self.p6 = try _decodeViewProp(value, in: runtime)
+              self.p6 = try Self._decodeViewProp(value, in: runtime)
             case .p7:
-              self.p7 = try _decodeViewProp(value, in: runtime)
+              self.p7 = try Self._decodeViewProp(value, in: runtime)
             case .p8:
-              self.p8 = try _decodeViewProp(value, in: runtime)
+              self.p8 = try Self._decodeViewProp(value, in: runtime)
             case .p9:
-              self.p9 = try _decodeViewProp(value, in: runtime)
+              self.p9 = try Self._decodeViewProp(value, in: runtime)
             case .p10:
-              self.p10 = try _decodeViewProp(value, in: runtime)
+              self.p10 = try Self._decodeViewProp(value, in: runtime)
             case .p11:
-              self.p11 = try _decodeViewProp(value, in: runtime)
+              self.p11 = try Self._decodeViewProp(value, in: runtime)
             case .p12:
-              self.p12 = try _decodeViewProp(value, in: runtime)
+              self.p12 = try Self._decodeViewProp(value, in: runtime)
             case .p13:
-              self.p13 = try _decodeViewProp(value, in: runtime)
+              self.p13 = try Self._decodeViewProp(value, in: runtime)
             case .p14:
-              self.p14 = try _decodeViewProp(value, in: runtime)
+              self.p14 = try Self._decodeViewProp(value, in: runtime)
             case .p15:
-              self.p15 = try _decodeViewProp(value, in: runtime)
+              self.p15 = try Self._decodeViewProp(value, in: runtime)
             case .p16:
-              self.p16 = try _decodeViewProp(value, in: runtime)
+              self.p16 = try Self._decodeViewProp(value, in: runtime)
             case .p17:
-              self.p17 = try _decodeViewProp(value, in: runtime)
+              self.p17 = try Self._decodeViewProp(value, in: runtime)
             case .p18:
-              self.p18 = try _decodeViewProp(value, in: runtime)
+              self.p18 = try Self._decodeViewProp(value, in: runtime)
             case .p19:
-              self.p19 = try _decodeViewProp(value, in: runtime)
+              self.p19 = try Self._decodeViewProp(value, in: runtime)
             case .p20:
-              self.p20 = try _decodeViewProp(value, in: runtime)
+              self.p20 = try Self._decodeViewProp(value, in: runtime)
             case .p21:
-              self.p21 = try _decodeViewProp(value, in: runtime)
+              self.p21 = try Self._decodeViewProp(value, in: runtime)
             case .p22:
-              self.p22 = try _decodeViewProp(value, in: runtime)
+              self.p22 = try Self._decodeViewProp(value, in: runtime)
             case .p23:
-              self.p23 = try _decodeViewProp(value, in: runtime)
+              self.p23 = try Self._decodeViewProp(value, in: runtime)
             case .p24:
-              self.p24 = try _decodeViewProp(value, in: runtime)
+              self.p24 = try Self._decodeViewProp(value, in: runtime)
             case .p25:
-              self.p25 = try _decodeViewProp(value, in: runtime)
+              self.p25 = try Self._decodeViewProp(value, in: runtime)
             case .p26:
-              self.p26 = try _decodeViewProp(value, in: runtime)
+              self.p26 = try Self._decodeViewProp(value, in: runtime)
             case .p27:
-              self.p27 = try _decodeViewProp(value, in: runtime)
+              self.p27 = try Self._decodeViewProp(value, in: runtime)
             case .p28:
-              self.p28 = try _decodeViewProp(value, in: runtime)
+              self.p28 = try Self._decodeViewProp(value, in: runtime)
             case .p29:
-              self.p29 = try _decodeViewProp(value, in: runtime)
+              self.p29 = try Self._decodeViewProp(value, in: runtime)
             case .p30:
-              self.p30 = try _decodeViewProp(value, in: runtime)
+              self.p30 = try Self._decodeViewProp(value, in: runtime)
             case .p31:
-              self.p31 = try _decodeViewProp(value, in: runtime)
+              self.p31 = try Self._decodeViewProp(value, in: runtime)
             case .p32:
-              self.p32 = try _decodeViewProp(value, in: runtime)
+              self.p32 = try Self._decodeViewProp(value, in: runtime)
             case .p33:
-              self.p33 = try _decodeViewProp(value, in: runtime)
+              self.p33 = try Self._decodeViewProp(value, in: runtime)
             case .p34:
-              self.p34 = try _decodeViewProp(value, in: runtime)
+              self.p34 = try Self._decodeViewProp(value, in: runtime)
             case .p35:
-              self.p35 = try _decodeViewProp(value, in: runtime)
+              self.p35 = try Self._decodeViewProp(value, in: runtime)
             case .p36:
-              self.p36 = try _decodeViewProp(value, in: runtime)
+              self.p36 = try Self._decodeViewProp(value, in: runtime)
             case .p37:
-              self.p37 = try _decodeViewProp(value, in: runtime)
+              self.p37 = try Self._decodeViewProp(value, in: runtime)
             case .p38:
-              self.p38 = try _decodeViewProp(value, in: runtime)
+              self.p38 = try Self._decodeViewProp(value, in: runtime)
             case .p39:
-              self.p39 = try _decodeViewProp(value, in: runtime)
+              self.p39 = try Self._decodeViewProp(value, in: runtime)
             case .p40:
-              self.p40 = try _decodeViewProp(value, in: runtime)
+              self.p40 = try Self._decodeViewProp(value, in: runtime)
             case .p41:
-              self.p41 = try _decodeViewProp(value, in: runtime)
+              self.p41 = try Self._decodeViewProp(value, in: runtime)
             case .p42:
-              self.p42 = try _decodeViewProp(value, in: runtime)
+              self.p42 = try Self._decodeViewProp(value, in: runtime)
             case .p43:
-              self.p43 = try _decodeViewProp(value, in: runtime)
+              self.p43 = try Self._decodeViewProp(value, in: runtime)
             case .p44:
-              self.p44 = try _decodeViewProp(value, in: runtime)
+              self.p44 = try Self._decodeViewProp(value, in: runtime)
             case .p45:
-              self.p45 = try _decodeViewProp(value, in: runtime)
+              self.p45 = try Self._decodeViewProp(value, in: runtime)
             case .p46:
-              self.p46 = try _decodeViewProp(value, in: runtime)
+              self.p46 = try Self._decodeViewProp(value, in: runtime)
             case .p47:
-              self.p47 = try _decodeViewProp(value, in: runtime)
+              self.p47 = try Self._decodeViewProp(value, in: runtime)
             case .p48:
-              self.p48 = try _decodeViewProp(value, in: runtime)
+              self.p48 = try Self._decodeViewProp(value, in: runtime)
             case .p49:
-              self.p49 = try _decodeViewProp(value, in: runtime)
+              self.p49 = try Self._decodeViewProp(value, in: runtime)
             case .p50:
-              self.p50 = try _decodeViewProp(value, in: runtime)
+              self.p50 = try Self._decodeViewProp(value, in: runtime)
             case .p51:
-              self.p51 = try _decodeViewProp(value, in: runtime)
+              self.p51 = try Self._decodeViewProp(value, in: runtime)
             case .p52:
-              self.p52 = try _decodeViewProp(value, in: runtime)
+              self.p52 = try Self._decodeViewProp(value, in: runtime)
             case .p53:
-              self.p53 = try _decodeViewProp(value, in: runtime)
+              self.p53 = try Self._decodeViewProp(value, in: runtime)
             case .p54:
-              self.p54 = try _decodeViewProp(value, in: runtime)
+              self.p54 = try Self._decodeViewProp(value, in: runtime)
             case .p55:
-              self.p55 = try _decodeViewProp(value, in: runtime)
+              self.p55 = try Self._decodeViewProp(value, in: runtime)
             case .p56:
-              self.p56 = try _decodeViewProp(value, in: runtime)
+              self.p56 = try Self._decodeViewProp(value, in: runtime)
             case .p57:
-              self.p57 = try _decodeViewProp(value, in: runtime)
+              self.p57 = try Self._decodeViewProp(value, in: runtime)
             case .p58:
-              self.p58 = try _decodeViewProp(value, in: runtime)
+              self.p58 = try Self._decodeViewProp(value, in: runtime)
             case .p59:
-              self.p59 = try _decodeViewProp(value, in: runtime)
+              self.p59 = try Self._decodeViewProp(value, in: runtime)
             case .p60:
-              self.p60 = try _decodeViewProp(value, in: runtime)
+              self.p60 = try Self._decodeViewProp(value, in: runtime)
             case .p61:
-              self.p61 = try _decodeViewProp(value, in: runtime)
+              self.p61 = try Self._decodeViewProp(value, in: runtime)
             case .p62:
-              self.p62 = try _decodeViewProp(value, in: runtime)
+              self.p62 = try Self._decodeViewProp(value, in: runtime)
             case .p63:
-              self.p63 = try _decodeViewProp(value, in: runtime)
+              self.p63 = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -1554,7 +1554,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -1625,9 +1625,9 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .a:
-              self.a = try _decodeViewProp(value, in: runtime)
+              self.a = try Self._decodeViewProp(value, in: runtime)
             case .b:
-              self.b = try _decodeViewProp(value, in: runtime)
+              self.b = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -1692,7 +1692,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .`default`:
-              self.`default` = try _decodeViewProp(value, in: runtime)
+              self.`default` = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -2237,13 +2237,13 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .title:
-              self.title = try _decodeViewProp(value, in: runtime)
+              self.title = try Self._decodeViewProp(value, in: runtime)
             case .radius:
-              self.radius = try _decodeViewProp(value, in: runtime)
+              self.radius = try Self._decodeViewProp(value, in: runtime)
             case .value:
-              self.value = try _decodeViewProp(value, in: runtime)
+              self.value = try Self._decodeViewProp(value, in: runtime)
             case .tint:
-              self.tint = try _decodeViewProp(value, in: runtime)
+              self.tint = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -2702,7 +2702,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .radius:
-              self.radius = try _decodeViewProp(value, in: runtime)
+              self.radius = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -2781,9 +2781,9 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .storage:
-              self.storage = try _decodeViewProp(value, in: runtime)
+              self.storage = try Self._decodeViewProp(value, in: runtime)
             case .size:
-              self.size = try _decodeViewProp(value, in: runtime)
+              self.size = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -2852,7 +2852,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -2928,7 +2928,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -3009,7 +3009,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -3632,9 +3632,9 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .storage:
-              self.storage = try _decodeViewProp(value, in: runtime)
+              self.storage = try Self._decodeViewProp(value, in: runtime)
             case .size:
-              self.size = try _decodeViewProp(value, in: runtime)
+              self.size = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -3703,7 +3703,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -3776,7 +3776,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -3849,7 +3849,7 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -3919,7 +3919,219 @@ struct ViewPropsMacroTests {
             }
             switch name {
             case .color:
-              self.color = try _decodeViewProp(value, in: runtime)
+              self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A prop named _decodeViewProp does not shadow the decode helper`() {
+    // The helper is reached through `Self.`, so the property does not hide it.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var _decodeViewProp: Int = 0
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var _decodeViewProp: Int = 0
+
+          public enum PropName: String, CaseIterable {
+            case _decodeViewProp
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let _decodeViewProp = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case ._decodeViewProp:
+              return ._decodeViewProp
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case ._decodeViewProp:
+                self._decodeViewProp = defaults._decodeViewProp
+              }
+              return
+            }
+            switch name {
+            case ._decodeViewProp:
+              self._decodeViewProp = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An async init() next to a usable init() is accepted`() {
+    // Swift allows both, and `Self()` in the synchronous `_decode` calls `init()`.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init() {
+        }
+
+        init() async {
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+          }
+
+          init() async {
+          }
+
+          public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An optional type in parentheses needs no initial value`() {
+    // `(Int?)` is `Int?`, which Swift gives an implicit nil, also for a private property.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var value: (Int?)
+        private var cache: ((Int)?)
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var value: (Int?)
+          private var cache: ((Int)?)
+
+          public enum PropName: String, CaseIterable {
+            case value
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let value = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .value:
+              return .value
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .value:
+                self.value = defaults.value
+              }
+              return
+            }
+            switch name {
+            case .value:
+              self.value = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }

@@ -565,8 +565,10 @@ private func validatedViewProps(
   }
 
   // A usable `init()` belongs to the author and sets the defaults. An `init()` that core can't call
-  // as `Self()` is reported, and doesn't count.
+  // as `Self()` doesn't count, and is reported only when there is no usable one: Swift allows an
+  // `init() async` next to `init()`, and `Self()` in the synchronous `_decode` calls the latter.
   var propDiagnostics: [Diagnostic] = []
+  var unusableInitializerDiagnosticsFound: [Diagnostic] = []
   var declaresUsableInitializer = false
   var declaresOtherInitializer = false
   for member in declaration.memberBlock.members {
@@ -581,8 +583,11 @@ private func validatedViewProps(
     if unusableDiagnostics.isEmpty {
       declaresUsableInitializer = true
     } else {
-      propDiagnostics += unusableDiagnostics
+      unusableInitializerDiagnosticsFound += unusableDiagnostics
     }
+  }
+  if !declaresUsableInitializer {
+    propDiagnostics += unusableInitializerDiagnosticsFound
   }
 
   var valueProps: [ViewProp] = []
@@ -814,17 +819,22 @@ private func returnsVoid(_ functionType: FunctionTypeSyntax) -> Bool {
 }
 
 private func isVoidType(_ type: TypeSyntax) -> Bool {
+  let type = withoutParentheses(type)
   if let tuple = type.as(TupleTypeSyntax.self) {
-    if tuple.elements.isEmpty {
-      return true
-    }
-    // `(T)` is `T`. A label makes it a tuple, which Swift rejects with a single element anyway.
-    if tuple.elements.count == 1, let only = tuple.elements.first, only.firstName == nil {
-      return isVoidType(only.type)
-    }
-    return false
+    return tuple.elements.isEmpty
   }
   return ["Void", "Swift.Void"].contains(type.trimmedDescription)
+}
+
+/// The type inside any number of unlabeled one-element parentheses: `(T)` and `((T))` are `T`. A
+/// label would make it a tuple, which Swift rejects with a single element anyway.
+private func withoutParentheses(_ type: TypeSyntax) -> TypeSyntax {
+  guard let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1, let only = tuple.elements.first,
+    only.firstName == nil
+  else {
+    return type
+  }
+  return withoutParentheses(only.type)
 }
 
 /// True if the binding is computed with a `mutating get`.
@@ -847,8 +857,10 @@ private func emptyClosure(arity: Int) -> String {
 }
 
 /// True if Swift gives a `var` of this type an implicit `nil` initial value, so `Self()` can leave it
-/// out. Only the `T?` and `T!` sugar does: a property written as `Optional<T>` has no default.
+/// out. Only the `T?` and `T!` sugar does, also in parentheses (`(T?)`): a property written as
+/// `Optional<T>` has no default.
 private func hasImplicitNilDefault(_ type: TypeSyntax) -> Bool {
+  let type = withoutParentheses(type)
   return type.is(OptionalTypeSyntax.self) || type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self)
 }
 
@@ -968,7 +980,9 @@ private func eventNamesConstant(eventProps: [ViewProp]) -> DeclSyntax {
 
 /// The body of `_decode`, which core calls once per changed prop. React sends a removed prop as
 /// `null`, so `null` and `undefined` reset the prop to its value in a fresh `Self()`; any other value
-/// decodes through `JavaScriptDecodable`, with the type inferred from the assignment. The checks run
+/// decodes through `JavaScriptDecodable`, with the type inferred from the assignment. The helper is a
+/// static member of `AnyViewProps`, reached through `Self.`, so a prop named `_decodeViewProp`
+/// doesn't shadow it. The checks run
 /// once, before the switch, so each case is a single assignment. Members are reached through `self.`
 /// so that a prop named like a parameter (`value`, `runtime`) isn't shadowed by it.
 ///
@@ -987,7 +1001,7 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
     .joined(separator: "\n")
   let decodeCases =
     valueProps
-    .map { "    case .\($0.name):\n      self.\($0.name) = try _decodeViewProp(value, in: runtime)" }
+    .map { "    case .\($0.name):\n      self.\($0.name) = try Self._decodeViewProp(value, in: runtime)" }
     .joined(separator: "\n")
   // Starts with a line break, so the empty body closes on the next line instead of leaving a blank
   // one.
