@@ -1,10 +1,10 @@
 import SwiftSyntax
 
-/// Extracts the full JS-exported surface of every `@ExpoModule`, `@SharedObject`, and `@Record` type:
-/// their `@JS` members and record properties. The deep counterpart to `DetectionVisitor`.
-/// Recognition is purely syntactic and re-reads what the macros read (the macro target can't be
-/// imported), so it stays in step with `JSFunction` / `JSProperty` / `JSConstructor` /
-/// `RecordProperty`.
+/// Extracts the full JS-exported surface of every `@ExpoModule`, `@SharedObject`, `@Record`,
+/// `@ExpoView`, and `@ViewProps` type: their `@JS` members, record properties, view props, and view
+/// events. The deep counterpart to `DetectionVisitor`. Recognition is purely syntactic and re-reads
+/// what the macros read (the macro target can't be imported), so it stays in step with `JSFunction` /
+/// `JSProperty` / `JSConstructor` / `RecordProperty` / `validatedViewProps`.
 ///
 /// Types nested in another type's body, or in a file-scope `extension`, are reported under their
 /// qualified Swift name (`Options.Encoding`), so a ref to one can be resolved from the scope it is
@@ -12,10 +12,10 @@ import SwiftSyntax
 ///
 /// Each declaration and member reports the platforms that build it (see `PlatformResolver`), and one
 /// that no platform builds is not reported. `#if` is read only where the runtime sees what it holds:
-/// around types, `@Event` members, and enum cases. `@ExpoModule`, `@SharedObject`, `@Record`, and
-/// `@Union` read only the members written directly in the type body, so `@JS` members, record
-/// properties, and union cases in a `#if` clause are never bound and are not reported. An `@Event`
-/// expands on its own declaration, and the compiler reads enum cases itself.
+/// around types, `@Event` members, and enum cases. `@ExpoModule`, `@SharedObject`, `@Record`,
+/// `@Union`, and `@ViewProps` read only the members written directly in the type body, so `@JS`
+/// members, record properties, union cases, and view props in a `#if` clause are never bound and are
+/// not reported. An `@Event` expands on its own declaration, and the compiler reads enum cases itself.
 final class SurfaceVisitor: SyntaxVisitor {
   private let file: String
   private let platformResolver: PlatformResolver
@@ -24,6 +24,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   private(set) var records: [ExportedRecord] = []
   private(set) var enums: [ExportedEnum] = []
   private(set) var unions: [ExportedUnion] = []
+  private(set) var views: [ExportedView] = []
+  private(set) var viewProps: [ExportedViewProps] = []
 
   init(file: String, tree: SourceFileSyntax) {
     self.file = file
@@ -120,8 +122,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   }
 
   /// Routes a class or struct to the right collector based on which Expo macro it carries. A type
-  /// carrying none of them is ignored. `@Record` and `@ExpoModule`/`@SharedObject` are mutually
-  /// exclusive in practice, so the first match wins.
+  /// carrying none of them is ignored. The macros are mutually exclusive in practice, so the first
+  /// match wins.
   ///
   /// `name` is the declared name and `scope` the names of the types enclosing it. The reported `name`
   /// is qualified with the scope, while a default `jsName` is the declared name alone, as the macros
@@ -196,6 +198,44 @@ final class SurfaceVisitor: SyntaxVisitor {
         ExportedRecord(
           name: qualified,
           properties: collectRecordProperties(members),
+          accessLevel: accessLevel,
+          platforms: platforms,
+          file: file
+        )
+      )
+      return
+    }
+
+    // `@ExpoView` applies only to a class, and needs the props type as its generic argument.
+    if node.is(ClassDeclSyntax.self),
+      let attribute = attributes.firstAttribute(named: DetectedMacro.expoView.rawValue),
+      let propsType = genericArgumentType(of: attribute)
+    {
+      // Only a file-scope view is reported, as `scan-modules` reports only those.
+      guard scope.isEmpty else {
+        return
+      }
+      views.append(
+        ExportedView(
+          name: qualified,
+          jsName: name,
+          props: typeNode(from: propsType),
+          accessLevel: accessLevel,
+          platforms: platforms,
+          file: file
+        )
+      )
+      return
+    }
+
+    // `@ViewProps` applies only to a struct.
+    if node.is(StructDeclSyntax.self), attributes.firstAttribute(named: DetectedMacro.viewProps.rawValue) != nil {
+      let (props, events) = collectViewProps(members)
+      viewProps.append(
+        ExportedViewProps(
+          name: qualified,
+          props: props,
+          events: events,
           accessLevel: accessLevel,
           platforms: platforms,
           file: file
@@ -425,7 +465,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     // `@Record` reads only the properties written directly in the body, so `#if` is not looked into.
     for member in members {
       guard let varDecl = member.decl.as(VariableDeclSyntax.self),
-        !isExcludedRecordModifier(varDecl.modifiers)
+        !isExcludedByModifier(varDecl.modifiers)
       else {
         continue
       }
@@ -457,6 +497,77 @@ final class SurfaceVisitor: SyntaxVisitor {
       }
     }
     return properties
+  }
+
+  /// The value props and events of a `@ViewProps` struct, mirroring `validatedViewProps` in the macro:
+  /// every binding of a `var` or `let` that no modifier excludes, except a computed one. A property
+  /// with `willSet`/`didSet` or a `set` counts, as in the macro. A function-typed property is an event,
+  /// and every other one a value prop.
+  ///
+  /// The scan stays lenient where the macro reports an error, and leaves out only what can't be
+  /// described: a property whose type can't be determined, an optional function type, and an event
+  /// that doesn't return `Void`. A value prop the macro rejects for another reason, such as a `let` or
+  /// a missing default, is still reported.
+  private func collectViewProps(
+    _ members: MemberBlockItemListSyntax
+  ) -> (props: [ExportedViewProp], events: [ExportedViewEvent]) {
+    var props: [ExportedViewProp] = []
+    var events: [ExportedViewEvent] = []
+
+    // `@ViewProps` reads only the properties written directly in the body, so `#if` is not looked into.
+    for member in members {
+      guard let varDecl = member.decl.as(VariableDeclSyntax.self),
+        !isExcludedByModifier(varDecl.modifiers)
+      else {
+        continue
+      }
+      let platforms = platformResolver.platforms(of: varDecl)
+      guard !platforms.isEmpty else {
+        continue
+      }
+      for binding in varDecl.bindings {
+        if binding.accessorBlock != nil && !isSettable(binding: binding, isLet: false) {
+          continue
+        }
+        guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
+          continue
+        }
+        let name = ident.identifier.identifierName
+        let annotation = binding.typeAnnotation?.type
+
+        if let annotation, let functionType = viewEventFunctionType(of: annotation) {
+          // An optional function type and a non-`Void` result are errors in the macro.
+          guard !isOptionalEventType(annotation), isVoidEventReturn(functionType.returnClause.type) else {
+            continue
+          }
+          let parameters = functionType.parameters
+          events.append(
+            ExportedViewEvent(
+              name: name,
+              payload: parameters.count == 1 ? parameters.first.map { typeNode(from: $0.type) } : nil,
+              accessLevel: spelledAccessLevel(of: varDecl.modifiers),
+              platforms: platforms
+            )
+          )
+          continue
+        }
+
+        guard let type = valueTypeNode(annotation: annotation, initializer: binding.initializer?.value) else {
+          continue
+        }
+        props.append(
+          ExportedViewProp(
+            name: name,
+            type: type,
+            isOptional: annotation.map { isOptionalType($0) } ?? false,
+            defaultValue: binding.initializer?.value.trimmedDescription,
+            accessLevel: spelledAccessLevel(of: varDecl.modifiers),
+            platforms: platforms
+          )
+        )
+      }
+    }
+    return (props, events)
   }
 
   /// The declared cases of an enum, in source order. One `case` declaration can introduce several
@@ -706,6 +817,44 @@ private func isVoidEventReturn(_ type: TypeSyntax) -> Bool {
   return text == "Void" || text == "()" || text == "Swift.Void"
 }
 
+/// The function type a `@ViewProps` property declares, or `nil` when the type isn't a function.
+/// Unwraps parentheses, attributes (`@Sendable`), and the optional spellings `T?`, `T!`, and
+/// `Optional<T>`, like `underlyingFunctionType` in `ViewPropsMacro`.
+private func viewEventFunctionType(of type: TypeSyntax) -> FunctionTypeSyntax? {
+  if let functionType = type.as(FunctionTypeSyntax.self) {
+    return functionType
+  }
+  if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1, let only = tuple.elements.first {
+    return viewEventFunctionType(of: only.type)
+  }
+  if let attributed = type.as(AttributedTypeSyntax.self) {
+    return viewEventFunctionType(of: attributed.baseType)
+  }
+  if let optional = type.as(OptionalTypeSyntax.self) {
+    return viewEventFunctionType(of: optional.wrappedType)
+  }
+  if let implicitlyUnwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+    return viewEventFunctionType(of: implicitlyUnwrapped.wrappedType)
+  }
+  if let identifier = type.as(IdentifierTypeSyntax.self),
+    identifier.name.text == "Optional",
+    let argument = identifier.genericArgumentClause?.arguments.first,
+    case .type(let wrapped) = argument.argument
+  {
+    return viewEventFunctionType(of: wrapped)
+  }
+  return nil
+}
+
+/// True when a `@ViewProps` event is written as an optional (`(() -> Void)?`, also after attributes),
+/// which the macro rejects. Like the macros' `isOptionalType`, it reads only the outermost type.
+private func isOptionalEventType(_ type: TypeSyntax) -> Bool {
+  if let attributed = type.as(AttributedTypeSyntax.self) {
+    return isOptionalEventType(attributed.baseType)
+  }
+  return isOptionalType(type)
+}
+
 /// True if an `@Event` attribute lists the given option member (`@Event(.inline)` or
 /// `@Event("name", EventOptions.inline)`). Like `hasOption` in the macros, but without the array-literal
 /// branch, which `EventOptions...` doesn't accept.
@@ -836,9 +985,10 @@ private func isTypeLevel(_ modifiers: DeclModifierListSyntax) -> Bool {
   }
 }
 
-/// True when a modifier excludes a property from being a `@Record` field (`static`, `class`,
-/// `private`, `fileprivate`, `lazy`), mirroring `RecordMacro.isExcludedByModifier`.
-private func isExcludedRecordModifier(_ modifiers: DeclModifierListSyntax) -> Bool {
+/// True when a modifier excludes a property from being a `@Record` field or a `@ViewProps` prop
+/// (`static`, `class`, `private`, `fileprivate`, `lazy`), mirroring `isExcludedByModifier` in the
+/// macros.
+private func isExcludedByModifier(_ modifiers: DeclModifierListSyntax) -> Bool {
   modifiers.contains { modifier in
     switch modifier.name.tokenKind {
     case .keyword(.static), .keyword(.class), .keyword(.private), .keyword(.fileprivate), .keyword(.lazy):
@@ -963,13 +1113,14 @@ private func isOptionalType(_ type: TypeSyntax) -> Bool {
   return false
 }
 
-/// The first attribute whose spelled name matches `name`. A local copy of the macros' helper (the
-/// macro target can't be imported here).
+/// The first attribute whose spelled name matches `name`, without a generic argument clause, so
+/// `@ExpoView<CardProps>` matches `ExpoView`. A local copy of the macros' helper (the macro target
+/// can't be imported here).
 extension AttributeListSyntax {
   fileprivate func firstAttribute(named name: String) -> AttributeSyntax? {
     for element in self {
       if let attribute = element.as(AttributeSyntax.self),
-        attribute.attributeName.trimmedDescription == name
+        attributeName(of: attribute) == name
       {
         return attribute
       }

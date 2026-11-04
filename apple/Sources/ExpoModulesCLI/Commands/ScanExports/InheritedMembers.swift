@@ -83,7 +83,9 @@ extension ExportedSurface {
       sharedObjects: sharedObjects.map { merged($0, chain: []) },
       records: records,
       enums: enums,
-      unions: unions
+      unions: unions,
+      views: views,
+      viewProps: viewProps
     )
   }
 }

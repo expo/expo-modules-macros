@@ -2,7 +2,7 @@
 ///
 /// A `TypeNode` is parsed from one `TypeSyntax` in isolation, so at parse time a name like `Status` is
 /// just a name: the parser has no idea whether the scan will turn up an `@Record`, an `Enumerable`
-/// enum, or nothing at all. Resolution is therefore a second pass over the collected surface, run once
+/// enum, a `@ViewProps` struct, or nothing at all. Resolution is therefore a second pass over the collected surface, run once
 /// every file has been walked.
 ///
 /// A name is looked up the way Swift looks it up: from the type the use site is written in, outward to
@@ -54,6 +54,9 @@ struct RefIndex {
       // A union crosses as whichever alternative matched, so its category is only meaningful per
       // member. `object` is the honest coarse answer; the consumer reads `members` for the real shape.
       entries[union.name] = Entry(name: union.name, kind: .union, jsType: .object)
+    }
+    for props in surface.viewProps {
+      entries[props.name] = Entry(name: props.name, kind: .viewProps, jsType: .object)
     }
     for enumeration in surface.enums {
       entries[enumeration.name] = Entry(
@@ -212,6 +215,25 @@ extension ExportedSurface {
           var resolvedMember = member
           resolvedMember.type = member.type.resolvingRefs(using: index, in: union.name)
           return resolvedMember
+        }
+        return resolved
+      },
+      views: views.map { view in
+        var resolved = view
+        resolved.props = view.props.resolvingRefs(using: index, in: view.name)
+        return resolved
+      },
+      viewProps: viewProps.map { props in
+        var resolved = props
+        resolved.props = props.props.map { prop in
+          var resolvedProp = prop
+          resolvedProp.type = prop.type.resolvingRefs(using: index, in: props.name)
+          return resolvedProp
+        }
+        resolved.events = props.events.map { event in
+          var resolvedEvent = event
+          resolvedEvent.payload = event.payload?.resolvingRefs(using: index, in: props.name)
+          return resolvedEvent
         }
         return resolved
       }

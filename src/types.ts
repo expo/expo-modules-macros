@@ -54,7 +54,7 @@ export type TypeNode =
       kind: 'ref';
       typeof: JSType;
       name: string;
-      refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
+      refKind?: 'record' | 'sharedObject' | 'enum' | 'union' | 'viewProps';
     }
   /**
    * An unlabeled Swift tuple of two or more elements, `(A, B)`. It crosses as an array with one value per
@@ -374,6 +374,62 @@ export interface ExportedUnion extends ExportedAccess, ExportedAvailability {
   file: string;
 }
 
+/**
+ * An `@ExpoView` class: a native view bound to the `@ViewProps` struct in its generic argument. It is
+ * reported on its own rather than under a module.
+ */
+export interface ExportedView extends ExportedAccess, ExportedAvailability {
+  /** The Swift class name. Only a view declared at file scope is reported. */
+  name: string;
+  /** The name the view registers under. `@ExpoView` takes no name, so it is always the class name. */
+  jsName: string;
+  /**
+   * The props type: the generic argument of `@ExpoView<CardProps>`. A ref to a scanned `@ViewProps`
+   * struct has the `viewProps` ref kind.
+   */
+  props: TypeNode;
+  file: string;
+}
+
+/**
+ * One value prop of a `@ViewProps` struct: a stored property that isn't function-typed. It has no
+ * `required`: native code resets a prop that React leaves out to its default, so JS can always omit
+ * one.
+ */
+export interface ExportedViewProp extends ExportedAccess, ExportedAvailability {
+  name: string;
+  type: TypeNode;
+  /** Optional-typed. */
+  optional: boolean;
+  /** The initial value as Swift source text, absent when none is written. */
+  defaultValue?: string;
+}
+
+/**
+ * One event of a `@ViewProps` struct: a function-typed stored property. Its name is the React prop
+ * name as written, with no `on` prefix stripped, so it has no `jsName`.
+ */
+export interface ExportedViewEvent extends ExportedAccess, ExportedAvailability {
+  /** The Swift property name, e.g. `onTap`. */
+  name: string;
+  /**
+   * The type of the function's single parameter, absent when it takes none (`() -> Void`) or more
+   * than one.
+   */
+  payload?: TypeNode;
+}
+
+/** A `@ViewProps` struct: the props of one or more `@ExpoView` classes. */
+export interface ExportedViewProps extends ExportedAccess, ExportedAvailability {
+  /** The Swift struct name, qualified with the types it is nested in (`CardView.Props`). */
+  name: string;
+  /** The value props, in declaration order. */
+  props: ExportedViewProp[];
+  /** The events, in declaration order. */
+  events: ExportedViewEvent[];
+  file: string;
+}
+
 /** The exported types grouped by kind. */
 export interface ExportedSurface {
   modules: ExportedModule[];
@@ -381,6 +437,8 @@ export interface ExportedSurface {
   records: ExportedRecord[];
   enums: ExportedEnum[];
   unions: ExportedUnion[];
+  views: ExportedView[];
+  viewProps: ExportedViewProps[];
 }
 
 /** A `#if` condition the scan couldn't answer statically. */

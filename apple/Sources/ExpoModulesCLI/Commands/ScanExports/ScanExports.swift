@@ -26,11 +26,11 @@ extension Scanner {
   }
 }
 
-/// Scans `paths` for `@ExpoModule`, `@SharedObject`, `@Record`, and `@Union` types plus `Enumerable`
-/// enums, and returns their exported surface plus the run's stats. Separate from the public entry so
-/// tests can drive it without argv/stdout.
+/// Scans `paths` for `@ExpoModule`, `@SharedObject`, `@Record`, `@Union`, `@ExpoView`, and
+/// `@ViewProps` types plus `Enumerable` enums, and returns their exported surface plus the run's stats.
+/// Separate from the public entry so tests can drive it without argv/stdout.
 ///
-/// The pre-filter omits `@Event`: an event only declares a member of one of these three types, so a
+/// The pre-filter omits `@Event`: an event only declares a member of a module or shared object, so a
 /// file containing one already matches on its enclosing type. It does include `Enumerable`, which is a
 /// conformance rather than an attribute: an enum is commonly declared in a file of its own, which no
 /// macro attribute would match.
@@ -40,10 +40,12 @@ func scanExports(paths: [String]) -> ScanExportsResult {
   var records: [ExportedRecord] = []
   var enums: [ExportedEnum] = []
   var unions: [ExportedUnion] = []
+  var views: [ExportedView] = []
+  var viewProps: [ExportedViewProps] = []
 
   let stats = scanFiles(
     paths: paths,
-    macros: [.expoModule, .sharedObject, .record, .union],
+    macros: [.expoModule, .sharedObject, .record, .union, .expoView, .viewProps],
     conformances: [enumerableConformanceName]
   ) { source, file in
     let tree = Parser.parse(source: source)
@@ -54,6 +56,8 @@ func scanExports(paths: [String]) -> ScanExportsResult {
     records.append(contentsOf: visitor.records)
     enums.append(contentsOf: visitor.enums)
     unions.append(contentsOf: visitor.unions)
+    views.append(contentsOf: visitor.views)
+    viewProps.append(contentsOf: visitor.viewProps)
   }
 
   // Refs resolve only once every file has been walked: a type parsed in one file may name a type
@@ -64,7 +68,9 @@ func scanExports(paths: [String]) -> ScanExportsResult {
     sharedObjects: sharedObjects,
     records: records,
     enums: enums,
-    unions: unions
+    unions: unions,
+    views: views,
+    viewProps: viewProps
   ).resolvingRefs().mergingInheritedMembers()
 
   return ScanExportsResult(

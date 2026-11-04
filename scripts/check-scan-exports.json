@@ -823,6 +823,169 @@
           }
         ]
       }
+    ],
+    "viewProps": [
+      {
+        "accessLevel": "public",
+        "events": [
+          {
+            "name": "onStatusChange",
+            "payload": {
+              "kind": "ref",
+              "name": "Status",
+              "refKind": "enum",
+              "typeof": "string"
+            },
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          },
+          {
+            "name": "onReady",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          }
+        ],
+        "file": "PlayerModule.swift",
+        "name": "PlayerViewProps",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "props": [
+          {
+            "defaultValue": ".high",
+            "name": "quality",
+            "optional": false,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "type": {
+              "kind": "ref",
+              "name": "Quality",
+              "refKind": "enum",
+              "typeof": "number"
+            }
+          },
+          {
+            "name": "title",
+            "optional": true,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "type": {
+              "kind": "optional",
+              "typeof": "string",
+              "wrapped": {
+                "kind": "primitive",
+                "name": "String",
+                "typeof": "string"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "views": [
+      {
+        "accessLevel": "public",
+        "file": "PlayerModule.swift",
+        "jsName": "PlayerView",
+        "name": "PlayerView",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "props": {
+          "kind": "ref",
+          "name": "PlayerViewProps",
+          "refKind": "viewProps",
+          "typeof": "object"
+        }
+      }
     ]
   },
   "filesScanned": 2,

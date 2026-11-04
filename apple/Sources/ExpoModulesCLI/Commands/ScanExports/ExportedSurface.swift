@@ -1,7 +1,8 @@
-/// The deep-scan surface: the full JS-exported shape of every `@ExpoModule`, `@SharedObject`, and
-/// `@Record` type, with the per-member detail a TypeScript type generator needs. Read syntactically
-/// (like the macros): each boundary type becomes a structured `TypeNode` tree so the consumer walks a
-/// tagged tree rather than re-parsing Swift type syntax.
+/// The deep-scan surface: the full JS-exported shape of every `@ExpoModule`, `@SharedObject`,
+/// `@Record`, `@Union`, `@ExpoView`, and `@ViewProps` type and every `Enumerable` enum, with the
+/// per-member detail a TypeScript type generator needs. Read syntactically (like the macros): each
+/// boundary type becomes a structured `TypeNode` tree so the consumer walks a tagged tree rather than
+/// re-parsing Swift type syntax.
 ///
 /// Every declaration and member carries the `platforms` that build it, and the ones that can be
 /// written with an access modifier carry the `accessLevel` they spell. A declaration no platform
@@ -460,6 +461,92 @@ struct ExportedUnion: Encodable, Equatable {
   let file: String
 }
 
+/// An `@ExpoView` class: a native view bound to the `@ViewProps` struct in its generic argument. It is
+/// reported on its own rather than under a module, because core reaches it through its `AnyNativeView`
+/// conformance.
+struct ExportedView: Encodable, Equatable {
+  /// The Swift class name. Only a view declared at file scope is reported, as in `scan-modules`.
+  let name: String
+
+  /// The name the view registers under. `@ExpoView` takes no name, so it is always the class name.
+  let jsName: String
+
+  /// The props type: the generic argument of `@ExpoView<CardProps>`. A ref to a scanned `@ViewProps`
+  /// struct has the `viewProps` ref kind. A class without the generic argument is not reported,
+  /// because the macro rejects it.
+  var props: TypeNode
+
+  /// The spelled access modifier, or `nil` when none is written.
+  let accessLevel: String?
+
+  let platforms: [ExportedPlatform]
+
+  let file: String
+}
+
+/// One value prop of a `@ViewProps` struct: a stored property that isn't function-typed. Like
+/// `ExportedRecordProperty`, but with no `required`: core resets a prop that React leaves out to its
+/// default, so JS can always omit one.
+struct ExportedViewProp: Encodable, Equatable {
+  let name: String
+
+  /// The annotated type, or the type of a literal initial value. A property with neither is not
+  /// reported, because the macro rejects it.
+  var type: TypeNode
+
+  /// Optional-typed. Encoded as `optional`.
+  let isOptional: Bool
+
+  /// The initial value as source text, or `nil` when none is written.
+  let defaultValue: String?
+
+  /// The spelled access modifier, or `nil` when none is written. Never `private` or `fileprivate`,
+  /// since those exclude a property from the props.
+  let accessLevel: String?
+
+  let platforms: [ExportedPlatform]
+
+  private enum CodingKeys: String, CodingKey {
+    case name, type, defaultValue, accessLevel, platforms
+    case isOptional = "optional"
+  }
+}
+
+/// One event of a `@ViewProps` struct: a function-typed stored property. Its name is the React prop
+/// name as written, with no `on` prefix stripped, so it carries no `jsName`.
+struct ExportedViewEvent: Encodable, Equatable {
+  /// The Swift property name, e.g. `onTap`.
+  let name: String
+
+  /// The type of the function's single parameter, or `nil` when it takes none (`() -> Void`) or more
+  /// than one.
+  var payload: TypeNode?
+
+  /// The spelled access modifier, or `nil` when none is written.
+  let accessLevel: String?
+
+  let platforms: [ExportedPlatform]
+}
+
+/// A `@ViewProps` struct: the props of one or more `@ExpoView` classes.
+struct ExportedViewProps: Encodable, Equatable {
+  /// The Swift struct name, qualified with the types it is nested in (`CardView.Props`).
+  let name: String
+
+  /// The value props, in declaration order.
+  var props: [ExportedViewProp]
+
+  /// The events, in declaration order.
+  var events: [ExportedViewEvent]
+
+  /// The spelled access modifier, or `nil` when none is written.
+  let accessLevel: String?
+
+  let platforms: [ExportedPlatform]
+
+  let file: String
+}
+
 /// The exported types grouped by kind, nested under `exports` in the result so the surface is one
 /// self-contained object separate from `stats`.
 struct ExportedSurface: Encodable, Equatable {
@@ -468,6 +555,8 @@ struct ExportedSurface: Encodable, Equatable {
   let records: [ExportedRecord]
   let enums: [ExportedEnum]
   let unions: [ExportedUnion]
+  let views: [ExportedView]
+  let viewProps: [ExportedViewProps]
 }
 
 /// How an `@Event` is dispatched to JavaScript, from its option. Mirrors `EventDispatch` in the macros.
@@ -488,7 +577,8 @@ enum ExportedEventDispatch: String, Encodable, Equatable {
 /// `defaultValue`, and replaces `constructorParameters` with `initializer`; version 9 adds the
 /// `sharedRef` type kind and the `sharedRef` of a shared object; version 10 adds the `tuple` and `object` type kinds (named after a tuple alias)
 /// and resolves the tuple type aliases declared in `@ExpoModule` and `@SharedObject` classes; version 11
-/// replaces the `sync` flag of an event with `dispatch`.
+/// replaces the `sync` flag of an event with `dispatch`. A new field that older consumers can ignore,
+/// such as `views` and `viewProps`, doesn't change the version.
 let scanExportsSchemaVersion = 11
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from

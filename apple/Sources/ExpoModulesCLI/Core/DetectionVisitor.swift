@@ -167,13 +167,19 @@ func attributeName(of attribute: AttributeSyntax) -> String {
 /// The first generic argument of the attribute as written, e.g. `@ExpoView<CardProps>` -> "CardProps".
 /// Returns `nil` when the attribute has no generic argument clause.
 private func genericArgument(of attribute: AttributeSyntax) -> String? {
+  return genericArgumentType(of: attribute)?.trimmedDescription
+}
+
+/// The first generic argument of the attribute, `CardProps` in `@ExpoView<CardProps>`, or `nil` when
+/// the attribute has no generic argument clause.
+func genericArgumentType(of attribute: AttributeSyntax) -> TypeSyntax? {
   guard let identifier = attribute.attributeName.as(IdentifierTypeSyntax.self),
     let first = identifier.genericArgumentClause?.arguments.first,
     case .type(let type) = first.argument
   else {
     return nil
   }
-  return type.trimmedDescription
+  return type
 }
 
 /// Every argument passed to the attribute, in source order, each as a label (or `nil` when

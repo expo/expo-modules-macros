@@ -81,6 +81,17 @@ public final class Player: SharedRef<Data> {
   @JS
   static func supportedFormats() -> [String] { [] }
 }
+
+@ViewProps
+public struct PlayerViewProps {
+  var quality: Quality = .high
+  var title: String?
+  var onStatusChange: (Status) -> Void
+  var onReady: () -> Void
+}
+
+@ExpoView<PlayerViewProps>
+public final class PlayerView: ExpoNativeView {}
 `,
   },
   'Types/Models.swift': {
