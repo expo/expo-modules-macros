@@ -487,6 +487,9 @@ private struct ViewProp {
   /// The property's declared type, verbatim, or the type of its literal initial value. `_decode`
   /// doesn't spell it: the decoded type is inferred from the assignment.
   let type: String
+  /// Whether the prop is computed with a `mutating get`, which `_decode` can only read from a
+  /// mutable value.
+  let hasMutatingGetter: Bool
 
   /// The name with any escaping backticks removed: the JS-visible key, so the enum's raw value and
   /// `_eventNames` both read `"default"`, never `` "`default`" ``.
@@ -652,7 +655,7 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       // Only stored storage takes an initial value; a computed prop with a setter needs none.
       let needsInitialValue =
         binding.initializer == nil && isStoredBinding(binding) && !declaresUsableInitializer
-      let prop = ViewProp(name: name, type: resolvedType)
+      let prop = ViewProp(name: name, type: resolvedType, hasMutatingGetter: hasMutatingGetter(binding))
       if let eventFunctionType {
         // An event is dispatched to JavaScript, which can't hand a value back to the caller.
         if !returnsVoid(eventFunctionType) {
@@ -765,13 +768,35 @@ private func unsetPrivatePropertyDiagnostics(of varDecl: VariableDeclSyntax) -> 
   }
 }
 
-/// True if the function type returns `Void`, written as `Void`, `Swift.Void` or `()`.
+/// True if the function type returns `Void`, written as `Void`, `Swift.Void` or `()`, in any number
+/// of enclosing parentheses, such as `(Void)` or `((()))`.
 private func returnsVoid(_ functionType: FunctionTypeSyntax) -> Bool {
-  let returnType = functionType.returnClause.type
-  if let tuple = returnType.as(TupleTypeSyntax.self) {
-    return tuple.elements.isEmpty
+  return isVoidType(functionType.returnClause.type)
+}
+
+private func isVoidType(_ type: TypeSyntax) -> Bool {
+  if let tuple = type.as(TupleTypeSyntax.self) {
+    if tuple.elements.isEmpty {
+      return true
+    }
+    // `(T)` is `T`. A label makes it a tuple, which Swift rejects with a single element anyway.
+    if tuple.elements.count == 1, let only = tuple.elements.first, only.firstName == nil {
+      return isVoidType(only.type)
+    }
+    return false
   }
-  return ["Void", "Swift.Void"].contains(returnType.trimmedDescription)
+  return ["Void", "Swift.Void"].contains(type.trimmedDescription)
+}
+
+/// True if the binding is computed with a `mutating get`.
+private func hasMutatingGetter(_ binding: PatternBindingSyntax) -> Bool {
+  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
+    return false
+  }
+  return accessors.contains { accessor in
+    accessor.accessorSpecifier.tokenKind == .keyword(.get)
+      && accessor.modifiers.contains { $0.name.tokenKind == .keyword(.mutating) }
+  }
 }
 
 /// A closure literal that takes `arity` arguments, ignores them and does nothing.
@@ -909,10 +934,14 @@ private func eventNamesConstant(eventProps: [ViewProp]) -> DeclSyntax {
 /// so that a prop named like a parameter (`value`, `runtime`) isn't shadowed by it.
 ///
 /// With no value prop the body is empty: `PropName` is uninhabited, so the function is never called.
+///
+/// `defaults` is a `var` only when a prop has a `mutating get`, which can't be read from a constant.
+/// Otherwise it's a `let`, so the common case gets no "never mutated" warning.
 private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
   if valueProps.isEmpty {
     return ""
   }
+  let defaultsSpecifier = valueProps.contains(where: \.hasMutatingGetter) ? "var" : "let"
   let resetCases =
     valueProps
     .map { "      case .\($0.name):\n        self.\($0.name) = defaults.\($0.name)" }
@@ -926,7 +955,7 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
   return """
 
         if value.isNull() || value.isUndefined() {
-          let defaults = Self()
+          \(defaultsSpecifier) defaults = Self()
           switch name {
     \(resetCases)
           }

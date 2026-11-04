@@ -3458,4 +3458,187 @@ struct ViewPropsMacroTests {
         """
     )
   }
+
+  @Test
+  func `An event that returns Void in parentheses is accepted`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> (Void)
+        var onClose: () -> (())
+        var onMove: (Int) -> ((Void))
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> (Void)
+          var onClose: () -> (())
+          var onMove: (Int) -> ((Void))
+
+          public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          public static let _eventNames: [String] = ["onTap", "onClose", "onMove"]
+
+          public typealias Diff = PropsDiff<Self>
+
+          public init() {
+            self.onTap = {
+            }
+            self.onClose = {
+            }
+            self.onMove = { _ in
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            return []
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An event that returns a value in parentheses gets a fix-it for the whole return type`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> (Bool)
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> (Bool)
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' must return Void, because an event is sent to JavaScript, which can't return a value. Change the return type '(Bool)' to 'Void'",
+          line: 3,
+          column: 20,
+          fixIts: [FixItSpec(message: "Change the return type to 'Void'")]
+        )
+      ],
+      applyFixIts: ["Change the return type to 'Void'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A computed prop with a mutating getter is reset from a mutable default`() {
+    // A mutating getter can't be read from a `let` constant.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var storage: Int = 0
+        var size: Int {
+          mutating get { storage }
+          set { storage = newValue }
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var storage: Int = 0
+          var size: Int {
+            mutating get { storage }
+            set { storage = newValue }
+          }
+
+          public enum PropName: String, CaseIterable {
+            case storage
+            case size
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let storage = PropSet(rawValue: 1 << 0)
+            public static let size = PropSet(rawValue: 1 << 1)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b11)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .storage:
+              return .storage
+            case .size:
+              return .size
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              var defaults = Self()
+              switch name {
+              case .storage:
+                self.storage = defaults.storage
+              case .size:
+                self.size = defaults.size
+              }
+              return
+            }
+            switch name {
+            case .storage:
+              self.storage = try _decodeViewProp(value, in: runtime)
+            case .size:
+              self.size = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
 }
