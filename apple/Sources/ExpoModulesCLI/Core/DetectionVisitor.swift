@@ -156,13 +156,24 @@ private func accessLevel(of modifiers: DeclModifierListSyntax) -> String {
   return "internal"
 }
 
-/// The attribute's name without a generic argument clause, so `@ExpoView<CardProps>` is `ExpoView`.
+/// The attribute's name without a generic argument clause, so `@ExpoView<CardProps>` is `ExpoView`. A
+/// name qualified with the module that declares the macros is read without the module, so
+/// `@ExpoModulesCore.ExpoView<CardProps>` is `ExpoView` too.
 func attributeName(of attribute: AttributeSyntax) -> String {
   if let identifier = attribute.attributeName.as(IdentifierTypeSyntax.self) {
     return identifier.name.text
   }
+  if let member = attribute.attributeName.as(MemberTypeSyntax.self),
+    member.baseType.as(IdentifierTypeSyntax.self)?.name.text == macrosModuleName
+  {
+    return member.name.text
+  }
   return attribute.attributeName.trimmedDescription
 }
+
+/// The module that declares the macros, which an attribute may be qualified with:
+/// `@ExpoModulesCore.ExpoView<CardProps>`.
+let macrosModuleName = "ExpoModulesCore"
 
 /// The first generic argument of the attribute as written, e.g. `@ExpoView<CardProps>` -> "CardProps".
 /// Returns `nil` when the attribute has no generic argument clause.
@@ -170,13 +181,14 @@ private func genericArgument(of attribute: AttributeSyntax) -> String? {
   return genericArgumentType(of: attribute)?.trimmedDescription
 }
 
-/// The first generic argument of the attribute, `CardProps` in `@ExpoView<CardProps>`, or `nil` when
-/// the attribute has no generic argument clause.
+/// The first generic argument of the attribute, `CardProps` in `@ExpoView<CardProps>` and in
+/// `@ExpoModulesCore.ExpoView<CardProps>`, or `nil` when the attribute has no generic argument clause.
+/// Like `genericArgument(of:)` in `ExpoViewMacro`.
 func genericArgumentType(of attribute: AttributeSyntax) -> TypeSyntax? {
-  guard let identifier = attribute.attributeName.as(IdentifierTypeSyntax.self),
-    let first = identifier.genericArgumentClause?.arguments.first,
-    case .type(let type) = first.argument
-  else {
+  let clause =
+    attribute.attributeName.as(IdentifierTypeSyntax.self)?.genericArgumentClause
+    ?? attribute.attributeName.as(MemberTypeSyntax.self)?.genericArgumentClause
+  guard let first = clause?.arguments.first, case .type(let type) = first.argument else {
     return nil
   }
   return type

@@ -241,14 +241,17 @@ extension ExportedSurface {
   }
 
   /// This surface with the props and events of each view's `@ViewProps` struct copied into the view.
-  /// The struct is looked up from the view like a ref, so it may be declared in another file or nested
-  /// (`CardView.Props`). A found struct gives the view its qualified name as `propsType`. A view whose
-  /// struct the scan doesn't declare keeps `props` and `events` at `nil`.
+  /// The struct is looked up from the view like a ref, by its name without generic arguments, so it
+  /// may be declared in another file or nested (`CardView.Props`). A found struct gives the view its
+  /// qualified name as `propsType`. A view whose struct the scan doesn't declare keeps `props` and
+  /// `events` at `nil`, and `propsType` as written.
+  ///
+  /// A struct declared more than once, in `#if` branches, contributes the props and events of each
+  /// declaration whose platforms overlap the platforms of the view, as a superclass does in
+  /// `mergingInheritedMembers()`. Each prop and event keeps its own `platforms`. A view that builds on
+  /// none of those platforms is treated as one whose struct the scan doesn't declare.
   func joiningViewProps(_ declarations: [ViewPropsDeclaration]) -> ExportedSurface {
-    var entries: [String: ViewPropsDeclaration] = [:]
-    for declaration in declarations {
-      entries[declaration.name] = declaration
-    }
+    let entries = Dictionary(grouping: declarations, by: \.name)
     return ExportedSurface(
       modules: modules,
       sharedObjects: sharedObjects,
@@ -256,13 +259,19 @@ extension ExportedSurface {
       enums: enums,
       unions: unions,
       views: views.map { view in
-        guard let declaration = scopedLookup(view.propsType, in: view.name, entries: entries) else {
+        let platforms = Set(view.platforms.map(\.name))
+        guard let name = view.propsTypeLookupName,
+          let variants = scopedLookup(name, in: view.name, entries: entries)?.filter({ declaration in
+            declaration.platforms.contains { platforms.contains($0.name) }
+          }),
+          let first = variants.first
+        else {
           return view
         }
         var joined = view
-        joined.propsType = declaration.name
-        joined.props = declaration.props
-        joined.events = declaration.events
+        joined.propsType = first.name
+        joined.props = variants.flatMap(\.props)
+        joined.events = variants.flatMap(\.events)
         return joined
       }
     )

@@ -92,6 +92,27 @@ struct DetectionVisitorTests {
   }
 
   @Test
+  func `Detects an attribute qualified with ExpoModulesCore, with its generic argument`() throws {
+    let detections = detect(
+      """
+      @ExpoModulesCore.ExpoView<CardProps>
+      public final class CardView: ExpoNativeView {}
+
+      @ExpoModulesCore.ExpoModule("Cards")
+      public final class CardModule {}
+
+      // Only the module that declares the macros qualifies them.
+      @Other.ExpoView<CardProps>
+      public final class OtherView: ExpoNativeView {}
+      """
+    )
+    #expect(detections.map(\.name) == ["CardView", "CardModule"])
+    #expect(detections.map(\.macro) == [.expoView, .expoModule])
+    #expect(detections.first?.genericArgument == "CardProps")
+    #expect(detections.last?.jsName == "Cards")
+  }
+
+  @Test
   func `Detects a top-level @ViewProps struct`() {
     let detections = detect(
       """
@@ -287,6 +308,14 @@ struct MacroPrefilterTests {
     #expect(mightContainMacro(in: "@Union\nenum Source { case text(String) }"))
     #expect(mightContainMacro(in: "@ExpoView<CardProps>\nclass CardView: ExpoNativeView {}"))
     #expect(mightContainMacro(in: "@ViewProps\nstruct CardProps {}"))
+  }
+
+  @Test
+  func `Recognizes each attribute qualified with ExpoModulesCore`() {
+    #expect(mightContainMacro(in: "@ExpoModulesCore.ExpoView<CardProps>\nclass CardView: ExpoNativeView {}"))
+    #expect(mightContainMacro(in: "@ExpoModulesCore.ExpoModule\nclass M {}"))
+    // A bare name without the `@` isn't matched, so a file that only mentions a view class isn't parsed.
+    #expect(!mightContainMacro(in: "class CardView: ExpoView {}\nlet module = ExpoModulesCore.self"))
   }
 
   @Test
@@ -604,6 +633,17 @@ struct ScanTests {
       #expect(result.views.first?.platforms == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
       // The `@ViewProps` file isn't parsed: the modules pre-filter covers only the class macros.
       #expect(result.stats.filesParsed == 2)
+    }
+  }
+
+  @Test
+  func `scanModules reports a view whose attribute is qualified with ExpoModulesCore`() throws {
+    try withTree([
+      ("CardView.swift", "@ExpoModulesCore.ExpoView<CardProps>\npublic final class CardView: ExpoNativeView {}")
+    ]) { result in
+      #expect(result.views.map(\.name) == ["CardView"])
+      // The pre-filter admits the qualified spelling.
+      #expect(result.stats.filesParsed == 1)
     }
   }
 

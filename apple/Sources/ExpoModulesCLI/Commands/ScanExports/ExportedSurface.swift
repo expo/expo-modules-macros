@@ -471,17 +471,22 @@ struct ExportedView: Encodable, Equatable {
   /// The name the view registers under. `@ExpoView` takes no name, so it is always the class name.
   let jsName: String
 
-  /// The props type: the generic argument of `@ExpoView<CardProps>`, as written, or the qualified name
-  /// of the scanned `@ViewProps` struct it names (`CardView.Props`). A class without the generic
-  /// argument is not reported, because the macro rejects it.
+  /// The props type: the generic argument of `@ExpoView<CardProps>`, as written without backticks, or
+  /// the qualified name of the scanned `@ViewProps` struct it names (`CardView.Props`). A class without
+  /// the generic argument is not reported, because the macro rejects it.
   var propsType: String
 
+  /// The name `propsType` is looked up under: its spelling without generic arguments, or `nil` when it
+  /// isn't a plain or qualified type name. Not encoded.
+  var propsTypeLookupName: String? = nil
+
   /// The value props of the `@ViewProps` struct, or `nil` when the scan declares no struct named
-  /// `propsType`. A struct shared by several views is copied into each of them.
+  /// `propsType` on a platform of the view. A struct shared by several views is copied into each of
+  /// them, and a struct declared in several `#if` branches contributes the props of each declaration
+  /// whose platforms overlap the view's.
   var props: [ExportedViewProp]? = nil
 
-  /// The events of the `@ViewProps` struct, or `nil` when the scan declares no struct named
-  /// `propsType`.
+  /// The events of the `@ViewProps` struct, or `nil` when `props` is `nil`.
   var events: [ExportedViewEvent]? = nil
 
   /// The spelled access modifier, or `nil` when none is written.
@@ -490,6 +495,10 @@ struct ExportedView: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 
   let file: String
+
+  private enum CodingKeys: String, CodingKey {
+    case name, jsName, propsType, props, events, accessLevel, platforms, file
+  }
 }
 
 /// One value prop of a `@ViewProps` struct: a stored property that isn't function-typed. Like
@@ -502,9 +511,6 @@ struct ExportedViewProp: Encodable, Equatable {
   /// reported, because the macro rejects it.
   var type: TypeNode
 
-  /// Optional-typed. Encoded as `optional`.
-  let isOptional: Bool
-
   /// The initial value as source text, or `nil` when none is written.
   let defaultValue: String?
 
@@ -514,9 +520,28 @@ struct ExportedViewProp: Encodable, Equatable {
 
   let platforms: [ExportedPlatform]
 
+  /// Optional-typed, read from `type`, so every spelling of an optional counts (`T?`, `T!`,
+  /// `Optional<T>`, `(T?)`). Encoded as `optional`.
+  var isOptional: Bool {
+    if case .optional = type {
+      return true
+    }
+    return false
+  }
+
   private enum CodingKeys: String, CodingKey {
     case name, type, defaultValue, accessLevel, platforms
     case isOptional = "optional"
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(name, forKey: .name)
+    try container.encode(type, forKey: .type)
+    try container.encode(isOptional, forKey: .isOptional)
+    try container.encodeIfPresent(defaultValue, forKey: .defaultValue)
+    try container.encodeIfPresent(accessLevel, forKey: .accessLevel)
+    try container.encode(platforms, forKey: .platforms)
   }
 }
 
@@ -547,6 +572,9 @@ struct ViewPropsDeclaration: Equatable {
 
   /// The events, in declaration order.
   let events: [ExportedViewEvent]
+
+  /// The platforms that build the struct, to match it with the views that build on them.
+  let platforms: [ExportedPlatform]
 }
 
 /// The exported types grouped by kind, nested under `exports` in the result so the surface is one

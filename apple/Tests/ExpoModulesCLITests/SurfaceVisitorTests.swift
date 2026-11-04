@@ -918,6 +918,44 @@ struct ViewSurfaceTests {
   }
 
   @Test
+  func `Reports a view whose attribute is qualified with ExpoModulesCore`() {
+    let visitor = surface(
+      """
+      @ExpoModulesCore.ExpoView<CardProps>
+      final class CardView: ExpoNativeView {}
+
+      @ExpoModulesCore.ViewProps
+      struct CardProps {
+        var title: String = ""
+      }
+      """
+    )
+
+    #expect(visitor.views.map(\.propsType) == ["CardProps"])
+    #expect(visitor.viewProps.map(\.name) == ["CardProps"])
+  }
+
+  @Test
+  func `Reads isOptional from the type, so every spelling of an optional counts`() throws {
+    let props = try #require(
+      surface(
+        """
+        @ViewProps
+        struct CardProps {
+          var a: Int? = nil
+          var b: (Int?) = nil
+          var c: Optional<Int> = nil
+          var d: Int! = nil
+          var e: Int = 0
+        }
+        """
+      ).viewProps.first
+    )
+
+    #expect(props.props.map(\.isOptional) == [true, true, true, true, false])
+  }
+
+  @Test
   func `Reports only file-scope views with a props type`() {
     let visitor = surface(
       """
@@ -1672,6 +1710,89 @@ struct RefResolutionTests {
     let json = String(decoding: data, as: UTF8.self)
     #expect(!json.contains("UnusedProps"))
     #expect(!json.contains("viewProps"))
+  }
+
+  @Test
+  func `Keeps the generic arguments of a props type the scan doesn't declare`() throws {
+    let surface = try resolvedSurface(
+      """
+      @ExpoView<ExternalProps<Int>>
+      final class ExternalView: ExpoNativeView {}
+
+      @ExpoView<`Props`>
+      final class BacktickedView: ExpoNativeView {}
+      """
+    )
+
+    #expect(surface.views.map(\.propsType) == ["ExternalProps<Int>", "Props"])
+    #expect(surface.views.map(\.props) == [nil, nil])
+    // The lookup name isn't encoded.
+    let data = try JSONEncoder().encode(surface.views)
+    #expect(!String(decoding: data, as: UTF8.self).contains("propsTypeLookupName"))
+  }
+
+  @Test
+  func `Merges the props of a props struct declared in #if branches, by the view's platforms`() throws {
+    let surface = try resolvedSurface(
+      """
+      #if os(iOS)
+      @ViewProps
+      struct CardProps {
+        var pictureInPicture: Bool = false
+        var onEnterPictureInPicture: () -> Void
+      }
+      #else
+      @ViewProps
+      struct CardProps {
+        var title: String = ""
+      }
+      #endif
+
+      @ExpoView<CardProps>
+      final class CardView: ExpoNativeView {}
+
+      #if os(iOS)
+      @ExpoView<CardProps>
+      final class PhoneCardView: ExpoNativeView {}
+      #endif
+
+      #if os(tvOS)
+      @ExpoView<CardProps>
+      final class TVCardView: ExpoNativeView {}
+      #endif
+      """
+    )
+    let views = Dictionary(uniqueKeysWithValues: surface.views.map { ($0.name, $0) })
+
+    // An unconditional view gets the members of both declarations, each with its own platforms.
+    let card = try #require(views["CardView"])
+    #expect(card.props?.map(\.name) == ["pictureInPicture", "title"])
+    #expect(card.props?.map { $0.platforms.map(\.name) } == [["iOS"], ["macOS", "tvOS", "watchOS", "visionOS"]])
+    #expect(card.events?.map(\.name) == ["onEnterPictureInPicture"])
+
+    // A view on one platform gets only the declaration that builds there.
+    #expect(views["PhoneCardView"]?.props?.map(\.name) == ["pictureInPicture"])
+    #expect(views["PhoneCardView"]?.events?.map(\.name) == ["onEnterPictureInPicture"])
+    #expect(views["TVCardView"]?.props?.map(\.name) == ["title"])
+    #expect(views["TVCardView"]?.events == [])
+  }
+
+  @Test
+  func `Reports a view qualified with ExpoModulesCore through scan-exports`() throws {
+    let surface = try resolvedSurface(
+      """
+      @ExpoModulesCore.ExpoView<CardProps>
+      final class CardView: ExpoNativeView {}
+
+      @ExpoModulesCore.ViewProps
+      struct CardProps {
+        var title: String = ""
+      }
+      """
+    )
+
+    #expect(surface.views.map(\.name) == ["CardView"])
+    #expect(surface.views.first?.props?.map(\.name) == ["title"])
   }
 
   @Test

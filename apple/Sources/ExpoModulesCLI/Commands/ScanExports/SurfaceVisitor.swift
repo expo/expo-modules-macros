@@ -223,7 +223,8 @@ final class SurfaceVisitor: SyntaxVisitor {
         ExportedView(
           name: qualified,
           jsName: name,
-          propsType: spellingWithoutGenericArguments(of: propsType) ?? propsType.trimmedDescription,
+          propsType: String(propsType.trimmedDescription.filter { $0 != "`" }),
+          propsTypeLookupName: spellingWithoutGenericArguments(of: propsType),
           accessLevel: accessLevel,
           platforms: platforms,
           file: file
@@ -235,7 +236,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     // `@ViewProps` applies only to a struct.
     if node.is(StructDeclSyntax.self), attributes.firstAttribute(named: DetectedMacro.viewProps.rawValue) != nil {
       let (props, events) = collectViewProps(members)
-      viewProps.append(ViewPropsDeclaration(name: qualified, props: props, events: events))
+      viewProps.append(ViewPropsDeclaration(name: qualified, props: props, events: events, platforms: platforms))
     }
   }
 
@@ -554,7 +555,6 @@ final class SurfaceVisitor: SyntaxVisitor {
           ExportedViewProp(
             name: name,
             type: type,
-            isOptional: annotation.map { isOptionalType($0) } ?? false,
             defaultValue: binding.initializer?.value.trimmedDescription,
             accessLevel: spelledAccessLevel(of: varDecl.modifiers),
             platforms: platforms
@@ -1108,9 +1108,9 @@ private func isOptionalType(_ type: TypeSyntax) -> Bool {
   return false
 }
 
-/// The first attribute whose spelled name matches `name`, without a generic argument clause, so
-/// `@ExpoView<CardProps>` matches `ExpoView`. A local copy of the macros' helper (the macro target
-/// can't be imported here).
+/// The first attribute whose name matches `name` as `attributeName(of:)` reads it, so
+/// `@ExpoView<CardProps>` and `@ExpoModulesCore.ExpoView<CardProps>` match `ExpoView`. A local copy of
+/// the macros' helper (the macro target can't be imported here).
 extension AttributeListSyntax {
   fileprivate func firstAttribute(named name: String) -> AttributeSyntax? {
     for element in self {

@@ -382,7 +382,7 @@ export interface ExportedUnion extends ExportedAccess, ExportedAvailability {
 export interface ExportedViewProp extends ExportedAccess, ExportedAvailability {
   name: string;
   type: TypeNode;
-  /** Optional-typed. */
+  /** Optional-typed: true exactly when `type` is an `optional` node. */
   optional: boolean;
   /** The initial value as Swift source text, absent when none is written. */
   defaultValue?: string;
@@ -412,19 +412,19 @@ export interface ExportedView extends ExportedAccess, ExportedAvailability {
   /** The name the view registers under. `@ExpoView` takes no name, so it is always the class name. */
   jsName: string;
   /**
-   * The props type: the generic argument of `@ExpoView<CardProps>`, as written, or the qualified name
-   * of the scanned `@ViewProps` struct it names (`CardView.Props`).
+   * The props type: the generic argument of `@ExpoView<CardProps>`, as written without backticks
+   * (`ExternalProps<Int>`), or the qualified name of the scanned `@ViewProps` struct it names
+   * (`CardView.Props`).
    */
   propsType: string;
   /**
    * The value props of the `@ViewProps` struct, in declaration order. Absent when the scan declares
-   * no struct named `propsType`, so unknown props differ from no props.
+   * no struct named `propsType` on a platform of the view, so unknown props differ from no props. A
+   * struct declared in several `#if` branches contributes the props of each declaration whose
+   * platforms overlap the view's, and each prop keeps its own `platforms`.
    */
   props?: ExportedViewProp[];
-  /**
-   * The events of the `@ViewProps` struct, in declaration order. Absent when the scan declares no
-   * struct named `propsType`.
-   */
+  /** The events of the `@ViewProps` struct, in declaration order. Absent when `props` is absent. */
   events?: ExportedViewEvent[];
   file: string;
 }

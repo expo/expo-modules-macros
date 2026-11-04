@@ -106,9 +106,10 @@ struct MacroPrefilter {
   }
 
   /// A pre-filter for attributes that `DetectedMacro` doesn't list, such as every macro that `expand`
-  /// runs.
+  /// runs. Each name also matches qualified with the module that declares the macros
+  /// (`@ExpoModulesCore.ExpoView`), since the scanners read that spelling as the bare one.
   init(attributeNames: Set<String>, conformances: Set<String> = []) {
-    attributes = attributeNames.map { Array($0.utf8) }
+    attributes = attributeNames.flatMap { [Array($0.utf8), Array("\(macrosModuleName).\($0)".utf8)] }
     bareNames = conformances.map { Array($0.utf8) }
   }
 
