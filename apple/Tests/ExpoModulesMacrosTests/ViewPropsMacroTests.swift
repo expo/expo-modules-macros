@@ -3057,7 +3057,7 @@ struct ViewPropsMacroTests {
   }
 
   @Test
-  func `A throwing init() produces a diagnostic`() {
+  func `A throwing init() produces a diagnostic with a fix-it`() {
     assertExpansion(
       """
       @ViewProps
@@ -3065,7 +3065,7 @@ struct ViewPropsMacroTests {
         var color: UIColor = .red
 
         init() throws {
-          color = .red
+          color = .blue
         }
       }
       """,
@@ -3074,23 +3074,274 @@ struct ViewPropsMacroTests {
           var color: UIColor = .red
 
           init() throws {
-            color = .red
+            color = .blue
           }
         }
         """,
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@ViewProps needs a non-failable, non-throwing, synchronous 'init()', because core creates the props with 'Self()'. Remove 'throws' from this initializer",
+            "@ViewProps needs a non-throwing 'init()', because core creates the props with 'Self()'. Remove 'throws'",
           line: 5,
-          column: 3
+          column: 10,
+          fixIts: [FixItSpec(message: "Remove 'throws'")]
         )
-      ]
+      ],
+      applyFixIts: ["Remove 'throws'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+            color = .blue
+          }
+        }
+        """
     )
   }
 
   @Test
-  func `A failable async init() produces a diagnostic`() {
+  func `A typed throws clause of init() is removed as a whole`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init() throws(PropsError) {
+          color = .blue
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init() throws(PropsError) {
+            color = .blue
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-throwing 'init()', because core creates the props with 'Self()'. Remove 'throws(PropsError)'",
+          line: 5,
+          column: 10,
+          fixIts: [FixItSpec(message: "Remove 'throws(PropsError)'")]
+        )
+      ],
+      applyFixIts: ["Remove 'throws(PropsError)'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+            color = .blue
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A failable init() produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init?() {
+          color = .blue
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init?() {
+            color = .blue
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-failable 'init()', because core creates the props with 'Self()'. Remove '?'",
+          line: 5,
+          column: 7,
+          fixIts: [FixItSpec(message: "Remove '?'")]
+        )
+      ],
+      applyFixIts: ["Remove '?'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+            color = .blue
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An implicitly unwrapped failable init() produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init!() {
+          color = .blue
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init!() {
+            color = .blue
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-failable 'init()', because core creates the props with 'Self()'. Remove '!'",
+          line: 5,
+          column: 7,
+          fixIts: [FixItSpec(message: "Remove '!'")]
+        )
+      ],
+      applyFixIts: ["Remove '!'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+            color = .blue
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An async throwing init() gets one diagnostic for each effect`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init() async throws {
+          color = .blue
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init() async throws {
+            color = .blue
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a synchronous 'init()', because core creates the props with 'Self()'. Remove 'async'",
+          line: 5,
+          column: 10,
+          fixIts: [FixItSpec(message: "Remove 'async'")]
+        ),
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-throwing 'init()', because core creates the props with 'Self()'. Remove 'throws'",
+          line: 5,
+          column: 16,
+          fixIts: [FixItSpec(message: "Remove 'throws'")]
+        ),
+      ],
+      applyFixIts: ["Remove 'async'", "Remove 'throws'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+            color = .blue
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Removing async from init() leaves the throws clause well formatted`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init() async throws {
+          color = .blue
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init() async throws {
+            color = .blue
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a synchronous 'init()', because core creates the props with 'Self()'. Remove 'async'",
+          line: 5,
+          column: 10,
+          fixIts: [FixItSpec(message: "Remove 'async'")]
+        ),
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-throwing 'init()', because core creates the props with 'Self()'. Remove 'throws'",
+          line: 5,
+          column: 16,
+          fixIts: [FixItSpec(message: "Remove 'throws'")]
+        ),
+      ],
+      applyFixIts: ["Remove 'async'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() throws {
+            color = .blue
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A failable async init() gets one diagnostic for each problem`() {
     assertExpansion(
       """
       @ViewProps
@@ -3098,7 +3349,7 @@ struct ViewPropsMacroTests {
         var color: UIColor = .red
 
         init?() async {
-          return nil
+          color = .blue
         }
       }
       """,
@@ -3107,18 +3358,37 @@ struct ViewPropsMacroTests {
           var color: UIColor = .red
 
           init?() async {
-            return nil
+            color = .blue
           }
         }
         """,
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@ViewProps needs a non-failable, non-throwing, synchronous 'init()', because core creates the props with 'Self()'. Remove '?' and 'async' from this initializer",
+            "@ViewProps needs a non-failable 'init()', because core creates the props with 'Self()'. Remove '?'",
           line: 5,
-          column: 3
-        )
-      ]
+          column: 7,
+          fixIts: [FixItSpec(message: "Remove '?'")]
+        ),
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a synchronous 'init()', because core creates the props with 'Self()'. Remove 'async'",
+          line: 5,
+          column: 11,
+          fixIts: [FixItSpec(message: "Remove 'async'")]
+        ),
+      ],
+      applyFixIts: ["Remove '?'", "Remove 'async'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+
+          init() {
+            color = .blue
+          }
+        }
+        """
     )
   }
 

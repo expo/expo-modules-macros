@@ -393,20 +393,67 @@ private func unsetPrivatePropertyDiagnostic(
   return Diagnostic(node: pattern, message: message)
 }
 
-/// The error for an `init()` that core can't call as `Self()`, attached to the initializer. There is
-/// no fix-it: removing `throws`, `async` or `?` changes what the body may do.
+/// The errors for an `init()` that core can't call as `Self()`, one for each token that makes it
+/// unusable: the `?` or `!` of a failable initializer, `async`, and the `throws` clause. Each is
+/// attached to its token and carries a fix-it that removes it with its trailing space, so
+/// `init() async throws {` becomes `init() throws {`, and then `init() {`.
+private func unusableInitializerDiagnostics(for initializer: InitializerDeclSyntax) -> [Diagnostic] {
+  var diagnostics: [Diagnostic] = []
+  if let optionalMark = initializer.optionalMark {
+    diagnostics.append(
+      unusableInitializerDiagnostic(
+        on: Syntax(optionalMark),
+        removing: Syntax(optionalMark.with(\.presence, .missing)),
+        requirement: "non-failable",
+        fixItID: "viewprops-remove-failable"
+      )
+    )
+  }
+  let effectSpecifiers = initializer.signature.effectSpecifiers
+  if let asyncSpecifier = effectSpecifiers?.asyncSpecifier {
+    diagnostics.append(
+      unusableInitializerDiagnostic(
+        on: Syntax(asyncSpecifier),
+        removing: Syntax(asyncSpecifier.with(\.presence, .missing)),
+        requirement: "synchronous",
+        fixItID: "viewprops-remove-async"
+      )
+    )
+  }
+  if let throwsClause = effectSpecifiers?.throwsClause {
+    let missingClause = ThrowsClauseSyntax(
+      throwsSpecifier: throwsClause.throwsSpecifier.with(\.presence, .missing)
+    )
+    diagnostics.append(
+      unusableInitializerDiagnostic(
+        on: Syntax(throwsClause),
+        removing: Syntax(missingClause),
+        requirement: "non-throwing",
+        fixItID: "viewprops-remove-throws"
+      )
+    )
+  }
+  return diagnostics
+}
+
+/// One error of `unusableInitializerDiagnostics`. The fix-it replaces the node, together with its
+/// trivia, by a missing node, which prints as nothing.
 private func unusableInitializerDiagnostic(
-  for initializer: InitializerDeclSyntax,
-  removals: [String]
+  on node: Syntax,
+  removing missingNode: Syntax,
+  requirement: String,
+  fixItID: String
 ) -> Diagnostic {
-  let quoted = removals.map { "'\($0)'" }
-  let list =
-    quoted.count == 1 ? quoted[0] : "\(quoted.dropLast().joined(separator: ", ")) and \(quoted[quoted.count - 1])"
+  let text = node.trimmedDescription
+  let fixIt = FixIt(
+    message: ViewPropsFixItMessage("Remove '\(text)'", id: fixItID),
+    changes: [.replace(oldNode: node, newNode: missingNode)]
+  )
   let message = ViewPropsDiagnosticMessage(
-    "@ViewProps needs a non-failable, non-throwing, synchronous 'init()', because core creates the props with 'Self()'. Remove \(list) from this initializer",
+    "@ViewProps needs a \(requirement) 'init()', because core creates the props with 'Self()'. Remove '\(text)'",
     id: "viewprops-unusable-init"
   )
-  return Diagnostic(node: initializer, message: message)
+  return Diagnostic(node: node, message: message, fixIts: [fixIt])
 }
 
 private struct ViewPropsDiagnosticMessage: DiagnosticMessage {
@@ -523,15 +570,11 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       declaresOtherInitializer = true
       continue
     }
-    let removals = [
-      initializer.optionalMark?.text,
-      initializer.signature.effectSpecifiers?.asyncSpecifier?.text,
-      initializer.signature.effectSpecifiers?.throwsClause?.throwsSpecifier.text,
-    ].compactMap { $0 }
-    if removals.isEmpty {
+    let unusableDiagnostics = unusableInitializerDiagnostics(for: initializer)
+    if unusableDiagnostics.isEmpty {
       declaresUsableInitializer = true
     } else {
-      propDiagnostics.append(unusableInitializerDiagnostic(for: initializer, removals: removals))
+      propDiagnostics += unusableDiagnostics
     }
   }
 
