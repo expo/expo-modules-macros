@@ -111,9 +111,11 @@ internal func hasAsyncVariant(_ decl: DeclSyntaxProtocol) -> Bool {
   return asyncVariantOption(of: attribute) != nil
 }
 
-/// True if the type is written as an optional: `T?`, `T!`, or the explicit `Optional<T>`. Used to
-/// decide argument requiredness (an optional parameter may be omitted) and record-field nullability.
+/// True if the type is written as an optional: `T?`, `T!`, or the explicit `Optional<T>`, also in
+/// parentheses (`(T?)`), which Swift treats as the same type. Used to decide argument requiredness (an
+/// optional parameter may be omitted) and record-field nullability.
 internal func isOptionalType(_ type: TypeSyntax) -> Bool {
+  let type = withoutParentheses(type)
   if let attributed = type.as(AttributedTypeSyntax.self) {
     return isOptionalType(attributed.baseType)
   }
@@ -158,6 +160,17 @@ internal struct SpecifiedType {
 /// The ownership specifiers a parameter may carry. They only change how the argument is passed, which
 /// a fresh decoded value satisfies either way.
 internal let ownershipSpecifiers: Set<String> = ["borrowing", "consuming", "sending", "__shared", "__owned"]
+
+/// The type inside any number of unlabeled one-element parentheses: `(T)` and `((T))` are `T`. A
+/// label would make it a tuple, which Swift rejects with a single element anyway.
+internal func withoutParentheses(_ type: TypeSyntax) -> TypeSyntax {
+  guard let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1, let only = tuple.elements.first,
+    only.firstName == nil
+  else {
+    return type
+  }
+  return withoutParentheses(only.type)
+}
 
 /// The type wrapped by one optional layer (`T?`, `T!` or `Optional<T>`), or `nil` when the type isn't
 /// optional.

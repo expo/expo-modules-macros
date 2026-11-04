@@ -1096,9 +1096,17 @@ func rawValueType(of clause: InheritanceClauseSyntax?) -> TypeNode? {
   return typeNode(from: first)
 }
 
-/// True when a type is written as an optional: `T?`, `T!`, or `Optional<T>`, mirroring the macros'
-/// `isOptionalType`.
+/// True when a type is written as an optional: `T?`, `T!`, or `Optional<T>`, also in parentheses
+/// (`(T?)`) or behind attributes, mirroring the macros' `isOptionalType`.
 private func isOptionalType(_ type: TypeSyntax) -> Bool {
+  if let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1, let only = tuple.elements.first,
+    only.firstName == nil
+  {
+    return isOptionalType(only.type)
+  }
+  if let attributed = type.as(AttributedTypeSyntax.self) {
+    return isOptionalType(attributed.baseType)
+  }
   if type.is(OptionalTypeSyntax.self) || type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
     return true
   }

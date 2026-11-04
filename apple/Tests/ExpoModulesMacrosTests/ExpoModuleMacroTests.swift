@@ -377,6 +377,50 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Trailing parenthesized optional parameter is passed nil when omitted`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        func tag(name: String, note: (String?)) { }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          func tag(name: String, note: (String?)) { }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+              guard arguments.count >= 1 && arguments.count <= 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
+              }
+              let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+              switch arguments.count {
+              case 1:
+                self.tag(name: arg0, note: nil)
+              default:
+                let arg1 = try (String?).decode(arguments.unownedValue(at: 1), in: runtime)
+                self.tag(name: arg0, note: arg1)
+              }
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func tag(note _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            tag(note: (String?).self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Optionals, arrays, String-keyed dictionaries, and sets of primitives get no conformance-assertion peer`() {
     assertExpansion(
       """

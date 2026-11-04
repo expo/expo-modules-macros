@@ -261,6 +261,109 @@ struct RecordMacroTests {
   }
 
   @Test
+  func `A parenthesized optional property is optional, not required`() {
+    // Swift treats `(Int?)` as `Int?`: it defaults to `nil` and JS may leave it out.
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var count: (Int?)
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var count: (Int?)
+
+          private func _assertTypesConformance() {
+            func count(_: (some JavaScriptDecodable & JavaScriptEncodable).Type) {
+            }
+            count((Int?).self)
+          }
+
+          nonisolated public init() {
+          }
+
+          nonisolated public init(count: (Int?) = nil) {
+            self.count = count
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            throw RecordDictionaryConversionException(String(describing: Self.self))
+          }
+
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["count"] = self.count
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          nonisolated private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "count")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { countJSValue in
+              return try (Int?).decode(countJSValue, in: runtime)
+            }
+            return Self(count: field0)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            slot.emplace(object)
+          }
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """
+    )
+  }
+
+  @Test
   func `Non-primitive properties are checked in a single conformance-assertion peer`() {
     assertExpansion(
       """

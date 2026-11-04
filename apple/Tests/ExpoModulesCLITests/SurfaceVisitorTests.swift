@@ -409,6 +409,32 @@ struct RecordSurfaceTests {
     #expect(byName["note"]?.defaultValue == nil)
     #expect(byName["note"]?.isRequired == false)
   }
+
+  @Test
+  func `A parenthesized optional is optional, like the macros read it`() throws {
+    let surface = surface(
+      """
+      @Record
+      struct Options {
+        var count: (Int?)
+        var limit: ((Int)?)
+      }
+
+      @ExpoModule
+      final class Counter: Module {
+        @JS
+        func set(_ count: (Int?)) {}
+      }
+      """
+    )
+    let record = try #require(surface.records.first)
+    // Swift treats `(Int?)` as `Int?`, so the property defaults to nil and JS may leave it out.
+    #expect(record.properties.map(\.isOptional) == [true, true])
+    #expect(record.properties.map(\.isRequired) == [false, false])
+
+    let function = try #require(surface.modules.first?.functions.first)
+    #expect(function.parameters.map(\.isOptional) == [true])
+  }
 }
 
 @Suite("Exports surface: enums")

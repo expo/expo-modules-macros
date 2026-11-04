@@ -861,17 +861,6 @@ private func isVoidType(_ type: TypeSyntax) -> Bool {
   return ["Void", "Swift.Void"].contains(type.trimmedDescription)
 }
 
-/// The type inside any number of unlabeled one-element parentheses: `(T)` and `((T))` are `T`. A
-/// label would make it a tuple, which Swift rejects with a single element anyway.
-private func withoutParentheses(_ type: TypeSyntax) -> TypeSyntax {
-  guard let tuple = type.as(TupleTypeSyntax.self), tuple.elements.count == 1, let only = tuple.elements.first,
-    only.firstName == nil
-  else {
-    return type
-  }
-  return withoutParentheses(only.type)
-}
-
 /// True if the binding is computed with a `mutating get`.
 private func hasMutatingGetter(_ binding: PatternBindingSyntax) -> Bool {
   guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
