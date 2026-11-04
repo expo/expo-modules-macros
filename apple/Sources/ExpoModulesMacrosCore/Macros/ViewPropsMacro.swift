@@ -33,8 +33,9 @@ import SwiftSyntaxMacros
 /// - `_eventNames`: the event props' names, verbatim, for core to register at view creation.
 /// - `typealias Diff = PropsDiff<Self>`, the nested spelling of core's one generic diff.
 /// - a public `init()`, which `AnyViewProps` requires, when Swift's own can't satisfy it: when an
-///   event prop has no initial value, when the type is `public` (Swift's `init()` is `internal`), or
-///   when the type declares other initializers (Swift then synthesizes no `init()`). It gives each
+///   event prop has no initial value, when the type is `public` or `package` (Swift's `init()` is
+///   `internal`), also through a `public` or `package` extension that contains it, or when the type
+///   declares other initializers (Swift then synthesizes no `init()`). It gives each
 ///   event without an initial value an empty closure (`{}`, `{ _ in }`, ...) and leaves the value
 ///   props at their initial values. It is never generated when the type declares its own `init()`.
 ///   Like any initializer in the struct body, the generated one removes the memberwise initializer.
@@ -72,7 +73,7 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
-    let props = try validatedViewProps(of: declaration)
+    let props = try validatedViewProps(of: declaration, in: context.lexicalContext)
 
     var members: [DeclSyntax] = []
     members.append(propNameEnum(valueProps: props.valueProps))
@@ -105,7 +106,7 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     // expansion runs each role independently, so throwing here too would surface every diagnostic
     // twice. When the model doesn't validate, the member macro has already emitted the error and
     // there is nothing to extend.
-    guard let props = try? validatedViewProps(of: declaration) else {
+    guard let props = try? validatedViewProps(of: declaration, in: context.lexicalContext) else {
       return []
     }
     let alreadyConforms = inheritsProtocol(named: viewPropsProtocolName, in: declaration)
@@ -529,7 +530,10 @@ private struct ViewPropsModel {
 ///
 /// When the type declares a usable `init()`, that initializer is the default: it must set every
 /// stored property, which the compiler checks, so the props need no initial values.
-private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> ViewPropsModel {
+private func validatedViewProps(
+  of declaration: some DeclGroupSyntax,
+  in lexicalContext: [Syntax]
+) throws -> ViewPropsModel {
   guard let structDecl = declaration.as(StructDeclSyntax.self) else {
     throw MacroExpansionErrorMessage(
       "@ViewProps can only be applied to a struct — the class form (for SwiftUI views) is not supported yet"
@@ -701,6 +705,7 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
     eventDefaults: eventDefaults,
     generatesInitializer: needsGeneratedInitializer(
       structDecl,
+      in: lexicalContext,
       eventDefaults: eventDefaults,
       declaresUsableInitializer: declaresUsableInitializer,
       declaresOtherInitializer: declaresOtherInitializer
@@ -710,10 +715,11 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
 
 /// Whether Swift's own `init()` can't satisfy `AnyViewProps`, so the macro generates a public one.
 /// Swift synthesizes `init()` only when every stored property has a default and the type declares
-/// no initializer, and that `init()` is `internal`, which a `public` type's conformance can't use.
-/// The author's usable `init()` always wins, so there is never a second one.
+/// no initializer, and that `init()` is `internal`, which the conformance of a `public` or `package`
+/// type can't use. The author's usable `init()` always wins, so there is never a second one.
 private func needsGeneratedInitializer(
   _ structDecl: StructDeclSyntax,
+  in lexicalContext: [Syntax],
   eventDefaults: [EventDefault],
   declaresUsableInitializer: Bool,
   declaresOtherInitializer: Bool
@@ -721,10 +727,43 @@ private func needsGeneratedInitializer(
   if declaresUsableInitializer {
     return false
   }
-  let isPublic = structDecl.modifiers.contains {
-    $0.name.tokenKind == .keyword(.public) || $0.name.tokenKind == .keyword(.open)
+  return !eventDefaults.isEmpty || isAboveInternal(structDecl, in: lexicalContext) || declaresOtherInitializer
+}
+
+/// True if the type's access is `public`, `open` or `package`: written on the type, or, when the type
+/// has no access modifier, taken from the extension that directly contains it
+/// (`public extension Outer { struct Props {} }`). Only that extension sets the default; an enclosing
+/// type doesn't, so a type nested in a `public` type without a modifier is `internal`.
+private func isAboveInternal(_ structDecl: StructDeclSyntax, in lexicalContext: [Syntax]) -> Bool {
+  if let access = accessLevelModifier(in: structDecl.modifiers) {
+    return isAboveInternal(access)
   }
-  return !eventDefaults.isEmpty || isPublic || declaresOtherInitializer
+  guard let enclosingExtension = lexicalContext.first?.as(ExtensionDeclSyntax.self),
+    let access = accessLevelModifier(in: enclosingExtension.modifiers)
+  else {
+    return false
+  }
+  return isAboveInternal(access)
+}
+
+/// The access level modifier of a declaration, without a `(set)` detail, which only limits a setter.
+private func accessLevelModifier(in modifiers: DeclModifierListSyntax) -> TokenKind? {
+  return modifiers.first { modifier in
+    guard modifier.detail == nil else {
+      return false
+    }
+    switch modifier.name.tokenKind {
+    case .keyword(.public), .keyword(.open), .keyword(.package), .keyword(.internal), .keyword(.fileprivate),
+      .keyword(.private):
+      return true
+    default:
+      return false
+    }
+  }?.name.tokenKind
+}
+
+private func isAboveInternal(_ access: TokenKind) -> Bool {
+  return access == .keyword(.public) || access == .keyword(.open) || access == .keyword(.package)
 }
 
 /// True if the binding has storage: no accessor block, or only `willSet`/`didSet` observers.

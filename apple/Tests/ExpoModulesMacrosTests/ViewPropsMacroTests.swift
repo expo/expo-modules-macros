@@ -3641,4 +3641,289 @@ struct ViewPropsMacroTests {
         """
     )
   }
+
+  @Test
+  func `A package props struct gets a public init()`() {
+    // Swift's own `init()` is internal, which a package type's conformance can't use.
+    assertExpansion(
+      """
+      @ViewProps
+      package struct Props {
+        var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        package struct Props {
+          var color: UIColor = .red
+
+          public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          public init() {
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A props struct in a public extension gets a public init()`() {
+    // The extension makes the struct public, so Swift's internal `init()` is not enough.
+    assertExpansion(
+      """
+      public extension Outer {
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+        }
+      }
+      """,
+      expandedSource: """
+        public extension Outer {
+          struct Props {
+            var color: UIColor = .red
+
+            public enum PropName: String, CaseIterable {
+              case color
+            }
+
+            public struct PropSet: OptionSet, Sendable {
+              public let rawValue: UInt64
+
+              public init(rawValue: UInt64) {
+                self.rawValue = rawValue
+              }
+
+              public static let color = PropSet(rawValue: 1 << 0)
+            }
+
+            public static let _eventNames: [String] = []
+
+            public typealias Diff = PropsDiff<Self>
+
+            public init() {
+            }
+          }
+        }
+
+        extension Outer.Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A props struct in a package extension gets a public init()`() {
+    // The extension makes the struct package, so Swift's internal `init()` is not enough.
+    assertExpansion(
+      """
+      package extension Outer {
+        @ViewProps
+        struct Props {
+          var color: UIColor = .red
+        }
+      }
+      """,
+      expandedSource: """
+        package extension Outer {
+          struct Props {
+            var color: UIColor = .red
+
+            public enum PropName: String, CaseIterable {
+              case color
+            }
+
+            public struct PropSet: OptionSet, Sendable {
+              public let rawValue: UInt64
+
+              public init(rawValue: UInt64) {
+                self.rawValue = rawValue
+              }
+
+              public static let color = PropSet(rawValue: 1 << 0)
+            }
+
+            public static let _eventNames: [String] = []
+
+            public typealias Diff = PropsDiff<Self>
+
+            public init() {
+            }
+          }
+        }
+
+        extension Outer.Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An internal props struct in a public extension keeps Swift's init()`() {
+    // The modifier on the struct overrides the default access of the extension.
+    assertExpansion(
+      """
+      public extension Outer {
+        @ViewProps
+        internal struct Props {
+          var color: UIColor = .red
+        }
+      }
+      """,
+      expandedSource: """
+        public extension Outer {
+          internal struct Props {
+            var color: UIColor = .red
+
+            public enum PropName: String, CaseIterable {
+              case color
+            }
+
+            public struct PropSet: OptionSet, Sendable {
+              public let rawValue: UInt64
+
+              public init(rawValue: UInt64) {
+                self.rawValue = rawValue
+              }
+
+              public static let color = PropSet(rawValue: 1 << 0)
+            }
+
+            public static let _eventNames: [String] = []
+
+            public typealias Diff = PropsDiff<Self>
+          }
+        }
+
+        extension Outer.Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
 }
