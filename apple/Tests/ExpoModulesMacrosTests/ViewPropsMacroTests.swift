@@ -2313,11 +2313,21 @@ struct ViewPropsMacroTests {
         ),
         DiagnosticSpec(
           message:
-            "View prop 'tint' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+            "View prop 'tint' needs an initial value, which is its default when React removes the prop. A type written as 'Optional<UIColor>' gets no implicit nil, so write it as 'UIColor?'",
           line: 5,
-          column: 7
+          column: 7,
+          fixIts: [FixItSpec(message: "Write the type as 'UIColor?'")]
         ),
-      ]
+      ],
+      applyFixIts: ["Write the type as 'UIColor?'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var radius: CGFloat
+          var `default`: Int, opacity: Double = 1
+          var tint: UIColor?
+        }
+        """
     )
   }
 
@@ -2403,7 +2413,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "View prop 'width' can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'",
+            "View props 'width' and 'height' can't be 'let' constants, because they're assigned whenever React sets or removes the props. Declare them with 'var'",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
@@ -2619,11 +2629,563 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Event prop 'onTap' must return Void, because an event is sent to JavaScript, which can't return a value. Remove the return type 'Bool'",
+            "Event prop 'onTap' must return Void, because an event is sent to JavaScript, which can't return a value. Change the return type 'Bool' to 'Void'",
           line: 3,
-          column: 28
+          column: 28,
+          fixIts: [FixItSpec(message: "Change the return type to 'Void'")]
+        )
+      ],
+      applyFixIts: ["Change the return type to 'Void'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: (TapEvent) -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An implicitly unwrapped value prop needs no initial value`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var radius: CGFloat!
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var radius: CGFloat!
+
+          public enum PropName: String, CaseIterable {
+            case radius
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let radius = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .radius:
+              return .radius
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .radius:
+                self.radius = defaults.radius
+              }
+              return
+            }
+            switch name {
+            case .radius:
+              self.radius = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A computed prop with a setter needs no initial value`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var storage: Int = 0
+        var size: Int {
+          get { storage }
+          set { storage = newValue }
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var storage: Int = 0
+          var size: Int {
+            get { storage }
+            set { storage = newValue }
+          }
+
+          public enum PropName: String, CaseIterable {
+            case storage
+            case size
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let storage = PropSet(rawValue: 1 << 0)
+            public static let size = PropSet(rawValue: 1 << 1)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b11)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .storage:
+              return .storage
+            case .size:
+              return .size
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .storage:
+                self.storage = defaults.storage
+              case .size:
+                self.size = defaults.size
+              }
+              return
+            }
+            switch name {
+            case .storage:
+              self.storage = try _decodeViewProp(value, in: runtime)
+            case .size:
+              self.size = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A public props struct gets a public init()`() {
+    // Swift's own `init()` is internal, which a public type's conformance can't use.
+    assertExpansion(
+      """
+      @ViewProps
+      public struct Props {
+        var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        public struct Props {
+          var color: UIColor = .red
+
+          public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          public init() {
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A props struct with another initializer gets init()`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init(color: UIColor) {
+          self.color = color
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init(color: UIColor) {
+            self.color = color
+          }
+
+          public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          public init() {
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The author's init() sets the defaults`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor
+        var onTap: (TapEvent) -> Void
+        private var cache: [String: Int]
+
+        init() {
+          color = .blue
+          onTap = { _ in }
+          cache = [:]
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor
+          var onTap: (TapEvent) -> Void
+          private var cache: [String: Int]
+
+          init() {
+            color = .blue
+            onTap = { _ in }
+            cache = [:]
+          }
+
+          public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = ["onTap"]
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              let defaults = Self()
+              switch name {
+              case .color:
+                self.color = defaults.color
+              }
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try _decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A private stored property without an initial value produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+        private var cache: [String: Int]
+        fileprivate var count: Int
+        private var note: String?
+        private static var shared: Int
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+          private var cache: [String: Int]
+          fileprivate var count: Int
+          private var note: String?
+          private static var shared: Int
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps leaves out the private property 'cache', so 'init()' doesn't set it. Give it an initial value, or remove 'private' to make it a prop",
+          line: 4,
+          column: 15
+        ),
+        DiagnosticSpec(
+          message:
+            "@ViewProps leaves out the fileprivate property 'count', so 'init()' doesn't set it. Give it an initial value, or remove 'fileprivate' to make it a prop",
+          line: 5,
+          column: 19
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `A throwing init() produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init() throws {
+          color = .red
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init() throws {
+            color = .red
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-failable, non-throwing, synchronous 'init()', because core creates the props with 'Self()'. Remove 'throws' from this initializer",
+          line: 5,
+          column: 3
         )
       ]
+    )
+  }
+
+  @Test
+  func `A failable async init() produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+
+        init?() async {
+          return nil
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+
+          init?() async {
+            return nil
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps needs a non-failable, non-throwing, synchronous 'init()', because core creates the props with 'Self()'. Remove '?' and 'async' from this initializer",
+          line: 5,
+          column: 3
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An optional event is reported together with the other diagnostics`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: ((TapEvent) -> Void)?
+        var radius: CGFloat
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: ((TapEvent) -> Void)?
+          var radius: CGFloat
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+          line: 3,
+          column: 14,
+          fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
+        ),
+        DiagnosticSpec(
+          message:
+            "View prop 'radius' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
+          line: 4,
+          column: 7
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `The Optional<T> fix-it keeps the parentheses around an existential`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var shape: Optional<any Shape>
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var shape: Optional<any Shape>
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'shape' needs an initial value, which is its default when React removes the prop. A type written as 'Optional<any Shape>' gets no implicit nil, so write it as '(any Shape)?'",
+          line: 3,
+          column: 7,
+          fixIts: [FixItSpec(message: "Write the type as '(any Shape)?'")]
+        )
+      ],
+      applyFixIts: ["Write the type as '(any Shape)?'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var shape: (any Shape)?
+        }
+        """
     )
   }
 }

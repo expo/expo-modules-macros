@@ -11,10 +11,16 @@ import SwiftSyntaxMacros
 ///   name through the view's event emitter. No JS function object is ever decoded into it.
 /// - every other property is a **value prop**, decoded from the raw props Fabric delivers.
 ///
-/// Every value prop is a `var` with a default: an initial value, or a type written as `T?`, which
-/// defaults to `nil` (`Optional<T>` doesn't). Core starts from `Self()` and resets a prop that React
-/// removes (sends as `null`) to its value there, so a value prop without a default, or declared with
-/// `let`, is an error.
+/// An event must be spelled as a function type. The macro reads only the syntax, so a closure type
+/// behind a typealias (`var onTap: TapHandler`) is a value prop.
+///
+/// Core creates the props with `Self()` and resets a prop that React removes (sends as `null`) to its
+/// value there, so every value prop is a `var` with a default. When the type declares its own
+/// `init()`, that initializer sets the defaults, and the compiler checks that it sets every stored
+/// property. Otherwise each stored value prop needs an initial value, or a type written as `T?` or
+/// `T!`, which defaults to `nil` (`Optional<T>` doesn't), and so does each `private` or `fileprivate`
+/// stored property, which isn't a prop. The author's `init()` must be non-failable, non-throwing and
+/// synchronous, so that core can call it.
 ///
 /// The macro synthesizes the identity surface the batched reaction model reads:
 ///
@@ -26,11 +32,12 @@ import SwiftSyntaxMacros
 ///   allocation and no hashing.
 /// - `_eventNames`: the event props' names, verbatim, for core to register at view creation.
 /// - `typealias Diff = PropsDiff<Self>`, the nested spelling of core's one generic diff.
-/// - `init()`, which `AnyViewProps` requires, when an event prop has no initial value. It gives each
-///   such event an empty closure (`{}`, `{ _ in }`, ...) and leaves the value props at their initial
-///   values. It isn't generated when the type declares its own `init()`, or when every event has an
-///   initial value, since Swift then synthesizes `init()`. Like any initializer in the struct body,
-///   the generated one removes the memberwise initializer.
+/// - a public `init()`, which `AnyViewProps` requires, when Swift's own can't satisfy it: when an
+///   event prop has no initial value, when the type is `public` (Swift's `init()` is `internal`), or
+///   when the type declares other initializers (Swift then synthesizes no `init()`). It gives each
+///   event without an initial value an empty closure (`{}`, `{ _ in }`, ...) and leaves the value
+///   props at their initial values. It is never generated when the type declares its own `init()`.
+///   Like any initializer in the struct body, the generated one removes the memberwise initializer.
 ///
 /// An event's function type must return `Void`, because JavaScript can't return a value to it.
 ///
@@ -277,10 +284,11 @@ private func innerFunctionType(of type: TypeSyntax) -> TypeSyntax? {
   return only.type
 }
 
-/// The error for a value prop declared with `let`, attached to the `let` keyword and carrying a
-/// fix-it that changes it to `var`. `_decode` assigns each value prop when React sets or removes it,
-/// which a constant doesn't allow.
-private func letValuePropDiagnostic(for varDecl: VariableDeclSyntax, name: String) -> Diagnostic {
+/// The error for a `let` declaring value props, attached to the `let` keyword and carrying a fix-it
+/// that changes it to `var`. `_decode` assigns each value prop when React sets or removes it, which a
+/// constant doesn't allow. The fix-it changes every binding of the declaration, so the message names
+/// each value prop it declares.
+private func letValuePropDiagnostic(for varDecl: VariableDeclSyntax, names: [String]) -> Diagnostic {
   let specifier = varDecl.bindingSpecifier
   let fixIt = FixIt(
     message: ViewPropsFixItMessage("Replace 'let' with 'var'", id: "viewprops-let-to-var"),
@@ -291,33 +299,114 @@ private func letValuePropDiagnostic(for varDecl: VariableDeclSyntax, name: Strin
       )
     ]
   )
-  let message = ViewPropsDiagnosticMessage(
-    "View prop '\(withoutBackticks(name))' can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'",
-    id: "viewprops-let-prop"
+  let quoted = names.map { "'\(withoutBackticks($0))'" }
+  let text =
+    quoted.count == 1
+    ? "View prop \(quoted[0]) can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'"
+    : "View props \(quoted.dropLast().joined(separator: ", ")) and \(quoted[quoted.count - 1]) can't be 'let' constants, because they're assigned whenever React sets or removes the props. Declare them with 'var'"
+  return Diagnostic(
+    node: specifier,
+    message: ViewPropsDiagnosticMessage(text, id: "viewprops-let-prop"),
+    fixIts: [fixIt]
   )
-  return Diagnostic(node: specifier, message: message, fixIts: [fixIt])
 }
 
 /// The error for an event prop whose function type returns something other than `Void`, attached to
-/// the return type. Core dispatches the event to JavaScript, which can't return a value to the
-/// caller, and the generated `init()` couldn't give the event an empty closure.
+/// the return type and carrying a fix-it that changes it to `Void`. Core dispatches the event to
+/// JavaScript, which can't return a value to the caller, and the generated `init()` couldn't give the
+/// event an empty closure.
 private func eventReturnTypeDiagnostic(for returnType: TypeSyntax, name: String) -> Diagnostic {
   let message = ViewPropsDiagnosticMessage(
-    "Event prop '\(withoutBackticks(name))' must return Void, because an event is sent to JavaScript, which can't return a value. Remove the return type '\(returnType.trimmedDescription)'",
+    "Event prop '\(withoutBackticks(name))' must return Void, because an event is sent to JavaScript, which can't return a value. Change the return type '\(returnType.trimmedDescription)' to 'Void'",
     id: "viewprops-event-return-type"
   )
-  return Diagnostic(node: returnType, message: message)
+  let void = TypeSyntax(IdentifierTypeSyntax(name: .identifier("Void")))
+    .with(\.leadingTrivia, returnType.leadingTrivia)
+    .with(\.trailingTrivia, returnType.trailingTrivia)
+  let fixIt = FixIt(
+    message: ViewPropsFixItMessage("Change the return type to 'Void'", id: "viewprops-event-return-void"),
+    changes: [.replace(oldNode: Syntax(returnType), newNode: Syntax(void))]
+  )
+  return Diagnostic(node: returnType, message: message, fixIts: [fixIt])
 }
 
 /// The error for a value prop with no default, attached to the property name. A value prop starts
 /// from its value in `Self()` and returns to it when React removes the prop, so it needs an initial
-/// value, or a type written as `T?`, whose default is `nil`.
-private func missingDefaultDiagnostic(for pattern: IdentifierPatternSyntax, name: String) -> Diagnostic {
+/// value, or a type written as `T?`, whose default is `nil`. There is no fix-it, since the default is
+/// the author's choice, except for a type written as `Optional<T>`: rewriting it as `T?` keeps the
+/// type and only adds the implicit `nil`.
+private func missingDefaultDiagnostic(
+  for pattern: IdentifierPatternSyntax,
+  name: String,
+  type: TypeSyntax?
+) -> Diagnostic {
+  if let type, let sugared = optionalSugar(for: type) {
+    let fixIt = FixIt(
+      message: ViewPropsFixItMessage(
+        "Write the type as '\(sugared.trimmedDescription)'",
+        id: "viewprops-optional-sugar"
+      ),
+      changes: [.replace(oldNode: Syntax(type), newNode: Syntax(sugared))]
+    )
+    let message = ViewPropsDiagnosticMessage(
+      "View prop '\(withoutBackticks(name))' needs an initial value, which is its default when React removes the prop. A type written as '\(type.trimmedDescription)' gets no implicit nil, so write it as '\(sugared.trimmedDescription)'",
+      id: "viewprops-missing-default"
+    )
+    return Diagnostic(node: pattern, message: message, fixIts: [fixIt])
+  }
   let message = ViewPropsDiagnosticMessage(
     "View prop '\(withoutBackticks(name))' needs an initial value, which is its default when React removes the prop. Give it one, or make its type optional with '?', which defaults to nil",
     id: "viewprops-missing-default"
   )
   return Diagnostic(node: pattern, message: message)
+}
+
+/// `T?` for a type written as `Optional<T>`, with the trivia of the original, or `nil` for any other
+/// type. A wrapped `any P`, `some P` or `P & Q` keeps parentheses, since `any P?` would make only `P`
+/// optional.
+private func optionalSugar(for type: TypeSyntax) -> TypeSyntax? {
+  guard let identifier = type.as(IdentifierTypeSyntax.self), identifier.name.text == "Optional",
+    let wrapped = optionalWrappedType(type)
+  else {
+    return nil
+  }
+  var wrappedType = wrapped.trimmed
+  if wrappedType.is(SomeOrAnyTypeSyntax.self) || wrappedType.is(CompositionTypeSyntax.self) {
+    wrappedType = TypeSyntax(TupleTypeSyntax(elements: [TupleTypeElementSyntax(type: wrappedType)]))
+  }
+  return TypeSyntax(OptionalTypeSyntax(wrappedType: wrappedType))
+    .with(\.leadingTrivia, type.leadingTrivia)
+    .with(\.trailingTrivia, type.trailingTrivia)
+}
+
+/// The error for a `private` or `fileprivate` stored property without an initial value, attached to
+/// its name. `@ViewProps` leaves it out of the props, so the `init()` that core calls doesn't set it.
+/// There is no fix-it: the value is the author's choice.
+private func unsetPrivatePropertyDiagnostic(
+  for pattern: IdentifierPatternSyntax,
+  access: String
+) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "@ViewProps leaves out the \(access) property '\(withoutBackticks(pattern.identifier.text))', so 'init()' doesn't set it. Give it an initial value, or remove '\(access)' to make it a prop",
+    id: "viewprops-unset-private-property"
+  )
+  return Diagnostic(node: pattern, message: message)
+}
+
+/// The error for an `init()` that core can't call as `Self()`, attached to the initializer. There is
+/// no fix-it: removing `throws`, `async` or `?` changes what the body may do.
+private func unusableInitializerDiagnostic(
+  for initializer: InitializerDeclSyntax,
+  removals: [String]
+) -> Diagnostic {
+  let quoted = removals.map { "'\($0)'" }
+  let list =
+    quoted.count == 1 ? quoted[0] : "\(quoted.dropLast().joined(separator: ", ")) and \(quoted[quoted.count - 1])"
+  let message = ViewPropsDiagnosticMessage(
+    "@ViewProps needs a non-failable, non-throwing, synchronous 'init()', because core creates the props with 'Self()'. Remove \(list) from this initializer",
+    id: "viewprops-unusable-init"
+  )
+  return Diagnostic(node: initializer, message: message)
 }
 
 private struct ViewPropsDiagnosticMessage: DiagnosticMessage {
@@ -376,9 +465,8 @@ private struct ViewPropsModel {
   let eventProps: [ViewProp]
   /// The event props without an initial value, in declaration order.
   let eventDefaults: [EventDefault]
-  /// Whether the type declares its own `init()` (or `init?()`), which the macro then doesn't
-  /// generate.
-  let declaresEmptyInitializer: Bool
+  /// Whether the macro generates `init()`. See `needsGeneratedInitializer`.
+  let generatesInitializer: Bool
 }
 
 /// Reads and validates the props type's stored properties, splitting them into value props and events.
@@ -386,7 +474,11 @@ private struct ViewPropsModel {
 /// Rejects what can't be expressed: a non-`struct` declaration (the class form is the SwiftUI path and
 /// needs the observable protocol, which is deferred), a leftover `@Field` attribute, an optional
 /// function type, an event whose function type returns a value, a property with no determinable type,
-/// a value prop declared with `let` or without a default, and more than 64 value props.
+/// a value prop declared with `let` or without a default, a `private` stored property without an
+/// initial value, an `init()` that is failable, throwing or `async`, and more than 64 value props.
+///
+/// When the type declares a usable `init()`, that initializer is the default: it must set every
+/// stored property, which the compiler checks, so the props need no initial values.
 private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> ViewPropsModel {
   guard let structDecl = declaration.as(StructDeclSyntax.self) else {
     throw MacroExpansionErrorMessage(
@@ -418,22 +510,49 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
     throw DiagnosticsError(diagnostics: fieldDiagnostics)
   }
 
+  // A usable `init()` belongs to the author and sets the defaults. An `init()` that core can't call
+  // as `Self()` is reported, and doesn't count.
+  var propDiagnostics: [Diagnostic] = []
+  var declaresUsableInitializer = false
+  var declaresOtherInitializer = false
+  for member in declaration.memberBlock.members {
+    guard let initializer = member.decl.as(InitializerDeclSyntax.self) else {
+      continue
+    }
+    guard initializer.signature.parameterClause.parameters.isEmpty else {
+      declaresOtherInitializer = true
+      continue
+    }
+    let removals = [
+      initializer.optionalMark?.text,
+      initializer.signature.effectSpecifiers?.asyncSpecifier?.text,
+      initializer.signature.effectSpecifiers?.throwsClause?.throwsSpecifier.text,
+    ].compactMap { $0 }
+    if removals.isEmpty {
+      declaresUsableInitializer = true
+    } else {
+      propDiagnostics.append(unusableInitializerDiagnostic(for: initializer, removals: removals))
+    }
+  }
+
   var valueProps: [ViewProp] = []
   var eventProps: [ViewProp] = []
   var eventDefaults: [EventDefault] = []
-  // Reported together after the loop, so one run names every prop that the generated code can't
-  // reset, assign or default.
-  var propDiagnostics: [Diagnostic] = []
 
   for member in declaration.memberBlock.members {
     guard let varDecl = member.decl.as(VariableDeclSyntax.self) else {
       continue
     }
     if isExcludedByModifier(varDecl.modifiers) {
+      if !declaresUsableInitializer {
+        propDiagnostics += unsetPrivatePropertyDiagnostics(of: varDecl)
+      }
       continue
     }
-    // One `let` can declare several props, but its diagnostic and fix-it belong to the keyword.
-    var reportedLet = false
+    // One `let` can declare several props, but its diagnostic and fix-it belong to the keyword, so
+    // it comes before the diagnostics of the bindings, in source order.
+    var letValuePropNames: [String] = []
+    let letDiagnosticIndex = propDiagnostics.count
     for binding in varDecl.bindings {
       // A computed property is never a prop, but an accessor block alone doesn't mean computed:
       // `willSet`/`didSet` observers imply stored storage. `bindingIsSettable` draws exactly that
@@ -473,9 +592,8 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       // dynamic, but events are registered once at view creation from a static name list, so there
       // is no shape that could express "sometimes emitted".
       if let declaredType, isOptionalType(declaredType), underlyingFunctionType(of: declaredType) != nil {
-        throw DiagnosticsError(diagnostics: [
-          optionalEventDiagnostic(for: declaredType, name: name)
-        ])
+        propDiagnostics.append(optionalEventDiagnostic(for: declaredType, name: name))
+        continue
       }
 
       let eventFunctionType = declaredType.flatMap(underlyingFunctionType)
@@ -488,13 +606,16 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
           "'rawValue' can't be used as a prop name — it collides with the synthesized PropSet's storage. Rename the property"
         )
       }
+      // Only stored storage takes an initial value; a computed prop with a setter needs none.
+      let needsInitialValue =
+        binding.initializer == nil && isStoredBinding(binding) && !declaresUsableInitializer
       let prop = ViewProp(name: name, type: resolvedType)
       if let eventFunctionType {
         // An event is dispatched to JavaScript, which can't hand a value back to the caller.
         if !returnsVoid(eventFunctionType) {
           propDiagnostics.append(eventReturnTypeDiagnostic(for: eventFunctionType.returnClause.type, name: name))
         }
-        if binding.initializer == nil {
+        if needsInitialValue {
           eventDefaults.append(
             EventDefault(name: name, emptyClosure: emptyClosure(arity: eventFunctionType.parameters.count))
           )
@@ -503,18 +624,22 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
         continue
       }
       // `_decode` assigns every value prop, so none can be a constant.
-      if varDecl.bindingSpecifier.tokenKind == .keyword(.let) && !reportedLet {
-        propDiagnostics.append(letValuePropDiagnostic(for: varDecl, name: name))
-        reportedLet = true
+      if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
+        letValuePropNames.append(name)
       }
       // A removed prop is reset to its value in a fresh `Self()`, so every value prop needs a
       // default: its initial value, or the `nil` that Swift gives an optional `var` without one.
-      if binding.initializer == nil && !(declaredType.map(hasImplicitNilDefault) ?? false) {
-        propDiagnostics.append(missingDefaultDiagnostic(for: ident, name: name))
+      if needsInitialValue && !(declaredType.map(hasImplicitNilDefault) ?? false) {
+        propDiagnostics.append(missingDefaultDiagnostic(for: ident, name: name, type: declaredType))
       }
       valueProps.append(prop)
     }
+    if !letValuePropNames.isEmpty {
+      propDiagnostics.insert(letValuePropDiagnostic(for: varDecl, names: letValuePropNames), at: letDiagnosticIndex)
+    }
   }
+  // Reported together, so one run names every prop that the generated code can't reset, assign or
+  // default.
   if !propDiagnostics.isEmpty {
     throw DiagnosticsError(diagnostics: propDiagnostics)
   }
@@ -524,15 +649,77 @@ private func validatedViewProps(of declaration: some DeclGroupSyntax) throws -> 
       "@ViewProps supports at most \(maxValueProps) value props (the changed-props mask is a UInt64), but this type declares \(valueProps.count); '\(valueProps[maxValueProps].name)' is the first over the limit. Event props don't count toward it"
     )
   }
-  let declaresEmptyInitializer = declaration.memberBlock.members.contains { member in
-    member.decl.as(InitializerDeclSyntax.self)?.signature.parameterClause.parameters.isEmpty == true
-  }
   return ViewPropsModel(
     valueProps: valueProps,
     eventProps: eventProps,
     eventDefaults: eventDefaults,
-    declaresEmptyInitializer: declaresEmptyInitializer
+    generatesInitializer: needsGeneratedInitializer(
+      structDecl,
+      eventDefaults: eventDefaults,
+      declaresUsableInitializer: declaresUsableInitializer,
+      declaresOtherInitializer: declaresOtherInitializer
+    )
   )
+}
+
+/// Whether Swift's own `init()` can't satisfy `AnyViewProps`, so the macro generates a public one.
+/// Swift synthesizes `init()` only when every stored property has a default and the type declares
+/// no initializer, and that `init()` is `internal`, which a `public` type's conformance can't use.
+/// The author's usable `init()` always wins, so there is never a second one.
+private func needsGeneratedInitializer(
+  _ structDecl: StructDeclSyntax,
+  eventDefaults: [EventDefault],
+  declaresUsableInitializer: Bool,
+  declaresOtherInitializer: Bool
+) -> Bool {
+  if declaresUsableInitializer {
+    return false
+  }
+  let isPublic = structDecl.modifiers.contains {
+    $0.name.tokenKind == .keyword(.public) || $0.name.tokenKind == .keyword(.open)
+  }
+  return !eventDefaults.isEmpty || isPublic || declaresOtherInitializer
+}
+
+/// True if the binding has storage: no accessor block, or only `willSet`/`didSet` observers.
+private func isStoredBinding(_ binding: PatternBindingSyntax) -> Bool {
+  guard let accessorBlock = binding.accessorBlock else {
+    return true
+  }
+  guard case .accessors(let accessors) = accessorBlock.accessors else {
+    return false
+  }
+  return accessors.allSatisfy { accessor in
+    accessor.accessorSpecifier.tokenKind == .keyword(.willSet)
+      || accessor.accessorSpecifier.tokenKind == .keyword(.didSet)
+  }
+}
+
+/// The errors for the `private` and `fileprivate` stored properties of a declaration that have no
+/// initial value. `static`, `class` and `lazy` properties are exempt, and so is an optional `var`
+/// written as `T?` or `T!`, which defaults to `nil`.
+private func unsetPrivatePropertyDiagnostics(of varDecl: VariableDeclSyntax) -> [Diagnostic] {
+  guard
+    let access = varDecl.modifiers.first(where: {
+      $0.name.tokenKind == .keyword(.private) || $0.name.tokenKind == .keyword(.fileprivate)
+    }),
+    !varDecl.modifiers.contains(where: {
+      $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
+        || $0.name.tokenKind == .keyword(.lazy)
+    })
+  else {
+    return []
+  }
+  let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
+  return varDecl.bindings.compactMap { binding in
+    guard binding.initializer == nil, isStoredBinding(binding),
+      let ident = binding.pattern.as(IdentifierPatternSyntax.self),
+      !(isVar && binding.typeAnnotation.map { hasImplicitNilDefault($0.type) } == true)
+    else {
+      return nil
+    }
+    return unsetPrivatePropertyDiagnostic(for: ident, access: access.name.text)
+  }
 }
 
 /// True if the function type returns `Void`, written as `Void`, `Swift.Void` or `()`.
@@ -708,13 +895,19 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
     """
 }
 
-/// The `init()` that `AnyViewProps` requires, when Swift doesn't synthesize one: it gives each event
-/// prop without an initial value an empty closure, and leaves the value props at their initial
-/// values. `nil` when every event has an initial value (Swift then synthesizes `init()` from the
-/// defaults) or when the type declares its own `init()`.
+/// The public `init()` that `AnyViewProps` requires, when Swift's own can't satisfy it: it gives each
+/// event prop without an initial value an empty closure, and leaves the value props at their initial
+/// values. `nil` when the type declares a usable `init()`, or when Swift's `init()` is enough (see
+/// `needsGeneratedInitializer`).
 private func defaultInitializer(props: ViewPropsModel) -> DeclSyntax? {
-  if props.eventDefaults.isEmpty || props.declaresEmptyInitializer {
+  if !props.generatesInitializer {
     return nil
+  }
+  if props.eventDefaults.isEmpty {
+    return """
+      public init() {
+      }
+      """
   }
   let assignments = props.eventDefaults
     .map { "  self.\($0.name) = \($0.emptyClosure)" }
