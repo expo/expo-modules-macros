@@ -34,7 +34,6 @@ enum RefKind: String, Encodable {
   case sharedObject
   case `enum`
   case union
-  case viewProps
 }
 
 indirect enum TypeNode: Equatable {

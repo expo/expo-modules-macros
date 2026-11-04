@@ -54,7 +54,7 @@ export type TypeNode =
       kind: 'ref';
       typeof: JSType;
       name: string;
-      refKind?: 'record' | 'sharedObject' | 'enum' | 'union' | 'viewProps';
+      refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
     }
   /**
    * An unlabeled Swift tuple of two or more elements, `(A, B)`. It crosses as an array with one value per
@@ -375,23 +375,6 @@ export interface ExportedUnion extends ExportedAccess, ExportedAvailability {
 }
 
 /**
- * An `@ExpoView` class: a native view bound to the `@ViewProps` struct in its generic argument. It is
- * reported on its own rather than under a module.
- */
-export interface ExportedView extends ExportedAccess, ExportedAvailability {
-  /** The Swift class name. Only a view declared at file scope is reported. */
-  name: string;
-  /** The name the view registers under. `@ExpoView` takes no name, so it is always the class name. */
-  jsName: string;
-  /**
-   * The props type: the generic argument of `@ExpoView<CardProps>`. A ref to a scanned `@ViewProps`
-   * struct has the `viewProps` ref kind.
-   */
-  props: TypeNode;
-  file: string;
-}
-
-/**
  * One value prop of a `@ViewProps` struct: a stored property that isn't function-typed. It has no
  * `required`: native code resets a prop that React leaves out to its default, so JS can always omit
  * one.
@@ -419,14 +402,30 @@ export interface ExportedViewEvent extends ExportedAccess, ExportedAvailability 
   payload?: TypeNode;
 }
 
-/** A `@ViewProps` struct: the props of one or more `@ExpoView` classes. */
-export interface ExportedViewProps extends ExportedAccess, ExportedAvailability {
-  /** The Swift struct name, qualified with the types it is nested in (`CardView.Props`). */
+/**
+ * An `@ExpoView` class with the props and events of the `@ViewProps` struct in its generic argument.
+ * It is reported on its own rather than under a module.
+ */
+export interface ExportedView extends ExportedAccess, ExportedAvailability {
+  /** The Swift class name. Only a view declared at file scope is reported. */
   name: string;
-  /** The value props, in declaration order. */
-  props: ExportedViewProp[];
-  /** The events, in declaration order. */
-  events: ExportedViewEvent[];
+  /** The name the view registers under. `@ExpoView` takes no name, so it is always the class name. */
+  jsName: string;
+  /**
+   * The props type: the generic argument of `@ExpoView<CardProps>`, as written, or the qualified name
+   * of the scanned `@ViewProps` struct it names (`CardView.Props`).
+   */
+  propsType: string;
+  /**
+   * The value props of the `@ViewProps` struct, in declaration order. Absent when the scan declares
+   * no struct named `propsType`, so unknown props differ from no props.
+   */
+  props?: ExportedViewProp[];
+  /**
+   * The events of the `@ViewProps` struct, in declaration order. Absent when the scan declares no
+   * struct named `propsType`.
+   */
+  events?: ExportedViewEvent[];
   file: string;
 }
 
@@ -438,7 +437,6 @@ export interface ExportedSurface {
   enums: ExportedEnum[];
   unions: ExportedUnion[];
   views: ExportedView[];
-  viewProps: ExportedViewProps[];
 }
 
 /** A `#if` condition the scan couldn't answer statically. */

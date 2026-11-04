@@ -2,7 +2,7 @@
 ///
 /// A `TypeNode` is parsed from one `TypeSyntax` in isolation, so at parse time a name like `Status` is
 /// just a name: the parser has no idea whether the scan will turn up an `@Record`, an `Enumerable`
-/// enum, a `@ViewProps` struct, or nothing at all. Resolution is therefore a second pass over the collected surface, run once
+/// enum, or nothing at all. Resolution is therefore a second pass over the collected surface, run once
 /// every file has been walked.
 ///
 /// A name is looked up the way Swift looks it up: from the type the use site is written in, outward to
@@ -55,9 +55,6 @@ struct RefIndex {
       // member. `object` is the honest coarse answer; the consumer reads `members` for the real shape.
       entries[union.name] = Entry(name: union.name, kind: .union, jsType: .object)
     }
-    for props in surface.viewProps {
-      entries[props.name] = Entry(name: props.name, kind: .viewProps, jsType: .object)
-    }
     for enumeration in surface.enums {
       entries[enumeration.name] = Entry(
         name: enumeration.name,
@@ -77,26 +74,32 @@ struct RefIndex {
   /// dropped one at a time (`Media.Status` -> `Status`): a use site may qualify a name with a module
   /// the scan doesn't see, which is how the conformance and raw-type checks already match names.
   func lookup(_ name: String, in scope: String) -> Entry? {
-    let name = name.hasPrefix("Self.") ? String(name.dropFirst("Self.".count)) : name
-    var components = scope.split(separator: ".").map(String.init)
-    while true {
-      if let entry = entries[(components + [name]).joined(separator: ".")] {
-        return entry
-      }
-      if components.isEmpty {
-        break
-      }
-      components.removeLast()
-    }
-    var suffix = name.split(separator: ".").map(String.init).dropFirst()
-    while !suffix.isEmpty {
-      if let entry = entries[suffix.joined(separator: ".")] {
-        return entry
-      }
-      suffix = suffix.dropFirst()
-    }
-    return nil
+    return scopedLookup(name, in: scope, entries: entries)
   }
+}
+
+/// The entry that a use of `name` written inside the type `scope` names, from `entries` keyed by
+/// qualified name. Swift's lookup rules, as `RefIndex.lookup(_:in:)` documents them.
+private func scopedLookup<Entry>(_ name: String, in scope: String, entries: [String: Entry]) -> Entry? {
+  let name = name.hasPrefix("Self.") ? String(name.dropFirst("Self.".count)) : name
+  var components = scope.split(separator: ".").map(String.init)
+  while true {
+    if let entry = entries[(components + [name]).joined(separator: ".")] {
+      return entry
+    }
+    if components.isEmpty {
+      break
+    }
+    components.removeLast()
+  }
+  var suffix = name.split(separator: ".").map(String.init).dropFirst()
+  while !suffix.isEmpty {
+    if let entry = entries[suffix.joined(separator: ".")] {
+      return entry
+    }
+    suffix = suffix.dropFirst()
+  }
+  return nil
 }
 
 /// The JS category a raw-value enum crosses as: its raw value's. A bare `Enumerable` conformance with
@@ -218,24 +221,49 @@ extension ExportedSurface {
         }
         return resolved
       },
+      // The props and events are written in the `@ViewProps` struct, so their refs are looked up from
+      // it. `joiningViewProps(_:)` runs first and sets `propsType` to the struct's qualified name.
       views: views.map { view in
         var resolved = view
-        resolved.props = view.props.resolvingRefs(using: index, in: view.name)
-        return resolved
-      },
-      viewProps: viewProps.map { props in
-        var resolved = props
-        resolved.props = props.props.map { prop in
+        resolved.props = view.props?.map { prop in
           var resolvedProp = prop
-          resolvedProp.type = prop.type.resolvingRefs(using: index, in: props.name)
+          resolvedProp.type = prop.type.resolvingRefs(using: index, in: view.propsType)
           return resolvedProp
         }
-        resolved.events = props.events.map { event in
+        resolved.events = view.events?.map { event in
           var resolvedEvent = event
-          resolvedEvent.payload = event.payload?.resolvingRefs(using: index, in: props.name)
+          resolvedEvent.payload = event.payload?.resolvingRefs(using: index, in: view.propsType)
           return resolvedEvent
         }
         return resolved
+      }
+    )
+  }
+
+  /// This surface with the props and events of each view's `@ViewProps` struct copied into the view.
+  /// The struct is looked up from the view like a ref, so it may be declared in another file or nested
+  /// (`CardView.Props`). A found struct gives the view its qualified name as `propsType`. A view whose
+  /// struct the scan doesn't declare keeps `props` and `events` at `nil`.
+  func joiningViewProps(_ declarations: [ViewPropsDeclaration]) -> ExportedSurface {
+    var entries: [String: ViewPropsDeclaration] = [:]
+    for declaration in declarations {
+      entries[declaration.name] = declaration
+    }
+    return ExportedSurface(
+      modules: modules,
+      sharedObjects: sharedObjects,
+      records: records,
+      enums: enums,
+      unions: unions,
+      views: views.map { view in
+        guard let declaration = scopedLookup(view.propsType, in: view.name, entries: entries) else {
+          return view
+        }
+        var joined = view
+        joined.propsType = declaration.name
+        joined.props = declaration.props
+        joined.events = declaration.events
+        return joined
       }
     )
   }

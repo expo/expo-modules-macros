@@ -25,7 +25,9 @@ final class SurfaceVisitor: SyntaxVisitor {
   private(set) var enums: [ExportedEnum] = []
   private(set) var unions: [ExportedUnion] = []
   private(set) var views: [ExportedView] = []
-  private(set) var viewProps: [ExportedViewProps] = []
+  /// The `@ViewProps` structs, which `ExportedSurface.joiningViewProps(_:)` copies into the views once
+  /// every file has been walked.
+  private(set) var viewProps: [ViewPropsDeclaration] = []
 
   init(file: String, tree: SourceFileSyntax) {
     self.file = file
@@ -215,11 +217,13 @@ final class SurfaceVisitor: SyntaxVisitor {
       guard scope.isEmpty else {
         return
       }
+      // `props` and `events` are filled in by `ExportedSurface.joiningViewProps(_:)`, since the
+      // `@ViewProps` struct can be declared in another file.
       views.append(
         ExportedView(
           name: qualified,
           jsName: name,
-          props: typeNode(from: propsType),
+          propsType: spellingWithoutGenericArguments(of: propsType) ?? propsType.trimmedDescription,
           accessLevel: accessLevel,
           platforms: platforms,
           file: file
@@ -231,16 +235,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     // `@ViewProps` applies only to a struct.
     if node.is(StructDeclSyntax.self), attributes.firstAttribute(named: DetectedMacro.viewProps.rawValue) != nil {
       let (props, events) = collectViewProps(members)
-      viewProps.append(
-        ExportedViewProps(
-          name: qualified,
-          props: props,
-          events: events,
-          accessLevel: accessLevel,
-          platforms: platforms,
-          file: file
-        )
-      )
+      viewProps.append(ViewPropsDeclaration(name: qualified, props: props, events: events))
     }
   }
 

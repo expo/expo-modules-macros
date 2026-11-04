@@ -41,7 +41,7 @@ func scanExports(paths: [String]) -> ScanExportsResult {
   var enums: [ExportedEnum] = []
   var unions: [ExportedUnion] = []
   var views: [ExportedView] = []
-  var viewProps: [ExportedViewProps] = []
+  var viewProps: [ViewPropsDeclaration] = []
 
   let stats = scanFiles(
     paths: paths,
@@ -62,16 +62,17 @@ func scanExports(paths: [String]) -> ScanExportsResult {
 
   // Refs resolve only once every file has been walked: a type parsed in one file may name a type
   // declared in another, so the full set of declarations has to exist before any lookup is valid. The
-  // same holds for a superclass, so the inherited members are merged after that.
+  // same holds for a view's `@ViewProps` struct, which is joined before the refs resolve so that the
+  // refs in its props resolve from the struct, and for a superclass, so the inherited members are
+  // merged last.
   let surface = ExportedSurface(
     modules: modules,
     sharedObjects: sharedObjects,
     records: records,
     enums: enums,
     unions: unions,
-    views: views,
-    viewProps: viewProps
-  ).resolvingRefs().mergingInheritedMembers()
+    views: views
+  ).joiningViewProps(viewProps).resolvingRefs().mergingInheritedMembers()
 
   return ScanExportsResult(
     schemaVersion: scanExportsSchemaVersion,

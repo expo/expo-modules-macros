@@ -824,7 +824,7 @@
         ]
       }
     ],
-    "viewProps": [
+    "views": [
       {
         "accessLevel": "public",
         "events": [
@@ -876,7 +876,8 @@
           }
         ],
         "file": "PlayerModule.swift",
-        "name": "PlayerViewProps",
+        "jsName": "PlayerView",
+        "name": "PlayerView",
         "platforms": [
           {
             "name": "iOS"
@@ -953,38 +954,8 @@
               }
             }
           }
-        ]
-      }
-    ],
-    "views": [
-      {
-        "accessLevel": "public",
-        "file": "PlayerModule.swift",
-        "jsName": "PlayerView",
-        "name": "PlayerView",
-        "platforms": [
-          {
-            "name": "iOS"
-          },
-          {
-            "name": "macOS"
-          },
-          {
-            "name": "tvOS"
-          },
-          {
-            "name": "watchOS"
-          },
-          {
-            "name": "visionOS"
-          }
         ],
-        "props": {
-          "kind": "ref",
-          "name": "PlayerViewProps",
-          "refKind": "viewProps",
-          "typeof": "object"
-        }
+        "propsType": "PlayerViewProps"
       }
     ]
   },

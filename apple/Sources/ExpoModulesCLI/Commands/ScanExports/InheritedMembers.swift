@@ -84,8 +84,7 @@ extension ExportedSurface {
       records: records,
       enums: enums,
       unions: unions,
-      views: views,
-      viewProps: viewProps
+      views: views
     )
   }
 }
