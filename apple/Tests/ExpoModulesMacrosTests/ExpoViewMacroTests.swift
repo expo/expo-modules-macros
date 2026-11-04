@@ -6,7 +6,7 @@ import SwiftSyntaxMacrosGenericTestSupport
 import Testing
 
 private let expoViewMacroSpecs: [String: MacroSpec] = [
-  "ExpoView": MacroSpec(type: ExpoViewMacro.self)
+  "ExpoView": MacroSpec(type: ExpoViewMacro.self, conformances: ["AnyNativeView"])
 ]
 
 private func assertExpansion(
@@ -43,19 +43,22 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView<CardProps>
-      class CardView: ExpoView {
-        override func didUpdateProps(_ diff: CardProps.Diff) {
+      class CardView: ExpoNativeView {
+        func didUpdateProps(_ diff: CardProps.Diff) {
           backgroundColor = props.color
         }
       }
       """,
       expandedSource: """
-        class CardView: ExpoView {
-          override func didUpdateProps(_ diff: CardProps.Diff) {
+        class CardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) {
             backgroundColor = props.color
           }
 
           public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeView {
         }
         """
     )
@@ -66,13 +69,16 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView<CardProps>
-      final class CardView: ExpoView {
+      final class CardView: ExpoNativeView {
       }
       """,
       expandedSource: """
-        final class CardView: ExpoView {
+        final class CardView: ExpoNativeView {
 
           public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeView {
         }
         """
     )
@@ -83,28 +89,51 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView<MyModule.CardProps>
-      class CardView: ExpoView {
+      class CardView: ExpoNativeView {
       }
       """,
       expandedSource: """
-        class CardView: ExpoView {
+        class CardView: ExpoNativeView {
 
           public typealias Props = MyModule.CardProps
+        }
+
+        extension CardView: AnyNativeView {
         }
         """
     )
   }
 
   @Test
-  func `A view inheriting from ExpoView and a protocol is accepted`() {
+  func `A view inheriting from ExpoNativeView and a protocol is accepted`() {
     assertExpansion(
       """
       @ExpoView<CardProps>
-      class CardView: ExpoView, Identifiable {
+      class CardView: ExpoNativeView, Identifiable {
       }
       """,
       expandedSource: """
-        class CardView: ExpoView, Identifiable {
+        class CardView: ExpoNativeView, Identifiable {
+
+          public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeView {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A class that already conforms to AnyNativeView gets no second conformance`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>
+      class CardView: ExpoNativeView, AnyNativeView {
+      }
+      """,
+      expandedSource: """
+        class CardView: ExpoNativeView, AnyNativeView {
 
           public typealias Props = CardProps
         }
@@ -135,7 +164,7 @@ struct ExpoViewMacroTests {
   }
 
   @Test
-  func `A class not inheriting from ExpoView produces a diagnostic`() {
+  func `A class not inheriting from ExpoNativeView produces a diagnostic`() {
     assertExpansion(
       """
       @ExpoView<CardProps>
@@ -149,7 +178,7 @@ struct ExpoViewMacroTests {
       diagnostics: [
         // No fix-it: replacing a superclass the author chose isn't an edit the macro can make.
         DiagnosticSpec(
-          message: "@ExpoView class must inherit from ExpoView. Add `: ExpoView` to the class declaration.",
+          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
           line: 2,
           column: 7
         )
@@ -171,16 +200,16 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView class must inherit from ExpoView. Add `: ExpoView` to the class declaration.",
+          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
           line: 2,
           column: 7,
-          fixIts: [FixItSpec(message: "Inherit from 'ExpoView'")]
+          fixIts: [FixItSpec(message: "Inherit from 'ExpoNativeView'")]
         )
       ],
-      applyFixIts: ["Inherit from 'ExpoView'"],
+      applyFixIts: ["Inherit from 'ExpoNativeView'"],
       fixedSource: """
         @ExpoView<CardProps>
-        class CardView: ExpoView {
+        class CardView: ExpoNativeView {
         }
         """
     )
@@ -194,11 +223,11 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView
-      class CardView: ExpoView {
+      class CardView: ExpoNativeView {
       }
       """,
       expandedSource: """
-        class CardView: ExpoView {
+        class CardView: ExpoNativeView {
         }
         """,
       diagnostics: [
@@ -218,11 +247,11 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView<CardProps>
-      class CardView<T>: ExpoView {
+      class CardView<T>: ExpoNativeView {
       }
       """,
       expandedSource: """
-        class CardView<T>: ExpoView {
+        class CardView<T>: ExpoNativeView {
         }
         """,
       diagnostics: [
@@ -241,12 +270,12 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView<CardProps>
-      class CardView: ExpoView {
+      class CardView: ExpoNativeView {
         typealias Props = Something
       }
       """,
       expandedSource: """
-        class CardView: ExpoView {
+        class CardView: ExpoNativeView {
           typealias Props = Something
         }
         """,
@@ -266,13 +295,13 @@ struct ExpoViewMacroTests {
     assertExpansion(
       """
       @ExpoView<CardProps>
-      class CardView: ExpoView {
+      class CardView: ExpoNativeView {
         struct Props {
         }
       }
       """,
       expandedSource: """
-        class CardView: ExpoView {
+        class CardView: ExpoNativeView {
           struct Props {
           }
         }
@@ -290,7 +319,7 @@ struct ExpoViewMacroTests {
 
   @Test
   func `A class inheriting indirectly is rejected`() {
-    // A syntactic macro can't resolve `BaseCardView` to see that it is an ExpoView, so the check
+    // A syntactic macro can't resolve `BaseCardView` to see that it is an ExpoNativeView, so the check
     // matches the class's own inheritance clause only. `@SharedObject` behaves the same way.
     assertExpansion(
       """
@@ -304,7 +333,7 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView class must inherit from ExpoView. Add `: ExpoView` to the class declaration.",
+          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
           line: 2,
           column: 7
         )

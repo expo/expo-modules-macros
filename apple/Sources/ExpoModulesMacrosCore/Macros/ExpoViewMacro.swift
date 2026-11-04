@@ -3,11 +3,11 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/// Member macro applied to an `ExpoView` subclass, binding it to its props type:
+/// Member and extension macro applied to an `ExpoNativeView` subclass, binding it to its props type:
 ///
 ///   @ExpoView<CardProps>
-///   final class CardView: ExpoView {
-///     override func didUpdateProps(_ diff: CardProps.Diff) {
+///   final class CardView: ExpoNativeView {
+///     func didUpdateProps(_ diff: CardProps.Diff) {
 ///       if diff.changed(.color) {
 ///         backgroundColor = props.color
 ///       }
@@ -21,23 +21,25 @@ import SwiftSyntaxMacros
 /// compile error at the author's own line ("requires that 'X' conform to 'AnyViewProps'")
 /// rather than a macro diagnostic. This macro therefore validates nothing about the props type.
 ///
-/// The whole expansion is one line:
+/// The expansion is a typealias and a conformance:
 ///
 ///   public typealias Props = CardProps
+///   extension CardView: AnyNativeView {}
 ///
-/// That is deliberately all of it. There is **no view definition**: no `ViewDefinition`, no
-/// `View(…) { }` builder, no `Props(_:)` or `Events(_:)` element. `_synthesizedViewDefinition()`
-/// existed only to hand core a DSL value the old registration path could consume, and modules and
-/// shared objects already moved to direct hooks. Core reads the props type from this typealias and
-/// the event names from the props type's own `_eventNames` (synthesized by `@ViewProps`), both
-/// static, neither needing a builder to be evaluated.
+/// There is **no view definition**: no `ViewDefinition`, no `View(…) { }` builder, no `Props(_:)` or
+/// `Events(_:)` element. Core reaches the view through the `AnyNativeView` conformance: it reads the
+/// props type from the `Props` typealias, which satisfies the protocol's associated type, and the
+/// event names from the props type's own `_eventNames` (synthesized by `@ViewProps`). Both are
+/// static, so no builder has to be evaluated.
 ///
-/// Views also get no `_decorateView` hook in its place: `_decorateModule` and `_decorateSharedObject`
-/// exist to bind members into a JS object, and a view has no such object. Props reach a view through
-/// Fabric's mounting layer, not a JS call, so a view's runtime entry point is the props update hook.
+/// Views also get no `_decorateView` hook: `_decorateModule` and `_decorateSharedObject` exist to bind
+/// members into a JS object, and a view has no such object. Props reach a view through Fabric's
+/// mounting layer, not a JS call, so a view's runtime entry point is the props update hook.
 ///
-/// `didUpdateProps` is a core-called override, not synthesized here.
-public struct ExpoViewMacro: MemberMacro {
+/// `didUpdateProps` is an `AnyNativeView` requirement with a default in core, not synthesized here.
+/// It isn't an `override`: `ExpoNativeView` has no such method, because its parameter type depends on
+/// the props type.
+public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
   public static func expansion(
     of node: AttributeSyntax,
     providingMembersOf declaration: some DeclGroupSyntax,
@@ -87,38 +89,66 @@ public struct ExpoViewMacro: MemberMacro {
       """
     ]
   }
+
+  public static func expansion(
+    of node: AttributeSyntax,
+    attachedTo declaration: some DeclGroupSyntax,
+    providingExtensionsOf type: some TypeSyntaxProtocol,
+    conformingTo protocols: [TypeSyntax],
+    in context: some MacroExpansionContext
+  ) throws -> [ExtensionDeclSyntax] {
+    // A class that the member macro rejects gets no conformance either: the member macro has already
+    // reported the error, and a conformance without the `Props` typealias would only add a second
+    // error about the associated type.
+    guard let classDecl = declaration.as(ClassDeclSyntax.self),
+      inheritsFromAny(classDecl, names: expoViewBaseClassNames),
+      classDecl.genericParameterClause == nil,
+      existingPropsMemberKind(in: classDecl) == nil,
+      genericArgument(of: node) != nil,
+      !inheritsProtocol(named: nativeViewProtocolName, in: declaration)
+    else {
+      return []
+    }
+    let ext: DeclSyntax = """
+      extension \(type.trimmed): \(raw: nativeViewProtocolName) {}
+      """
+    guard let extDecl = ext.as(ExtensionDeclSyntax.self) else {
+      return []
+    }
+    return [extDecl]
+  }
 }
 
 // MARK: - Diagnostics
 
-/// The error for a class that doesn't name `ExpoView` in its inheritance clause, carrying a fix-it
+/// The error for a class that doesn't name `ExpoNativeView` in its inheritance clause, carrying a fix-it
 /// that adds it.
 ///
 /// The fix-it only applies where the edit is unambiguous. With no inheritance clause at all it
-/// inserts `: ExpoView`; with an existing clause it prepends `ExpoView` as the first entry, since
+/// inserts `: ExpoNativeView`; with an existing clause it prepends `ExpoNativeView` as the first entry, since
 /// Swift requires the superclass to come before any protocol. A class that already names some other
 /// superclass gets the diagnostic without a fix-it: replacing that superclass is a decision the macro
 /// can't make (see the indirect-inheritance note on `expoViewBaseClassNames`).
 private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagnostic {
   let message = ExpoViewDiagnosticMessage(
-    "@ExpoView class must inherit from ExpoView. Add `: ExpoView` to the class declaration.",
+    "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
     id: "expoview-missing-base-class"
   )
   var fixIts: [FixIt] = []
 
   if classDecl.inheritanceClause == nil {
-    // `class CardView {` → `class CardView: ExpoView {`. The name carries the space before `{` as
+    // `class CardView {` → `class CardView: ExpoNativeView {`. The name carries the space before `{` as
     // trailing trivia, so move it onto the clause to keep the spacing.
     let name = classDecl.name
     let clause = InheritanceClauseSyntax(
       colon: .colonToken(trailingTrivia: .space),
       inheritedTypes: InheritedTypeListSyntax([
-        InheritedTypeSyntax(type: TypeSyntax(IdentifierTypeSyntax(name: .identifier("ExpoView"))))
+        InheritedTypeSyntax(type: TypeSyntax(IdentifierTypeSyntax(name: .identifier("ExpoNativeView"))))
       ])
     )
     fixIts.append(
       FixIt(
-        message: ExpoViewFixItMessage("Inherit from 'ExpoView'", id: "expoview-add-base-class"),
+        message: ExpoViewFixItMessage("Inherit from 'ExpoNativeView'", id: "expoview-add-base-class"),
         changes: [
           .replace(
             oldNode: Syntax(classDecl),
@@ -132,16 +162,16 @@ private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagn
       )
     )
   } else if let clause = classDecl.inheritanceClause, inheritsOnlyProtocolsByConvention(clause) {
-    // `class CardView: Identifiable {` → `class CardView: ExpoView, Identifiable {`.
+    // `class CardView: Identifiable {` → `class CardView: ExpoNativeView, Identifiable {`.
     var inherited = clause.inheritedTypes
     if var first = inherited.first {
       first.trailingComma = .commaToken(trailingTrivia: .space)
-      first.type = TypeSyntax(IdentifierTypeSyntax(name: .identifier("ExpoView")))
+      first.type = TypeSyntax(IdentifierTypeSyntax(name: .identifier("ExpoNativeView")))
       inherited.insert(first, at: inherited.startIndex)
     }
     fixIts.append(
       FixIt(
-        message: ExpoViewFixItMessage("Inherit from 'ExpoView'", id: "expoview-add-base-class"),
+        message: ExpoViewFixItMessage("Inherit from 'ExpoNativeView'", id: "expoview-add-base-class"),
         changes: [
           .replace(
             oldNode: Syntax(clause),
@@ -157,7 +187,7 @@ private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagn
 
 /// Whether every entry in the clause looks like a protocol rather than a superclass, by the
 /// capitalization-free heuristic that a Swift superclass must come first: if the first entry is one
-/// the macro would be replacing, prepending `ExpoView` would produce two superclasses. A macro can't
+/// the macro would be replacing, prepending `ExpoNativeView` would produce two superclasses. A macro can't
 /// resolve names, so this only reports true when the clause is empty of anything that could be a
 /// base class the author chose deliberately. Conservative by design: a wrong guess here would emit a
 /// fix-it that doesn't compile.
@@ -223,14 +253,14 @@ private func existingPropsMemberKind(in classDecl: ClassDeclSyntax) -> String? {
 }
 
 /// Base classes an `@ExpoView` may inherit from. The check is syntactic, matching the name in the
-/// class's own inheritance clause: both `: ExpoView` and a qualified `: ExpoModulesCore.ExpoView`
+/// class's own inheritance clause: both `: ExpoNativeView` and a qualified `: ExpoModulesCore.ExpoNativeView`
 /// pass, since `baseIdentifier` reads the trailing name.
 ///
-/// Indirect inheritance does not: a view whose superclass is itself an `ExpoView` subclass
-/// (`class Base: ExpoView` then `class CardView: Base`) is rejected, because a macro can't resolve
+/// Indirect inheritance does not: a view whose superclass is itself an `ExpoNativeView` subclass
+/// (`class Base: ExpoNativeView` then `class CardView: Base`) is rejected, because a macro can't resolve
 /// the superclass to check. `@SharedObject` has the same limitation, through the same helper. The
-/// workaround is to apply `@ExpoView` to the class that names `ExpoView` directly.
-private let expoViewBaseClassNames: Set<String> = ["ExpoView"]
+/// workaround is to apply `@ExpoView` to the class that names `ExpoNativeView` directly.
+private let expoViewBaseClassNames: Set<String> = ["ExpoNativeView"]
 
 /// The attribute's single generic argument, verbatim (`@ExpoView<CardProps>` → `"CardProps"`), or
 /// `nil` when the attribute carries no generic argument clause.
@@ -257,3 +287,7 @@ private func genericArgument(of attribute: AttributeSyntax) -> String? {
   }
   return type.trimmedDescription
 }
+
+/// The core protocol that `@ExpoView` conforms the class to. Core registers the view and decodes its
+/// props through it.
+private let nativeViewProtocolName = "AnyNativeView"
