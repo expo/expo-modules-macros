@@ -63,6 +63,29 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `Leaves the runtime parameter out of @JS functions and initializers`() throws {
+    let visitor = surface(
+      """
+      @ExpoModule
+      final class HostModule {
+        @JS
+        func install(_ name: String, runtime: borrowing JavaScriptRuntime) {}
+      }
+
+      @SharedObject
+      final class Cache: SharedObject {
+        @JS
+        init(name: String, runtime: borrowing ExpoModulesJSI.JavaScriptRuntime) {}
+      }
+      """
+    )
+    let install = try #require(visitor.modules.first?.functions.first)
+    #expect(install.parameters.map(\.name) == ["name"])
+    let cache = try #require(visitor.sharedObjects.first)
+    #expect(cache.initializer?.parameters.map(\.name) == ["name"])
+  }
+
+  @Test
   func `A @JS(.withAsync) function also exports its promise-returning variant`() throws {
     let module = try #require(
       surface(
