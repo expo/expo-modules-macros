@@ -639,8 +639,10 @@ final class SurfaceVisitor: SyntaxVisitor {
 
   /// Projects a parameter clause into `ExportedParameter`s: label = first name, name = second (else
   /// first), `optional` when it has a default value or an optional type, and the default as written.
+  /// A parameter that takes the JavaScript runtime (its type is written as `JavaScriptRuntime`) is left
+  /// out: the binding passes the runtime itself, and JavaScript doesn't see the parameter.
   private func parameters(of clause: FunctionParameterClauseSyntax) -> [ExportedParameter] {
-    clause.parameters.map { parameter in
+    clause.parameters.filter { !takesRuntime($0) }.map { parameter in
       let label = parameter.firstName.identifierName
       let name = parameter.secondName?.identifierName ?? label
       return ExportedParameter(
@@ -798,6 +800,35 @@ private func underlyingFunctionType(of type: TypeSyntax?) -> FunctionTypeSyntax?
     return underlyingFunctionType(of: element.type)
   }
   return type.as(FunctionTypeSyntax.self)
+}
+
+/// True when a parameter takes the JavaScript runtime: its type, without specifiers such as `borrowing`,
+/// is written as `JavaScriptRuntime` or `….JavaScriptRuntime`, or as an optional of it. This matches
+/// `isRuntimeParameter` in the macros: a type that also carries attributes (`@Sendable`) isn't one.
+private func takesRuntime(_ parameter: FunctionParameterSyntax) -> Bool {
+  var type = parameter.type
+  if let attributed = type.as(AttributedTypeSyntax.self) {
+    guard attributed.attributes.isEmpty else {
+      return false
+    }
+    type = attributed.baseType
+  }
+  if let optional = type.as(OptionalTypeSyntax.self) {
+    type = optional.wrappedType
+  } else if let implicitlyUnwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+    type = implicitlyUnwrapped.wrappedType
+  } else if let identifier = type.as(IdentifierTypeSyntax.self), identifier.name.text == "Optional",
+    let argument = identifier.genericArgumentClause?.arguments.first, case .type(let wrapped) = argument.argument
+  {
+    type = wrapped
+  }
+  if let identifier = type.as(IdentifierTypeSyntax.self) {
+    return identifier.name.text == "JavaScriptRuntime"
+  }
+  if let member = type.as(MemberTypeSyntax.self) {
+    return member.name.text == "JavaScriptRuntime"
+  }
+  return false
 }
 
 /// True when an event's function type returns `Void`. The shared `isVoidType` is not reused: it

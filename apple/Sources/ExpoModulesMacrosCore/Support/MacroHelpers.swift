@@ -128,6 +128,17 @@ internal func isOptionalType(_ type: TypeSyntax) -> Bool {
   return false
 }
 
+/// True when the parameter takes the JavaScript runtime instead of a JavaScript argument: its type,
+/// without specifiers, is written as `JavaScriptRuntime` (or `….JavaScriptRuntime`), or as an optional
+/// of it. The binding passes the runtime of the call, and JavaScript doesn't see the parameter. `@JS`
+/// requires it to be the last parameter, labeled `in` or `runtime`, `borrowing` and not optional (see
+/// `diagnoseRuntimeParameter`). A macro can't resolve types, so a typealias or a subclass of
+/// `JavaScriptRuntime` isn't detected.
+internal func isRuntimeParameter(_ parameter: FunctionParameterSyntax) -> Bool {
+  let type = SpecifiedType(parameter.type).type
+  return baseIdentifier(of: optionalWrappedType(type) ?? type) == "JavaScriptRuntime"
+}
+
 /// A parameter's type split from the specifiers written in front of it (`borrowing`, `consuming`,
 /// `sending`, `inout`, `isolated`, ...). The specifiers aren't part of the type: the decode call and
 /// the conformance assertion need the bare type (`borrowing Point.decode(...)` isn't valid Swift), and

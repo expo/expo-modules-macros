@@ -4,12 +4,18 @@ import SwiftSyntax
 /// have a single constructor). Instead of a `Constructor { … }` DSL entry, the macro synthesizes an
 /// override of `SharedObject._constructSharedObject(...)` that decodes the JS arguments and returns a
 /// fresh instance; unlike the method/property bindings it produces the native instance rather than
-/// recovering one.
+/// recovering one. Like a function, it can take the JavaScript runtime as its last parameter.
 internal struct JSConstructor {
+  /// The parameters that take JavaScript arguments, without the runtime parameter.
   let parameters: [FunctionParameterSyntax]
+  /// The label of the parameter that takes the JavaScript runtime, or `nil` when the initializer has
+  /// none.
+  private let runtimeLabel: String?
 
   init(initDecl: InitializerDeclSyntax) {
-    self.parameters = Array(initDecl.signature.parameterClause.parameters)
+    let declaredParameters = initDecl.signature.parameterClause.parameters
+    self.parameters = declaredParameters.filter { !isRuntimeParameter($0) }
+    self.runtimeLabel = declaredParameters.first(where: isRuntimeParameter)?.firstName.text
   }
 
   /// The body statements, indented with `indent`: arity guard, per-argument decode through
@@ -38,6 +44,9 @@ internal struct JSConstructor {
 
       let label = parameter.firstName.text
       callArguments.append(label == "_" ? "arg\(index)" : "\(label): arg\(index)")
+    }
+    if let runtimeLabel {
+      callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
     }
 
     lines.append("return \(typeName)(\(callArguments.joined(separator: ", ")))")

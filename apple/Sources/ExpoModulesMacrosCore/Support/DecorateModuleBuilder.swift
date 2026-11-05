@@ -17,10 +17,17 @@ import SwiftSyntax
 /// A synchronous function marked `@JS(.withAsync("name"))` also binds a promise-returning variant
 /// under that name (see `asyncVariant`). It decodes and encodes like an `async` function, and calls
 /// the function on the concurrent pool.
+///
+/// A synchronous function can take the JavaScript runtime as its last parameter,
+/// `in runtime: borrowing JavaScriptRuntime`. JavaScript doesn't see it: the binding passes the runtime
+/// of the call.
 internal struct JSFunction {
   let swiftName: String
   private(set) var jsName: String
+  /// The parameters that take JavaScript arguments, without the runtime parameter.
   let parameters: [FunctionParameterSyntax]
+  /// The label of the parameter that takes the JavaScript runtime, or `nil` when the function has none.
+  private let runtimeLabel: String?
   /// The declared return type as written, or `nil` when the function returns `Void`/nothing.
   let returnType: String?
   /// How the return value encodes when its type mentions `Any`, or `nil` for any other type.
@@ -39,7 +46,9 @@ internal struct JSFunction {
     self.swiftName = funcDecl.name.text
     self.jsName = jsNameArgument(of: attribute) ?? withoutBackticks(funcDecl.name.text)
     self.nameToken = funcDecl.name
-    self.parameters = Array(funcDecl.signature.parameterClause.parameters)
+    let declaredParameters = funcDecl.signature.parameterClause.parameters
+    self.parameters = declaredParameters.filter { !isRuntimeParameter($0) }
+    self.runtimeLabel = declaredParameters.first(where: isRuntimeParameter)?.firstName.text
 
     let declaredReturnType = funcDecl.signature.returnClause?.type
     self.returnType = isVoidType(declaredReturnType) ? nil : declaredReturnType?.trimmedDescription
@@ -264,6 +273,9 @@ internal struct JSFunction {
       }
       callArguments.append(label == "_" ? value : "\(label): \(value)")
     }
+    if let runtimeLabel {
+      callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
+    }
     return callArguments.joined(separator: ", ")
   }
 
@@ -338,12 +350,14 @@ internal struct JSFunction {
     // returns nothing binds through the `Void` overload (`JavaScriptRuntime.VoidFunctionClosure`)
     // instead, which leaves JS's result as `undefined`. A call through it is faster than through a
     // result-slot closure that writes nothing. The closure declares `-> Void` because a body of several
-    // statements without a `return` is otherwise ambiguous between the overloads.
+    // statements without a `return` is otherwise ambiguous between the overloads. A function that takes
+    // the runtime binds through the result-slot overload even when it returns nothing, so it gets the
+    // runtime as the closure's parameter instead of capturing the decorator's.
     let captures = receiver.captureClause
     let parameters =
       isAsync
       ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
-      : returnType == nil
+      : returnType == nil && runtimeLabel == nil
         ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void"
         : resultSlotClosureParameters
 

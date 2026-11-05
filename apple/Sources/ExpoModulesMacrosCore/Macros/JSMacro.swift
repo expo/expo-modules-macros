@@ -51,6 +51,7 @@ public struct JSMacro: PeerMacro {
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
     diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
     diagnoseJavaScriptValuesOffThread(of: node, on: declaration, in: context)
+    diagnoseRuntimeParameter(of: node, on: declaration, in: context)
 
     // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
     // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
@@ -425,6 +426,175 @@ private func diagnoseJavaScriptValuesOffThread(
   }
 }
 
+/// Emits the diagnostics for a parameter that takes the JavaScript runtime (see `isRuntimeParameter`).
+/// The binding passes the runtime of the call, which can be used only on the JavaScript thread. So
+/// the parameter must be:
+/// - in a synchronous function or an initializer. An `async` function can resume on another thread
+///   after an `await`: `@JavaScriptActor` runs a job on the thread that enqueues it, and doesn't move
+///   it to the JavaScript thread. A `.concurrent` function and the variant that `.withAsync` adds run
+///   on the concurrent thread pool;
+/// - `borrowing`, so the body can't keep the runtime for later without an explicit `copy`;
+/// - not optional, since the binding always has a runtime to pass;
+/// - the last parameter, labeled `in` (or `runtime`), so every declaration reads the same and the JavaScript
+///   arguments keep their order.
+private func diagnoseRuntimeParameter(
+  of node: AttributeSyntax,
+  on declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  let parameters: FunctionParameterListSyntax
+  if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
+    parameters = funcDecl.signature.parameterClause.parameters
+    // `.concurrent` is checked first: its body never runs on the JavaScript thread, so making the
+    // function synchronous doesn't help (a synchronous `.concurrent` function is an error too).
+    let offThread: (reason: String, remedy: String)?
+    if hasOption(node, named: "concurrent") {
+      offThread = ("'.concurrent' runs the body on the concurrent thread pool", "Remove the parameter.")
+    } else if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
+      offThread = (
+        "an 'async' function can resume on another thread after an 'await'",
+        "Remove the parameter, or make the function synchronous."
+      )
+    } else if asyncVariantOption(of: node) != nil {
+      offThread = (
+        "the variant that '.withAsync' adds runs the function on the concurrent thread pool",
+        "Remove the parameter, or remove '.withAsync'."
+      )
+    } else {
+      offThread = nil
+    }
+    if let offThread {
+      for parameter in parameters where isRuntimeParameter(parameter) {
+        context.diagnose(
+          Diagnostic(
+            node: parameter.type,
+            message: JSDiagnosticMessage(
+              "A @JS function can take the JavaScript runtime only when it's synchronous: \(offThread.reason), and the runtime can be used only on the JavaScript thread. \(offThread.remedy)",
+              id: "js-runtime-parameter-async",
+              severity: .error
+            )
+          )
+        )
+      }
+      return
+    }
+  } else if let initDecl = declaration.as(InitializerDeclSyntax.self) {
+    parameters = initDecl.signature.parameterClause.parameters
+  } else {
+    return
+  }
+  for (index, parameter) in parameters.enumerated() where isRuntimeParameter(parameter) {
+    guard index == parameters.count - 1 else {
+      context.diagnose(
+        Diagnostic(
+          node: parameter,
+          message: JSDiagnosticMessage(
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
+            id: "js-runtime-parameter-position",
+            severity: .error
+          )
+        )
+      )
+      continue
+    }
+    // The errors and the docs name only `in`, which matches the JSI API, such as `encode(_:into:in:)`.
+    // An escaped label (`` `in` ``) is the same label.
+    if !runtimeParameterLabels.contains(withoutBackticks(parameter.firstName.text)) {
+      context.diagnose(
+        Diagnostic(
+          node: parameter.firstName,
+          message: JSDiagnosticMessage(
+            "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'.",
+            id: "js-runtime-parameter-label",
+            severity: .error
+          ),
+          fixIts: [runtimeLabelFixIt(for: parameter)]
+        )
+      )
+    }
+    let specified = SpecifiedType(parameter.type)
+    let wrapped = optionalWrappedType(specified.type)
+    if let wrapped {
+      context.diagnose(
+        Diagnostic(
+          node: specified.type,
+          message: JSDiagnosticMessage(
+            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call.",
+            id: "js-runtime-parameter-optional",
+            severity: .error
+          ),
+          fixIts: [
+            FixIt(
+              message: JSFixItMessage("Remove the optional", id: "js-runtime-parameter-remove-optional"),
+              changes: [
+                .replace(
+                  oldNode: Syntax(specified.type),
+                  newNode: Syntax(
+                    wrapped.trimmed
+                      .with(\.leadingTrivia, specified.type.leadingTrivia)
+                      .with(\.trailingTrivia, specified.type.trailingTrivia)
+                  )
+                )
+              ]
+            )
+          ]
+        )
+      )
+    }
+    if specified.specifiers != ["borrowing"] {
+      context.diagnose(
+        Diagnostic(
+          node: parameter.type,
+          message: JSDiagnosticMessage(
+            "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'.",
+            id: "js-runtime-parameter-borrowing",
+            severity: .error
+          ),
+          fixIts: [
+            FixIt(
+              message: JSFixItMessage("Mark the parameter 'borrowing'", id: "js-runtime-parameter-insert-borrowing"),
+              changes: [
+                .replace(
+                  oldNode: Syntax(parameter.type),
+                  newNode: Syntax(borrowingType(wrapped ?? specified.type, like: parameter.type))
+                )
+              ]
+            )
+          ]
+        )
+      )
+    }
+  }
+}
+
+/// The labels that the runtime parameter can have.
+private let runtimeParameterLabels: Set<String> = ["in", "runtime"]
+
+/// The fix-it that labels the runtime parameter `in`. It keeps the parameter name that the body uses, or
+/// names the parameter `runtime` when it has no name.
+private func runtimeLabelFixIt(for parameter: FunctionParameterSyntax) -> FixIt {
+  var newParameter = parameter
+  let name = parameter.secondName ?? (parameter.firstName.tokenKind == .wildcard ? nil : parameter.firstName)
+  newParameter.firstName = .keyword(.in, leadingTrivia: parameter.firstName.leadingTrivia, trailingTrivia: .space)
+  newParameter.secondName = name?.trimmed ?? .identifier("runtime")
+  return FixIt(
+    message: JSFixItMessage("Label the parameter 'in'", id: "js-runtime-parameter-label"),
+    changes: [.replace(oldNode: Syntax(parameter), newNode: Syntax(newParameter))]
+  )
+}
+
+/// The type `type` with the single specifier `borrowing`, with the trivia of `original`.
+private func borrowingType(_ type: TypeSyntax, like original: TypeSyntax) -> TypeSyntax {
+  let specifier = SimpleTypeSpecifierSyntax(specifier: .keyword(.borrowing, trailingTrivia: .space))
+  let attributed = AttributedTypeSyntax(
+    specifiers: [.simpleTypeSpecifier(specifier)],
+    baseType: type.trimmed
+  )
+  return TypeSyntax(attributed)
+    .with(\.leadingTrivia, original.leadingTrivia)
+    .with(\.trailingTrivia, original.trailingTrivia)
+}
+
 private func diagnoseParameterSpecifiers(
   in declaration: some DeclSyntaxProtocol,
   in context: some MacroExpansionContext
@@ -437,7 +607,8 @@ private func diagnoseParameterSpecifiers(
   } else {
     return
   }
-  for parameter in parameters {
+  // The runtime parameter isn't decoded, and `diagnoseRuntimeParameter` requires it to be `borrowing`.
+  for parameter in parameters where !isRuntimeParameter(parameter) {
     guard let specifier = SpecifiedType(parameter.type).unsupportedSpecifier else {
       continue
     }
@@ -608,7 +779,8 @@ private func argumentBoundaryTypes(of parameters: FunctionParameterListSyntax) -
   // A closure in any other position is diagnosed by `diagnoseClosureTypes` and left out here, since
   // its metatype isn't a valid expression in the assertion.
   var types: [AssertedType] = []
-  for parameter in parameters {
+  // The runtime parameter takes no JavaScript argument, so nothing decodes into it.
+  for parameter in parameters where !isRuntimeParameter(parameter) {
     let label = parameter.firstName.tokenKind == .wildcard ? nil : parameter.firstName.text
     // The specifier isn't part of the asserted type, and a parameter with one the binding can't honor
     // is reported by `diagnoseParameterSpecifiers` and not asserted.
