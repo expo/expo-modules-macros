@@ -14,7 +14,7 @@ let package = Package(
     // `#externalMacro(module: "ExpoModulesMacros", ...)` depends on this product, and the targets that
     // depend on it get the plugin too. CocoaPods builds keep loading the prebuilt binary. The name
     // differs from the macro target's, because SwiftPM already has a product of that name for it.
-    .library(name: "ExpoModulesMacrosPlugin", targets: ["ExpoModulesMacros"]),
+    .library(name: "ExpoModulesMacrosPlugin", targets: ["ExpoModulesMacrosPlugin"]),
     .executable(name: "ExpoModulesMacrosTool", targets: ["ExpoModulesMacrosTool"]),
   ],
   dependencies: [
@@ -50,6 +50,15 @@ let package = Package(
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
       ],
       path: "apple/Sources/ExpoModulesMacros"
+    ),
+    // The target of the `ExpoModulesMacrosPlugin` product. The product must not hold the macro target
+    // itself: Xcode then passes the module map of `ExpoModulesMacrosCore`, which it builds for the
+    // host only, to the iOS target that depends on the product, and the build fails with
+    // `ExpoModulesMacrosCore.modulemap not found`.
+    .target(
+      name: "ExpoModulesMacrosPlugin",
+      dependencies: ["ExpoModulesMacros"],
+      path: "apple/Sources/ExpoModulesMacrosPlugin"
     ),
     // The shipped binary, `apple/ExpoModulesMacros` and the Windows and Linux binaries. It is both the
     // compiler plugin and the scanner CLI: the compiler launches it without arguments and speaks the

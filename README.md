@@ -180,7 +180,7 @@ to `OTHER_SWIFT_FLAGS` for `ExpoModulesCore`, every pod that depends on it, and 
 
 ## Swift packages
 
-The package manifest is `Package.swift` at the root of this package, so a Swift package can depend on it by its path in `node_modules` or by the URL of this repository. Its identity is then `expo-modules-macros`. The `ExpoModulesMacrosPlugin` library product holds the `ExpoModulesMacros` macro target:
+The package manifest is `Package.swift` at the root of this package, so a Swift package can depend on it by its path in `node_modules` or by the URL of this repository. Its identity is then `expo-modules-macros`. The `ExpoModulesMacrosPlugin` library product gives the `ExpoModulesMacros` macro target to the targets that depend on it:
 
 ```swift
 dependencies: [
