@@ -19,7 +19,7 @@ import SwiftSyntax
 /// the function on the concurrent pool.
 ///
 /// A synchronous function can take the JavaScript runtime as its last parameter,
-/// `runtime: borrowing JavaScriptRuntime`. JavaScript doesn't see it: the binding passes the runtime
+/// `in runtime: borrowing JavaScriptRuntime`. JavaScript doesn't see it: the binding passes the runtime
 /// of the call.
 internal struct JSFunction {
   let swiftName: String

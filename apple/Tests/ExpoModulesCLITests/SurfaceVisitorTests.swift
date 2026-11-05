@@ -69,7 +69,7 @@ struct ModuleSurfaceTests {
       @ExpoModule
       final class HostModule {
         @JS
-        func install(_ name: String, runtime: borrowing JavaScriptRuntime) {}
+        func install(_ name: String, in runtime: borrowing JavaScriptRuntime) {}
       }
 
       @SharedObject

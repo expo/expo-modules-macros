@@ -434,7 +434,7 @@ private func diagnoseJavaScriptValuesOffThread(
 ///   it to the JavaScript thread. A `.concurrent` function and the variant that `.withAsync` adds run
 ///   on the concurrent thread pool;
 /// - `borrowing`, so the body can't keep the runtime for later without an explicit `copy`;
-/// - the last parameter, labeled `runtime`, so every declaration reads the same and the JavaScript
+/// - the last parameter, labeled `in` (or `runtime`), so every declaration reads the same and the JavaScript
 ///   arguments keep their order.
 private func diagnoseRuntimeParameter(
   of node: AttributeSyntax,
@@ -478,7 +478,7 @@ private func diagnoseRuntimeParameter(
         Diagnostic(
           node: parameter,
           message: JSDiagnosticMessage(
-            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'runtime: borrowing JavaScriptRuntime'.",
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
             id: "js-runtime-parameter-position",
             severity: .error
           )
@@ -486,12 +486,13 @@ private func diagnoseRuntimeParameter(
       )
       continue
     }
-    if parameter.firstName.text != "runtime" {
+    // The errors and the docs name only `in`, which matches the JSI API, such as `encode(_:into:in:)`.
+    if !runtimeParameterLabels.contains(parameter.firstName.text) {
       context.diagnose(
         Diagnostic(
           node: parameter.firstName,
           message: JSDiagnosticMessage(
-            "The parameter that takes the JavaScript runtime must be labeled 'runtime'.",
+            "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'.",
             id: "js-runtime-parameter-label",
             severity: .error
           ),
@@ -526,20 +527,18 @@ private func diagnoseRuntimeParameter(
   }
 }
 
-/// The fix-it that labels the runtime parameter `runtime`. It keeps the parameter name that the body
-/// uses, unless the name is `runtime` too, which the label then also provides.
+/// The labels that the runtime parameter can have.
+private let runtimeParameterLabels: Set<String> = ["in", "runtime"]
+
+/// The fix-it that labels the runtime parameter `in`. It keeps the parameter name that the body uses, or
+/// names the parameter `runtime` when it has no name.
 private func runtimeLabelFixIt(for parameter: FunctionParameterSyntax) -> FixIt {
   var newParameter = parameter
-  newParameter.firstName = .identifier("runtime", leadingTrivia: parameter.firstName.leadingTrivia)
   let name = parameter.secondName ?? (parameter.firstName.tokenKind == .wildcard ? nil : parameter.firstName)
-  if let name, name.text != "runtime" {
-    newParameter.firstName.trailingTrivia = .space
-    newParameter.secondName = name.trimmed
-  } else {
-    newParameter.secondName = nil
-  }
+  newParameter.firstName = .keyword(.in, leadingTrivia: parameter.firstName.leadingTrivia, trailingTrivia: .space)
+  newParameter.secondName = name?.trimmed ?? .identifier("runtime")
   return FixIt(
-    message: JSFixItMessage("Label the parameter 'runtime'", id: "js-runtime-parameter-label"),
+    message: JSFixItMessage("Label the parameter 'in'", id: "js-runtime-parameter-label"),
     changes: [.replace(oldNode: Syntax(parameter), newNode: Syntax(newParameter))]
   )
 }

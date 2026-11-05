@@ -38,7 +38,8 @@ private func assertExpansion(
 
 private let asyncMessage =
   "A @JS function can take the JavaScript runtime only when it's synchronous: an 'async' function can resume on another thread after an 'await', and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous."
-private let labelMessage = "The parameter that takes the JavaScript runtime must be labeled 'runtime'."
+private let labelMessage =
+  "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'."
 private let borrowingMessage =
   "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'."
 
@@ -51,13 +52,13 @@ struct JSRuntimeParameterTests {
       @ExpoModule
       public final class HostModule: Module {
         @JS
-        func makeFunction(_ name: String, runtime: borrowing JavaScriptRuntime) -> JavaScriptFunction {}
+        func makeFunction(_ name: String, in runtime: borrowing JavaScriptRuntime) -> JavaScriptFunction {}
       }
       """,
       expandedSource: """
         public final class HostModule: Module {
           @JavaScriptActor
-          func makeFunction(_ name: String, runtime: borrowing JavaScriptRuntime) -> JavaScriptFunction {}
+          func makeFunction(_ name: String, in runtime: borrowing JavaScriptRuntime) -> JavaScriptFunction {}
 
           public static let _jsName = "HostModule"
 
@@ -68,7 +69,7 @@ struct JSRuntimeParameterTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "makeFunction", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              let value = self.makeFunction(arg0, runtime: runtime)
+              let value = self.makeFunction(arg0, in: runtime)
               try JavaScriptFunction.encode(value, into: result, in: runtime)
             }
           }
@@ -84,7 +85,7 @@ struct JSRuntimeParameterTests {
   }
 
   @Test
-  func `A function that returns nothing binds through the result-slot closure to get the runtime`() {
+  func `A function that returns nothing binds through the result-slot closure to get the runtime labeled runtime`() {
     assertExpansion(
       """
       @ExpoModule
@@ -128,7 +129,7 @@ struct JSRuntimeParameterTests {
       @SharedObject
       public final class Cache: SharedObject {
         @JS
-        init(name: String, runtime: borrowing JavaScriptRuntime) {}
+        init(name: String, in runtime: borrowing JavaScriptRuntime) {}
 
         @JS
         static func make(runtime: borrowing JavaScriptRuntime) -> Int { 1 }
@@ -137,7 +138,7 @@ struct JSRuntimeParameterTests {
       expandedSource: """
         public final class Cache: SharedObject {
           @JavaScriptActor
-          init(name: String, runtime: borrowing JavaScriptRuntime) {}
+          init(name: String, in runtime: borrowing JavaScriptRuntime) {}
           @JavaScriptActor
           static func make(runtime: borrowing JavaScriptRuntime) -> Int { 1 }
 
@@ -162,7 +163,7 @@ struct JSRuntimeParameterTests {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
             let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-            return Cache(name: arg0, runtime: runtime)
+            return Cache(name: arg0, in: runtime)
           }
         }
         """
@@ -220,7 +221,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'runtime: borrowing JavaScriptRuntime'.",
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
           line: 2,
           column: 11
         )
@@ -233,28 +234,28 @@ struct JSRuntimeParameterTests {
     assertExpansion(
       """
       @JS
-      func install(in rt: borrowing JavaScriptRuntime) {}
+      func install(using rt: borrowing JavaScriptRuntime) {}
       """,
       expandedSource: """
-        func install(in rt: borrowing JavaScriptRuntime) {}
+        func install(using rt: borrowing JavaScriptRuntime) {}
         """,
       diagnostics: [
         DiagnosticSpec(
           message: labelMessage,
           line: 2,
           column: 14,
-          fixIts: [FixItSpec(message: "Label the parameter 'runtime'")]
+          fixIts: [FixItSpec(message: "Label the parameter 'in'")]
         )
       ],
       fixedSource: """
         @JS
-        func install(runtime rt: borrowing JavaScriptRuntime) {}
+        func install(in rt: borrowing JavaScriptRuntime) {}
         """
     )
   }
 
   @Test
-  func `An unlabeled runtime parameter gets a fix-it that labels it runtime`() {
+  func `An unlabeled runtime parameter gets a fix-it that labels it in`() {
     assertExpansion(
       """
       @JS
@@ -268,12 +269,37 @@ struct JSRuntimeParameterTests {
           message: labelMessage,
           line: 2,
           column: 14,
-          fixIts: [FixItSpec(message: "Label the parameter 'runtime'")]
+          fixIts: [FixItSpec(message: "Label the parameter 'in'")]
         )
       ],
       fixedSource: """
         @JS
-        func install(runtime: borrowing JavaScriptRuntime) {}
+        func install(in runtime: borrowing JavaScriptRuntime) {}
+        """
+    )
+  }
+
+  @Test
+  func `A runtime parameter with only a name gets a fix-it that keeps it as the name`() {
+    assertExpansion(
+      """
+      @JS
+      func install(rt: borrowing JavaScriptRuntime) {}
+      """,
+      expandedSource: """
+        func install(rt: borrowing JavaScriptRuntime) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: labelMessage,
+          line: 2,
+          column: 14,
+          fixIts: [FixItSpec(message: "Label the parameter 'in'")]
+        )
+      ],
+      fixedSource: """
+        @JS
+        func install(in rt: borrowing JavaScriptRuntime) {}
         """
     )
   }

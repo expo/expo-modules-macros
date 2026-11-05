@@ -131,7 +131,7 @@ internal func isOptionalType(_ type: TypeSyntax) -> Bool {
 /// True when the parameter takes the JavaScript runtime instead of a JavaScript argument: its type,
 /// without specifiers, is written as `JavaScriptRuntime` (or `….JavaScriptRuntime`). The binding passes
 /// the runtime of the call, and JavaScript doesn't see the parameter. `@JS` requires it to be the last
-/// parameter, labeled `runtime` and `borrowing` (see `diagnoseRuntimeParameter`).
+/// parameter, labeled `in` or `runtime`, and `borrowing` (see `diagnoseRuntimeParameter`).
 internal func isRuntimeParameter(_ parameter: FunctionParameterSyntax) -> Bool {
   return baseIdentifier(of: SpecifiedType(parameter.type).type) == "JavaScriptRuntime"
 }
