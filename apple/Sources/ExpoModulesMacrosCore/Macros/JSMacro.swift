@@ -427,11 +427,13 @@ private func diagnoseJavaScriptValuesOffThread(
 }
 
 /// Emits the diagnostics for a parameter that takes the JavaScript runtime (see `isRuntimeParameter`).
-/// The binding passes the runtime of the call, which is valid only on the JavaScript thread and only
-/// for the duration of the call. So the parameter must be:
-/// - in a synchronous function or an initializer: an `async` function (also with `.concurrent`) and
-///   the variant that `.withAsync` adds run the body after the call returns, off the JavaScript thread;
-/// - `borrowing`, so the body can't keep the runtime without an explicit `copy`;
+/// The binding passes the runtime of the call, which can be used only on the JavaScript thread. So
+/// the parameter must be:
+/// - in a synchronous function or an initializer. An `async` function can resume on another thread
+///   after an `await`: `@JavaScriptActor` runs a job on the thread that enqueues it, and doesn't move
+///   it to the JavaScript thread. A `.concurrent` function and the variant that `.withAsync` adds run
+///   on the concurrent thread pool;
+/// - `borrowing`, so the body can't keep the runtime for later without an explicit `copy`;
 /// - the last parameter, labeled `runtime`, so every declaration reads the same and the JavaScript
 ///   arguments keep their order.
 private func diagnoseRuntimeParameter(
@@ -444,7 +446,7 @@ private func diagnoseRuntimeParameter(
     parameters = funcDecl.signature.parameterClause.parameters
     let reason: String?
     if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
-      reason = "an 'async' function runs its body after the call returns"
+      reason = "an 'async' function can resume on another thread after an 'await'"
     } else if asyncVariantOption(of: node) != nil {
       reason = "the variant that '.withAsync' adds runs the function on the concurrent thread pool"
     } else {
@@ -456,7 +458,7 @@ private func diagnoseRuntimeParameter(
           Diagnostic(
             node: parameter.type,
             message: JSDiagnosticMessage(
-              "A @JS function can take the JavaScript runtime only when it's synchronous: \(reason), and the runtime is valid only on the JavaScript thread during the call. Remove the parameter, or make the function synchronous.",
+              "A @JS function can take the JavaScript runtime only when it's synchronous: \(reason), and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous.",
               id: "js-runtime-parameter-async",
               severity: .error
             )
@@ -503,7 +505,7 @@ private func diagnoseRuntimeParameter(
         Diagnostic(
           node: parameter.type,
           message: JSDiagnosticMessage(
-            "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime is valid only during the call, and a borrowed parameter can't be kept without an explicit 'copy'.",
+            "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'.",
             id: "js-runtime-parameter-borrowing",
             severity: .error
           ),

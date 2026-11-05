@@ -37,10 +37,10 @@ private func assertExpansion(
 }
 
 private let asyncMessage =
-  "A @JS function can take the JavaScript runtime only when it's synchronous: an 'async' function runs its body after the call returns, and the runtime is valid only on the JavaScript thread during the call. Remove the parameter, or make the function synchronous."
+  "A @JS function can take the JavaScript runtime only when it's synchronous: an 'async' function can resume on another thread after an 'await', and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous."
 private let labelMessage = "The parameter that takes the JavaScript runtime must be labeled 'runtime'."
 private let borrowingMessage =
-  "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime is valid only during the call, and a borrowed parameter can't be kept without an explicit 'copy'."
+  "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'."
 
 @Suite("@JS runtime parameter")
 struct JSRuntimeParameterTests {
@@ -199,7 +199,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS function can take the JavaScript runtime only when it's synchronous: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and the runtime is valid only on the JavaScript thread during the call. Remove the parameter, or make the function synchronous.",
+            "A @JS function can take the JavaScript runtime only when it's synchronous: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous.",
           line: 2,
           column: 20
         )
