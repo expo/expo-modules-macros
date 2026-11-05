@@ -404,6 +404,22 @@ struct JSRuntimeParameterTests {
   }
 
   @Test
+  func `An escaped label is accepted`() {
+    assertExpansion(
+      """
+      @JS
+      func install(`in` runtime: borrowing JavaScriptRuntime) {}
+      @JS
+      func uninstall(`runtime`: borrowing JavaScriptRuntime) {}
+      """,
+      expandedSource: """
+        func install(`in` runtime: borrowing JavaScriptRuntime) {}
+        func uninstall(`runtime`: borrowing JavaScriptRuntime) {}
+        """
+    )
+  }
+
+  @Test
   func `A .concurrent function can't take the runtime`() {
     assertExpansion(
       """

@@ -498,7 +498,8 @@ private func diagnoseRuntimeParameter(
       continue
     }
     // The errors and the docs name only `in`, which matches the JSI API, such as `encode(_:into:in:)`.
-    if !runtimeParameterLabels.contains(parameter.firstName.text) {
+    // An escaped label (`` `in` ``) is the same label.
+    if !runtimeParameterLabels.contains(withoutBackticks(parameter.firstName.text)) {
       context.diagnose(
         Diagnostic(
           node: parameter.firstName,
