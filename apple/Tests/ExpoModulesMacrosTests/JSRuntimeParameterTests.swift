@@ -170,6 +170,105 @@ struct JSRuntimeParameterTests {
     )
   }
 
+  @Test
+  func `A function with a closure argument decodes the closure and passes the runtime`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class HostModule: Module {
+        @JS
+        func observe(_ listener: @escaping (String) -> Void, in runtime: borrowing JavaScriptRuntime) {}
+      }
+      """,
+      expandedSource: """
+        public final class HostModule: Module {
+          @JavaScriptActor
+          func observe(_ listener: @escaping (String) -> Void, in runtime: borrowing JavaScriptRuntime) {}
+
+          public static let _jsName = "HostModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("observe") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 1 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "observe", received: arguments.count, required: 1, maximum: 1))
+              }
+              let arg0Callback = try JavaScriptCallback.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg0: (String) -> Void = { @Sendable p0 in
+                arg0Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                  try _arguments.emplace(_values, at: 0, in: _runtime)
+                }
+              }
+              self.observe(arg0, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A subclass initializer gets the runtime of the call like the base class initializer`() {
+    assertExpansion(
+      """
+      @SharedObject
+      open class Shape: SharedObject {
+        @JS
+        init(name: String, in runtime: borrowing JavaScriptRuntime) {}
+      }
+
+      @SharedObject
+      public final class Circle: Shape {
+        @JS
+        init(radius: Double, in runtime: borrowing JavaScriptRuntime) {
+          super.init(name: "circle", in: runtime)
+        }
+      }
+      """,
+      expandedSource: """
+        open class Shape: SharedObject {
+          @JavaScriptActor
+          init(name: String, in runtime: borrowing JavaScriptRuntime) {}
+
+          public override class var _jsName: String {
+            "Shape"
+          }
+
+          @JavaScriptActor
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+            guard self == Shape.self else {
+              return nil
+            }
+            guard arguments.count == 1 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Shape", received: arguments.count, required: 1, maximum: 1))
+            }
+            let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+            return Shape(name: arg0, in: runtime)
+          }
+        }
+        public final class Circle: Shape {
+          @JavaScriptActor
+          init(radius: Double, in runtime: borrowing JavaScriptRuntime) {
+            super.init(name: "circle", in: runtime)
+          }
+
+          public override class var _jsName: String {
+            "Circle"
+          }
+
+          @JavaScriptActor
+          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+            guard arguments.count == 1 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Circle", received: arguments.count, required: 1, maximum: 1))
+            }
+            let arg0 = try Double.decode(arguments.unownedValue(at: 0), in: runtime)
+            return Circle(radius: arg0, in: runtime)
+          }
+        }
+        """
+    )
+  }
+
   // The diagnostics are tested on members outside a class, like the other `@JS` diagnostics: inside an
   // `@ExpoModule` class, the test support reports them one line below the member.
 
@@ -200,7 +299,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS function can take the JavaScript runtime only when it's synchronous: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous.",
+            "A @JS function can take the JavaScript runtime only when it's synchronous: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter, or remove '.withAsync'.",
           line: 2,
           column: 20
         )
@@ -300,6 +399,99 @@ struct JSRuntimeParameterTests {
       fixedSource: """
         @JS
         func install(in rt: borrowing JavaScriptRuntime) {}
+        """
+    )
+  }
+
+  @Test
+  func `A .concurrent function can't take the runtime`() {
+    assertExpansion(
+      """
+      @JS(.concurrent)
+      func load(in runtime: borrowing JavaScriptRuntime) async {}
+      """,
+      expandedSource: """
+        func load(in runtime: borrowing JavaScriptRuntime) async {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS function can take the JavaScript runtime only when it's synchronous: '.concurrent' runs the body on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter.",
+          line: 2,
+          column: 23
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Only one parameter can take the runtime`() {
+    assertExpansion(
+      """
+      @JS
+      func load(in first: borrowing JavaScriptRuntime, in second: borrowing JavaScriptRuntime) {}
+      """,
+      expandedSource: """
+        func load(in first: borrowing JavaScriptRuntime, in second: borrowing JavaScriptRuntime) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
+          line: 2,
+          column: 11
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An optional runtime parameter gets a fix-it that removes the optional`() {
+    assertExpansion(
+      """
+      @JS
+      func install(in runtime: borrowing JavaScriptRuntime?) {}
+      """,
+      expandedSource: """
+        func install(in runtime: borrowing JavaScriptRuntime?) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call.",
+          line: 2,
+          column: 36,
+          fixIts: [FixItSpec(message: "Remove the optional")]
+        )
+      ],
+      fixedSource: """
+        @JS
+        func install(in runtime: borrowing JavaScriptRuntime) {}
+        """
+    )
+  }
+
+  @Test
+  func `An inout runtime parameter gets only the borrowing error`() {
+    assertExpansion(
+      """
+      @JS
+      func install(in runtime: inout JavaScriptRuntime) {}
+      """,
+      expandedSource: """
+        func install(in runtime: inout JavaScriptRuntime) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: borrowingMessage,
+          line: 2,
+          column: 26,
+          fixIts: [FixItSpec(message: "Mark the parameter 'borrowing'")]
+        )
+      ],
+      fixedSource: """
+        @JS
+        func install(in runtime: borrowing JavaScriptRuntime) {}
         """
     )
   }

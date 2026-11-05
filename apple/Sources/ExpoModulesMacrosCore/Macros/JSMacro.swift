@@ -434,6 +434,7 @@ private func diagnoseJavaScriptValuesOffThread(
 ///   it to the JavaScript thread. A `.concurrent` function and the variant that `.withAsync` adds run
 ///   on the concurrent thread pool;
 /// - `borrowing`, so the body can't keep the runtime for later without an explicit `copy`;
+/// - not optional, since the binding always has a runtime to pass;
 /// - the last parameter, labeled `in` (or `runtime`), so every declaration reads the same and the JavaScript
 ///   arguments keep their order.
 private func diagnoseRuntimeParameter(
@@ -444,21 +445,31 @@ private func diagnoseRuntimeParameter(
   let parameters: FunctionParameterListSyntax
   if let funcDecl = declaration.as(FunctionDeclSyntax.self) {
     parameters = funcDecl.signature.parameterClause.parameters
-    let reason: String?
-    if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
-      reason = "an 'async' function can resume on another thread after an 'await'"
+    // `.concurrent` is checked first: its body never runs on the JavaScript thread, so making the
+    // function synchronous doesn't help (a synchronous `.concurrent` function is an error too).
+    let offThread: (reason: String, remedy: String)?
+    if hasOption(node, named: "concurrent") {
+      offThread = ("'.concurrent' runs the body on the concurrent thread pool", "Remove the parameter.")
+    } else if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
+      offThread = (
+        "an 'async' function can resume on another thread after an 'await'",
+        "Remove the parameter, or make the function synchronous."
+      )
     } else if asyncVariantOption(of: node) != nil {
-      reason = "the variant that '.withAsync' adds runs the function on the concurrent thread pool"
+      offThread = (
+        "the variant that '.withAsync' adds runs the function on the concurrent thread pool",
+        "Remove the parameter, or remove '.withAsync'."
+      )
     } else {
-      reason = nil
+      offThread = nil
     }
-    if let reason {
+    if let offThread {
       for parameter in parameters where isRuntimeParameter(parameter) {
         context.diagnose(
           Diagnostic(
             node: parameter.type,
             message: JSDiagnosticMessage(
-              "A @JS function can take the JavaScript runtime only when it's synchronous: \(reason), and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous.",
+              "A @JS function can take the JavaScript runtime only when it's synchronous: \(offThread.reason), and the runtime can be used only on the JavaScript thread. \(offThread.remedy)",
               id: "js-runtime-parameter-async",
               severity: .error
             )
@@ -501,6 +512,34 @@ private func diagnoseRuntimeParameter(
       )
     }
     let specified = SpecifiedType(parameter.type)
+    let wrapped = optionalWrappedType(specified.type)
+    if let wrapped {
+      context.diagnose(
+        Diagnostic(
+          node: specified.type,
+          message: JSDiagnosticMessage(
+            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call.",
+            id: "js-runtime-parameter-optional",
+            severity: .error
+          ),
+          fixIts: [
+            FixIt(
+              message: JSFixItMessage("Remove the optional", id: "js-runtime-parameter-remove-optional"),
+              changes: [
+                .replace(
+                  oldNode: Syntax(specified.type),
+                  newNode: Syntax(
+                    wrapped.trimmed
+                      .with(\.leadingTrivia, specified.type.leadingTrivia)
+                      .with(\.trailingTrivia, specified.type.trailingTrivia)
+                  )
+                )
+              ]
+            )
+          ]
+        )
+      )
+    }
     if specified.specifiers != ["borrowing"] {
       context.diagnose(
         Diagnostic(
@@ -516,7 +555,7 @@ private func diagnoseRuntimeParameter(
               changes: [
                 .replace(
                   oldNode: Syntax(parameter.type),
-                  newNode: Syntax(borrowingType(specified.type, like: parameter.type))
+                  newNode: Syntax(borrowingType(wrapped ?? specified.type, like: parameter.type))
                 )
               ]
             )
@@ -567,7 +606,8 @@ private func diagnoseParameterSpecifiers(
   } else {
     return
   }
-  for parameter in parameters {
+  // The runtime parameter isn't decoded, and `diagnoseRuntimeParameter` requires it to be `borrowing`.
+  for parameter in parameters where !isRuntimeParameter(parameter) {
     guard let specifier = SpecifiedType(parameter.type).unsupportedSpecifier else {
       continue
     }
