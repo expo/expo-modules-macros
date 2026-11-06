@@ -55,7 +55,7 @@ struct ViewPropsMacroTests {
           var radius: CGFloat = 0
           var onTap: (TapEvent) -> Void
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
             case radius
           }
@@ -141,7 +141,7 @@ struct ViewPropsMacroTests {
           var b: Int = 0
           var c: Int = 0
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case a
             case b
             case c
@@ -228,7 +228,7 @@ struct ViewPropsMacroTests {
           var onTap: () -> Void
           var onClose: (CloseEvent) -> Void
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -289,7 +289,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var onTap: @Sendable (TapEvent) -> Void
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -360,7 +360,7 @@ struct ViewPropsMacroTests {
             return 1
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -429,7 +429,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var radius: CGFloat?
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case radius
           }
 
@@ -498,7 +498,7 @@ struct ViewPropsMacroTests {
         struct Props: AnyViewProps {
           var color: UIColor = .red
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -568,7 +568,7 @@ struct ViewPropsMacroTests {
         struct Props: nonisolated AnyViewProps {
           var color: UIColor = .red
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -1021,7 +1021,7 @@ struct ViewPropsMacroTests {
           var p62: Int = 0
           var p63: Int = 0
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case p0
             case p1
             case p2
@@ -1602,7 +1602,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -1671,7 +1671,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var a: Int = 0, b: Int = 0
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case a
             case b
           }
@@ -1748,7 +1748,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var `default`: Int = 0
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case `default` = "default"
           }
 
@@ -2274,7 +2274,7 @@ struct ViewPropsMacroTests {
           var tint: UIColor?
           var onTap: (TapEvent) -> Void
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case title
             case radius
             case value
@@ -2390,7 +2390,7 @@ struct ViewPropsMacroTests {
             didSet { print(level) }
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case count
             case labels
             case level
@@ -2483,7 +2483,7 @@ struct ViewPropsMacroTests {
           var label: String = "line \\(#line)"
           var count: Int = 1
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case source
             case label
             case count
@@ -2574,7 +2574,7 @@ struct ViewPropsMacroTests {
           var title: String = _name
           var count: Int = _props
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case title
             case count
           }
@@ -2653,7 +2653,7 @@ struct ViewPropsMacroTests {
         struct Props {
           @Clamped var level: Int = 15
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case level
           }
 
@@ -2899,7 +2899,7 @@ struct ViewPropsMacroTests {
           var `default`: (Int) async -> Swift.Void
           var onClose: (CloseEvent) -> Void = { _ in }
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -2964,7 +2964,7 @@ struct ViewPropsMacroTests {
           var onTap: () -> Void = {}
           var onClose: (CloseEvent) -> Void = { _ in }
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -3026,7 +3026,7 @@ struct ViewPropsMacroTests {
             onTap = { event in print(event) }
           }
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -3113,7 +3113,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var radius: CGFloat!
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case radius
           }
 
@@ -3190,7 +3190,7 @@ struct ViewPropsMacroTests {
             set { storage = newValue }
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case storage
             case size
           }
@@ -3268,7 +3268,7 @@ struct ViewPropsMacroTests {
         public struct Props {
           var color: UIColor = .red
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -3348,7 +3348,7 @@ struct ViewPropsMacroTests {
             self.color = color
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -3436,7 +3436,7 @@ struct ViewPropsMacroTests {
             cache = [:]
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -3951,7 +3951,7 @@ struct ViewPropsMacroTests {
           var onClose: () -> (())
           var onMove: (Int) -> ((Void))
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -4056,7 +4056,7 @@ struct ViewPropsMacroTests {
             set { storage = newValue }
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case storage
             case size
           }
@@ -4135,7 +4135,7 @@ struct ViewPropsMacroTests {
         package struct Props {
           var color: UIColor = .red
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -4211,7 +4211,7 @@ struct ViewPropsMacroTests {
           struct Props {
             var color: UIColor = .red
 
-            nonisolated public enum PropName: String, CaseIterable {
+            @frozen nonisolated public enum PropName: String, CaseIterable {
               case color
             }
 
@@ -4288,7 +4288,7 @@ struct ViewPropsMacroTests {
           struct Props {
             var color: UIColor = .red
 
-            nonisolated public enum PropName: String, CaseIterable {
+            @frozen nonisolated public enum PropName: String, CaseIterable {
               case color
             }
 
@@ -4365,7 +4365,7 @@ struct ViewPropsMacroTests {
           internal struct Props {
             var color: UIColor = .red
 
-            nonisolated public enum PropName: String, CaseIterable {
+            @frozen nonisolated public enum PropName: String, CaseIterable {
               case color
             }
 
@@ -4436,7 +4436,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var _decodeViewProp: Int = 0
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case _decodeViewProp
           }
 
@@ -4518,7 +4518,7 @@ struct ViewPropsMacroTests {
           init() async {
           }
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -4590,7 +4590,7 @@ struct ViewPropsMacroTests {
           var value: (Int?)
           private var cache: ((Int)?)
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case value
           }
 
@@ -4679,7 +4679,7 @@ struct ViewPropsMacroTests {
           }
           #endif
 
-          nonisolated public enum PropName: String, CaseIterable {
+          @frozen nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
@@ -4750,7 +4750,7 @@ struct ViewPropsMacroTests {
           private var first, second: Int?
           fileprivate var third, fourth: String?
 
-          nonisolated public enum PropName: RawRepresentable, CaseIterable {
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }

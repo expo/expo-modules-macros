@@ -1001,6 +1001,10 @@ private func underlyingFunctionType(of type: TypeSyntax) -> FunctionTypeSyntax? 
 /// Emitted even when empty, so a props type with only events still conforms. An enum with no cases
 /// can't declare a raw type, so the empty one conforms to `RawRepresentable` by hand, with `String`
 /// as its `RawValue` like the others.
+///
+/// The enum is `@frozen`, so the `switch` in the `@inlinable` `propSet(for:)` compiles in a module
+/// built with library evolution, where it would otherwise need a case for unknown values. The cases
+/// and their order are already part of the ABI, as the bits of `PropSet`.
 private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
   // An escaped case takes its raw value from the bare identifier already, but spelling it out keeps
   // the wire key visible in the generated source and independent of that implicit rule.
@@ -1014,7 +1018,7 @@ private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
     .joined(separator: "\n")
   if valueProps.isEmpty {
     return """
-      nonisolated public enum PropName: RawRepresentable, CaseIterable {
+      @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
         public init?(rawValue: String) {
           return nil
         }
@@ -1027,7 +1031,7 @@ private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
       """
   }
   return """
-    nonisolated public enum PropName: String, CaseIterable {
+    @frozen nonisolated public enum PropName: String, CaseIterable {
     \(raw: cases)
     }
     """
