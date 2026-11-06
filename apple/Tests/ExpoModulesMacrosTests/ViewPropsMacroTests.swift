@@ -2398,6 +2398,179 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `An initial value with a # expression is reset from a new instance`() {
+    // `#function` and `#line` would give the location of `_resetViewProp`, also inside a string.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var source: String = #function
+        var label: String = "line \\(#line)"
+        var count: Int = 1
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var source: String = #function
+          var label: String = "line \\(#line)"
+          var count: Int = 1
+
+          public enum PropName: String, CaseIterable {
+            case source
+            case label
+            case count
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let source = PropSet(rawValue: 1 << 0)
+            public static let label = PropSet(rawValue: 1 << 1)
+            public static let count = PropSet(rawValue: 1 << 2)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .source:
+              _props.source = Self().source
+            case .label:
+              _props.label = Self().label
+            case .count:
+              _props.count = 1
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b111)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .source:
+              return .source
+            case .label:
+              return .label
+            case .count:
+              return .count
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .source:
+              self.source = try Self._decodeViewProp(value, in: runtime)
+            case .label:
+              self.label = try Self._decodeViewProp(value, in: runtime)
+            case .count:
+              self.count = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The reset parameters don't hide a name that an initial value uses`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        static let _name = "Untitled"
+        static let _props = 2
+        var title: String = _name
+        var count: Int = _props
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          static let _name = "Untitled"
+          static let _props = 2
+          var title: String = _name
+          var count: Int = _props
+
+          public enum PropName: String, CaseIterable {
+            case title
+            case count
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let title = PropSet(rawValue: 1 << 0)
+            public static let count = PropSet(rawValue: 1 << 1)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name1: PropName, in _props1: inout Self) {
+            switch _name1 {
+            case .title:
+              _props1.title = _name
+            case .count:
+              _props1.count = _props
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b11)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .title:
+              return .title
+            case .count:
+              return .count
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .title:
+              self.title = try Self._decodeViewProp(value, in: runtime)
+            case .count:
+              self.count = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `A prop with an attribute is reset from a new instance`() {
     // A property wrapper can change the initial value in `init(wrappedValue:)`, so only `Self()` gives
     // the prop's default.

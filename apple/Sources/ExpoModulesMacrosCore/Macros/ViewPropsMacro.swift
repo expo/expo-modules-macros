@@ -514,13 +514,14 @@ private struct ViewProp {
 private enum PropDefault {
   /// The initial value of a stored property, as written. Evaluating it again gives the value that
   /// `Self()` gives the property.
-  case initialValue(String)
+  case initialValue(ExprSyntax)
   /// The implicit `nil` of a `var` whose type is written as `T?` or `T!`.
   case implicitNil
   /// The prop's value in a new `Self()`, when the macro can't tell it from the declaration: the
-  /// struct declares its own `init()`, which can set any value, the prop is computed, or the property
+  /// struct declares its own `init()`, which can set any value, the prop is computed, the property
   /// has an attribute, such as a property wrapper, whose value after `init(wrappedValue:)` can differ
-  /// from its initial value.
+  /// from its initial value, or the initial value has a `#` expression, such as `#function` or
+  /// `#line`, whose value depends on where it's evaluated.
   case newInstance
 }
 
@@ -536,7 +537,12 @@ private func propDefault(
     return .newInstance
   }
   if let initializer = binding.initializer {
-    return .initialValue(initializer.value.trimmedDescription)
+    // A macro expansion, also a literal such as `#function`, can depend on where it's evaluated, so
+    // a copy in `_resetViewProp` could give another value.
+    let hasPoundExpression = initializer.value.tokens(viewMode: .sourceAccurate).contains {
+      $0.tokenKind == .pound
+    }
+    return hasPoundExpression ? .newInstance : .initialValue(initializer.value)
   }
   if varDecl.bindingSpecifier.tokenKind == .keyword(.var), let declaredType, hasImplicitNilDefault(declaredType) {
     return .implicitNil
@@ -1096,40 +1102,71 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
 ///
 /// A static function of the struct body resolves names as a property initializer does: a static
 /// member without `Self.` and a member of an enclosing type, which `_decode` in the extension can't
-/// name. The parameters and the local start with `_`, so they don't hide a declaration that an
-/// initial value names.
+/// name. The parameters are `_name` and `_props`, with a number after the name when an initial value
+/// uses it, so they don't hide a declaration that an initial value names.
+///
+/// A default argument such as `#function` or `#line` of a function that an initial value calls gets
+/// the location of `_resetViewProp`, which the macro can't see.
 ///
 /// `nil` with no value prop: `PropName` is uninhabited, so `_decode` never resets.
 private func resetFunction(valueProps: [ViewProp]) -> DeclSyntax? {
   if valueProps.isEmpty {
     return nil
   }
+  let usedNames = Set(
+    valueProps.flatMap { prop -> [String] in
+      guard case .initialValue(let expression) = prop.defaultValue else {
+        return []
+      }
+      return expression.tokens(viewMode: .sourceAccurate).compactMap { token in
+        guard case .identifier(let text) = token.tokenKind else {
+          return nil
+        }
+        return withoutBackticks(text)
+      }
+    }
+  )
+  let nameParameter = unusedName("_name", in: usedNames)
+  let propsParameter = unusedName("_props", in: usedNames)
   let cases =
     valueProps
     .map { prop -> String in
       let assignment: String
       switch prop.defaultValue {
       case .initialValue(let expression):
-        assignment = "_props.\(prop.name) = \(expression)"
+        assignment = "\(propsParameter).\(prop.name) = \(expression.trimmedDescription)"
       case .implicitNil:
-        assignment = "_props.\(prop.name) = nil"
+        assignment = "\(propsParameter).\(prop.name) = nil"
       case .newInstance where prop.hasMutatingGetter:
-        // A mutating getter can't be read from a constant.
-        assignment = "var _defaults = Self()\n    _props.\(prop.name) = _defaults.\(prop.name)"
+        // A mutating getter can't be read from a constant. The local is scoped to its case, where
+        // no initial value is copied.
+        assignment = "var _defaults = Self()\n    \(propsParameter).\(prop.name) = _defaults.\(prop.name)"
       case .newInstance:
-        assignment = "_props.\(prop.name) = Self().\(prop.name)"
+        assignment = "\(propsParameter).\(prop.name) = Self().\(prop.name)"
       }
       return "  case .\(prop.name):\n    \(assignment)"
     }
     .joined(separator: "\n")
   return """
     @JavaScriptActor
-    static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
-      switch _name {
+    static func _resetViewProp(_ \(raw: nameParameter): PropName, in \(raw: propsParameter): inout Self) {
+      switch \(raw: nameParameter) {
     \(raw: cases)
       }
     }
     """
+}
+
+/// `base`, or `base` with the lowest number after it that gives a name not in `names`.
+private func unusedName(_ base: String, in names: Set<String>) -> String {
+  if !names.contains(base) {
+    return base
+  }
+  var number = 1
+  while names.contains("\(base)\(number)") {
+    number += 1
+  }
+  return "\(base)\(number)"
 }
 
 /// The public `init()` that `AnyViewProps` requires, when Swift's own can't satisfy it: it gives each
