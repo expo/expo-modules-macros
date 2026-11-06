@@ -40,6 +40,19 @@ jobs:
       - name: Resolve dependencies
         run: swift package resolve
 
+      - name: Test
+        # Also builds the debug tool, which the next step uses.
+        run: swift test -v
+
+      - name: Compile the macro expansions
+        # The expansion tests compare text. This compiles and runs the expansions of the fixtures in
+        # `scripts/check-compile`, also with library evolution and with `-default-isolation MainActor`.
+        # It runs in the background during the release build, with the debug tool, which the release
+        # build doesn't change. `Wait for the compile check` fails the job when it fails.
+        id: check-compile
+        background: true
+        run: node scripts/check-compile.js .build/debug/ExpoModulesMacrosTool
+
       - name: Build release tool
         # Runs `pnpm run build` (scripts/build.js): builds the universal
         # (arm64 + x86_64) release plugin binary, copies it to
@@ -58,9 +71,6 @@ jobs:
           arch -arm64 apple/ExpoModulesMacros --help > /dev/null
           arch -x86_64 apple/ExpoModulesMacros --help > /dev/null
 
-      - name: Test
-        run: swift test -v
-
       - name: Typecheck the TypeScript wrapper
         run: |
           pnpm install
@@ -72,3 +82,6 @@ jobs:
         run: |
           pnpm run build:ts
           node scripts/check-scan.js .
+
+      - name: Wait for the compile check
+        wait: check-compile
