@@ -10,7 +10,8 @@
 // - builds `Props.swift` and `main.swift` as an executable and runs it, which checks the decoded and
 //   reset values.
 //
-// It runs on macOS. The macOS workflow runs it with the release binary.
+// It runs on macOS. The macOS workflow runs it with the debug tool that `swift test` builds, during
+// the release build.
 //
 // Usage: node scripts/check-compile.js <binary>
 //
