@@ -72,3 +72,9 @@ jobs:
         run: |
           pnpm run build:ts
           node scripts/check-scan.js .
+
+      - name: Compile the macro expansions
+        # The expansion tests compare text. This compiles and runs the expansions of the fixtures in
+        # `scripts/check-compile` with the release tool, also with library evolution and with
+        # `-default-isolation MainActor`.
+        run: node scripts/check-compile.js apple/ExpoModulesMacros
