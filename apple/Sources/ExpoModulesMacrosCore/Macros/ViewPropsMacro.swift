@@ -39,6 +39,10 @@ import SwiftSyntaxMacros
 ///   event without an initial value an empty closure (`{}`, `{ _ in }`, ...) and leaves the value
 ///   props at their initial values. It is never generated when the type declares its own `init()`.
 ///   Like any initializer in the struct body, the generated one removes the memberwise initializer.
+/// - `_resetViewProp(_:in:)`: sets one value prop back to its default, by assigning the property's
+///   initial value or `nil`, so a reset evaluates only that prop's default. It is a static member of
+///   the struct body, because an initial value can name a static member without `Self.` or a member of
+///   an enclosing type, which an instance method or the extension can't.
 ///
 /// An event's function type must return `Void`, because JavaScript can't return a value to it.
 ///
@@ -47,7 +51,8 @@ import SwiftSyntaxMacros
 /// - `allProps`: every bit set, the changed set on the first application.
 /// - `propSet(for:)`: one name's bit, for folding raw changed keys into the mask.
 /// - `_decode(_:from:in:)`: assigns one value prop from a JavaScript value. `null` and `undefined`
-///   reset it to its value in `Self()`, and any other value decodes through `JavaScriptDecodable`.
+///   reset it with `_resetViewProp(_:in:)`, and any other value decodes through
+///   `JavaScriptDecodable`.
 ///
 /// Author-facing shape — no conformance to spell out:
 ///
@@ -82,6 +87,9 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     members.append(diffTypealias())
     if let initializer = defaultInitializer(props: props) {
       members.append(initializer)
+    }
+    if let reset = resetFunction(valueProps: props.valueProps) {
+      members.append(reset)
     }
     return members
   }
@@ -488,15 +496,60 @@ private struct ViewProp {
   /// The property's declared type, verbatim, or the type of its literal initial value. `_decode`
   /// doesn't spell it: the decoded type is inferred from the assignment.
   let type: String
-  /// Whether the prop is computed with a `mutating get`, which `_decode` can only read from a
+  /// Whether the prop is computed with a `mutating get`, which `_resetViewProp` can only read from a
   /// mutable value.
   let hasMutatingGetter: Bool
+  /// What `_resetViewProp` assigns when React removes the prop. Events aren't reset.
+  let defaultValue: PropDefault
 
   /// The name with any escaping backticks removed: the JS-visible key, so the enum's raw value and
   /// `_eventNames` both read `"default"`, never `` "`default`" ``.
   var wireName: String {
     return withoutBackticks(name)
   }
+}
+
+/// The value that a value prop goes back to when React removes it. Each one equals the prop's value
+/// in `Self()`.
+private enum PropDefault {
+  /// The initial value of a stored property, as written. Evaluating it again gives the value that
+  /// `Self()` gives the property.
+  case initialValue(ExprSyntax)
+  /// The implicit `nil` of a `var` whose type is written as `T?` or `T!`.
+  case implicitNil
+  /// The prop's value in a new `Self()`, when the macro can't tell it from the declaration: the
+  /// struct declares its own `init()`, which can set any value, the prop is computed, the property
+  /// has an attribute, such as a property wrapper, whose value after `init(wrappedValue:)` can differ
+  /// from its initial value, or the initial value has a `#` expression, such as `#function` or
+  /// `#line`, whose value depends on where it's evaluated.
+  case newInstance
+}
+
+/// The default of a property with the given binding, for a struct that does or doesn't declare its own
+/// `init()`.
+private func propDefault(
+  of binding: PatternBindingSyntax,
+  in varDecl: VariableDeclSyntax,
+  declaredType: TypeSyntax?,
+  declaresUsableInitializer: Bool
+) -> PropDefault {
+  if declaresUsableInitializer || !isStoredBinding(binding) || !varDecl.attributes.isEmpty {
+    return .newInstance
+  }
+  if let initializer = binding.initializer {
+    // A macro expansion, also a literal such as `#function`, can depend on where it's evaluated, so
+    // a copy in `_resetViewProp` could give another value.
+    let hasPoundExpression = initializer.value.tokens(viewMode: .sourceAccurate).contains {
+      $0.tokenKind == .pound
+    }
+    return hasPoundExpression ? .newInstance : .initialValue(initializer.value)
+  }
+  if varDecl.bindingSpecifier.tokenKind == .keyword(.var), let declaredType, hasImplicitNilDefault(declaredType) {
+    return .implicitNil
+  }
+  // A value prop without a default is reported, so this is only reached for an event, which isn't
+  // reset.
+  return .newInstance
 }
 
 /// An event prop declared without an initial value, which the generated `init()` assigns.
@@ -664,7 +717,17 @@ private func validatedViewProps(
       // Only stored storage takes an initial value; a computed prop with a setter needs none.
       let needsInitialValue =
         binding.initializer == nil && isStoredBinding(binding) && !declaresUsableInitializer
-      let prop = ViewProp(name: name, type: resolvedType, hasMutatingGetter: hasMutatingGetter(binding))
+      let prop = ViewProp(
+        name: name,
+        type: resolvedType,
+        hasMutatingGetter: hasMutatingGetter(binding),
+        defaultValue: propDefault(
+          of: binding,
+          in: varDecl,
+          declaredType: declaredType,
+          declaresUsableInitializer: declaresUsableInitializer
+        )
+      )
       if let eventFunctionType {
         // An event is dispatched to JavaScript, which can't hand a value back to the caller.
         if !returnsVoid(eventFunctionType) {
@@ -1003,26 +1066,18 @@ private func eventNamesConstant(eventProps: [ViewProp]) -> DeclSyntax {
 }
 
 /// The body of `_decode`, which core calls once per changed prop. React sends a removed prop as
-/// `null`, so `null` and `undefined` reset the prop to its value in a fresh `Self()`; any other value
-/// decodes through `JavaScriptDecodable`, with the type inferred from the assignment. The helper is a
-/// static member of `AnyViewProps`, reached through `Self.`, so a prop named `_decodeViewProp`
-/// doesn't shadow it. The checks run
-/// once, before the switch, so each case is a single assignment. Members are reached through `self.`
-/// so that a prop named like a parameter (`value`, `runtime`) isn't shadowed by it.
+/// `null`, so `null` and `undefined` reset the prop with `_resetViewProp`; any other value decodes
+/// through `JavaScriptDecodable`, with the type inferred from the assignment. `_decodeViewProp` is a
+/// static member of `AnyViewProps`, reached through `Self.`, so a prop with the same name doesn't
+/// shadow it. The checks run once, before the switch, so each case is a single assignment. Members
+/// are reached through `self.` so that a prop named like a parameter (`value`, `runtime`) isn't
+/// shadowed by it.
 ///
 /// With no value prop the body is empty: `PropName` is uninhabited, so the function is never called.
-///
-/// `defaults` is a `var` only when a prop has a `mutating get`, which can't be read from a constant.
-/// Otherwise it's a `let`, so the common case gets no "never mutated" warning.
 private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
   if valueProps.isEmpty {
     return ""
   }
-  let defaultsSpecifier = valueProps.contains(where: \.hasMutatingGetter) ? "var" : "let"
-  let resetCases =
-    valueProps
-    .map { "      case .\($0.name):\n        self.\($0.name) = defaults.\($0.name)" }
-    .joined(separator: "\n")
   let decodeCases =
     valueProps
     .map { "    case .\($0.name):\n      self.\($0.name) = try Self._decodeViewProp(value, in: runtime)" }
@@ -1032,16 +1087,86 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
   return """
 
         if value.isNull() || value.isUndefined() {
-          \(defaultsSpecifier) defaults = Self()
-          switch name {
-    \(resetCases)
-          }
+          Self._resetViewProp(name, in: &self)
           return
         }
         switch name {
     \(decodeCases)
         }
     """
+}
+
+/// `_resetViewProp(_:in:)`, which sets one value prop back to its default when React removes it. Each
+/// case assigns the prop's initial value or `nil`, so a reset evaluates only that prop's default. A
+/// prop whose default the macro can't tell from the declaration reads it from a new `Self()`.
+///
+/// A static function of the struct body resolves names as a property initializer does: a static
+/// member without `Self.` and a member of an enclosing type, which `_decode` in the extension can't
+/// name. The parameters are `_name` and `_props`, with a number after the name when an initial value
+/// uses it, so they don't hide a declaration that an initial value names.
+///
+/// A default argument such as `#function` or `#line` of a function that an initial value calls gets
+/// the location of `_resetViewProp`, which the macro can't see.
+///
+/// `nil` with no value prop: `PropName` is uninhabited, so `_decode` never resets.
+private func resetFunction(valueProps: [ViewProp]) -> DeclSyntax? {
+  if valueProps.isEmpty {
+    return nil
+  }
+  let usedNames = Set(
+    valueProps.flatMap { prop -> [String] in
+      guard case .initialValue(let expression) = prop.defaultValue else {
+        return []
+      }
+      return expression.tokens(viewMode: .sourceAccurate).compactMap { token in
+        guard case .identifier(let text) = token.tokenKind else {
+          return nil
+        }
+        return withoutBackticks(text)
+      }
+    }
+  )
+  let nameParameter = unusedName("_name", in: usedNames)
+  let propsParameter = unusedName("_props", in: usedNames)
+  let cases =
+    valueProps
+    .map { prop -> String in
+      let assignment: String
+      switch prop.defaultValue {
+      case .initialValue(let expression):
+        assignment = "\(propsParameter).\(prop.name) = \(expression.trimmedDescription)"
+      case .implicitNil:
+        assignment = "\(propsParameter).\(prop.name) = nil"
+      case .newInstance where prop.hasMutatingGetter:
+        // A mutating getter can't be read from a constant. The local is scoped to its case, where
+        // no initial value is copied.
+        assignment = "var _defaults = Self()\n    \(propsParameter).\(prop.name) = _defaults.\(prop.name)"
+      case .newInstance:
+        assignment = "\(propsParameter).\(prop.name) = Self().\(prop.name)"
+      }
+      return "  case .\(prop.name):\n    \(assignment)"
+    }
+    .joined(separator: "\n")
+  return """
+    @JavaScriptActor
+    static func _resetViewProp(_ \(raw: nameParameter): PropName, in \(raw: propsParameter): inout Self) {
+      switch \(raw: nameParameter) {
+    \(raw: cases)
+      }
+    }
+    """
+}
+
+/// `base`, or `base` with the lowest number after it that gives a name not in `names`.
+private func unusedName(_ base: String, in names: Set<String>) -> String {
+  if !names.contains(base) {
+    return base
+  }
+  var number = 1
+  while names.contains("\(base)\(number)") {
+    number += 1
+  }
+  return "\(base)\(number)"
 }
 
 /// The public `init()` that `AnyViewProps` requires, when Swift's own can't satisfy it: it gives each
