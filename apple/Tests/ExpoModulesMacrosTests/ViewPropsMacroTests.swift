@@ -79,6 +79,16 @@ struct ViewPropsMacroTests {
             self.onTap = { _ in
             }
           }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            case .radius:
+              _props.radius = 0
+            }
+          }
         }
 
         extension CardProps: AnyViewProps {
@@ -99,13 +109,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              case .radius:
-                self.radius = defaults.radius
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -158,6 +162,18 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .a:
+              _props.a = 0
+            case .b:
+              _props.b = 0
+            case .c:
+              _props.c = 0
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -180,15 +196,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .a:
-                self.a = defaults.a
-              case .b:
-                self.b = defaults.b
-              case .c:
-                self.c = defaults.c
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -371,6 +379,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -389,11 +405,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -436,6 +448,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .radius:
+              _props.radius = nil
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -454,11 +474,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .radius:
-                self.radius = defaults.radius
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -501,6 +517,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
         }
 
         extension Props {
@@ -519,11 +543,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -1076,6 +1096,140 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .p0:
+              _props.p0 = 0
+            case .p1:
+              _props.p1 = 0
+            case .p2:
+              _props.p2 = 0
+            case .p3:
+              _props.p3 = 0
+            case .p4:
+              _props.p4 = 0
+            case .p5:
+              _props.p5 = 0
+            case .p6:
+              _props.p6 = 0
+            case .p7:
+              _props.p7 = 0
+            case .p8:
+              _props.p8 = 0
+            case .p9:
+              _props.p9 = 0
+            case .p10:
+              _props.p10 = 0
+            case .p11:
+              _props.p11 = 0
+            case .p12:
+              _props.p12 = 0
+            case .p13:
+              _props.p13 = 0
+            case .p14:
+              _props.p14 = 0
+            case .p15:
+              _props.p15 = 0
+            case .p16:
+              _props.p16 = 0
+            case .p17:
+              _props.p17 = 0
+            case .p18:
+              _props.p18 = 0
+            case .p19:
+              _props.p19 = 0
+            case .p20:
+              _props.p20 = 0
+            case .p21:
+              _props.p21 = 0
+            case .p22:
+              _props.p22 = 0
+            case .p23:
+              _props.p23 = 0
+            case .p24:
+              _props.p24 = 0
+            case .p25:
+              _props.p25 = 0
+            case .p26:
+              _props.p26 = 0
+            case .p27:
+              _props.p27 = 0
+            case .p28:
+              _props.p28 = 0
+            case .p29:
+              _props.p29 = 0
+            case .p30:
+              _props.p30 = 0
+            case .p31:
+              _props.p31 = 0
+            case .p32:
+              _props.p32 = 0
+            case .p33:
+              _props.p33 = 0
+            case .p34:
+              _props.p34 = 0
+            case .p35:
+              _props.p35 = 0
+            case .p36:
+              _props.p36 = 0
+            case .p37:
+              _props.p37 = 0
+            case .p38:
+              _props.p38 = 0
+            case .p39:
+              _props.p39 = 0
+            case .p40:
+              _props.p40 = 0
+            case .p41:
+              _props.p41 = 0
+            case .p42:
+              _props.p42 = 0
+            case .p43:
+              _props.p43 = 0
+            case .p44:
+              _props.p44 = 0
+            case .p45:
+              _props.p45 = 0
+            case .p46:
+              _props.p46 = 0
+            case .p47:
+              _props.p47 = 0
+            case .p48:
+              _props.p48 = 0
+            case .p49:
+              _props.p49 = 0
+            case .p50:
+              _props.p50 = 0
+            case .p51:
+              _props.p51 = 0
+            case .p52:
+              _props.p52 = 0
+            case .p53:
+              _props.p53 = 0
+            case .p54:
+              _props.p54 = 0
+            case .p55:
+              _props.p55 = 0
+            case .p56:
+              _props.p56 = 0
+            case .p57:
+              _props.p57 = 0
+            case .p58:
+              _props.p58 = 0
+            case .p59:
+              _props.p59 = 0
+            case .p60:
+              _props.p60 = 0
+            case .p61:
+              _props.p61 = 0
+            case .p62:
+              _props.p62 = 0
+            case .p63:
+              _props.p63 = 0
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -1220,137 +1374,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .p0:
-                self.p0 = defaults.p0
-              case .p1:
-                self.p1 = defaults.p1
-              case .p2:
-                self.p2 = defaults.p2
-              case .p3:
-                self.p3 = defaults.p3
-              case .p4:
-                self.p4 = defaults.p4
-              case .p5:
-                self.p5 = defaults.p5
-              case .p6:
-                self.p6 = defaults.p6
-              case .p7:
-                self.p7 = defaults.p7
-              case .p8:
-                self.p8 = defaults.p8
-              case .p9:
-                self.p9 = defaults.p9
-              case .p10:
-                self.p10 = defaults.p10
-              case .p11:
-                self.p11 = defaults.p11
-              case .p12:
-                self.p12 = defaults.p12
-              case .p13:
-                self.p13 = defaults.p13
-              case .p14:
-                self.p14 = defaults.p14
-              case .p15:
-                self.p15 = defaults.p15
-              case .p16:
-                self.p16 = defaults.p16
-              case .p17:
-                self.p17 = defaults.p17
-              case .p18:
-                self.p18 = defaults.p18
-              case .p19:
-                self.p19 = defaults.p19
-              case .p20:
-                self.p20 = defaults.p20
-              case .p21:
-                self.p21 = defaults.p21
-              case .p22:
-                self.p22 = defaults.p22
-              case .p23:
-                self.p23 = defaults.p23
-              case .p24:
-                self.p24 = defaults.p24
-              case .p25:
-                self.p25 = defaults.p25
-              case .p26:
-                self.p26 = defaults.p26
-              case .p27:
-                self.p27 = defaults.p27
-              case .p28:
-                self.p28 = defaults.p28
-              case .p29:
-                self.p29 = defaults.p29
-              case .p30:
-                self.p30 = defaults.p30
-              case .p31:
-                self.p31 = defaults.p31
-              case .p32:
-                self.p32 = defaults.p32
-              case .p33:
-                self.p33 = defaults.p33
-              case .p34:
-                self.p34 = defaults.p34
-              case .p35:
-                self.p35 = defaults.p35
-              case .p36:
-                self.p36 = defaults.p36
-              case .p37:
-                self.p37 = defaults.p37
-              case .p38:
-                self.p38 = defaults.p38
-              case .p39:
-                self.p39 = defaults.p39
-              case .p40:
-                self.p40 = defaults.p40
-              case .p41:
-                self.p41 = defaults.p41
-              case .p42:
-                self.p42 = defaults.p42
-              case .p43:
-                self.p43 = defaults.p43
-              case .p44:
-                self.p44 = defaults.p44
-              case .p45:
-                self.p45 = defaults.p45
-              case .p46:
-                self.p46 = defaults.p46
-              case .p47:
-                self.p47 = defaults.p47
-              case .p48:
-                self.p48 = defaults.p48
-              case .p49:
-                self.p49 = defaults.p49
-              case .p50:
-                self.p50 = defaults.p50
-              case .p51:
-                self.p51 = defaults.p51
-              case .p52:
-                self.p52 = defaults.p52
-              case .p53:
-                self.p53 = defaults.p53
-              case .p54:
-                self.p54 = defaults.p54
-              case .p55:
-                self.p55 = defaults.p55
-              case .p56:
-                self.p56 = defaults.p56
-              case .p57:
-                self.p57 = defaults.p57
-              case .p58:
-                self.p58 = defaults.p58
-              case .p59:
-                self.p59 = defaults.p59
-              case .p60:
-                self.p60 = defaults.p60
-              case .p61:
-                self.p61 = defaults.p61
-              case .p62:
-                self.p62 = defaults.p62
-              case .p63:
-                self.p63 = defaults.p63
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -1527,6 +1551,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -1545,11 +1577,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -1594,6 +1622,16 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .a:
+              _props.a = 0
+            case .b:
+              _props.b = 0
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -1614,13 +1652,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .a:
-                self.a = defaults.a
-              case .b:
-                self.b = defaults.b
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -1665,6 +1697,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .`default`:
+              _props.`default` = 0
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -1683,11 +1723,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .`default`:
-                self.`default` = defaults.`default`
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -2198,6 +2234,20 @@ struct ViewPropsMacroTests {
             self.onTap = { _ in
             }
           }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .title:
+              _props.title = ""
+            case .radius:
+              _props.radius = 4
+            case .value:
+              _props.value = nil
+            case .tint:
+              _props.tint = nil
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -2222,17 +2272,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .title:
-                self.title = defaults.title
-              case .radius:
-                self.radius = defaults.radius
-              case .value:
-                self.value = defaults.value
-              case .tint:
-                self.tint = defaults.tint
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -2244,6 +2284,183 @@ struct ViewPropsMacroTests {
               self.value = try Self._decodeViewProp(value, in: runtime)
             case .tint:
               self.tint = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A removed prop gets its initial value as written`() {
+    // The initial values are copied without their trailing comments into a static function of the
+    // struct body, where `base` resolves as it does in the property initializer.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        static let base = 2
+        var count: Int = base  // two
+        var labels: [String: String] = [
+          "start": "Start",
+          "end": "End",
+        ]
+        var level: Int = 1 {
+          didSet { print(level) }
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          static let base = 2
+          var count: Int = base  // two
+          var labels: [String: String] = [
+            "start": "Start",
+            "end": "End",
+          ]
+          var level: Int = 1 {
+            didSet { print(level) }
+          }
+
+          public enum PropName: String, CaseIterable {
+            case count
+            case labels
+            case level
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let count = PropSet(rawValue: 1 << 0)
+            public static let labels = PropSet(rawValue: 1 << 1)
+            public static let level = PropSet(rawValue: 1 << 2)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .count:
+              _props.count = base
+            case .labels:
+              _props.labels = [
+              "start": "Start",
+              "end": "End",
+            ]
+            case .level:
+              _props.level = 1
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b111)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .count:
+              return .count
+            case .labels:
+              return .labels
+            case .level:
+              return .level
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .count:
+              self.count = try Self._decodeViewProp(value, in: runtime)
+            case .labels:
+              self.labels = try Self._decodeViewProp(value, in: runtime)
+            case .level:
+              self.level = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A prop with an attribute is reset from a new instance`() {
+    // A property wrapper can change the initial value in `init(wrappedValue:)`, so only `Self()` gives
+    // the prop's default.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @Clamped var level: Int = 15
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @Clamped var level: Int = 15
+
+          public enum PropName: String, CaseIterable {
+            case level
+          }
+
+          public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let level = PropSet(rawValue: 1 << 0)
+          }
+
+          public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .level:
+              _props.level = Self().level
+            }
+          }
+        }
+
+        extension Props: AnyViewProps {
+          public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .level:
+              return .level
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .level:
+              self.level = try Self._decodeViewProp(value, in: runtime)
             }
           }
         }
@@ -2675,6 +2892,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .radius:
+              _props.radius = nil
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -2693,11 +2918,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .radius:
-                self.radius = defaults.radius
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -2750,6 +2971,16 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .storage:
+              _props.storage = 0
+            case .size:
+              _props.size = Self().size
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -2770,13 +3001,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .storage:
-                self.storage = defaults.storage
-              case .size:
-                self.size = defaults.size
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -2825,6 +3050,14 @@ struct ViewPropsMacroTests {
 
           public init() {
           }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -2843,11 +3076,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -2901,6 +3130,14 @@ struct ViewPropsMacroTests {
 
           public init() {
           }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -2919,11 +3156,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -2982,6 +3215,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = Self().color
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -3000,11 +3241,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -3601,6 +3838,17 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .storage:
+              _props.storage = 0
+            case .size:
+              var _defaults = Self()
+              _props.size = _defaults.size
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -3621,13 +3869,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              var defaults = Self()
-              switch name {
-              case .storage:
-                self.storage = defaults.storage
-              case .size:
-                self.size = defaults.size
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -3676,6 +3918,14 @@ struct ViewPropsMacroTests {
 
           public init() {
           }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -3694,11 +3944,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -3748,6 +3994,14 @@ struct ViewPropsMacroTests {
 
             public init() {
             }
+
+            @JavaScriptActor
+            static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+              switch _name {
+              case .color:
+                _props.color = .red
+              }
+            }
           }
         }
 
@@ -3767,11 +4021,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -3821,6 +4071,14 @@ struct ViewPropsMacroTests {
 
             public init() {
             }
+
+            @JavaScriptActor
+            static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+              switch _name {
+              case .color:
+                _props.color = .red
+              }
+            }
           }
         }
 
@@ -3840,11 +4098,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -3891,6 +4145,14 @@ struct ViewPropsMacroTests {
             public static let _eventNames: [String] = []
 
             public typealias Diff = PropsDiff<Self>
+
+            @JavaScriptActor
+            static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+              switch _name {
+              case .color:
+                _props.color = .red
+              }
+            }
           }
         }
 
@@ -3910,11 +4172,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -3958,6 +4216,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case ._decodeViewProp:
+              _props._decodeViewProp = 0
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -3976,11 +4242,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case ._decodeViewProp:
-                self._decodeViewProp = defaults._decodeViewProp
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -4036,6 +4298,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = Self().color
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -4054,11 +4324,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -4104,6 +4370,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .value:
+              _props.value = nil
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -4122,11 +4396,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .value:
-                self.value = defaults.value
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
@@ -4189,6 +4459,14 @@ struct ViewPropsMacroTests {
           public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = Self().color
+            }
+          }
         }
 
         extension Props: AnyViewProps {
@@ -4207,11 +4485,7 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
             if value.isNull() || value.isUndefined() {
-              let defaults = Self()
-              switch name {
-              case .color:
-                self.color = defaults.color
-              }
+              Self._resetViewProp(name, in: &self)
               return
             }
             switch name {
