@@ -266,7 +266,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor
@@ -326,7 +325,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor
@@ -2941,7 +2939,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor
@@ -2998,7 +2995,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor
@@ -3061,7 +3057,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor
@@ -3996,7 +3991,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor
@@ -4787,7 +4781,6 @@ struct ViewPropsMacroTests {
           /// it runs once per changed key per props batch.
           @inlinable
           nonisolated public static func propSet(for name: PropName) -> PropSet {
-            return []
           }
 
           @JavaScriptActor

@@ -136,15 +136,18 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
       ? "0"
       : "0b" + String(repeating: "1", count: props.valueProps.count)
 
-    // With no value prop there's nothing to switch over, so return the empty set.
+    // With no value prop, `PropName` has no case, so the function can't be called and its body is
+    // empty, like the one of `_decode`. Swift reports any statement in it, also an empty `switch`, as
+    // "will never be executed". The body starts with a line break, so the empty one closes on the
+    // next line.
     let propSetBody: String
     if props.valueProps.isEmpty {
-      propSetBody = "    return []"
+      propSetBody = ""
     } else {
       let cases = props.valueProps
         .map { "    case .\($0.name):\n      return .\($0.name)" }
         .joined(separator: "\n")
-      propSetBody = "    switch name {\n\(cases)\n    }"
+      propSetBody = "\n    switch name {\n\(cases)\n    }"
     }
 
     let decodeBody = decodeFunctionBody(valueProps: props.valueProps)
@@ -159,8 +162,7 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
         /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
         /// it runs once per changed key per props batch.
         @inlinable
-        nonisolated public static func propSet(for name: PropName) -> PropSet {
-      \(raw: propSetBody)
+        nonisolated public static func propSet(for name: PropName) -> PropSet {\(raw: propSetBody)
         }
 
         @JavaScriptActor
