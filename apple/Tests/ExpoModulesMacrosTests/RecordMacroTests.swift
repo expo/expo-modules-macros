@@ -1398,6 +1398,104 @@ struct RecordMacroTests {
   }
 
   @Test
+  func `Type already declaring a nonisolated Record does not get a redundant extension`() {
+    // A module with a default isolation needs `nonisolated` on a conformance that the author declares.
+    assertExpansion(
+      """
+      @Record
+      struct Options: nonisolated Record {
+        var name: String
+      }
+      """,
+      expandedSource: """
+        struct Options: nonisolated Record {
+          var name: String
+
+          nonisolated public init() {
+            fatalError("\\(Self.self) has required properties and cannot be created with init(); create it from JavaScript or with its memberwise initializer")
+          }
+
+          nonisolated public init(name: String) {
+            self.name = name
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            throw RecordDictionaryConversionException(String(describing: Self.self))
+          }
+
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["name"] = self.name
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          nonisolated private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "name")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { nameJSValue in
+              guard !nameJSValue.isUndefined() else {
+                throw RecordPropertyRequiredException("name")
+              }
+              return try String.decode(nameJSValue, in: runtime)
+            }
+            return Self(name: field0)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name)
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.name)
+            slot.emplace(object)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `A leftover @Field attribute produces a diagnostic`() {
     assertExpansion(
       """

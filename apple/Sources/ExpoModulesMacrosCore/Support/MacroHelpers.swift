@@ -631,8 +631,9 @@ internal func isExcludedByModifier(_ modifiers: DeclModifierListSyntax) -> Bool 
 
 /// True if the type's inheritance clause already lists a protocol with the given name. Matches
 /// either the bare identifier (`Record`) or a qualified member access ending in the name
-/// (`ExpoModulesCore.Record`). Used by the extension macros to skip a conformance the author already
-/// spelled out. Works for `struct`, `class`, and `enum` declarations; any other declaration kind has no
+/// (`ExpoModulesCore.Record`), also with `nonisolated` or an attribute such as `@preconcurrency`
+/// before it. Used by the extension macros to skip a conformance the author already spelled out.
+/// Works for `struct`, `class`, and `enum` declarations; any other declaration kind has no
 /// inheritance clause to read and reports `false`.
 internal func inheritsProtocol(named name: String, in declaration: some DeclGroupSyntax) -> Bool {
   let inheritanceClause: InheritanceClauseSyntax?
@@ -648,5 +649,11 @@ internal func inheritsProtocol(named name: String, in declaration: some DeclGrou
   guard let inherited = inheritanceClause?.inheritedTypes else {
     return false
   }
-  return inherited.contains { baseIdentifier(of: $0.type) == name }
+  return inherited.contains { entry in
+    var type = entry.type
+    while let attributed = type.as(AttributedTypeSyntax.self) {
+      type = attributed.baseType
+    }
+    return baseIdentifier(of: type) == name
+  }
 }

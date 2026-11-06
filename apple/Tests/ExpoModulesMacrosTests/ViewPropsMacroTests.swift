@@ -55,12 +55,12 @@ struct ViewPropsMacroTests {
           var radius: CGFloat = 0
           var onTap: (TapEvent) -> Void
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
             case radius
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -71,11 +71,11 @@ struct ViewPropsMacroTests {
             public static let radius = PropSet(rawValue: 1 << 1)
           }
 
-          public static let _eventNames: [String] = ["onTap"]
+          nonisolated public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
             self.onTap = { _ in
             }
           }
@@ -91,13 +91,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension CardProps: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b11)
+        extension CardProps: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b11)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -141,13 +141,13 @@ struct ViewPropsMacroTests {
           var b: Int = 0
           var c: Int = 0
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case a
             case b
             case c
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -159,7 +159,7 @@ struct ViewPropsMacroTests {
             public static let c = PropSet(rawValue: 1 << 2)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -176,13 +176,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b111)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b111)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .a:
               return .a
@@ -228,7 +228,7 @@ struct ViewPropsMacroTests {
           var onTap: () -> Void
           var onClose: (CloseEvent) -> Void
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -239,7 +239,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -247,11 +247,11 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = ["onTap", "onClose"]
+          nonisolated public static let _eventNames: [String] = ["onTap", "onClose"]
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
             self.onTap = {
             }
             self.onClose = { _ in
@@ -259,13 +259,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 
@@ -290,7 +290,7 @@ struct ViewPropsMacroTests {
         struct Props {
           var onTap: @Sendable (TapEvent) -> Void
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -301,7 +301,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -309,23 +309,23 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = ["onTap"]
+          nonisolated public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
             self.onTap = { _ in
             }
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 
@@ -362,11 +362,11 @@ struct ViewPropsMacroTests {
             return 1
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -376,7 +376,7 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -389,13 +389,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -431,11 +431,11 @@ struct ViewPropsMacroTests {
         struct Props {
           var radius: CGFloat?
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case radius
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -445,7 +445,7 @@ struct ViewPropsMacroTests {
             public static let radius = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -458,13 +458,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .radius:
               return .radius
@@ -500,11 +500,11 @@ struct ViewPropsMacroTests {
         struct Props: AnyViewProps {
           var color: UIColor = .red
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -514,7 +514,7 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -528,12 +528,82 @@ struct ViewPropsMacroTests {
         }
 
         extension Props {
-          public static let allProps = PropSet(rawValue: 0b1)
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A conformance already declared as nonisolated is not repeated`() {
+    // A module with a default isolation needs `nonisolated` on a conformance that the author declares.
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props: nonisolated AnyViewProps {
+        var color: UIColor = .red
+      }
+      """,
+      expandedSource: """
+        struct Props: nonisolated AnyViewProps {
+          var color: UIColor = .red
+
+          nonisolated public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          nonisolated public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
+        }
+
+        extension Props {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -953,7 +1023,7 @@ struct ViewPropsMacroTests {
           var p62: Int = 0
           var p63: Int = 0
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case p0
             case p1
             case p2
@@ -1020,7 +1090,7 @@ struct ViewPropsMacroTests {
             case p63
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -1093,7 +1163,7 @@ struct ViewPropsMacroTests {
             public static let p63 = PropSet(rawValue: 1 << 63)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -1232,13 +1302,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1111111111111111111111111111111111111111111111111111111111111111)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1111111111111111111111111111111111111111111111111111111111111111)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .p0:
               return .p0
@@ -1534,11 +1604,11 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -1548,7 +1618,7 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -1561,13 +1631,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -1603,12 +1673,12 @@ struct ViewPropsMacroTests {
         struct Props {
           var a: Int = 0, b: Int = 0
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case a
             case b
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -1619,7 +1689,7 @@ struct ViewPropsMacroTests {
             public static let b = PropSet(rawValue: 1 << 1)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -1634,13 +1704,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b11)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b11)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .a:
               return .a
@@ -1680,11 +1750,11 @@ struct ViewPropsMacroTests {
         struct Props {
           var `default`: Int = 0
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case `default` = "default"
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -1694,7 +1764,7 @@ struct ViewPropsMacroTests {
             public static let `default` = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -1707,13 +1777,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .`default`:
               return .`default`
@@ -2206,14 +2276,14 @@ struct ViewPropsMacroTests {
           var tint: UIColor?
           var onTap: (TapEvent) -> Void
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case title
             case radius
             case value
             case tint
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2226,11 +2296,11 @@ struct ViewPropsMacroTests {
             public static let tint = PropSet(rawValue: 1 << 3)
           }
 
-          public static let _eventNames: [String] = ["onTap"]
+          nonisolated public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
             self.onTap = { _ in
             }
           }
@@ -2250,13 +2320,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1111)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1111)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .title:
               return .title
@@ -2322,13 +2392,13 @@ struct ViewPropsMacroTests {
             didSet { print(level) }
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case count
             case labels
             case level
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2340,7 +2410,7 @@ struct ViewPropsMacroTests {
             public static let level = PropSet(rawValue: 1 << 2)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -2360,13 +2430,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b111)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b111)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .count:
               return .count
@@ -2415,13 +2485,13 @@ struct ViewPropsMacroTests {
           var label: String = "line \\(#line)"
           var count: Int = 1
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case source
             case label
             case count
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2433,7 +2503,7 @@ struct ViewPropsMacroTests {
             public static let count = PropSet(rawValue: 1 << 2)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -2450,13 +2520,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b111)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b111)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .source:
               return .source
@@ -2506,12 +2576,12 @@ struct ViewPropsMacroTests {
           var title: String = _name
           var count: Int = _props
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case title
             case count
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2522,7 +2592,7 @@ struct ViewPropsMacroTests {
             public static let count = PropSet(rawValue: 1 << 1)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -2537,13 +2607,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b11)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b11)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .title:
               return .title
@@ -2585,11 +2655,11 @@ struct ViewPropsMacroTests {
         struct Props {
           @Clamped var level: Int = 15
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case level
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2599,7 +2669,7 @@ struct ViewPropsMacroTests {
             public static let level = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -2612,13 +2682,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .level:
               return .level
@@ -2831,7 +2901,7 @@ struct ViewPropsMacroTests {
           var `default`: (Int) async -> Swift.Void
           var onClose: (CloseEvent) -> Void = { _ in }
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -2842,7 +2912,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2850,11 +2920,11 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = ["onTap", "onMove", "default", "onClose"]
+          nonisolated public static let _eventNames: [String] = ["onTap", "onMove", "default", "onClose"]
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
             self.onTap = {
             }
             self.onMove = { _, _ in
@@ -2864,13 +2934,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 
@@ -2897,7 +2967,7 @@ struct ViewPropsMacroTests {
           var onTap: () -> Void = {}
           var onClose: (CloseEvent) -> Void = { _ in }
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -2908,7 +2978,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2916,18 +2986,18 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = ["onTap", "onClose"]
+          nonisolated public static let _eventNames: [String] = ["onTap", "onClose"]
 
           public typealias Diff = PropsDiff<Self>
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 
@@ -2960,7 +3030,7 @@ struct ViewPropsMacroTests {
             onTap = { event in print(event) }
           }
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -2971,7 +3041,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -2979,18 +3049,18 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = ["onTap"]
+          nonisolated public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 
@@ -3048,11 +3118,11 @@ struct ViewPropsMacroTests {
         struct Props {
           var radius: CGFloat!
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case radius
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -3062,7 +3132,7 @@ struct ViewPropsMacroTests {
             public static let radius = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -3075,13 +3145,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .radius:
               return .radius
@@ -3125,12 +3195,12 @@ struct ViewPropsMacroTests {
             set { storage = newValue }
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case storage
             case size
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -3141,7 +3211,7 @@ struct ViewPropsMacroTests {
             public static let size = PropSet(rawValue: 1 << 1)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -3156,13 +3226,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b11)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b11)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .storage:
               return .storage
@@ -3203,11 +3273,11 @@ struct ViewPropsMacroTests {
         public struct Props {
           var color: UIColor = .red
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -3217,11 +3287,11 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
           }
 
           @JavaScriptActor
@@ -3233,13 +3303,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -3283,11 +3353,11 @@ struct ViewPropsMacroTests {
             self.color = color
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -3297,11 +3367,11 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
           }
 
           @JavaScriptActor
@@ -3313,13 +3383,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -3371,11 +3441,11 @@ struct ViewPropsMacroTests {
             cache = [:]
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -3385,7 +3455,7 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = ["onTap"]
+          nonisolated public static let _eventNames: [String] = ["onTap"]
 
           public typealias Diff = PropsDiff<Self>
 
@@ -3398,13 +3468,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -3886,7 +3956,7 @@ struct ViewPropsMacroTests {
           var onClose: () -> (())
           var onMove: (Int) -> ((Void))
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -3897,7 +3967,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -3905,11 +3975,11 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = ["onTap", "onClose", "onMove"]
+          nonisolated public static let _eventNames: [String] = ["onTap", "onClose", "onMove"]
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
             self.onTap = {
             }
             self.onClose = {
@@ -3919,13 +3989,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 
@@ -3992,12 +4062,12 @@ struct ViewPropsMacroTests {
             set { storage = newValue }
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case storage
             case size
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4008,7 +4078,7 @@ struct ViewPropsMacroTests {
             public static let size = PropSet(rawValue: 1 << 1)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -4024,13 +4094,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b11)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b11)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .storage:
               return .storage
@@ -4071,11 +4141,11 @@ struct ViewPropsMacroTests {
         package struct Props {
           var color: UIColor = .red
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4085,11 +4155,11 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
-          public init() {
+          nonisolated public init() {
           }
 
           @JavaScriptActor
@@ -4101,13 +4171,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -4147,11 +4217,11 @@ struct ViewPropsMacroTests {
           struct Props {
             var color: UIColor = .red
 
-            public enum PropName: String, CaseIterable {
+            nonisolated public enum PropName: String, CaseIterable {
               case color
             }
 
-            public struct PropSet: OptionSet, Sendable {
+            nonisolated public struct PropSet: OptionSet, Sendable {
               public let rawValue: UInt64
 
               public init(rawValue: UInt64) {
@@ -4161,11 +4231,11 @@ struct ViewPropsMacroTests {
               public static let color = PropSet(rawValue: 1 << 0)
             }
 
-            public static let _eventNames: [String] = []
+            nonisolated public static let _eventNames: [String] = []
 
             public typealias Diff = PropsDiff<Self>
 
-            public init() {
+            nonisolated public init() {
             }
 
             @JavaScriptActor
@@ -4178,13 +4248,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Outer.Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Outer.Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -4224,11 +4294,11 @@ struct ViewPropsMacroTests {
           struct Props {
             var color: UIColor = .red
 
-            public enum PropName: String, CaseIterable {
+            nonisolated public enum PropName: String, CaseIterable {
               case color
             }
 
-            public struct PropSet: OptionSet, Sendable {
+            nonisolated public struct PropSet: OptionSet, Sendable {
               public let rawValue: UInt64
 
               public init(rawValue: UInt64) {
@@ -4238,11 +4308,11 @@ struct ViewPropsMacroTests {
               public static let color = PropSet(rawValue: 1 << 0)
             }
 
-            public static let _eventNames: [String] = []
+            nonisolated public static let _eventNames: [String] = []
 
             public typealias Diff = PropsDiff<Self>
 
-            public init() {
+            nonisolated public init() {
             }
 
             @JavaScriptActor
@@ -4255,13 +4325,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Outer.Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Outer.Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -4301,11 +4371,11 @@ struct ViewPropsMacroTests {
           internal struct Props {
             var color: UIColor = .red
 
-            public enum PropName: String, CaseIterable {
+            nonisolated public enum PropName: String, CaseIterable {
               case color
             }
 
-            public struct PropSet: OptionSet, Sendable {
+            nonisolated public struct PropSet: OptionSet, Sendable {
               public let rawValue: UInt64
 
               public init(rawValue: UInt64) {
@@ -4315,7 +4385,7 @@ struct ViewPropsMacroTests {
               public static let color = PropSet(rawValue: 1 << 0)
             }
 
-            public static let _eventNames: [String] = []
+            nonisolated public static let _eventNames: [String] = []
 
             public typealias Diff = PropsDiff<Self>
 
@@ -4329,13 +4399,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Outer.Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Outer.Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -4372,11 +4442,11 @@ struct ViewPropsMacroTests {
         struct Props {
           var _decodeViewProp: Int = 0
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case _decodeViewProp
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4386,7 +4456,7 @@ struct ViewPropsMacroTests {
             public static let _decodeViewProp = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -4399,13 +4469,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case ._decodeViewProp:
               return ._decodeViewProp
@@ -4454,11 +4524,11 @@ struct ViewPropsMacroTests {
           init() async {
           }
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4468,7 +4538,7 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -4481,13 +4551,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -4526,11 +4596,11 @@ struct ViewPropsMacroTests {
           var value: (Int?)
           private var cache: ((Int)?)
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case value
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4540,7 +4610,7 @@ struct ViewPropsMacroTests {
             public static let value = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -4553,13 +4623,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .value:
               return .value
@@ -4615,11 +4685,11 @@ struct ViewPropsMacroTests {
           }
           #endif
 
-          public enum PropName: String, CaseIterable {
+          nonisolated public enum PropName: String, CaseIterable {
             case color
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4629,7 +4699,7 @@ struct ViewPropsMacroTests {
             public static let color = PropSet(rawValue: 1 << 0)
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
 
@@ -4642,13 +4712,13 @@ struct ViewPropsMacroTests {
           }
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0b1)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             switch name {
             case .color:
               return .color
@@ -4686,7 +4756,7 @@ struct ViewPropsMacroTests {
           private var first, second: Int?
           fileprivate var third, fourth: String?
 
-          public enum PropName: RawRepresentable, CaseIterable {
+          nonisolated public enum PropName: RawRepresentable, CaseIterable {
             public init?(rawValue: String) {
               return nil
             }
@@ -4697,7 +4767,7 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public struct PropSet: OptionSet, Sendable {
+          nonisolated public struct PropSet: OptionSet, Sendable {
             public let rawValue: UInt64
 
             public init(rawValue: UInt64) {
@@ -4705,18 +4775,18 @@ struct ViewPropsMacroTests {
             }
           }
 
-          public static let _eventNames: [String] = []
+          nonisolated public static let _eventNames: [String] = []
 
           public typealias Diff = PropsDiff<Self>
         }
 
-        extension Props: AnyViewProps {
-          public static let allProps = PropSet(rawValue: 0)
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
 
           /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
           /// it runs once per changed key per props batch.
           @inlinable
-          public static func propSet(for name: PropName) -> PropSet {
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
             return []
           }
 

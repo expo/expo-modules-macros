@@ -54,6 +54,14 @@ import SwiftSyntaxMacros
 ///   reset it with `_resetViewProp(_:in:)`, and any other value decodes through
 ///   `JavaScriptDecodable`.
 ///
+/// `_decode` and `_resetViewProp` run on the JavaScript actor. The other generated types and members
+/// and the conformance are `nonisolated`, so core can use them on any thread also when the module
+/// builds with a default isolation, such as `-default-isolation MainActor`. The props' own
+/// declarations still take that isolation, so a struct with an event prop, a value prop whose type
+/// isn't `Sendable`, or a computed prop needs `nonisolated` on its declaration, and the author's
+/// `init()` must be `nonisolated` too. So must a conformance that the author declares
+/// (`: nonisolated AnyViewProps`).
+///
 /// Author-facing shape — no conformance to spell out:
 ///
 ///   @ViewProps
@@ -141,15 +149,17 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
 
     let decodeBody = decodeFunctionBody(valueProps: props.valueProps)
 
-    let conformanceClause = alreadyConforms ? "" : ": \(viewPropsProtocolName)"
+    // `nonisolated` keeps the conformance and its members usable on the JavaScript thread when the
+    // module builds with a default isolation, which would otherwise isolate them to the main actor.
+    let conformanceClause = alreadyConforms ? "" : ": nonisolated \(viewPropsProtocolName)"
     let ext: DeclSyntax = """
       extension \(type.trimmed)\(raw: conformanceClause) {
-        public static let allProps = PropSet(rawValue: \(raw: allPropsMask))
+        nonisolated public static let allProps = PropSet(rawValue: \(raw: allPropsMask))
 
         /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
         /// it runs once per changed key per props batch.
         @inlinable
-        public static func propSet(for name: PropName) -> PropSet {
+        nonisolated public static func propSet(for name: PropName) -> PropSet {
       \(raw: propSetBody)
         }
 
@@ -1002,7 +1012,7 @@ private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
     .joined(separator: "\n")
   if valueProps.isEmpty {
     return """
-      public enum PropName: RawRepresentable, CaseIterable {
+      nonisolated public enum PropName: RawRepresentable, CaseIterable {
         public init?(rawValue: String) {
           return nil
         }
@@ -1015,7 +1025,7 @@ private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
       """
   }
   return """
-    public enum PropName: String, CaseIterable {
+    nonisolated public enum PropName: String, CaseIterable {
     \(raw: cases)
     }
     """
@@ -1033,7 +1043,7 @@ private func propSetStruct(valueProps: [ViewProp]) -> DeclSyntax {
 
   if valueProps.isEmpty {
     return """
-      public struct PropSet: OptionSet, Sendable {
+      nonisolated public struct PropSet: OptionSet, Sendable {
         public let rawValue: UInt64
 
         public init(rawValue: UInt64) {
@@ -1043,7 +1053,7 @@ private func propSetStruct(valueProps: [ViewProp]) -> DeclSyntax {
       """
   }
   return """
-    public struct PropSet: OptionSet, Sendable {
+    nonisolated public struct PropSet: OptionSet, Sendable {
       public let rawValue: UInt64
 
       public init(rawValue: UInt64) {
@@ -1061,7 +1071,7 @@ private func propSetStruct(valueProps: [ViewProp]) -> DeclSyntax {
 private func eventNamesConstant(eventProps: [ViewProp]) -> DeclSyntax {
   let names = eventProps.map { "\"\($0.wireName)\"" }.joined(separator: ", ")
   return """
-    public static let _eventNames: [String] = [\(raw: names)]
+    nonisolated public static let _eventNames: [String] = [\(raw: names)]
     """
 }
 
@@ -1179,7 +1189,7 @@ private func defaultInitializer(props: ViewPropsModel) -> DeclSyntax? {
   }
   if props.eventDefaults.isEmpty {
     return """
-      public init() {
+      nonisolated public init() {
       }
       """
   }
@@ -1187,7 +1197,7 @@ private func defaultInitializer(props: ViewPropsModel) -> DeclSyntax? {
     .map { "  self.\($0.name) = \($0.emptyClosure)" }
     .joined(separator: "\n")
   return """
-    public init() {
+    nonisolated public init() {
     \(raw: assignments)
     }
     """
