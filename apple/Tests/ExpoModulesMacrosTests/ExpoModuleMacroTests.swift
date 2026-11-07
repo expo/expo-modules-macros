@@ -744,6 +744,91 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Async function that isn't isolated to JavaScriptActor binds a body isolated to the runtime's actor`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        nonisolated(nonsending) func load() async -> Int { 0 }
+
+        @JS
+        @MainActor
+        func show() async {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          nonisolated(nonsending) func load() async -> Int { 0 }
+          @MainActor
+          func show() async {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              return { (actor: isolated JavaScriptRuntimeActor) in
+                let result = await self.load()
+                return try await runtime.execute {
+                  return try Int.encode(result, in: runtime)
+                }
+              }
+            }
+            object.setProperty("show") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "show", received: arguments.count, required: 0, maximum: 0))
+              }
+              return { (actor: isolated JavaScriptRuntimeActor) in
+                await self.show()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Async function marked JavaScriptActor binds a body isolated to JavaScriptActor`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        @JavaScriptActor
+        func load() async {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          func load() async {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
+              }
+              return {
+                await self.load()
+                return .undefined()
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Non-throwing async function awaits the call without try`() {
     assertExpansion(
       """
@@ -1219,7 +1304,7 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = try await self.load(url: arg0)
                 return try await runtime.execute {
                   return try String.encode(result, in: runtime)
@@ -1256,7 +1341,7 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = try await self.load(url: arg0)
                 return try await runtime.execute {
                   return try String.encode(result, in: runtime)
@@ -1300,7 +1385,7 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "text", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = try await { @concurrent () async throws -> String in
                   try self.text(path: arg0)
                 }()
@@ -1353,7 +1438,7 @@ struct ExpoModuleMacroTests {
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
               switch arguments.count {
               case 1:
-                return {
+                return { (actor: isolated JavaScriptRuntimeActor) in
                   await { @concurrent () async in
                     self.write(arg0)
                   }()
@@ -1361,7 +1446,7 @@ struct ExpoModuleMacroTests {
                 }
               default:
                 let arg1 = try Int.decode(arguments.unownedValue(at: 1), in: runtime)
-                return {
+                return { (actor: isolated JavaScriptRuntimeActor) in
                   await { @concurrent () async in
                     self.write(arg0, level: arg1)
                   }()
@@ -1397,7 +1482,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = await self.load()
                 return try await runtime.execute {
                   return try Int.encode(result, in: runtime)
@@ -1531,7 +1616,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await { @concurrent () async in
                   self.load()
                 }()
@@ -1548,7 +1633,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "saveAsync", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await { @concurrent () async in
                   self.save()
                 }()
@@ -1600,7 +1685,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await { @concurrent () async in
                   self.load()
                 }()
@@ -1646,7 +1731,7 @@ struct ExpoModuleMacroTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try JavaScriptObject.decode(arguments.unownedValue(at: 0), in: runtime)
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await self.load(arg0)
                 return .undefined()
               }
@@ -1710,7 +1795,7 @@ struct ExpoModuleMacroTests {
               }
               switch arguments.count {
               case 0:
-                return {
+                return { (actor: isolated JavaScriptRuntimeActor) in
                   await { @concurrent () async in
                     self.read(value: nil)
                   }()
@@ -1718,7 +1803,7 @@ struct ExpoModuleMacroTests {
                 }
               default:
                 let arg0 = try JavaScriptValue?.decode(arguments.unownedValue(at: 0), in: runtime)
-                return {
+                return { (actor: isolated JavaScriptRuntimeActor) in
                   await { @concurrent () async in
                     self.read(value: arg0)
                   }()
@@ -1831,7 +1916,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await { @concurrent () async in
                   self.load()
                 }()
@@ -1893,7 +1978,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await { @concurrent () async in
                   self.fetch()
                 }()
@@ -1944,7 +2029,7 @@ struct ExpoModuleMacroTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAsync", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 await { @concurrent () async in
                   self.load()
                 }()

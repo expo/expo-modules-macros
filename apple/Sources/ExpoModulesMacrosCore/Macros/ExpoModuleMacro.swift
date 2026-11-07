@@ -80,7 +80,8 @@ public struct ExpoModuleMacro: MemberMacro {
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
         let attribute = funcDecl.attributes.firstAttribute(named: "JS")
       {
-        let function = JSFunction(funcDecl: funcDecl, attribute: attribute)
+        var function = JSFunction(funcDecl: funcDecl, attribute: attribute)
+        function.bindsThroughRuntimeActor = !isIsolatedToJavaScriptActor(funcDecl, enclosedBy: classDecl)
         functions.append(function)
         if let variant = function.asyncVariant {
           functions.append(variant)

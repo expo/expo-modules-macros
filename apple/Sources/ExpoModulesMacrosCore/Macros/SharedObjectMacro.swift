@@ -99,7 +99,8 @@ public struct SharedObjectMacro: MemberMacro {
       if let funcDecl = decl.as(FunctionDeclSyntax.self),
         let attribute = funcDecl.attributes.firstAttribute(named: "JS")
       {
-        let function = JSFunction(funcDecl: funcDecl, attribute: attribute)
+        var function = JSFunction(funcDecl: funcDecl, attribute: attribute)
+        function.bindsThroughRuntimeActor = !isIsolatedToJavaScriptActor(funcDecl, enclosedBy: classDecl)
         let bound = [function] + (function.asyncVariant.map { [$0] } ?? [])
         if isTypeLevel(funcDecl.modifiers) {
           staticFunctions.append(contentsOf: bound)
