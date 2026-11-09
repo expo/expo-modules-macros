@@ -3376,7 +3376,7 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public static let _viewTypes: [Any.Type] = [CardView.self, BadgeView.self]
+          public static let _viewTypes: [any AnyNativeView.Type] = [CardView.self as any AnyNativeView.Type, BadgeView.self as any AnyNativeView.Type]
         }
         """
     )
@@ -3397,7 +3397,7 @@ struct ExpoModuleMacroTests {
 
           public static let _classTypes: [SharedObject.Type] = [Cache.self]
 
-          public static let _viewTypes: [Any.Type] = [CardView.self]
+          public static let _viewTypes: [any AnyNativeView.Type] = [CardView.self as any AnyNativeView.Type]
         }
         """
     )
@@ -3435,7 +3435,7 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public static let _viewTypes: [Any.Type] = [Outer.CardView.self]
+          public static let _viewTypes: [any AnyNativeView.Type] = [Outer.CardView.self as any AnyNativeView.Type]
         }
         """
     )
