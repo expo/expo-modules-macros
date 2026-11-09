@@ -386,6 +386,23 @@ internal func jsGenericParameterClause(of decl: DeclSyntaxProtocol) -> GenericPa
   return nil
 }
 
+/// Whether an `async` `@JS` member runs isolated to `JavaScriptActor`: the class macro stamps it, or the member
+/// or its type is marked `@JavaScriptActor`. Such a member binds through the `JavaScriptActor` async body,
+/// because the runtime actor's body would send its non-`Sendable` arguments to another isolation domain. The
+/// other async members (`nonisolated`, `.concurrent`, or isolated to another global actor) already get their
+/// arguments from another isolation domain, so they bind through the body isolated to the runtime's actor.
+internal func isIsolatedToJavaScriptActor(
+  _ member: DeclSyntaxProtocol,
+  enclosedBy enclosing: some DeclGroupSyntax
+) -> Bool {
+  let isJavaScriptActor = { (element: AttributeListSyntax.Element) -> Bool in
+    element.as(AttributeSyntax.self)?.attributeName.trimmedDescription == "JavaScriptActor"
+  }
+  return shouldStampJavaScriptActor(on: member, enclosedBy: enclosing)
+    || memberAttributes(of: member).contains(where: isJavaScriptActor)
+    || enclosing.attributes.contains(where: isJavaScriptActor)
+}
+
 /// Decides whether the macro should stamp `@JavaScriptActor` on a `@JS`-marked member.
 /// The macro defers to the user when they've already chosen an isolation:
 /// - the member opted out with `@JS(.concurrent)`

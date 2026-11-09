@@ -9,7 +9,7 @@ import SwiftSyntax
 ///
 /// The receiver (see `Receiver`) is the module's `self` for a module binding, or the per-call `_self`
 /// unwrapped from the JS `this` for a shared-object binding. An `async` `@JS func` binds through the
-/// two-phase async `setProperty(_:)` overload: the closure is the synchronous decode phase (receiver
+/// two-phase async `setProperty(_:)` overloads: the closure is the synchronous decode phase (receiver
 /// unwrap, arity guard, argument decode, all while `this` and the arguments are still valid)
 /// and returns the async body (call and result encode), so nothing JSI-owned crosses the asynchronous
 /// boundary and JS gets a promise.
@@ -41,6 +41,10 @@ internal struct JSFunction {
   /// True for the binding `asyncVariant` returns: it calls the synchronous function on the concurrent
   /// pool instead of on the JavaScript thread.
   private(set) var isAsyncVariant = false
+  /// Whether an async binding's body runs isolated to the runtime's actor (see
+  /// `asyncBodyLines(receiver:arity:)`), or to `JavaScriptActor`, for a function isolated to `JavaScriptActor`
+  /// (see `isIsolatedToJavaScriptActor(_:enclosedBy:)`).
+  var bindsThroughRuntimeActor = false
 
   init(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) {
     self.swiftName = funcDecl.name.text
@@ -72,6 +76,9 @@ internal struct JSFunction {
     variant.nameToken = asyncVariantName.token
     variant.isAsync = true
     variant.isAsyncVariant = true
+    // The variant calls the function in a `@concurrent` closure, so it takes no arguments from the runtime
+    // actor's isolation domain.
+    variant.bindsThroughRuntimeActor = true
     variant.asyncVariantName = nil
     return variant
   }
@@ -187,12 +194,22 @@ internal struct JSFunction {
   }
 
   /// The `return { … }` statement closing an async binding's decode phase: the returned closure is
-  /// the function's async body (`AsyncFunctionBody`), awaiting the call and encoding the result. It
+  /// the function's async body (`IsolatedAsyncFunctionBody`, or `AsyncFunctionBody` for a function isolated to `JavaScriptActor`), awaiting the call and encoding the result. It
   /// captures only what the call needs — the decoded `arg<i>` locals, the receiver, and `runtime`
   /// for the encode — never `this` or the arguments buffer, which are only valid for the duration
   /// of the host call. The `asyncVariant` binding awaits its call on the concurrent pool instead.
+  ///
+  /// When `bindsThroughRuntimeActor` is set, the body takes the runtime's actor as an `isolated` parameter,
+  /// so it runs isolated to that actor and
+  /// continues on the JavaScript thread after the call, wherever the call ran. The explicit parameter is
+  /// required: a closure without it that is written in the `@JavaScriptActor` decode phase would stay isolated
+  /// to `JavaScriptActor`. A `nonisolated(nonsending)` function inherits the actor, so it stays on the
+  /// JavaScript thread after its own `await`s too. For a function isolated to `JavaScriptActor`, the body is
+  /// isolated to `JavaScriptActor`, like the decode phase.
   private func asyncBodyLines(receiver: Receiver, arity: Int) -> [String] {
-    var lines: [String] = ["return {"]
+    var lines: [String] = [
+      bindsThroughRuntimeActor ? "return { (actor: isolated JavaScriptRuntimeActor) in" : "return {"
+    ]
     let call =
       isAsyncVariant
       ? concurrentCallExpression(receiver: receiver, arity: arity)
@@ -306,12 +323,12 @@ internal struct JSFunction {
   /// `decorateStatements(object:receiver:)`). A synchronous function encodes straight into the
   /// engine's result slot, so a number, a boolean or a string never becomes a `JavaScriptValue`.
   ///
-  /// For an `async` function the encode must run on the JS thread. An `async` body may suspend and
-  /// resume on an arbitrary cooperative-pool thread, and encoding a heap-allocated JS value (a string,
-  /// object, array, or typed array) off the JS thread races the engine's garbage collector and
-  /// corrupts the heap. `runtime.execute` hops the encode onto the JS thread, running inline when it is
-  /// already there (the common case, where the body never truly suspended), so synchronous functions —
-  /// which always run on the JS thread — keep encoding directly without the wrapper.
+  /// For an `async` function the encode must run on the JS thread. Encoding a heap-allocated JS value (a
+  /// string, object, array, or typed array) off the JS thread races the engine's garbage collector and
+  /// corrupts the heap. The async body runs isolated to the runtime's actor, so it is on the JS thread after
+  /// the call, and `runtime.execute` runs the encode inline. When the runtime went away during the call,
+  /// the body continues elsewhere, and `runtime.execute` throws instead of encoding against the gone
+  /// runtime. Synchronous functions, which always run on the JS thread, encode directly without the wrapper.
   private func encodeResultLines() -> [String] {
     guard let returnType else {
       return []
@@ -331,7 +348,8 @@ internal struct JSFunction {
   /// body is inlined directly into the closure passed to the closure-taking `setProperty` overload
   /// (which creates the host function under the hood) — no separate named binding. For an `async`
   /// function the closure is the synchronous decode phase and returns the async body, which selects
-  /// the async `setProperty` overload (so JS receives a promise).
+  /// an async `setProperty` overload (so JS receives a promise): the one for a body isolated to the runtime's
+  /// actor when the body takes it as a parameter, and the one for a `JavaScriptActor` body otherwise.
   ///
   /// A module captures its `self` **strong** —
   /// the host-function closure is what keeps the native callable alive for as long as JS can invoke

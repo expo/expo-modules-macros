@@ -1388,7 +1388,7 @@ struct ExpoModuleClassesTests {
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "fetch", received: arguments.count, required: 0, maximum: 0))
               }
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = await _self.fetch()
                 return try await runtime.execute {
                   return try Int.encode(result, in: runtime)
@@ -1440,7 +1440,7 @@ struct ExpoModuleClassesTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "read", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = try await { @concurrent () async throws -> String in
                   try _self.read(arg0)
                 }()
@@ -1466,7 +1466,7 @@ struct ExpoModuleClassesTests {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "existsAsync", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
-              return {
+              return { (actor: isolated JavaScriptRuntimeActor) in
                 let result = await { @concurrent () async -> Bool in
                   Document.exists(arg0)
                 }()
