@@ -236,7 +236,7 @@ private func diagnoseSymbolArgument(
       Diagnostic(
         node: argument.expression,
         message: JSDiagnosticMessage(
-          "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable or an interpolated string.",
+          "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
           id: "js-symbol-argument",
           severity: .error
         )

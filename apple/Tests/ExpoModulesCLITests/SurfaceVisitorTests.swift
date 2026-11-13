@@ -157,21 +157,38 @@ struct ModuleSurfaceTests {
 
           @JS(symbol: "app.\\(name)")
           func invalid() {}
+
+          @JS(symbol: Keys.iterator)
+          func constant() {}
+
+          @JS(symbol: JavaScriptSymbol.WellKnown.asyncIterator)
+          func qualified() {}
+
+          @JS(symbol: "app.\\u{69}d")
+          func escaped() {}
+
+          @JS(symbol: #"app."id""#)
+          func raw() {}
         }
         """
       ).modules.first
     )
 
     // A member bound under a symbol has no JS name.
-    #expect(module.functions.map(\.jsName) == [nil, nil, "idAsync", "invalid"])
+    #expect(module.functions.map(\.jsName) == [nil, nil, "idAsync", "invalid", "constant", nil, nil, nil])
     #expect(
       module.functions.map(\.symbol) == [
         ExportedSymbol(kind: .wellKnown, name: "iterator"),
         ExportedSymbol(kind: .registered, name: "app.id"),
         // The `.withAsync` variant binds under its own name.
         nil,
-        // The macro reports a `symbol:` argument it can't read.
+        // The macro reports a `symbol:` argument it can't read, also a constant of another type.
         nil,
+        nil,
+        ExportedSymbol(kind: .wellKnown, name: "asyncIterator"),
+        // A registry key is the value of the literal.
+        ExportedSymbol(kind: .registered, name: "app.id"),
+        ExportedSymbol(kind: .registered, name: #"app."id""#),
       ]
     )
     #expect(module.properties.map(\.jsName) == [nil])

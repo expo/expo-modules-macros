@@ -116,7 +116,7 @@ internal struct JSFunction {
       lines.append(
         """
         guard arguments.count == \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(key.functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
+          throw Exceptions.ArgumentsRangeMismatch((functionName: \(key.functionNameLiteral), received: arguments.count, required: \(required), maximum: \(maximum)))
         }
         """
       )
@@ -124,7 +124,7 @@ internal struct JSFunction {
       lines.append(
         """
         guard arguments.count >= \(required) && arguments.count <= \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(key.functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
+          throw Exceptions.ArgumentsRangeMismatch((functionName: \(key.functionNameLiteral), received: arguments.count, required: \(required), maximum: \(maximum)))
         }
         """
       )

@@ -392,6 +392,9 @@ struct JSSymbolTests {
 
         @JS(symbol: key)
         func other() -> Int { 0 }
+
+        @JS(symbol: Keys.iterator)
+        func constant() -> Int { 0 }
       }
       """,
       expandedSource: """
@@ -400,6 +403,8 @@ struct JSSymbolTests {
           func id() -> Int { 0 }
           @JavaScriptActor
           func other() -> Int { 0 }
+          @JavaScriptActor
+          func constant() -> Int { 0 }
 
           public override class var _jsName: String {
             "List"
@@ -423,24 +428,132 @@ struct JSSymbolTests {
               let value = _self.other()
               try Int.encode(value, into: result, in: runtime)
             }
+            prototype.setProperty("constant") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: List.self)
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "constant", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = _self.constant()
+              try Int.encode(value, into: result, in: runtime)
+            }
           }
         }
         """,
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable or an interpolated string.",
+            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
           line: 3,
           column: 15,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable or an interpolated string.",
+            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
           line: 6,
           column: 15,
           severity: .error
         ),
+        DiagnosticSpec(
+          message:
+            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
+          line: 9,
+          column: 15,
+          severity: .error
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `A registered symbol is the value of the literal, escaped again in the generated code`() {
+    assertExpansion(
+      #"""
+      @SharedObject
+      public final class List: SharedObject {
+        @JS(symbol: #"app."id""#)
+        func id() -> Int { 0 }
+      }
+      """#,
+      expandedSource: #"""
+        public final class List: SharedObject {
+          @JavaScriptActor
+          func id() -> Int { 0 }
+
+          public override class var _jsName: String {
+            "List"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            try prototype.setProperty(JavaScriptSymbol.for(runtime, "app.\"id\"")) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: List.self)
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "[app.\"id\"]", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = _self.id()
+              try Int.encode(value, into: result, in: runtime)
+            }
+          }
+        }
+        """#
+    )
+  }
+
+  @Test
+  func `Two literals with the same value name the same registered symbol`() {
+    assertExpansion(
+      #"""
+      @SharedObject
+      public final class List: SharedObject {
+        @JS(symbol: "app.id")
+        func id() -> Int { 0 }
+
+        @JS(symbol: "app.\u{69}d")
+        func other() -> Int { 0 }
+      }
+      """#,
+      expandedSource: #"""
+        public final class List: SharedObject {
+          @JavaScriptActor
+          func id() -> Int { 0 }
+          @JavaScriptActor
+          func other() -> Int { 0 }
+
+          public override class var _jsName: String {
+            "List"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            try prototype.setProperty(JavaScriptSymbol.for(runtime, "app.id")) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: List.self)
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "[app.id]", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = _self.id()
+              try Int.encode(value, into: result, in: runtime)
+            }
+            try prototype.setProperty(JavaScriptSymbol.for(runtime, "app.id")) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: List.self)
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "[app.id]", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = _self.other()
+              try Int.encode(value, into: result, in: runtime)
+            }
+          }
+        }
+        """#,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The JavaScript symbol 'Symbol.for(\"app.id\")' is already bound by an earlier @JS function. A JavaScript object holds one member per symbol, so JavaScript could reach only one of them. Give one of them another symbol with @JS(symbol: ...).",
+          line: 7,
+          column: 8,
+          severity: .error,
+          notes: [NoteSpec(message: "'Symbol.for(\"app.id\")' is first bound here", line: 4, column: 8)]
+        )
       ]
     )
   }

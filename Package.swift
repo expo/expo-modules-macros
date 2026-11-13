@@ -30,6 +30,8 @@ let package = Package(
         .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+        // For the value of a string literal (`representedLiteralValue`).
+        .product(name: "SwiftParser", package: "swift-syntax"),
         // For the plugin server, which resolves the macros by type name (see PluginServer.swift).
         .product(name: "_SwiftCompilerPluginMessageHandling", package: "swift-syntax"),
       ],
@@ -47,6 +49,7 @@ let package = Package(
         .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+        .product(name: "SwiftParser", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
       ],
       path: "apple/Sources/ExpoModulesMacros"

@@ -1,3 +1,4 @@
+import SwiftParser
 import SwiftSyntax
 
 /// The JavaScript property key that a `@JS` function or property binds under: a string name, from
@@ -8,8 +9,11 @@ import SwiftSyntax
 /// - `@JS(symbol: "app.id")` binds under the symbol that the global registry holds for the key,
 ///   `Symbol.for("app.id")`.
 internal enum JSMemberKey: Hashable {
+  /// The name as written in the string literal, which the generated code puts in a literal again.
   case name(String)
+  /// The name of a case of `JavaScriptSymbol.WellKnown`, such as `iterator`.
   case wellKnownSymbol(String)
+  /// The registry key, the value of the string literal with its escape sequences decoded.
   case registeredSymbol(String)
 
   /// The key of a `@JS` member: the `symbol:` argument of the attribute when it has one, else the
@@ -49,21 +53,21 @@ internal enum JSMemberKey: Hashable {
     case .wellKnownSymbol(let name):
       return "Symbol.\(name)"
     case .registeredSymbol(let key):
-      return "Symbol.for(\"\(key)\")"
+      return "Symbol.for(\(swiftStringLiteral(key)))"
     }
   }
 
-  /// The `name` of a function bound under the key, as JavaScript gives it to a method: the string
-  /// name, or the description of the symbol in brackets, such as `[Symbol.iterator]` or `[app.id]`.
-  /// It also names the function in an argument count error.
-  var functionName: String {
+  /// The string literal of the `name` of a function bound under the key, as JavaScript gives it to a
+  /// method: the string name, or the description of the symbol in brackets, such as
+  /// `[Symbol.iterator]` or `[app.id]`. It names the function in an argument count error.
+  var functionNameLiteral: String {
     switch self {
     case .name(let name):
-      return name
+      return "\"\(name)\""
     case .wellKnownSymbol(let name):
-      return "[Symbol.\(name)]"
+      return "\"[Symbol.\(name)]\""
     case .registeredSymbol(let key):
-      return "[\(key)]"
+      return swiftStringLiteral("[\(key)]")
     }
   }
 
@@ -77,7 +81,7 @@ internal enum JSMemberKey: Hashable {
     case .wellKnownSymbol(let name):
       return "JavaScriptSymbol.wellKnown(runtime, .\(name))"
     case .registeredSymbol(let key):
-      return "JavaScriptSymbol.for(runtime, \"\(key)\")"
+      return "JavaScriptSymbol.for(runtime, \(swiftStringLiteral(key)))"
     }
   }
 
@@ -87,23 +91,57 @@ internal enum JSMemberKey: Hashable {
   }
 }
 
+/// The spellings of the type of the well-known symbols that a `symbol:` argument can name before the
+/// case. Any other base, such as a constant `Keys.iterator` of type `String`, isn't a well-known
+/// symbol.
+private let wellKnownSymbolTypeNames: Set<String> = [
+  "JavaScriptSymbol.WellKnown",
+  "ExpoModulesJSI.JavaScriptSymbol.WellKnown",
+  "ExpoModulesCore.JavaScriptSymbol.WellKnown",
+]
+
 /// The key of a `symbol:` argument, or `nil` when the attribute has none or the argument is neither
-/// a member access (`.iterator`, `JavaScriptSymbol.WellKnown.iterator`) nor a plain string literal,
-/// which `@JS` reports.
+/// a case of `JavaScriptSymbol.WellKnown` (`.iterator`, `JavaScriptSymbol.WellKnown.iterator`) nor a
+/// string literal without interpolation, which `@JS` reports.
 internal func symbolKey(of attribute: AttributeSyntax) -> JSMemberKey? {
   guard let argument = symbolArgument(of: attribute) else {
     return nil
   }
   if let member = argument.expression.as(MemberAccessExprSyntax.self) {
+    if let base = member.base, !wellKnownSymbolTypeNames.contains(base.trimmedDescription) {
+      return nil
+    }
     return .wellKnownSymbol(withoutBackticks(member.declName.baseName.text))
   }
-  if let literal = argument.expression.as(StringLiteralExprSyntax.self),
-    literal.segments.count == 1,
-    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
-  {
-    return .registeredSymbol(segment.content.text)
+  if let value = argument.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue {
+    return .registeredSymbol(value)
   }
   return nil
+}
+
+/// A Swift string literal whose value is `value`. A quote, a backslash and the control characters are
+/// escaped, so any value gives a valid literal.
+private func swiftStringLiteral(_ value: String) -> String {
+  var literal = "\""
+  for scalar in value.unicodeScalars {
+    switch scalar {
+    case "\"":
+      literal += "\\\""
+    case "\\":
+      literal += "\\\\"
+    case "\n":
+      literal += "\\n"
+    case "\r":
+      literal += "\\r"
+    case "\t":
+      literal += "\\t"
+    case _ where scalar.value < 0x20 || scalar.value == 0x7F:
+      literal += "\\u{\(String(scalar.value, radix: 16))}"
+    default:
+      literal.unicodeScalars.append(scalar)
+    }
+  }
+  return literal + "\""
 }
 
 /// The `symbol:` argument of an attribute, or `nil` when it has none.

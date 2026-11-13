@@ -1,5 +1,6 @@
 import SwiftDiagnostics
 import SwiftIfConfig
+import SwiftParser
 import SwiftSyntax
 
 /// Walks a parsed source file and records top-level declarations carrying `@ExpoModule`, `@JS`,
@@ -206,9 +207,19 @@ private func arguments(of attribute: AttributeSyntax) -> [MacroArgument] {
   }
 }
 
-/// The `symbol:` argument of `@JS`, the same as the macros read it: a member access names a well-known
-/// symbol (`@JS(symbol: .iterator)`), and a plain string literal a registry key (`@JS(symbol: "app.id")`).
-/// `nil` when the attribute has none, or when the argument has another shape, which `@JS` reports.
+/// The spellings of the type of the well-known symbols that a `symbol:` argument can name before the
+/// case, as in the macros.
+private let wellKnownSymbolTypeNames: Set<String> = [
+  "JavaScriptSymbol.WellKnown",
+  "ExpoModulesJSI.JavaScriptSymbol.WellKnown",
+  "ExpoModulesCore.JavaScriptSymbol.WellKnown",
+]
+
+/// The `symbol:` argument of `@JS`, the same as the macros read it: a case of
+/// `JavaScriptSymbol.WellKnown` names a well-known symbol (`@JS(symbol: .iterator)`), and a string
+/// literal without interpolation a registry key (`@JS(symbol: "app.id")`), with its escape sequences
+/// decoded. `nil` when the attribute has none, or when the argument has another shape, such as a
+/// constant `Keys.id`, which `@JS` reports.
 func symbolArgument(of attribute: AttributeSyntax) -> ExportedSymbol? {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
     let argument = args.first(where: { $0.label?.text == "symbol" })
@@ -216,13 +227,13 @@ func symbolArgument(of attribute: AttributeSyntax) -> ExportedSymbol? {
     return nil
   }
   if let member = argument.expression.as(MemberAccessExprSyntax.self) {
+    if let base = member.base, !wellKnownSymbolTypeNames.contains(base.trimmedDescription) {
+      return nil
+    }
     return ExportedSymbol(kind: .wellKnown, name: member.declName.baseName.identifierName)
   }
-  if let literal = argument.expression.as(StringLiteralExprSyntax.self),
-    literal.segments.count == 1,
-    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
-  {
-    return ExportedSymbol(kind: .registered, name: segment.content.text)
+  if let value = argument.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue {
+    return ExportedSymbol(kind: .registered, name: value)
   }
   return nil
 }
