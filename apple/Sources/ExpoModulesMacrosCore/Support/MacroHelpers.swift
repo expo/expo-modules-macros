@@ -1,18 +1,56 @@
+import SwiftParser
 import SwiftSyntax
 
 /// Reads the first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork".
 /// Returns nil if the attribute has no arguments or the first argument is not an unlabeled string
-/// literal, such as the `symbol:` argument of `@JS(symbol: "app.id")`.
+/// literal without interpolation, such as the `symbol:` argument of `@JS(symbol: "app.id")`. The
+/// name is in the form of `literalContent(of:)`.
 internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
     let first = args.first,
     first.label == nil,
-    let str = first.expression.as(StringLiteralExprSyntax.self),
-    let segment = str.segments.first?.as(StringSegmentSyntax.self)
+    let literal = first.expression.as(StringLiteralExprSyntax.self)
   else {
     return nil
   }
-  return segment.content.text
+  return literalContent(of: literal)
+}
+
+/// The value of a string literal as the content of a plain Swift string literal: the value with its
+/// escape sequences decoded, and escaped again by `swiftStringLiteral(_:)` without the quotes. So
+/// the generated code can put it between quotes whatever the literal is: a raw string (`#"a"b"#`)
+/// reads as `a\"b`, and literals with the same value (`"id"`, `"\u{69}d"`) read the same. `nil` for
+/// a literal with interpolation.
+internal func literalContent(of literal: StringLiteralExprSyntax) -> String? {
+  guard let value = literal.representedLiteralValue else {
+    return nil
+  }
+  return String(swiftStringLiteral(value).dropFirst().dropLast())
+}
+
+/// A Swift string literal whose value is `value`. A quote, a backslash and the control characters are
+/// escaped, so any value gives a valid literal.
+internal func swiftStringLiteral(_ value: String) -> String {
+  var literal = "\""
+  for scalar in value.unicodeScalars {
+    switch scalar {
+    case "\"":
+      literal += "\\\""
+    case "\\":
+      literal += "\\\\"
+    case "\n":
+      literal += "\\n"
+    case "\r":
+      literal += "\\r"
+    case "\t":
+      literal += "\\t"
+    case _ where scalar.value < 0x20 || scalar.value == 0x7F:
+      literal += "\\u{\(String(scalar.value, radix: 16))}"
+    default:
+      literal.unicodeScalars.append(scalar)
+    }
+  }
+  return literal + "\""
 }
 
 /// True if the attribute lists the given option member, e.g. `@JS(.concurrent)`, `@Event(.inline)` or
@@ -90,18 +128,18 @@ private func asyncOptionCall(_ expression: ExprSyntax) -> FunctionCallExprSyntax
 
 /// The JavaScript name a `.withAsync("name")` option gives the promise-returning variant, with the
 /// token of its string literal, where a name collision is reported. `nil` when the argument isn't a
-/// single plain string literal, which `@JS` reports.
+/// string literal without interpolation, which `@JS` reports. The name is in the form of
+/// `literalContent(of:)`.
 internal func asyncVariantName(of option: FunctionCallExprSyntax) -> (name: String, token: TokenSyntax)? {
   guard option.arguments.count == 1,
     let argument = option.arguments.first,
     argument.label == nil,
     let literal = argument.expression.as(StringLiteralExprSyntax.self),
-    literal.segments.count == 1,
-    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+    let name = literalContent(of: literal)
   else {
     return nil
   }
-  return (segment.content.text, segment.content)
+  return (name, literal.segments.first?.as(StringSegmentSyntax.self)?.content ?? literal.openingQuote)
 }
 
 /// True if the `@JS`-marked declaration lists `.withAsync("name")`. Such a function is left
