@@ -72,8 +72,12 @@ struct ExportedFunction: Encodable, Equatable {
   let name: String
 
   /// The JS name it binds under: the `@JS("x")` override, else `name`. The second entry of a function
-  /// with `.withAsync("x")` binds under `x`.
+  /// with `.withAsync("x")` binds under `x`. For a function bound under a symbol, the symbol as
+  /// JavaScript writes it, such as `Symbol.iterator` (see `symbol`).
   let jsName: String
+
+  /// The symbol it binds under with `@JS(symbol: ...)`, or `nil` when it binds under `jsName`.
+  var symbol: ExportedSymbol? = nil
 
   var parameters: [ExportedParameter]
 
@@ -96,10 +100,36 @@ struct ExportedFunction: Encodable, Equatable {
 
   /// The flags are encoded under their TS-keyword spellings.
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, parameters, returns, accessLevel, platforms
+    case name, jsName, symbol, parameters, returns, accessLevel, platforms
     case isAsync = "async"
     case isThrowing = "throws"
     case isStatic = "static"
+  }
+}
+
+/// The symbol that a `@JS(symbol: ...)` member binds under.
+struct ExportedSymbol: Encodable, Equatable {
+  enum Kind: String, Encodable {
+    /// A well-known symbol, such as `Symbol.iterator`, from `@JS(symbol: .iterator)`.
+    case wellKnown
+    /// The symbol that the global registry holds for a key, `Symbol.for("app.id")`, from
+    /// `@JS(symbol: "app.id")`.
+    case registered
+  }
+
+  let kind: Kind
+
+  /// The name of the well-known symbol, such as `iterator`, or the registry key.
+  let name: String
+
+  /// The symbol as JavaScript writes it: `Symbol.iterator` or `Symbol.for("app.id")`.
+  var expression: String {
+    switch kind {
+    case .wellKnown:
+      return "Symbol.\(name)"
+    case .registered:
+      return "Symbol.for(\"\(name)\")"
+    }
   }
 }
 
@@ -108,8 +138,12 @@ struct ExportedProperty: Encodable, Equatable {
   /// The Swift declaration name.
   let name: String
 
-  /// The JS name it binds under: the `@JS("x")` override, else `name`.
+  /// The JS name it binds under: the `@JS("x")` override, else `name`. For a property bound under a
+  /// symbol, the symbol as JavaScript writes it, such as `Symbol.toStringTag` (see `symbol`).
   let jsName: String
+
+  /// The symbol it binds under with `@JS(symbol: ...)`, or `nil` when it binds under `jsName`.
+  var symbol: ExportedSymbol? = nil
 
   /// The value type, or `nil` when undeterminable syntactically (no annotation and no literal
   /// default), the case the macro binds getter-only.
@@ -132,7 +166,7 @@ struct ExportedProperty: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, type, defaultValue, accessLevel, platforms
+    case name, jsName, symbol, type, defaultValue, accessLevel, platforms
     case isReadonly = "readonly"
     case isStatic = "static"
   }
@@ -141,6 +175,7 @@ struct ExportedProperty: Encodable, Equatable {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(name, forKey: .name)
     try container.encode(jsName, forKey: .jsName)
+    try container.encodeIfPresent(symbol, forKey: .symbol)
     try container.encodeIfPresent(type, forKey: .type)
     try container.encode(!isSettable, forKey: .isReadonly)
     try container.encode(isStatic, forKey: .isStatic)

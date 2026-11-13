@@ -21,9 +21,13 @@ import SwiftSyntax
 /// A synchronous function can take the JavaScript runtime as its last parameter,
 /// `in runtime: borrowing JavaScriptRuntime`. JavaScript doesn't see it: the binding passes the runtime
 /// of the call.
+///
+/// A function marked `@JS(symbol: ...)` binds under a symbol instead of a string name (see
+/// `JSMemberKey`).
 internal struct JSFunction {
   let swiftName: String
-  private(set) var jsName: String
+  /// The key that the function binds under.
+  private(set) var key: JSMemberKey
   /// The parameters that take JavaScript arguments, without the runtime parameter.
   let parameters: [FunctionParameterSyntax]
   /// The label of the parameter that takes the JavaScript runtime, or `nil` when the function has none.
@@ -44,7 +48,7 @@ internal struct JSFunction {
 
   init(funcDecl: FunctionDeclSyntax, attribute: AttributeSyntax) {
     self.swiftName = funcDecl.name.text
-    self.jsName = jsNameArgument(of: attribute) ?? withoutBackticks(funcDecl.name.text)
+    self.key = JSMemberKey(attribute: attribute, defaultName: withoutBackticks(funcDecl.name.text))
     self.nameToken = funcDecl.name
     let declaredParameters = funcDecl.signature.parameterClause.parameters
     self.parameters = declaredParameters.filter { !isRuntimeParameter($0) }
@@ -68,7 +72,7 @@ internal struct JSFunction {
       return nil
     }
     var variant = self
-    variant.jsName = asyncVariantName.name
+    variant.key = .name(asyncVariantName.name)
     variant.nameToken = asyncVariantName.token
     variant.isAsync = true
     variant.isAsyncVariant = true
@@ -112,7 +116,7 @@ internal struct JSFunction {
       lines.append(
         """
         guard arguments.count == \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(jsName)", received: arguments.count, required: \(required), maximum: \(maximum)))
+          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(key.functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
         }
         """
       )
@@ -120,7 +124,7 @@ internal struct JSFunction {
       lines.append(
         """
         guard arguments.count >= \(required) && arguments.count <= \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(jsName)", received: arguments.count, required: \(required), maximum: \(maximum)))
+          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(key.functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
         }
         """
       )
@@ -337,6 +341,9 @@ internal struct JSFunction {
   /// the host-function closure is what keeps the native callable alive for as long as JS can invoke
   /// it; its lifetime is bounded by the JS VM's garbage collection of the object. A shared object
   /// captures nothing of the instance: it recovers the typed receiver from the JS `this` per call.
+  ///
+  /// A function bound under a symbol gets the symbol from the runtime first, so the statement is
+  /// marked `try`.
   func decorateStatements(object: String, receiver: Receiver) -> String {
     // Every `@JS` binding hands `this` in as a borrowed `JavaScriptUnownedValue` instead of
     // allocating an owning `JavaScriptValue` and forming its `weak`-runtime reference on every call,
@@ -362,7 +369,7 @@ internal struct JSFunction {
         : resultSlotClosureParameters
 
     return """
-        \(object).setProperty("\(jsName)") { \(captures)\(parameters) in
+        \(key.tryPrefix)\(object).setProperty(\(key.expression)) { \(captures)\(parameters) in
       \(bodyStatements(receiver: receiver, indent: "    "))
         }
       """
@@ -389,9 +396,13 @@ internal struct JSFunction {
 /// so each shared object instance stores its own value. `defineProperty` leaves a frozen object
 /// unchanged, so there the property stays an accessor. A `this` that isn't an object doesn't fail the read
 /// either: the getter still returns the value.
+///
+/// A property marked `@JS(symbol: ...)` binds under a symbol instead of a string name (see
+/// `JSMemberKey`).
 internal struct JSProperty {
   let swiftName: String
-  let jsName: String
+  /// The key that the property binds under.
+  let key: JSMemberKey
   /// The property's value type as written, or `nil` when it couldn't be inferred (no annotation and
   /// no literal default). When `nil` the getter still works (the encode infers from `self.<name>`)
   /// but the setter uses an untyped closure parameter.
@@ -451,7 +462,8 @@ internal struct JSProperty {
         getBody = "result.emplace(\(encode))"
       }
     } else {
-      let define = "this.getObject(in: runtime).defineProperty(\"\(jsName)\", value: value, options: [.enumerable])"
+      let define =
+        "\(key.tryPrefix)this.getObject(in: runtime).defineProperty(\(key.expression), value: value, options: [.enumerable])"
       // A module getter ignores `this` otherwise, so it can be anything, and only an object can hold the
       // value. A shared object's unwrap has already checked that `this` is an object.
       let defineStatement =
@@ -476,7 +488,7 @@ internal struct JSProperty {
       )
     }
 
-    lines.append("\(object).defineProperty(\"\(jsName)\", descriptor: \(descriptorName))")
+    lines.append("\(key.tryPrefix)\(object).defineProperty(\(key.expression), descriptor: \(descriptorName))")
 
     return
       lines
@@ -543,7 +555,10 @@ private func encodeIntoSlotStatement(_ type: String, freeForm: FreeFormConversio
 ///
 /// `configurableProperties` makes the property accessors configurable. `replacesInherited` first
 /// redefines the name of each function as a writable data property: the object may already hold an
-/// inherited accessor with that name, which an assignment would call instead of replacing.
+/// inherited accessor with that name, which an assignment would call instead of replacing. A function
+/// bound under a symbol that an object up the prototype chain holds as a read-only property or as an
+/// accessor without a setter is redefined first too, since an assignment can't shadow such a property
+/// (see `JSMemberKey.isInheritedReadOnly`).
 private func decorateBody(
   functions: [JSFunction],
   properties: [JSProperty],
@@ -554,11 +569,11 @@ private func decorateBody(
 ) -> String {
   let functionBody = functions.map { function in
     let binding = function.decorateStatements(object: object, receiver: receiver)
-    guard replacesInherited else {
+    guard replacesInherited || function.key.isInheritedReadOnly else {
       return binding
     }
     let redefine =
-      "  \(object).defineProperty(\"\(function.jsName)\", descriptor: .init(configurable: true, enumerable: true, writable: true))"
+      "  \(function.key.tryPrefix)\(object).defineProperty(\(function.key.expression), descriptor: .init(configurable: true, enumerable: true, writable: true))"
     return redefine + "\n" + binding
   }
   let propertyBody = properties.map {

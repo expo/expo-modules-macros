@@ -206,6 +206,27 @@ private func arguments(of attribute: AttributeSyntax) -> [MacroArgument] {
   }
 }
 
+/// The `symbol:` argument of `@JS`, the same as the macros read it: a member access names a well-known
+/// symbol (`@JS(symbol: .iterator)`), and a plain string literal a registry key (`@JS(symbol: "app.id")`).
+/// `nil` when the attribute has none, or when the argument has another shape, which `@JS` reports.
+func symbolArgument(of attribute: AttributeSyntax) -> ExportedSymbol? {
+  guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
+    let argument = args.first(where: { $0.label?.text == "symbol" })
+  else {
+    return nil
+  }
+  if let member = argument.expression.as(MemberAccessExprSyntax.self) {
+    return ExportedSymbol(kind: .wellKnown, name: member.declName.baseName.identifierName)
+  }
+  if let literal = argument.expression.as(StringLiteralExprSyntax.self),
+    literal.segments.count == 1,
+    let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+  {
+    return ExportedSymbol(kind: .registered, name: segment.content.text)
+  }
+  return nil
+}
+
 /// The first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork". Returns
 /// `nil` when there's no argument or it isn't a plain string literal. (Same shape the
 /// `jsNameArgument` helper reads inside the macros.) Shared with the `scan-exports` surface visitor,

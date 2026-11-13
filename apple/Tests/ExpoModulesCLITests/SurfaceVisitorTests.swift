@@ -140,6 +140,44 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `A @JS(symbol:) member exports the symbol it binds under`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class FileModule {
+          @JS(symbol: .iterator)
+          func makeIterator() -> JavaScriptObject { fatalError() }
+
+          @JS(symbol: "app.id", .withAsync("idAsync"))
+          func id() -> String { "" }
+
+          @JS(symbol: .toStringTag)
+          var tag: String { "Files" }
+
+          @JS(symbol: "app.\\(name)")
+          func invalid() {}
+        }
+        """
+      ).modules.first
+    )
+
+    #expect(module.functions.map(\.jsName) == ["Symbol.iterator", "Symbol.for(\"app.id\")", "idAsync", "invalid"])
+    #expect(
+      module.functions.map(\.symbol) == [
+        ExportedSymbol(kind: .wellKnown, name: "iterator"),
+        ExportedSymbol(kind: .registered, name: "app.id"),
+        // The `.withAsync` variant binds under its own name.
+        nil,
+        // The macro reports a `symbol:` argument it can't read.
+        nil,
+      ]
+    )
+    #expect(module.properties.map(\.jsName) == ["Symbol.toStringTag"])
+    #expect(module.properties.map(\.symbol) == [ExportedSymbol(kind: .wellKnown, name: "toStringTag")])
+  }
+
+  @Test
   func `Tuple type aliases in a module or shared object body resolve in @JS members and name the type`() throws {
     let visitor = surface(
       """

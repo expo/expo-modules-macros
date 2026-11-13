@@ -169,6 +169,18 @@ export interface ExportedParameter {
   defaultValue?: string;
 }
 
+/** The symbol that a `@JS(symbol: ...)` member binds under. */
+export interface ExportedSymbol {
+  /**
+   * `wellKnown` for a well-known symbol such as `Symbol.iterator`, from `@JS(symbol: .iterator)`;
+   * `registered` for the symbol that the global registry holds for a key, `Symbol.for("app.id")`, from
+   * `@JS(symbol: "app.id")`.
+   */
+  kind: 'wellKnown' | 'registered';
+  /** The name of the well-known symbol, such as `iterator`, or the registry key. */
+  name: string;
+}
+
 /** One `@JS func` on a module or shared object. */
 export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
   /**
@@ -177,9 +189,12 @@ export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
   name: string;
   /**
    * The JS name it binds under: the `@JS("x")` override, else `name`. The second entry of a function
-   * with `.withAsync("x")` binds under `x`.
+   * with `.withAsync("x")` binds under `x`. For a function bound under a symbol, the symbol as
+   * JavaScript writes it, such as `Symbol.iterator` (see `symbol`).
    */
   jsName: string;
+  /** The symbol it binds under with `@JS(symbol: ...)`, absent when it binds under `jsName`. */
+  symbol?: ExportedSymbol;
   parameters: ExportedParameter[];
   /** Absent for a `Void` return. */
   returns?: TypeNode;
@@ -191,7 +206,13 @@ export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
 /** One `@JS var` on a module or shared object. */
 export interface ExportedProperty extends ExportedAccess, ExportedAvailability {
   name: string;
+  /**
+   * The JS name it binds under: the `@JS("x")` override, else `name`. For a property bound under a
+   * symbol, the symbol as JavaScript writes it, such as `Symbol.toStringTag` (see `symbol`).
+   */
   jsName: string;
+  /** The symbol it binds under with `@JS(symbol: ...)`, absent when it binds under `jsName`. */
+  symbol?: ExportedSymbol;
   /** Absent when the type isn't determinable syntactically; the macro binds it getter-only. */
   type?: TypeNode;
   readonly: boolean;

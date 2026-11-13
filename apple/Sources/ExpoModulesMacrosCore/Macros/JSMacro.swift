@@ -25,6 +25,12 @@ import SwiftSyntaxMacros
 ///
 ///   @JS
 ///   var status: String { "ok" }
+///
+///   @JS(symbol: .iterator)
+///   func makeIterator() -> JavaScriptObject { ... }
+///
+///   @JS(symbol: "app.id")
+///   var id: String { ... }
 public struct JSMacro: PeerMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -52,6 +58,7 @@ public struct JSMacro: PeerMacro {
     diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
     diagnoseJavaScriptValuesOffThread(of: node, on: declaration, in: context)
     diagnoseRuntimeParameter(of: node, on: declaration, in: context)
+    diagnoseSymbolArgument(of: node, on: declaration, in: context)
 
     // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
     // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
@@ -198,6 +205,44 @@ private func removeAttributeFixIts(_ node: AttributeSyntax, before keyword: Toke
       changes: [.replaceText(range: node.position..<node.endPosition, with: "", in: Syntax(node))]
     )
   ]
+}
+
+/// Emits the diagnostics for the `symbol:` argument of `@JS`, which binds the member under a symbol
+/// (see `JSMemberKey`). The argument must be a case of `JavaScriptSymbol.WellKnown` or a string literal
+/// that the macro can read, and an initializer can't take it, since a constructor has no key.
+private func diagnoseSymbolArgument(
+  of node: AttributeSyntax,
+  on declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  guard let argument = symbolArgument(of: node) else {
+    return
+  }
+  if declaration.is(InitializerDeclSyntax.self) {
+    context.diagnose(
+      Diagnostic(
+        node: argument,
+        message: JSDiagnosticMessage(
+          "'symbol:' applies only to a @JS function or property: JavaScript constructs a shared object with 'new', so an initializer isn't bound under a key.",
+          id: "js-symbol-on-initializer",
+          severity: .error
+        )
+      )
+    )
+    return
+  }
+  if symbolKey(of: node) == nil {
+    context.diagnose(
+      Diagnostic(
+        node: argument.expression,
+        message: JSDiagnosticMessage(
+          "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable or an interpolated string.",
+          id: "js-symbol-argument",
+          severity: .error
+        )
+      )
+    )
+  }
 }
 
 /// Emits the diagnostic for `@JS(.concurrent)` on a member that can't take it. The option maps to

@@ -685,6 +685,40 @@
             },
             "static": true,
             "throws": false
+          },
+          {
+            "async": false,
+            "jsName": "Symbol.for(\"player.id\")",
+            "name": "id",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            },
+            "static": false,
+            "symbol": {
+              "kind": "registered",
+              "name": "player.id"
+            },
+            "throws": false
           }
         ],
         "initializer": {
@@ -737,7 +771,40 @@
             "name": "visionOS"
           }
         ],
-        "properties": [],
+        "properties": [
+          {
+            "jsName": "Symbol.toStringTag",
+            "name": "tag",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "readonly": true,
+            "static": false,
+            "symbol": {
+              "kind": "wellKnown",
+              "name": "toStringTag"
+            },
+            "type": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            }
+          }
+        ],
         "sharedRef": {
           "native": {
             "kind": "ref",

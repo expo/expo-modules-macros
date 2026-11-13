@@ -80,6 +80,12 @@ public final class Player: SharedRef<Data> {
 
   @JS
   static func supportedFormats() -> [String] { [] }
+
+  @JS(symbol: .toStringTag)
+  var tag: String { "Player" }
+
+  @JS(symbol: "player.id")
+  func id() -> String { "" }
 }
 
 @ViewProps

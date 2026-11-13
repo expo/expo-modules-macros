@@ -1,10 +1,12 @@
 import SwiftSyntax
 
 /// Reads the first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork".
-/// Returns nil if the attribute has no arguments or the first argument is not a string literal.
+/// Returns nil if the attribute has no arguments or the first argument is not an unlabeled string
+/// literal, such as the `symbol:` argument of `@JS(symbol: "app.id")`.
 internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
     let first = args.first,
+    first.label == nil,
     let str = first.expression.as(StringLiteralExprSyntax.self),
     let segment = str.segments.first?.as(StringSegmentSyntax.self)
   else {
@@ -17,12 +19,12 @@ internal func jsNameArgument(of attribute: AttributeSyntax) -> String? {
 /// `@Event("name", EventOptions.inline)` -> true for the matching name. Options are written as
 /// member-access expressions, one per variadic argument. Array literals are scanned too, though the
 /// variadic declarations in `expo-modules-core` don't accept them. The leading string literal, when
-/// present, is the JS name and is skipped.
+/// present, is the JS name and is skipped, and so is the `symbol:` argument of `@JS`.
 internal func hasOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return false
   }
-  for arg in args {
+  for arg in args where arg.label == nil {
     if namesOption(arg.expression, option) {
       return true
     }
@@ -563,7 +565,6 @@ internal func collectProperties(
   varDecl: VariableDeclSyntax,
   attribute: AttributeSyntax
 ) -> [JSProperty] {
-  let jsNameOverride = jsNameArgument(of: attribute)
   // A `let` is never settable; only `var` bindings can carry a setter.
   let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
   let isLazy = isLazy(varDecl.modifiers)
@@ -580,7 +581,7 @@ internal func collectProperties(
       ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
     return JSProperty(
       swiftName: swiftName,
-      jsName: jsNameOverride ?? withoutBackticks(swiftName),
+      key: JSMemberKey(attribute: attribute, defaultName: withoutBackticks(swiftName)),
       valueType: valueType,
       // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
       freeForm: binding.typeAnnotation.flatMap { freeFormConversion(of: $0.type) },
