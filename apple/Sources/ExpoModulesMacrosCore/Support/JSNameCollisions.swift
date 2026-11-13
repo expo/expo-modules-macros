@@ -2,8 +2,8 @@ import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// Reports each `@JS` member whose JavaScript name an earlier `@JS` member already binds on the same
-/// JavaScript object. Pass the members of one object only: a shared object's static members bind onto
+/// Reports each `@JS` member whose JavaScript name or symbol an earlier `@JS` member already binds on the
+/// same JavaScript object. A symbol never collides with a string name. Pass the members of one object only: a shared object's static members bind onto
 /// the constructor and its instance members onto the prototype, so the two sets are checked separately.
 internal func diagnoseJSNameCollisions(
   functions: [JSFunction],
@@ -14,11 +14,11 @@ internal func diagnoseJSNameCollisions(
   // name, JavaScript would reach only one. Members are compared in source order, so the error lands on
   // every member after the first, whichever kind each one is.
   let members = functions.map(BoundMember.init(function:)) + properties.map(BoundMember.init(property:))
-  var firstMembers: [String: BoundMember] = [:]
+  var firstMembers: [JSMemberKey: BoundMember] = [:]
 
   for member in members.sorted(by: { $0.nameToken.position < $1.nameToken.position }) {
-    guard let first = firstMembers[member.jsName] else {
-      firstMembers[member.jsName] = member
+    guard let first = firstMembers[member.key] else {
+      firstMembers[member.key] = member
       continue
     }
     let renaming =
@@ -27,12 +27,12 @@ internal func diagnoseJSNameCollisions(
       Diagnostic(
         node: member.nameToken,
         message: JSNameCollisionMessage(
-          "The JavaScript name '\(member.jsName)' is already bound by an earlier \(first.kind). A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with \(renaming)."
+          "The JavaScript \(member.keyKind) '\(member.key.description)' is already bound by an earlier \(first.kind). A JavaScript object holds one member per \(member.keyKind), so JavaScript could reach only one of them. Give one of them another \(member.keyKind) with \(renaming)."
         ),
         notes: [
           Note(
             node: Syntax(first.nameToken),
-            message: JSNameCollisionNote("'\(member.jsName)' is first bound here")
+            message: JSNameCollisionNote("'\(member.key.description)' is first bound here")
           )
         ]
       )
@@ -80,14 +80,15 @@ internal func diagnoseReservedJSNames(
 ) {
   let members = functions.map(BoundMember.init(function:)) + properties.map(BoundMember.init(property:))
   for member in members {
-    guard let reason = target.reservedNames[member.jsName] else {
+    // A symbol key never means anything else on the object.
+    guard case .name(let jsName) = member.key, let reason = target.reservedNames[jsName] else {
       continue
     }
     context.diagnose(
       Diagnostic(
         node: member.nameToken,
         message: ReservedJSNameMessage(
-          "The JavaScript name '\(member.jsName)' can't be bound: \(reason). Give the \(member.kind) another name with \(member.renaming)."
+          "The JavaScript name '\(jsName)' can't be bound: \(reason). Give the \(member.kind) another name with \(member.renaming)."
         )
       )
     )
@@ -129,7 +130,7 @@ internal func diagnoseEventNameCollisions(in memberBlock: MemberBlockSyntax, in 
 }
 
 private struct BoundMember {
-  let jsName: String
+  let key: JSMemberKey
   /// How the message names the member, such as `@JS function`.
   let kind: String
   /// The spelling that gives the member another JavaScript name.
@@ -138,17 +139,26 @@ private struct BoundMember {
 
   init(function: JSFunction) {
     // A `.withAsync` variant takes its JavaScript name from the option, not from `@JS("...")`.
-    self.jsName = function.jsName
+    self.key = function.key
     self.kind = function.isAsyncVariant ? "'.withAsync' variant" : "@JS function"
-    self.renaming = function.isAsyncVariant ? ".withAsync(\"...\")" : "@JS(\"...\")"
+    self.renaming = function.isAsyncVariant ? ".withAsync(\"...\")" : Self.renaming(of: function.key)
     self.nameToken = function.nameToken
   }
 
   init(property: JSProperty) {
-    self.jsName = property.jsName
+    self.key = property.key
     self.kind = "@JS property"
-    self.renaming = "@JS(\"...\")"
+    self.renaming = Self.renaming(of: property.key)
     self.nameToken = property.nameToken
+  }
+
+  /// How the message names the key: `name` or `symbol`.
+  var keyKind: String {
+    return key.isSymbol ? "symbol" : "name"
+  }
+
+  private static func renaming(of key: JSMemberKey) -> String {
+    return key.isSymbol ? "@JS(symbol: ...)" : "@JS(\"...\")"
   }
 }
 

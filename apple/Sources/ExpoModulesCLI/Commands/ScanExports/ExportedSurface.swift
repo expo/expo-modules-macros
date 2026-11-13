@@ -72,8 +72,12 @@ struct ExportedFunction: Encodable, Equatable {
   let name: String
 
   /// The JS name it binds under: the `@JS("x")` override, else `name`. The second entry of a function
-  /// with `.withAsync("x")` binds under `x`.
-  let jsName: String
+  /// with `.withAsync("x")` binds under `x`. `nil` for a function bound under a symbol (see `symbol`).
+  let jsName: String?
+
+  /// The symbol it binds under with `@JS(symbol: ...)`, or `nil` when it binds under `jsName`.
+  /// Exactly one of `jsName` and `symbol` is set.
+  var symbol: ExportedSymbol? = nil
 
   var parameters: [ExportedParameter]
 
@@ -96,11 +100,27 @@ struct ExportedFunction: Encodable, Equatable {
 
   /// The flags are encoded under their TS-keyword spellings.
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, parameters, returns, accessLevel, platforms
+    case name, jsName, symbol, parameters, returns, accessLevel, platforms
     case isAsync = "async"
     case isThrowing = "throws"
     case isStatic = "static"
   }
+}
+
+/// The symbol that a `@JS(symbol: ...)` member binds under.
+struct ExportedSymbol: Encodable, Hashable {
+  enum Kind: String, Encodable, Hashable {
+    /// A well-known symbol, such as `Symbol.iterator`, from `@JS(symbol: .iterator)`.
+    case wellKnown
+    /// The symbol that the global registry holds for a key, `Symbol.for("app.id")`, from
+    /// `@JS(symbol: "app.id")`.
+    case registered
+  }
+
+  let kind: Kind
+
+  /// The name of the well-known symbol, such as `iterator`, or the registry key.
+  let name: String
 }
 
 /// One `@JS var` on a module or shared object.
@@ -108,8 +128,13 @@ struct ExportedProperty: Encodable, Equatable {
   /// The Swift declaration name.
   let name: String
 
-  /// The JS name it binds under: the `@JS("x")` override, else `name`.
-  let jsName: String
+  /// The JS name it binds under: the `@JS("x")` override, else `name`. `nil` for a property bound
+  /// under a symbol (see `symbol`).
+  let jsName: String?
+
+  /// The symbol it binds under with `@JS(symbol: ...)`, or `nil` when it binds under `jsName`.
+  /// Exactly one of `jsName` and `symbol` is set.
+  var symbol: ExportedSymbol? = nil
 
   /// The value type, or `nil` when undeterminable syntactically (no annotation and no literal
   /// default), the case the macro binds getter-only.
@@ -132,7 +157,7 @@ struct ExportedProperty: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, type, defaultValue, accessLevel, platforms
+    case name, jsName, symbol, type, defaultValue, accessLevel, platforms
     case isReadonly = "readonly"
     case isStatic = "static"
   }
@@ -140,7 +165,8 @@ struct ExportedProperty: Encodable, Equatable {
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(name, forKey: .name)
-    try container.encode(jsName, forKey: .jsName)
+    try container.encodeIfPresent(jsName, forKey: .jsName)
+    try container.encodeIfPresent(symbol, forKey: .symbol)
     try container.encodeIfPresent(type, forKey: .type)
     try container.encode(!isSettable, forKey: .isReadonly)
     try container.encode(isStatic, forKey: .isStatic)
@@ -606,9 +632,10 @@ enum ExportedEventDispatch: String, Encodable, Equatable {
 /// `defaultValue`, and replaces `constructorParameters` with `initializer`; version 9 adds the
 /// `sharedRef` type kind and the `sharedRef` of a shared object; version 10 adds the `tuple` and `object` type kinds (named after a tuple alias)
 /// and resolves the tuple type aliases declared in `@ExpoModule` and `@SharedObject` classes; version 11
-/// replaces the `sync` flag of an event with `dispatch`. A new field that older consumers can ignore,
-/// such as `views`, doesn't change the version.
-let scanExportsSchemaVersion = 11
+/// replaces the `sync` flag of an event with `dispatch`; version 12 adds the `symbol` of a function or
+/// property bound with `@JS(symbol: ...)`, which then has no `jsName`. A new field that older consumers
+/// can ignore, such as `views`, doesn't change the version.
+let scanExportsSchemaVersion = 12
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanModulesResult` (different consumer: TS generation vs. autolinking).

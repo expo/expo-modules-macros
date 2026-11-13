@@ -140,6 +140,62 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `A @JS(symbol:) member exports the symbol it binds under`() throws {
+    let module = try #require(
+      surface(
+        """
+        @ExpoModule
+        final class FileModule {
+          @JS(symbol: .iterator)
+          func makeIterator() -> JavaScriptObject { fatalError() }
+
+          @JS(symbol: "app.id", .withAsync("idAsync"))
+          func id() -> String { "" }
+
+          @JS(symbol: .toStringTag)
+          var tag: String { "Files" }
+
+          @JS(symbol: "app.\\(name)")
+          func invalid() {}
+
+          @JS(symbol: Keys.iterator)
+          func constant() {}
+
+          @JS(symbol: JavaScriptSymbol.WellKnown.asyncIterator)
+          func qualified() {}
+
+          @JS(symbol: "app.\\u{69}d")
+          func escaped() {}
+
+          @JS(symbol: #"app."id""#)
+          func raw() {}
+        }
+        """
+      ).modules.first
+    )
+
+    // A member bound under a symbol has no JS name.
+    #expect(module.functions.map(\.jsName) == [nil, nil, "idAsync", "invalid", "constant", nil, nil, nil])
+    #expect(
+      module.functions.map(\.symbol) == [
+        ExportedSymbol(kind: .wellKnown, name: "iterator"),
+        ExportedSymbol(kind: .registered, name: "app.id"),
+        // The `.withAsync` variant binds under its own name.
+        nil,
+        // The macro reports a `symbol:` argument it can't read, also a constant of another type.
+        nil,
+        nil,
+        ExportedSymbol(kind: .wellKnown, name: "asyncIterator"),
+        // A registry key is the value of the literal.
+        ExportedSymbol(kind: .registered, name: "app.id"),
+        ExportedSymbol(kind: .registered, name: #"app."id""#),
+      ]
+    )
+    #expect(module.properties.map(\.jsName) == [nil])
+    #expect(module.properties.map(\.symbol) == [ExportedSymbol(kind: .wellKnown, name: "toStringTag")])
+  }
+
+  @Test
   func `Tuple type aliases in a module or shared object body resolve in @JS members and name the type`() throws {
     let visitor = surface(
       """
@@ -2271,6 +2327,46 @@ struct InheritedSharedObjectMembersTests {
     let imageRef = try sharedObject("ImageRef", in: surface)
     #expect(imageRef.functions.map(\.jsName) == ["describe", "size", "clearCache"])
     #expect(imageRef.initializer != nil)
+  }
+
+  @Test
+  func `A subclass member replaces an inherited one under the same symbol, and a symbol never replaces a name`() throws
+  {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class List: SharedObject {
+        @JS(symbol: .iterator)
+        func makeIterator() -> Int { 0 }
+
+        @JS
+        func iterator() -> Int { 0 }
+
+        @JS(symbol: "app.id")
+        var id: String { "" }
+      }
+
+      @SharedObject
+      final class SortedList: List {
+        @JS(symbol: .iterator)
+        func makeSortedIterator() -> Int { 0 }
+
+        @JS(symbol: .toStringTag)
+        var tag: String { "" }
+      }
+      """
+    ])
+
+    let sortedList = try sharedObject("SortedList", in: surface)
+    #expect(sortedList.functions.map(\.name) == ["iterator", "makeSortedIterator"])
+    #expect(sortedList.functions.map(\.jsName) == ["iterator", nil])
+    #expect(sortedList.properties.map(\.name) == ["id", "tag"])
+    #expect(
+      sortedList.properties.map(\.symbol) == [
+        ExportedSymbol(kind: .registered, name: "app.id"),
+        ExportedSymbol(kind: .wellKnown, name: "toStringTag"),
+      ]
+    )
   }
 
   @Test

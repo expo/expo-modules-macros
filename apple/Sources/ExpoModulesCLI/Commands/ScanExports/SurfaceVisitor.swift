@@ -366,10 +366,11 @@ final class SurfaceVisitor: SyntaxVisitor {
     let isAsync = effects?.asyncSpecifier != nil
     let exportedParameters = parameters(of: funcDecl.signature.parameterClause)
     let returns = isVoidType(returnType) ? nil : returnType.map { typeNode(from: $0) }
-    let makeFunction = { (jsName: String, isAsync: Bool) in
+    let makeFunction = { (jsName: String?, symbol: ExportedSymbol?, isAsync: Bool) in
       ExportedFunction(
         name: funcDecl.name.identifierName,
         jsName: jsName,
+        symbol: symbol,
         parameters: exportedParameters,
         returns: returns,
         isAsync: isAsync,
@@ -379,12 +380,15 @@ final class SurfaceVisitor: SyntaxVisitor {
         platforms: platforms
       )
     }
-    let function = makeFunction(stringArgument(of: attribute) ?? funcDecl.name.identifierName, isAsync)
-    // The macro binds no variant for an `async` function: it reports the option there instead.
+    let symbol = symbolArgument(of: attribute)
+    let jsName = symbol == nil ? stringArgument(of: attribute) ?? funcDecl.name.identifierName : nil
+    let function = makeFunction(jsName, symbol, isAsync)
+    // The macro binds no variant for an `async` function: it reports the option there instead. The
+    // variant binds under its own name, also for a function bound under a symbol.
     guard !isAsync, let variantName = asyncVariantName(of: attribute) else {
       return [function]
     }
-    return [function, makeFunction(variantName, true)]
+    return [function, makeFunction(variantName, nil, true)]
   }
 
   /// Builds the `ExportedProperty` entries for a `@JS var`/`let`. One declaration can introduce several
@@ -399,6 +403,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     // A `lazy var` is read-only from JS, like a `let`: the macro binds it getter-only.
     let isLazy = varDecl.modifiers.contains { $0.name.tokenKind == .keyword(.lazy) }
     let isStatic = isTypeLevel(varDecl.modifiers)
+    let symbol = symbolArgument(of: attribute)
     let override = stringArgument(of: attribute)
     var result: [ExportedProperty] = []
 
@@ -411,7 +416,8 @@ final class SurfaceVisitor: SyntaxVisitor {
       result.append(
         ExportedProperty(
           name: name,
-          jsName: override ?? name,
+          jsName: symbol == nil ? override ?? name : nil,
+          symbol: symbol,
           type: type,
           isSettable: !isLazy && isSettable(binding: binding, isLet: isLet),
           isStatic: isStatic,
