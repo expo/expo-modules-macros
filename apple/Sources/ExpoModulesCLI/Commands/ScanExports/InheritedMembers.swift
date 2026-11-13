@@ -20,7 +20,7 @@ extension ExportedSurface {
   /// `platforms`.
   ///
   /// The members merge the way the macro binds them: the inherited ones first, then the class's own. An
-  /// own member replaces an inherited function or property with the same JS name, separately for static
+  /// own member replaces an inherited function or property with the same JS name or symbol, separately for static
   /// and instance members. Events are kept from both: an event is a stored property that emits under its
   /// JS name, so a subclass can't replace an inherited one, and both are sent. The `@JS init` isn't
   /// inherited: core doesn't construct a subclass through the initializer of its superclass.
@@ -52,17 +52,17 @@ extension ExportedSurface {
       var result = sharedObject
 
       let ownMembers = Set(
-        sharedObject.functions.map { MemberKey(jsName: $0.jsName, isStatic: $0.isStatic) }
-          + sharedObject.properties.map { MemberKey(jsName: $0.jsName, isStatic: $0.isStatic) }
+        sharedObject.functions.map { MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic) }
+          + sharedObject.properties.map { MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic) }
       )
       result.functions =
         parents.flatMap(\.functions).filter {
-          !ownMembers.contains(MemberKey(jsName: $0.jsName, isStatic: $0.isStatic))
+          !ownMembers.contains(MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic))
         }
         + sharedObject.functions
       result.properties =
         parents.flatMap(\.properties).filter {
-          !ownMembers.contains(MemberKey(jsName: $0.jsName, isStatic: $0.isStatic))
+          !ownMembers.contains(MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic))
         }
         + sharedObject.properties
       result.events = parents.flatMap(\.events) + sharedObject.events
@@ -91,7 +91,9 @@ extension ExportedSurface {
 
 /// A member's slot on the JavaScript side: static members live on the constructor and instance members
 /// on the prototype, so the two don't replace each other.
+/// The key a member binds under: its JS name or its symbol, one of which is set.
 private struct MemberKey: Hashable {
-  let jsName: String
+  let jsName: String?
+  let symbol: ExportedSymbol?
   let isStatic: Bool
 }

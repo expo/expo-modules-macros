@@ -162,7 +162,8 @@ struct ModuleSurfaceTests {
       ).modules.first
     )
 
-    #expect(module.functions.map(\.jsName) == ["Symbol.iterator", "Symbol.for(\"app.id\")", "idAsync", "invalid"])
+    // A member bound under a symbol has no JS name.
+    #expect(module.functions.map(\.jsName) == [nil, nil, "idAsync", "invalid"])
     #expect(
       module.functions.map(\.symbol) == [
         ExportedSymbol(kind: .wellKnown, name: "iterator"),
@@ -173,7 +174,7 @@ struct ModuleSurfaceTests {
         nil,
       ]
     )
-    #expect(module.properties.map(\.jsName) == ["Symbol.toStringTag"])
+    #expect(module.properties.map(\.jsName) == [nil])
     #expect(module.properties.map(\.symbol) == [ExportedSymbol(kind: .wellKnown, name: "toStringTag")])
   }
 
@@ -2309,6 +2310,46 @@ struct InheritedSharedObjectMembersTests {
     let imageRef = try sharedObject("ImageRef", in: surface)
     #expect(imageRef.functions.map(\.jsName) == ["describe", "size", "clearCache"])
     #expect(imageRef.initializer != nil)
+  }
+
+  @Test
+  func `A subclass member replaces an inherited one under the same symbol, and a symbol never replaces a name`() throws
+  {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class List: SharedObject {
+        @JS(symbol: .iterator)
+        func makeIterator() -> Int { 0 }
+
+        @JS
+        func iterator() -> Int { 0 }
+
+        @JS(symbol: "app.id")
+        var id: String { "" }
+      }
+
+      @SharedObject
+      final class SortedList: List {
+        @JS(symbol: .iterator)
+        func makeSortedIterator() -> Int { 0 }
+
+        @JS(symbol: .toStringTag)
+        var tag: String { "" }
+      }
+      """
+    ])
+
+    let sortedList = try sharedObject("SortedList", in: surface)
+    #expect(sortedList.functions.map(\.name) == ["iterator", "makeSortedIterator"])
+    #expect(sortedList.functions.map(\.jsName) == ["iterator", nil])
+    #expect(sortedList.properties.map(\.name) == ["id", "tag"])
+    #expect(
+      sortedList.properties.map(\.symbol) == [
+        ExportedSymbol(kind: .registered, name: "app.id"),
+        ExportedSymbol(kind: .wellKnown, name: "toStringTag"),
+      ]
+    )
   }
 
   @Test

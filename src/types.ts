@@ -189,11 +189,13 @@ export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
   name: string;
   /**
    * The JS name it binds under: the `@JS("x")` override, else `name`. The second entry of a function
-   * with `.withAsync("x")` binds under `x`. For a function bound under a symbol, the symbol as
-   * JavaScript writes it, such as `Symbol.iterator` (see `symbol`).
+   * with `.withAsync("x")` binds under `x`. Absent for a function bound under a symbol (see `symbol`).
    */
-  jsName: string;
-  /** The symbol it binds under with `@JS(symbol: ...)`, absent when it binds under `jsName`. */
+  jsName?: string;
+  /**
+   * The symbol it binds under with `@JS(symbol: ...)`, absent when it binds under `jsName`. Exactly one
+   * of `jsName` and `symbol` is present.
+   */
   symbol?: ExportedSymbol;
   parameters: ExportedParameter[];
   /** Absent for a `Void` return. */
@@ -207,11 +209,14 @@ export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
 export interface ExportedProperty extends ExportedAccess, ExportedAvailability {
   name: string;
   /**
-   * The JS name it binds under: the `@JS("x")` override, else `name`. For a property bound under a
-   * symbol, the symbol as JavaScript writes it, such as `Symbol.toStringTag` (see `symbol`).
+   * The JS name it binds under: the `@JS("x")` override, else `name`. Absent for a property bound
+   * under a symbol (see `symbol`).
    */
-  jsName: string;
-  /** The symbol it binds under with `@JS(symbol: ...)`, absent when it binds under `jsName`. */
+  jsName?: string;
+  /**
+   * The symbol it binds under with `@JS(symbol: ...)`, absent when it binds under `jsName`. Exactly one
+   * of `jsName` and `symbol` is present.
+   */
   symbol?: ExportedSymbol;
   /** Absent when the type isn't determinable syntactically; the macro binds it getter-only. */
   type?: TypeNode;
@@ -576,5 +581,5 @@ export interface ExpandResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 11;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 12;
 export const SUPPORTED_EXPAND_SCHEMA_VERSION = 1;

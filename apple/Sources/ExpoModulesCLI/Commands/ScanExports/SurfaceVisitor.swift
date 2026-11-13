@@ -366,7 +366,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     let isAsync = effects?.asyncSpecifier != nil
     let exportedParameters = parameters(of: funcDecl.signature.parameterClause)
     let returns = isVoidType(returnType) ? nil : returnType.map { typeNode(from: $0) }
-    let makeFunction = { (jsName: String, symbol: ExportedSymbol?, isAsync: Bool) in
+    let makeFunction = { (jsName: String?, symbol: ExportedSymbol?, isAsync: Bool) in
       ExportedFunction(
         name: funcDecl.name.identifierName,
         jsName: jsName,
@@ -381,7 +381,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       )
     }
     let symbol = symbolArgument(of: attribute)
-    let jsName = symbol?.expression ?? stringArgument(of: attribute) ?? funcDecl.name.identifierName
+    let jsName = symbol == nil ? stringArgument(of: attribute) ?? funcDecl.name.identifierName : nil
     let function = makeFunction(jsName, symbol, isAsync)
     // The macro binds no variant for an `async` function: it reports the option there instead. The
     // variant binds under its own name, also for a function bound under a symbol.
@@ -404,7 +404,7 @@ final class SurfaceVisitor: SyntaxVisitor {
     let isLazy = varDecl.modifiers.contains { $0.name.tokenKind == .keyword(.lazy) }
     let isStatic = isTypeLevel(varDecl.modifiers)
     let symbol = symbolArgument(of: attribute)
-    let override = symbol?.expression ?? stringArgument(of: attribute)
+    let override = stringArgument(of: attribute)
     var result: [ExportedProperty] = []
 
     for binding in varDecl.bindings {
@@ -416,7 +416,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       result.append(
         ExportedProperty(
           name: name,
-          jsName: override ?? name,
+          jsName: symbol == nil ? override ?? name : nil,
           symbol: symbol,
           type: type,
           isSettable: !isLazy && isSettable(binding: binding, isLet: isLet),

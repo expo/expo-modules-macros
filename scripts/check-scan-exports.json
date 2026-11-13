@@ -688,7 +688,6 @@
           },
           {
             "async": false,
-            "jsName": "Symbol.for(\"player.id\")",
             "name": "id",
             "parameters": [],
             "platforms": [
@@ -773,7 +772,6 @@
         ],
         "properties": [
           {
-            "jsName": "Symbol.toStringTag",
             "name": "tag",
             "platforms": [
               {
