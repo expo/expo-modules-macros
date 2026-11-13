@@ -1,3 +1,4 @@
+import SwiftParser
 import SwiftSyntax
 
 /// Extracts the full JS-exported surface of every `@ExpoModule`, `@SharedObject`, `@Record`,
@@ -901,8 +902,8 @@ private func hasEventOption(_ attribute: AttributeSyntax, named option: String) 
 
 /// The name in a `@JS` attribute's `.withAsync("name")` option, in the arguments or inside an array
 /// literal (`@JS("load", [.withAsync("loadAsync")])`), or `nil` when the option is absent or its
-/// argument isn't a plain string literal. Mirrors `asyncVariantOption` and `asyncVariantName` in the
-/// macros.
+/// argument isn't a string literal without interpolation. The name is the value of the literal.
+/// Mirrors `asyncVariantOption` and `asyncVariantName` in the macros.
 private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
   guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return nil
@@ -922,14 +923,11 @@ private func asyncVariantName(of attribute: AttributeSyntax) -> String? {
     }
     guard call.arguments.count == 1,
       let argument = call.arguments.first,
-      argument.label == nil,
-      let literal = argument.expression.as(StringLiteralExprSyntax.self),
-      literal.segments.count == 1,
-      let segment = literal.segments.first?.as(StringSegmentSyntax.self)
+      argument.label == nil
     else {
       return nil
     }
-    return segment.content.text
+    return argument.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue
   }
   return nil
 }

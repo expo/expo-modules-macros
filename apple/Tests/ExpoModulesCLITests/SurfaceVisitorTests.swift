@@ -140,6 +140,31 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `A name written as a raw string or with an escape sequence is the value of the literal`() throws {
+    let visitor = surface(
+      ##"""
+      @ExpoModule(#"My"Module"#)
+      final class FileModule {
+        @JS(#"read"File"#, .withAsync("read\u{41}sync"))
+        func read() -> Int { 0 }
+
+        @JS("t\u{61}g")
+        var tag: String { "" }
+
+        @JS("a\(b)")
+        func interpolated() {}
+      }
+      """##
+    )
+    let module = try #require(visitor.modules.first)
+
+    #expect(module.jsName == #"My"Module"#)
+    // An interpolated name isn't read, so the member keeps its Swift name, as in the macro.
+    #expect(module.functions.map(\.jsName) == [#"read"File"#, "readAsync", "interpolated"])
+    #expect(module.properties.map(\.jsName) == ["tag"])
+  }
+
+  @Test
   func `A @JS(symbol:) member exports the symbol it binds under`() throws {
     let module = try #require(
       surface(

@@ -238,19 +238,18 @@ func symbolArgument(of attribute: AttributeSyntax) -> ExportedSymbol? {
   return nil
 }
 
-/// The first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork". Returns
-/// `nil` when there's no argument or it isn't a plain string literal. (Same shape the
-/// `jsNameArgument` helper reads inside the macros.) Shared with the `scan-exports` surface visitor,
-/// which reads the same JS-name override off `@JS`/`@ExpoModule`/`@SharedObject`.
+/// The value of the first string-literal argument of an attribute, e.g. `@JS("doWork")` -> "doWork",
+/// with its escape sequences decoded, so a raw string and an escape read as JavaScript sees the name.
+/// Returns `nil` when there's no argument or it isn't an unlabeled string literal without
+/// interpolation. (Same shape the `jsNameArgument` helper reads inside the macros.) Shared with the
+/// `scan-exports` surface visitor, which reads the same JS-name override off
+/// `@JS`/`@ExpoModule`/`@SharedObject`.
 func stringArgument(of attribute: AttributeSyntax) -> String? {
   guard let args = attribute.arguments?.as(LabeledExprListSyntax.self),
     let first = args.first,
-    first.label == nil,
-    let str = first.expression.as(StringLiteralExprSyntax.self),
-    let segment = str.segments.first?.as(StringSegmentSyntax.self),
-    str.segments.count == 1
+    first.label == nil
   else {
     return nil
   }
-  return segment.content.text
+  return first.expression.as(StringLiteralExprSyntax.self)?.representedLiteralValue
 }

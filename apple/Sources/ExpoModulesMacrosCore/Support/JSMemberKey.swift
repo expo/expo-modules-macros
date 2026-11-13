@@ -9,7 +9,7 @@ import SwiftSyntax
 /// - `@JS(symbol: "app.id")` binds under the symbol that the global registry holds for the key,
 ///   `Symbol.for("app.id")`.
 internal enum JSMemberKey: Hashable {
-  /// The name as written in the string literal, which the generated code puts in a literal again.
+  /// The name in the form of `literalContent(of:)`, which the generated code puts between quotes.
   case name(String)
   /// The name of a case of `JavaScriptSymbol.WellKnown`, such as `iterator`.
   case wellKnownSymbol(String)
@@ -117,31 +117,6 @@ internal func symbolKey(of attribute: AttributeSyntax) -> JSMemberKey? {
     return .registeredSymbol(value)
   }
   return nil
-}
-
-/// A Swift string literal whose value is `value`. A quote, a backslash and the control characters are
-/// escaped, so any value gives a valid literal.
-private func swiftStringLiteral(_ value: String) -> String {
-  var literal = "\""
-  for scalar in value.unicodeScalars {
-    switch scalar {
-    case "\"":
-      literal += "\\\""
-    case "\\":
-      literal += "\\\\"
-    case "\n":
-      literal += "\\n"
-    case "\r":
-      literal += "\\r"
-    case "\t":
-      literal += "\\t"
-    case _ where scalar.value < 0x20 || scalar.value == 0x7F:
-      literal += "\\u{\(String(scalar.value, radix: 16))}"
-    default:
-      literal.unicodeScalars.append(scalar)
-    }
-  }
-  return literal + "\""
 }
 
 /// The `symbol:` argument of an attribute, or `nil` when it has none.
