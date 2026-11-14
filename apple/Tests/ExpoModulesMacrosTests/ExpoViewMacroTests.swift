@@ -85,6 +85,28 @@ struct ExpoViewMacroTests {
   }
 
   @Test
+  func `A name argument becomes the _jsName static`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>("FancyCard")
+      final class CardView: ExpoNativeView {
+      }
+      """,
+      expandedSource: """
+        final class CardView: ExpoNativeView {
+
+          public typealias Props = CardProps
+
+          public nonisolated static let _jsName = "FancyCard"
+        }
+
+        extension CardView: AnyNativeView {
+        }
+        """
+    )
+  }
+
+  @Test
   func `A qualified props type is carried through verbatim`() {
     assertExpansion(
       """

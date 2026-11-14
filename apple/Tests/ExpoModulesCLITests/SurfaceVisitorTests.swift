@@ -1059,7 +1059,7 @@ struct ViewSurfaceTests {
     )
 
     #expect(view.name == "CardView")
-    // `@ExpoView` takes no name, so the JS name is the class name.
+    // Without a name argument, the JS name is the class name.
     #expect(view.jsName == "CardView")
     #expect(view.propsType == "CardProps")
     // The props are copied in once every file has been walked.
@@ -1067,6 +1067,22 @@ struct ViewSurfaceTests {
     #expect(view.events == nil)
     #expect(view.accessLevel == "public")
     #expect(view.file == "Test.swift")
+  }
+
+  @Test
+  func `Reads the JS name of a view from its name argument`() throws {
+    let view = try #require(
+      surface(
+        """
+        @ExpoView<CardProps>("FancyCard")
+        public final class CardView: ExpoNativeView {}
+        """
+      ).views.first
+    )
+
+    #expect(view.name == "CardView")
+    #expect(view.jsName == "FancyCard")
+    #expect(view.propsType == "CardProps")
   }
 
   @Test

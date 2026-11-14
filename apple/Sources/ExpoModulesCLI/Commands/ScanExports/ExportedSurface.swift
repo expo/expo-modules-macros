@@ -494,7 +494,8 @@ struct ExportedView: Encodable, Equatable {
   /// The Swift class name. Only a view declared at file scope is reported, as in `scan-modules`.
   let name: String
 
-  /// The name the view registers under. `@ExpoView` takes no name, so it is always the class name.
+  /// The name the view registers under: the `@ExpoView<CardProps>("Foo")` override when present,
+  /// otherwise the class name.
   let jsName: String
 
   /// The props type: the generic argument of `@ExpoView<CardProps>`, as written without backticks, or
