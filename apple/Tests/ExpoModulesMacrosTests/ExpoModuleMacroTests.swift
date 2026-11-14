@@ -278,7 +278,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
               }
@@ -395,7 +395,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
               }
@@ -1333,7 +1333,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("write") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("write") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "write", received: arguments.count, required: 1, maximum: 2))
               }
@@ -1692,7 +1692,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("read") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("read") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "read", received: arguments.count, required: 0, maximum: 1))
               }
@@ -1771,7 +1771,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("update") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("update") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "update", received: arguments.count, required: 1, maximum: 1))
               }
@@ -2444,7 +2444,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("move") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("move") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 3 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "move", received: arguments.count, required: 3, maximum: 3))
               }
@@ -2484,7 +2484,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("tag") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "tag", received: arguments.count, required: 1, maximum: 2))
               }
@@ -2522,7 +2522,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 1))
               }
@@ -2672,7 +2672,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("select") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("select") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "select", received: arguments.count, required: 0, maximum: 1))
               }
@@ -2773,7 +2773,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("transform") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("transform") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "transform", received: arguments.count, required: 1, maximum: 1))
               }
@@ -2814,7 +2814,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
               }
@@ -2877,28 +2877,28 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("load") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "load", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
               self.load(arg0)
             }
-            object.setProperty("loadSize") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("loadSize") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "loadSize", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try Size.decode(arguments.unownedValue(at: 0), in: runtime)
               self.load(arg0)
             }
-            object.setProperty("loadAt") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("loadAt") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "loadAt", received: arguments.count, required: 1, maximum: 1))
               }
               let arg0 = try Point.decode(arguments.unownedValue(at: 0), in: runtime)
               self.load(at: arg0)
             }
-            object.setProperty("save") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("save") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "save", received: arguments.count, required: 1, maximum: 1))
               }
@@ -3002,7 +3002,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 1))
               }
@@ -3034,7 +3034,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("keep") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("keep") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 0 && arguments.count <= 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "keep", received: arguments.count, required: 0, maximum: 1))
               }
@@ -3071,7 +3071,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("store") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count >= 1 && arguments.count <= 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "store", received: arguments.count, required: 1, maximum: 2))
               }
@@ -3109,7 +3109,7 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            object.setProperty("inspect") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            object.setProperty("inspect") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 2 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "inspect", received: arguments.count, required: 2, maximum: 2))
               }

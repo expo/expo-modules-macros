@@ -1097,7 +1097,7 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "clear", received: arguments.count, required: 0, maximum: 0))
@@ -1286,7 +1286,7 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: `Type`.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "default", received: arguments.count, required: 0, maximum: 0))
@@ -1640,7 +1640,7 @@ struct ExpoModuleClassesTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            prototype.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            prototype.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Player.self)
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "constructor", received: arguments.count, required: 0, maximum: 0))
