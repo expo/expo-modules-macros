@@ -344,6 +344,18 @@ internal struct JSFunction {
   ///
   /// A function bound under a symbol gets the symbol from the runtime first, so the statement is
   /// marked `try`.
+  /// Whether the body of a synchronous binding uses the runtime: to decode an argument, to unwrap a shared
+  /// object from `this`, or to pass it to a function that takes the runtime.
+  private func bodyUsesRuntime(receiver: Receiver) -> Bool {
+    if runtimeLabel != nil || !parameters.isEmpty {
+      return true
+    }
+    if case .sharedObject = receiver {
+      return true
+    }
+    return false
+  }
+
   func decorateStatements(object: String, receiver: Receiver) -> String {
     // Every `@JS` binding hands `this` in as a borrowed `JavaScriptUnownedValue` instead of
     // allocating an owning `JavaScriptValue` and forming its `weak`-runtime reference on every call,
@@ -357,14 +369,16 @@ internal struct JSFunction {
     // returns nothing binds through the `Void` overload (`JavaScriptRuntime.VoidFunctionClosure`)
     // instead, which leaves JS's result as `undefined`. A call through it is faster than through a
     // result-slot closure that writes nothing. The closure declares `-> Void` because a body of several
-    // statements without a `return` is otherwise ambiguous between the overloads. A function that takes
-    // the runtime binds through the result-slot overload even when it returns nothing, so it gets the
-    // runtime as the closure's parameter instead of capturing the decorator's.
+    // statements without a `return` is otherwise ambiguous between the overloads. The `Void` overload
+    // doesn't get the runtime, so it's only for a body that doesn't use it: a function that decodes
+    // arguments, unwraps a shared object or takes the runtime binds through the result-slot overload even
+    // when it returns nothing. Capturing the decorator's runtime instead would make the runtime own a
+    // closure that retains it, so a runtime that owns its engine would never be freed.
     let captures = receiver.captureClause
     let parameters =
       isAsync
       ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer)"
-      : returnType == nil && runtimeLabel == nil
+      : returnType == nil && !bodyUsesRuntime(receiver: receiver)
         ? "(this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void"
         : resultSlotClosureParameters
 

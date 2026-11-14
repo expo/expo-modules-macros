@@ -155,7 +155,7 @@ struct JSSymbolTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            try object.setProperty(JavaScriptSymbol.wellKnown(runtime, .dispose)) { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
+            try object.setProperty(JavaScriptSymbol.wellKnown(runtime, .dispose)) { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "[Symbol.dispose]", received: arguments.count, required: 1, maximum: 1))
               }
