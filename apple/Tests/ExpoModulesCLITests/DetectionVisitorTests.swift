@@ -627,12 +627,22 @@ struct ScanTests {
       #expect(result.modules.map(\.name) == ["CardModule"])
       #expect(result.sharedObjects.isEmpty)
       #expect(result.views.map(\.name) == ["CardView"])
-      // `@ExpoView` takes no name, so the JS name is the class name.
+      // Without a name argument, the JS name is the class name.
       #expect(result.views.first?.jsName == "CardView")
       #expect(result.views.first?.accessLevel == "public")
       #expect(result.views.first?.platforms == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
       // The `@ViewProps` file isn't parsed: the modules pre-filter covers only the class macros.
       #expect(result.stats.filesParsed == 2)
+    }
+  }
+
+  @Test
+  func `scanModules reports the name argument of @ExpoView as the JS name`() throws {
+    try withTree([
+      ("CardView.swift", "@ExpoView<CardProps>(\"FancyCard\")\npublic final class CardView: ExpoNativeView {}")
+    ]) { result in
+      #expect(result.views.map(\.name) == ["CardView"])
+      #expect(result.views.first?.jsName == "FancyCard")
     }
   }
 

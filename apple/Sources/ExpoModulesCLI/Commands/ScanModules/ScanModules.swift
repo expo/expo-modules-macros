@@ -44,9 +44,10 @@ struct ScannedClass: Codable, Equatable {
   /// The Swift class name.
   let name: String
 
-  /// The fully-resolved JS name: the `@ExpoModule("Foo")` or `@SharedObject("Foo")` override when
-  /// present, otherwise the class name. `@ExpoView` takes no name, so a view's JS name is its class name. Resolved here (rather than left `nil`) so it matches how the
-  /// macro derives the name and the consumer never has to apply the fallback itself.
+  /// The fully-resolved JS name: the `@ExpoModule("Foo")`, `@SharedObject("Foo")` or
+  /// `@ExpoView<CardProps>("Foo")` override when present, otherwise the class name. Resolved here
+  /// (rather than left `nil`) so it matches how the macro derives the name and the consumer never has
+  /// to apply the fallback itself.
   let jsName: String
 
   /// The class's spelled access modifier (`open`, `public`, `package`, `fileprivate`, `private`),
@@ -155,8 +156,8 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
 
     // The macros reject anything but a class, so a struct with one of them is never registered.
     for detection in allModules.detections where detection.declarationKind == "class" {
-      // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")` or
-      // `@SharedObject("Foo")` override, else the class name.
+      // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")`,
+      // `@SharedObject("Foo")` or `@ExpoView<CardProps>("Foo")` override, else the class name.
       let scanned = ScannedClass(
         name: detection.name,
         jsName: detection.jsName ?? detection.name,

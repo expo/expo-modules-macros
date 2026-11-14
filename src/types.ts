@@ -435,7 +435,7 @@ export interface ExportedViewEvent extends ExportedAccess, ExportedAvailability 
 export interface ExportedView extends ExportedAccess, ExportedAvailability {
   /** The Swift class name. Only a view declared at file scope is reported. */
   name: string;
-  /** The name the view registers under. `@ExpoView` takes no name, so it is always the class name. */
+  /** The name the view registers under: the `@ExpoView<CardProps>("Foo")` override, else the class name. */
   jsName: string;
   /**
    * The props type: the generic argument of `@ExpoView<CardProps>`, as written without backticks
@@ -489,8 +489,8 @@ export interface ScanStats {
 export interface ScannedClass {
   name: string;
   /**
-   * The resolved JS name: the `@ExpoModule("Foo")` or `@SharedObject("Foo")` override, else the class
-   * name. A view's JS name is its class name.
+   * The resolved JS name: the `@ExpoModule("Foo")`, `@SharedObject("Foo")` or
+   * `@ExpoView<CardProps>("Foo")` override, else the class name.
    */
   jsName: string;
   /**

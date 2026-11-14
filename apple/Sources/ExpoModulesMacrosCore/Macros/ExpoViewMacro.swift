@@ -26,6 +26,11 @@ import SwiftSyntaxMacros
 ///   public typealias Props = CardProps
 ///   extension CardView: AnyNativeView {}
 ///
+/// The view registers under its class name. Pass `@ExpoView<CardProps>("FancyCard")` to override it,
+/// and the expansion also gets a `_jsName` static that core reads in place of the class name:
+///
+///   public nonisolated static let _jsName = "FancyCard"
+///
 /// There is **no view definition**: no `ViewDefinition`, no `View(…) { }` builder, no `Props(_:)` or
 /// `Events(_:)` element. Core reaches the view through the `AnyNativeView` conformance: it reads the
 /// props type from the `Props` typealias, which satisfies the protocol's associated type, and the
@@ -83,11 +88,18 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
       )
     }
 
-    return [
+    var emitted: [DeclSyntax] = [
       """
       public typealias Props = \(raw: propsType)
       """
     ]
+
+    // `AnyNativeView` defaults `_jsName` to the class name, so it's emitted only for an override.
+    // `nonisolated`, because the protocol is `@MainActor` and core reads the name off the main actor.
+    if let jsName = jsNameArgument(of: node) {
+      emitted.append("public nonisolated static let _jsName = \"\(raw: jsName)\"")
+    }
+    return emitted
   }
 
   public static func expansion(

@@ -223,7 +223,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       views.append(
         ExportedView(
           name: qualified,
-          jsName: name,
+          jsName: stringArgument(of: attribute) ?? name,
           propsType: String(propsType.trimmedDescription.filter { $0 != "`" }),
           propsTypeLookupName: spellingWithoutGenericArguments(of: propsType),
           accessLevel: accessLevel,
