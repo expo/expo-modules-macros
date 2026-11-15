@@ -200,7 +200,7 @@ struct ExpoViewMacroTests {
       diagnostics: [
         // No fix-it: replacing a superclass the author chose isn't an edit the macro can make.
         DiagnosticSpec(
-          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
+          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration",
           line: 2,
           column: 7
         )
@@ -222,7 +222,7 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
+          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration",
           line: 2,
           column: 7,
           fixIts: [FixItSpec(message: "Inherit from 'ExpoNativeView'")]
@@ -355,7 +355,7 @@ struct ExpoViewMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
+          message: "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration",
           line: 2,
           column: 7
         )

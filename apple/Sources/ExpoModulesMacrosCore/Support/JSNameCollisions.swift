@@ -27,7 +27,7 @@ internal func diagnoseJSNameCollisions(
       Diagnostic(
         node: member.nameToken,
         message: JSNameCollisionMessage(
-          "The JavaScript \(member.keyKind) '\(member.key.description)' is already bound by an earlier \(first.kind). A JavaScript object holds one member per \(member.keyKind), so JavaScript could reach only one of them. Give one of them another \(member.keyKind) with \(renaming)."
+          "The JavaScript \(member.keyKind) '\(member.key.description)' is already bound by an earlier \(first.kind). A JavaScript object holds one member per \(member.keyKind), so JavaScript could reach only one of them. Give one of them another \(member.keyKind) with \(renaming)"
         ),
         notes: [
           Note(
@@ -88,7 +88,7 @@ internal func diagnoseReservedJSNames(
       Diagnostic(
         node: member.nameToken,
         message: ReservedJSNameMessage(
-          "The JavaScript name '\(jsName)' can't be bound: \(reason). Give the \(member.kind) another name with \(member.renaming)."
+          "The JavaScript name '\(jsName)' can't be bound: \(reason). Give the \(member.kind) another name with \(member.renaming)"
         )
       )
     )
@@ -116,7 +116,7 @@ internal func diagnoseEventNameCollisions(in memberBlock: MemberBlockSyntax, in 
       Diagnostic(
         node: nameToken,
         message: EventNameCollisionMessage(
-          "The event name '\(jsName)' is already used by the earlier @Event '\(first.text)'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\")."
+          "The event name '\(jsName)' is already used by the earlier @Event '\(first.text)'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\")"
         ),
         notes: [
           Note(

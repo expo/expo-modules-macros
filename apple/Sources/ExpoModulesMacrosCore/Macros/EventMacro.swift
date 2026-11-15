@@ -195,7 +195,7 @@ private func validatedEvent(
       Diagnostic(
         node: payloadClosure,
         message: EventDiagnosticMessage(
-          "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+          "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded",
           id: "event-closure-payload"
         )
       )
@@ -342,7 +342,7 @@ private func letBindingDiagnostic(for varDecl: VariableDeclSyntax) -> Diagnostic
     ]
   )
   let message = EventDiagnosticMessage(
-    "@Event must be applied to a 'var': it expands into a computed property, which a 'let' cannot be. The synthesized property is read-only anyway.",
+    "@Event must be applied to a 'var': it expands into a computed property, which a 'let' cannot be. The synthesized property is read-only anyway",
     id: "event-on-let"
   )
   return DiagnosticsError(diagnostics: [

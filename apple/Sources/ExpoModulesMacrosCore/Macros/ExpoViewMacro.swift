@@ -143,7 +143,7 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
 /// can't make (see the indirect-inheritance note on `expoViewBaseClassNames`).
 private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagnostic {
   let message = ExpoViewDiagnosticMessage(
-    "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
+    "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration",
     id: "expoview-missing-base-class"
   )
   var fixIts: [FixIt] = []

@@ -89,7 +89,7 @@ public struct SharedObjectMacro: MemberMacro {
       {
         if constructor != nil {
           throw MacroExpansionErrorMessage(
-            "@SharedObject classes can have at most one @JS initializer: JavaScript classes have a single constructor."
+            "@SharedObject classes can have at most one @JS initializer: JavaScript classes have a single constructor"
           )
         }
         constructor = JSConstructor(initDecl: initDecl)
@@ -250,7 +250,7 @@ private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagn
   return Diagnostic(
     node: name,
     message: SharedObjectDiagnosticMessage(
-      "@SharedObject class '\(name.text)' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration.",
+      "@SharedObject class '\(name.text)' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration",
       id: "sharedobject-missing-base-class"
     ),
     fixIts: [fixIt]

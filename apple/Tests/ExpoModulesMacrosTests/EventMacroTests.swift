@@ -554,7 +554,7 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event must be applied to a 'var': it expands into a computed property, which a 'let' cannot be. The synthesized property is read-only anyway.",
+            "@Event must be applied to a 'var': it expands into a computed property, which a 'let' cannot be. The synthesized property is read-only anyway",
           line: 3,
           column: 3,
           fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
@@ -939,7 +939,7 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+            "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded",
           line: 3,
           column: 15
         )
@@ -964,7 +964,7 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+            "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded",
           line: 3,
           column: 29
         )

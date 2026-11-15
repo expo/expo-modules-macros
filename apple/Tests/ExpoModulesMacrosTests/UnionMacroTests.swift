@@ -926,7 +926,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union cannot be applied to a generic enum: each case's payload type must be concrete so the macro can select its converter.",
+            "@Union cannot be applied to a generic enum: each case's payload type must be concrete so the macro can select its converter",
           line: 2,
           column: 13
         )
@@ -975,7 +975,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead.",
+            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead",
           line: 4,
           column: 8
         )
@@ -1000,7 +1000,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'pair' must carry exactly one associated value, but has 2. Group them in a @Record type and use it as the single payload.",
+            "@Union case 'pair' must carry exactly one associated value, but has 2. Group them in a @Record type and use it as the single payload",
           line: 3,
           column: 8
         )
@@ -1031,13 +1031,13 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'name' repeats the payload type 'String' of case 'text' and can never be decoded: alternatives are tried in declaration order and the first match wins.",
+            "@Union case 'name' repeats the payload type 'String' of case 'text' and can never be decoded: alternatives are tried in declaration order and the first match wins",
           line: 5,
           column: 8
         ),
         DiagnosticSpec(
           message:
-            "@Union case 'dictionary' repeats the payload type '[String: Int]' of case 'keyed' and can never be decoded: alternatives are tried in declaration order and the first match wins.",
+            "@Union case 'dictionary' repeats the payload type '[String: Int]' of case 'keyed' and can never be decoded: alternatives are tried in declaration order and the first match wins",
           line: 6,
           column: 8
         ),
@@ -1131,7 +1131,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'text' cannot give its associated value a default: the payload is always decoded from the JavaScript value, so the default would never apply. Remove '= \"\"'.",
+            "@Union case 'text' cannot give its associated value a default: the payload is always decoded from the JavaScript value, so the default would never apply. Remove '= \"\"'",
           line: 3,
           column: 20,
           fixIts: [FixItSpec(message: "Remove the default value")]
@@ -1265,19 +1265,19 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead.",
+            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead",
           line: 4,
           column: 8
         ),
         DiagnosticSpec(
           message:
-            "@Union case 'pair' must carry exactly one associated value, but has 2. Group them in a @Record type and use it as the single payload.",
+            "@Union case 'pair' must carry exactly one associated value, but has 2. Group them in a @Record type and use it as the single payload",
           line: 5,
           column: 8
         ),
         DiagnosticSpec(
           message:
-            "@Union case 'again' repeats the payload type 'String' of case 'text' and can never be decoded: alternatives are tried in declaration order and the first match wins.",
+            "@Union case 'again' repeats the payload type 'String' of case 'text' and can never be decoded: alternatives are tried in declaration order and the first match wins",
           line: 6,
           column: 8
         ),
@@ -1306,13 +1306,13 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'callback' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
+            "@Union case 'callback' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded",
           line: 4,
           column: 17
         ),
         DiagnosticSpec(
           message:
-            "@Union case 'callbacks' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
+            "@Union case 'callbacks' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded",
           line: 5,
           column: 19
         ),
@@ -1579,7 +1579,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'float' is never decoded: case 'double' is tried first, and 'Double' decodes every JavaScript number, and 'Float' decodes only numbers. Move case 'float' before case 'double'.",
+            "@Union case 'float' is never decoded: case 'double' is tried first, and 'Double' decodes every JavaScript number, and 'Float' decodes only numbers. Move case 'float' before case 'double'",
           line: 5,
           column: 8,
           severity: .warning,
@@ -1587,7 +1587,7 @@ struct UnionMacroTests {
         ),
         DiagnosticSpec(
           message:
-            "@Union case 'int32' is never decoded: case 'double' is tried first, and 'Double' decodes every JavaScript number, and 'Int32' decodes only numbers. Move case 'int32' before case 'double'.",
+            "@Union case 'int32' is never decoded: case 'double' is tried first, and 'Double' decodes every JavaScript number, and 'Int32' decodes only numbers. Move case 'int32' before case 'double'",
           line: 6,
           column: 8,
           severity: .warning,
@@ -1595,7 +1595,7 @@ struct UnionMacroTests {
         ),
         DiagnosticSpec(
           message:
-            "@Union case 'text' is never decoded: case 'any' is tried first, and 'JavaScriptValue' decodes every JavaScript value. Move case 'text' before case 'any'.",
+            "@Union case 'text' is never decoded: case 'any' is tried first, and 'JavaScriptValue' decodes every JavaScript value. Move case 'text' before case 'any'",
           line: 8,
           column: 8,
           severity: .warning,
