@@ -1,41 +1,75 @@
 import SwiftDiagnostics
 import SwiftSyntax
 
-/// The fix-it changes that remove an attribute or a modifier, such as `static`, from a declaration.
-/// The token after it takes over its trivia: the line break, indentation and comments before it, and
-/// the comments after it. That token's own leading whitespace is left out unless a comment comes before
-/// it, so `@Field var size` and `@Field` on its own line both become `var size` on the line of the
-/// attribute, and `@Field // note` keeps the line break after the comment. The element is removed with
-/// its trivia, so it doesn't leave a blank line behind.
+/// The fix-it change that removes an attribute or a modifier, such as `static`, from a declaration.
+/// It only deletes text, and keeps the comments and line breaks around the element:
 ///
-/// The changes edit only the element and the trivia around it, not the whole declaration: in a module,
-/// the declaration that a macro gets also has the attributes that `@ExpoModule` adds, which aren't in
-/// the file. They follow the attributes in the file and can take over the trivia after them, so the
-/// token after an attribute, and its trivia, may not be in the file. An attribute after another one is
-/// therefore removed with the whitespace before it, back to the attribute before it, and the trivia
-/// after it is left as it is: `@Event @JS var` becomes `@Event var`.
+/// - An element on the line of the token before it is deleted with the spaces before it, so
+///   `@Event @JS var` becomes `@Event var`.
+/// - An element that starts its line and is followed by more on that line is deleted with the spaces
+///   after it, so `@Field var size` becomes `var size`, and `@Field // note` keeps the comment.
+/// - An element alone on its line is deleted with the line break before it, so it doesn't leave a
+///   blank line behind.
+///
+/// The change doesn't touch the token after the element: in a module, the declaration that a macro
+/// gets also has the attributes that `@ExpoModule` adds after the attributes in the file, and they can
+/// take over the trivia after the last one. Only the decision whether an element is alone on its line
+/// reads that trivia, and at worst it joins the next line to the line before the element.
 internal func removalChanges(of element: some SyntaxProtocol) -> [FixIt.Change] {
-  if let list = element.parent?.as(AttributeListSyntax.self), list.first?.id != element.id,
-    let previous = element.previousToken(viewMode: .sourceAccurate)
-  {
-    return [
-      .replaceText(
-        range: previous.endPositionBeforeTrailingTrivia..<element.endPositionBeforeTrailingTrivia,
-        with: "",
-        in: Syntax(element)
-      )
-    ]
+  let textStart = element.positionAfterSkippingLeadingTrivia
+  let textEnd = element.endPositionBeforeTrailingTrivia
+  let previousTrivia = element.previousToken(viewMode: .sourceAccurate)?.trailingTrivia ?? []
+  let range: Range<AbsolutePosition>
+  if !(previousTrivia + element.leadingTrivia).contains(where: \.isNewline) {
+    range = textStart.advanced(by: -trailingSpacesLength(of: previousTrivia + element.leadingTrivia))..<textEnd
+  } else if isFollowedByLineBreak(element), let lineBreak = lastLineBreakStart(in: element) {
+    range = lineBreak..<textEnd
+  } else {
+    let spacesAfter = element.trailingTrivia.pieces.prefix(while: isSpace).reduce(0) { $0 + $1.sourceLength.utf8Length }
+    range = textStart..<textEnd.advanced(by: spacesAfter)
   }
-  var changes: [FixIt.Change] = [
-    .replaceText(range: element.position..<element.endPosition, with: "", in: Syntax(element))
-  ]
-  if let next = element.lastToken(viewMode: .sourceAccurate)?.nextToken(viewMode: .sourceAccurate) {
-    let comments = Trivia(pieces: element.trailingTrivia.pieces.drop(while: \.isWhitespace))
-    let ownTrivia =
-      comments.isEmpty ? Trivia(pieces: next.leadingTrivia.pieces.drop(while: \.isWhitespace)) : next.leadingTrivia
-    changes.append(.replaceLeadingTrivia(token: next, newTrivia: element.leadingTrivia + comments + ownTrivia))
+  return [.replaceText(range: range, with: "", in: Syntax(element))]
+}
+
+private func isSpace(_ piece: TriviaPiece) -> Bool {
+  switch piece {
+  case .spaces, .tabs:
+    return true
+  default:
+    return false
   }
-  return changes
+}
+
+/// The length of the spaces and tabs at the end of the trivia.
+private func trailingSpacesLength(of trivia: Trivia) -> Int {
+  return trivia.pieces.reversed().prefix(while: isSpace).reduce(0) { $0 + $1.sourceLength.utf8Length }
+}
+
+/// True when only spaces come between the element and the next line break.
+private func isFollowedByLineBreak(_ element: some SyntaxProtocol) -> Bool {
+  let nextTrivia =
+    element.lastToken(viewMode: .sourceAccurate)?.nextToken(viewMode: .sourceAccurate)?.leadingTrivia ?? []
+  return (element.trailingTrivia + nextTrivia).pieces.first { !isSpace($0) }?.isNewline ?? false
+}
+
+/// The position of the last line break in the leading trivia of the element, so that deleting from it
+/// removes the line of the element. A run of line breaks keeps all but the last one.
+private func lastLineBreakStart(in element: some SyntaxProtocol) -> AbsolutePosition? {
+  var position = element.position
+  var lastLineBreak: AbsolutePosition?
+  for piece in element.leadingTrivia.pieces {
+    let length = piece.sourceLength.utf8Length
+    switch piece {
+    case .newlines, .carriageReturns:
+      lastLineBreak = position.advanced(by: length - 1)
+    case .carriageReturnLineFeeds:
+      lastLineBreak = position.advanced(by: length - 2)
+    default:
+      break
+    }
+    position = position.advanced(by: length)
+  }
+  return lastLineBreak
 }
 
 /// The attribute without the argument. The argument before it keeps its comma only when another

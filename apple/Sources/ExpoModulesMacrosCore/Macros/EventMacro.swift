@@ -399,7 +399,8 @@ private func initialValueDiagnostic(
   }
   // The type before the initializer takes over the trailing trivia of the initializer, so the space
   // before `=` doesn't stay behind.
-  let newBinding = binding.with(\.initializer, nil).with(\.trailingTrivia, initializer.trailingTrivia)
+  var newBinding = binding.with(\.initializer, nil)
+  newBinding.typeAnnotation?.trailingTrivia = initializer.trailingTrivia
   let fixIt = FixIt(
     message: EventFixItMessage("Remove the initial value", id: "event-remove-initial-value"),
     changes: [

@@ -1976,6 +1976,45 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `The @Field removal fix-it keeps a comment before an attribute that isn't first`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        @available(iOS 15, *)
+        // The tint color.
+        @Field var tint: Int = 0
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          @available(iOS 15, *)
+          // The tint color.
+          @Field var tint: Int = 0
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
+          line: 5,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        )
+      ],
+      applyFixIts: ["Remove the '@Field' attribute"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          @available(iOS 15, *)
+          // The tint color.
+          var tint: Int = 0
+        }
+        """
+    )
+  }
+
+  @Test
   func `The @Field removal fix-it keeps the comments around the attribute`() {
     assertExpansion(
       """

@@ -360,14 +360,21 @@ struct FixTests {
       public final class MyModule: Module {
         @Event static var onA: () -> Void
         @Event @JS var onB: () -> Void
-        @Event var onC: () -> Int
-        @Event var onD: () -> Void = {}
+        @JS @Event var onC: () -> Void
+        @Event // The C event
+        @JS
+        var onD: () -> Void
+        @Event var onE: () -> Int
+        @Event var onF: () -> Void = {}
 
         @JS
         func run(_ callback: @escaping (Int) throws(MyError) -> Void) {}
 
         @JS(.withAsync("loadAsync"))
         func load() async -> Int { 1 }
+
+        @JS(.withAsync("saveAsync"), .concurrent)
+        func save() async {}
       }
 
       @Record
@@ -386,13 +393,19 @@ struct FixTests {
             @Event var onA: () -> Void
             @Event var onB: () -> Void
             @Event var onC: () -> Void
-            @Event var onD: () -> Void
+            @Event // The C event
+            var onD: () -> Void
+            @Event var onE: () -> Void
+            @Event var onF: () -> Void
 
             @JS
             func run(_ callback: @escaping (Int) throws -> Void) {}
 
             @JS
             func load() async -> Int { 1 }
+
+            @JS(.concurrent)
+            func save() async {}
           }
 
           @Record
@@ -403,6 +416,22 @@ struct FixTests {
           """
       )
       #expect(expandMacros(source: fixed, file: file, symbols: []).diagnostics.isEmpty)
+    }
+  }
+
+  @Test
+  func `Removing the initial value of an @Event with accessors leaves no space after them`() throws {
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event var onA: (Int) -> Void = { _ in } { didSet {} }
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(fixed.contains("  @Event var onA: (Int) -> Void { didSet {} }\n"))
     }
   }
 
