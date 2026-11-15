@@ -219,7 +219,7 @@ internal func diagnoseClosureTypes(
         Diagnostic(
           node: nested,
           message: ClosureDiagnosticMessage(
-            "A @JS function can't return a closure: a native closure can't be encoded to a JavaScript function.",
+            "A @JS function can't return a closure: a native closure can't be encoded to a JavaScript function",
             id: "js-closure-return"
           )
         )
@@ -239,7 +239,7 @@ internal func diagnoseClosureTypes(
       Diagnostic(
         node: nested,
         message: ClosureDiagnosticMessage(
-          "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function.",
+          "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function",
           id: "js-closure-property"
         )
       )
@@ -258,7 +258,7 @@ private func diagnoseClosureParameters(
           Diagnostic(
             node: nested,
             message: ClosureDiagnosticMessage(
-              "A closure in a @JS argument must be the argument's own type, optionally wrapped in an optional. Closures inside other types, such as arrays or dictionaries, aren't supported.",
+              "A closure in a @JS argument must be the argument's own type, optionally wrapped in an optional. Closures inside other types, such as arrays or dictionaries, aren't supported",
               id: "js-closure-nested-in-type"
             )
           )
@@ -282,7 +282,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
       Diagnostic(
         node: attribute,
         message: ClosureDiagnosticMessage(
-          "'@\(name)' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed.",
+          "'@\(name)' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed",
           id: "js-closure-attribute"
         )
       )
@@ -290,13 +290,27 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
   }
 
   if let throwsClause = functionType.effectSpecifiers?.throwsClause, throwsClause.type != nil {
+    // `throws` takes over the trailing trivia of the closing parenthesis, the space before `->`.
+    let untypedThrows = ThrowsClauseSyntax(
+      throwsSpecifier: throwsClause.throwsSpecifier.with(\.trailingTrivia, throwsClause.trailingTrivia)
+    )
+    .with(\.leadingTrivia, throwsClause.leadingTrivia)
     context.diagnose(
       Diagnostic(
         node: throwsClause,
         message: ClosureDiagnosticMessage(
-          "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
+          "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type",
           id: "js-closure-typed-throws"
-        )
+        ),
+        fixIts: [
+          FixIt(
+            message: ClosureFixItMessage(
+              "Replace '\(throwsClause.trimmedDescription)' with 'throws'",
+              id: "js-closure-untyped-throws"
+            ),
+            changes: [.replace(oldNode: Syntax(throwsClause), newNode: Syntax(untypedThrows))]
+          )
+        ]
       )
     )
   }
@@ -307,7 +321,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         Diagnostic(
           node: parameter.type,
           message: ClosureDiagnosticMessage(
-            "A @JS closure argument can't take an '\(specifier)' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
+            "A @JS closure argument can't take an '\(specifier)' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation",
             id: "js-closure-parameter-specifier"
           )
         )
@@ -318,7 +332,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         Diagnostic(
           node: parameter.type,
           message: ClosureDiagnosticMessage(
-            "A @JS closure argument can't take a variadic parameter. Use an array instead.",
+            "A @JS closure argument can't take a variadic parameter. Use an array instead",
             id: "js-closure-variadic-parameter"
           )
         )
@@ -335,7 +349,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         Diagnostic(
           node: nested,
           message: ClosureDiagnosticMessage(
-            "A @JS closure argument can't take or return another closure.",
+            "A @JS closure argument can't take or return another closure",
             id: "js-closure-nested"
           )
         )
@@ -345,7 +359,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         Diagnostic(
           node: type,
           message: ClosureDiagnosticMessage(
-            "A @JS closure argument can't use the free-form '\(type.trimmedDescription)'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS closure argument can't use the free-form '\(type.trimmedDescription)'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged",
             id: "js-closure-free-form"
           )
         )
@@ -357,7 +371,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
         Diagnostic(
           node: type,
           message: ClosureDiagnosticMessage(
-            "An async @JS closure argument can't take or return a tuple. Use a @Record type, or a closure that isn't async.",
+            "An async @JS closure argument can't take or return a tuple. Use a @Record type, or a closure that isn't async",
             id: "js-closure-async-tuple"
           )
         )
@@ -370,7 +384,7 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
       Diagnostic(
         node: functionType,
         message: ClosureDiagnosticMessage(
-          "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return.",
+          "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return",
           id: "js-closure-requires-throws"
         ),
         fixIts: [insertThrowsFixIt(for: functionType)]

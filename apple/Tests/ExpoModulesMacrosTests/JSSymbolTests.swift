@@ -331,7 +331,7 @@ struct JSSymbolTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript symbol 'Symbol.for(\"app.id\")' is already bound by an earlier @JS property. A JavaScript object holds one member per symbol, so JavaScript could reach only one of them. Give one of them another symbol with @JS(symbol: ...).",
+            "The JavaScript symbol 'Symbol.for(\"app.id\")' is already bound by an earlier @JS property. A JavaScript object holds one member per symbol, so JavaScript could reach only one of them. Give one of them another symbol with @JS(symbol: ...)",
           line: 7,
           column: 8,
           severity: .error,
@@ -372,7 +372,7 @@ struct JSSymbolTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'symbol:' applies only to a @JS function or property: JavaScript constructs a shared object with 'new', so an initializer isn't bound under a key.",
+            "'symbol:' applies only to a @JS function or property: JavaScript constructs a shared object with 'new', so an initializer isn't bound under a key",
           line: 3,
           column: 7,
           severity: .error
@@ -442,21 +442,21 @@ struct JSSymbolTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
+            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string",
           line: 3,
           column: 15,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
+            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string",
           line: 6,
           column: 15,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
+            "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string",
           line: 9,
           column: 15,
           severity: .error
@@ -548,7 +548,7 @@ struct JSSymbolTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript symbol 'Symbol.for(\"app.id\")' is already bound by an earlier @JS function. A JavaScript object holds one member per symbol, so JavaScript could reach only one of them. Give one of them another symbol with @JS(symbol: ...).",
+            "The JavaScript symbol 'Symbol.for(\"app.id\")' is already bound by an earlier @JS function. A JavaScript object holds one member per symbol, so JavaScript could reach only one of them. Give one of them another symbol with @JS(symbol: ...)",
           line: 7,
           column: 8,
           severity: .error,

@@ -158,7 +158,7 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
       Diagnostic(
         node: genericParameterClause,
         message: UnionDiagnosticMessage(
-          "@Union cannot be applied to a generic enum: each case's payload type must be concrete so the macro can select its converter.",
+          "@Union cannot be applied to a generic enum: each case's payload type must be concrete so the macro can select its converter",
           id: "union-generic-enum"
         )
       )
@@ -180,7 +180,7 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
           Diagnostic(
             node: element,
             message: UnionDiagnosticMessage(
-              "@Union case '\(name)' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union; make it a raw-value enum conforming to 'Enumerable' instead.",
+              "@Union case '\(name)' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead",
               id: "union-case-without-payload"
             )
           )
@@ -192,7 +192,7 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
           Diagnostic(
             node: element,
             message: UnionDiagnosticMessage(
-              "@Union case '\(name)' must carry exactly one associated value, but has \(parameters.count). Group them in a @Record type and use it as the single payload.",
+              "@Union case '\(name)' must carry exactly one associated value, but has \(parameters.count). Group them in a @Record type and use it as the single payload",
               id: "union-case-with-multiple-payloads"
             )
           )
@@ -215,7 +215,7 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
           Diagnostic(
             node: payloadClosure,
             message: UnionDiagnosticMessage(
-              "@Union case '\(name)' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded.",
+              "@Union case '\(name)' can't carry a closure: the payload is also encoded to JavaScript, and a native closure can't be encoded",
               id: "union-closure-payload"
             )
           )
@@ -234,7 +234,7 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
           Diagnostic(
             node: element,
             message: UnionDiagnosticMessage(
-              "@Union case '\(name)' repeats the payload type '\(payloadType)' of case '\(earlierCase)' and can never be decoded: alternatives are tried in declaration order and the first match wins.",
+              "@Union case '\(name)' repeats the payload type '\(payloadType)' of case '\(earlierCase)' and can never be decoded: alternatives are tried in declaration order and the first match wins",
               id: "union-duplicate-payload-type"
             )
           )
@@ -306,7 +306,7 @@ private func diagnoseUnreachableCases(of declaration: some DeclGroupSyntax, in c
           Diagnostic(
             node: element,
             message: UnionDiagnosticMessage(
-              "@Union case '\(name)' is never decoded: case '\(earlier.name.text)' is tried first, and \(reason). Move case '\(name)' before case '\(earlier.name.text)'.",
+              "@Union case '\(name)' is never decoded: case '\(earlier.name.text)' is tried first, and \(reason). Move case '\(name)' before case '\(earlier.name.text)'",
               id: "union-unreachable-case",
               severity: .warning
             ),
@@ -505,7 +505,7 @@ private func defaultValueDiagnostic(
     ]
   )
   let message = UnionDiagnosticMessage(
-    "@Union case '\(caseName)' cannot give its associated value a default: the payload is always decoded from the JavaScript value, so the default would never apply. Remove '\(defaultValue.trimmedDescription)'.",
+    "@Union case '\(caseName)' cannot give its associated value a default: the payload is always decoded from the JavaScript value, so the default would never apply. Remove '\(defaultValue.trimmedDescription)'",
     id: "union-case-default-value"
   )
   return Diagnostic(node: defaultValue, message: message, fixIts: [fixIt])

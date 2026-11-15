@@ -632,7 +632,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS member of an @ExpoModule class can't be 'static' or 'class': JavaScript gets one module object, and @ExpoModule binds the members of the instance to it. Make the member an instance member.",
+            "A @JS member of an @ExpoModule class can't be 'static' or 'class': JavaScript gets one module object, and @ExpoModule binds the members of the instance to it. Make the member an instance member",
           line: 3,
           column: 3,
           severity: .error
@@ -1410,12 +1410,20 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
+            "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread",
           line: 3,
           column: 3,
-          severity: .error
+          severity: .error,
+          fixIts: [FixItSpec(message: "Remove '.withAsync'")]
         )
-      ]
+      ],
+      fixedSource: """
+        @ExpoModule
+        public final class MyModule: Module {
+          @JS
+          func load() async -> Int { 0 }
+        }
+        """
     )
   }
 
@@ -1448,7 +1456,7 @@ struct ExpoModuleMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer.",
+          message: "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer",
           line: 3,
           column: 3,
           severity: .error
@@ -1488,7 +1496,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'.",
+            "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'",
           line: 3,
           column: 7,
           severity: .error
@@ -1561,7 +1569,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '@MainActor' from 'MyModule'. Mark the function 'nonisolated'.",
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '@MainActor' from 'MyModule'. Mark the function 'nonisolated'",
           line: 4,
           column: 3,
           severity: .error
@@ -1613,7 +1621,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '@MainActor'.",
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '@MainActor'",
           line: 3,
           column: 3,
           severity: .error
@@ -1663,7 +1671,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'object' can't be a 'JavaScriptObject' in a '.concurrent' function: '.concurrent' runs the body on the concurrent thread pool, and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '.concurrent'.",
+            "'object' can't be a 'JavaScriptObject' in a '.concurrent' function: '.concurrent' runs the body on the concurrent thread pool, and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '.concurrent'",
           // The test harness expands `@JS` after `@ExpoModule` adds `@concurrent` on its own line, so it
           // reports the parameter one line lower than the compiler and `expand` do (line 4).
           line: 5,
@@ -1738,7 +1746,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'value' can't be a 'JavaScriptValue' in a '.withAsync' function: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '.withAsync'.",
+            "'value' can't be a 'JavaScriptValue' in a '.withAsync' function: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '.withAsync'",
           line: 4,
           column: 20,
           severity: .error
@@ -1844,7 +1852,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'load' is already bound by an earlier '.withAsync' variant. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with .withAsync(\"...\") or @JS(\"...\").",
+            "The JavaScript name 'load' is already bound by an earlier '.withAsync' variant. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with .withAsync(\"...\") or @JS(\"...\")",
           line: 4,
           column: 8,
           severity: .error,
@@ -1906,7 +1914,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'load' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\") or .withAsync(\"...\").",
+            "The JavaScript name 'load' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\") or .withAsync(\"...\")",
           line: 6,
           column: 19,
           severity: .error,
@@ -1956,7 +1964,7 @@ struct ExpoModuleMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "'.withAsync' can be listed only once: a function gets one promise-returning variant.",
+          message: "'.withAsync' can be listed only once: a function gets one promise-returning variant",
           line: 3,
           column: 32,
           severity: .error
@@ -1997,7 +2005,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread.",
+            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread",
           line: 3,
           column: 3,
           severity: .error,
@@ -2039,7 +2047,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread.",
+            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread",
           line: 3,
           column: 3,
           severity: .error,
@@ -2067,7 +2075,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread.",
+            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread",
           line: 1,
           column: 1,
           severity: .error,
@@ -2094,7 +2102,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread.",
+            "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread",
           line: 1,
           column: 1,
           severity: .error,
@@ -2557,14 +2565,14 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS parameter can't be 'inout': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
+            "A @JS parameter can't be 'inout': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation",
           line: 2,
           column: 15,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS parameter can't be 'isolated': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
+            "A @JS parameter can't be 'isolated': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation",
           line: 4,
           column: 16,
           severity: .error
@@ -2834,7 +2842,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "An async @JS closure argument can't take or return a tuple. Use a @Record type, or a closure that isn't async.",
+            "An async @JS closure argument can't take or return a tuple. Use a @Record type, or a closure that isn't async",
           line: 5,
           column: 35,
           severity: .error
@@ -3347,14 +3355,14 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS member can't use the type '[Int: Any]': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted.",
+            "A @JS member can't use the type '[Int: Any]': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted",
           line: 5,
           column: 19,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS member can't use the type 'Set<[String: Any]>': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted.",
+            "A @JS member can't use the type 'Set<[String: Any]>': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted",
           line: 5,
           column: 34,
           severity: .error
@@ -3567,7 +3575,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'greet' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+            "The JavaScript name 'greet' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\")",
           line: 7,
           column: 8,
           severity: .error,
@@ -3620,7 +3628,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'status' is already bound by an earlier @JS property. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+            "The JavaScript name 'status' is already bound by an earlier @JS property. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\")",
           line: 7,
           column: 8,
           severity: .error,
@@ -3647,7 +3655,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of 'MyModule'.",
+            "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of 'MyModule'",
           line: 2,
           column: 3,
           severity: .error
@@ -3677,7 +3685,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead.",
+            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
           line: 3,
           column: 3,
           severity: .error,
@@ -3712,7 +3720,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead.",
+            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
           line: 3,
           column: 3,
           severity: .error
@@ -3741,7 +3749,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@JS applies to a function, property or initializer, so a subscript isn't bound to JavaScript. Expose a @JS function instead.",
+            "@JS applies to a function, property or initializer, so a subscript isn't bound to JavaScript. Expose a @JS function instead",
           line: 3,
           column: 3,
           severity: .error
@@ -3797,7 +3805,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The event name 'progress' is already used by the earlier @Event 'onProgress'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\").",
+            "The event name 'progress' is already used by the earlier @Event 'onProgress'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\")",
           line: 6,
           column: 7,
           severity: .warning,
@@ -3824,7 +3832,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS member of 'Helper' isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to 'Helper', or move the member into such a class.",
+            "A @JS member of 'Helper' isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to 'Helper', or move the member into such a class",
           line: 2,
           column: 3,
           severity: .error
@@ -3854,7 +3862,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS function or initializer can't be generic: the binding decodes each argument and encodes the result by its static type, which a generic parameter doesn't have. Use a concrete type, a @Union of the types, or 'JavaScriptValue'.",
+            "A @JS function or initializer can't be generic: the binding decodes each argument and encodes the result by its static type, which a generic parameter doesn't have. Use a concrete type, a @Union of the types, or 'JavaScriptValue'",
           line: 5,
           column: 12,
           severity: .error

@@ -178,7 +178,7 @@ struct JSNameLiteralTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'read' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+            "The JavaScript name 'read' is already bound by an earlier @JS function. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\")",
           line: 7,
           column: 8,
           severity: .error,

@@ -37,11 +37,11 @@ private func assertExpansion(
 }
 
 private let asyncMessage =
-  "A @JS function can take the JavaScript runtime only when it's synchronous: an 'async' function can resume on another thread after an 'await', and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous."
+  "A @JS function can take the JavaScript runtime only when it's synchronous: an 'async' function can resume on another thread after an 'await', and the runtime can be used only on the JavaScript thread. Remove the parameter, or make the function synchronous"
 private let labelMessage =
-  "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'."
+  "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'"
 private let borrowingMessage =
-  "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'."
+  "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'"
 
 @Suite("@JS runtime parameter")
 struct JSRuntimeParameterTests {
@@ -299,7 +299,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS function can take the JavaScript runtime only when it's synchronous: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter, or remove '.withAsync'.",
+            "A @JS function can take the JavaScript runtime only when it's synchronous: the variant that '.withAsync' adds runs the function on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter, or remove '.withAsync'",
           line: 2,
           column: 20
         )
@@ -320,7 +320,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'",
           line: 2,
           column: 11
         )
@@ -432,7 +432,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS function can take the JavaScript runtime only when it's synchronous: '.concurrent' runs the body on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter.",
+            "A @JS function can take the JavaScript runtime only when it's synchronous: '.concurrent' runs the body on the concurrent thread pool, and the runtime can be used only on the JavaScript thread. Remove the parameter",
           line: 2,
           column: 23
         )
@@ -453,7 +453,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'",
           line: 2,
           column: 11
         )
@@ -474,7 +474,7 @@ struct JSRuntimeParameterTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call.",
+            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call",
           line: 2,
           column: 36,
           fixIts: [FixItSpec(message: "Remove the optional")]

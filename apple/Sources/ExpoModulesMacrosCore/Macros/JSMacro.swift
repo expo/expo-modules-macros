@@ -43,7 +43,7 @@ public struct JSMacro: PeerMacro {
         Diagnostic(
           node: genericParameterClause,
           message: JSDiagnosticMessage(
-            "A @JS function or initializer can't be generic: the binding decodes each argument and encodes the result by its static type, which a generic parameter doesn't have. Use a concrete type, a @Union of the types, or 'JavaScriptValue'.",
+            "A @JS function or initializer can't be generic: the binding decodes each argument and encodes the result by its static type, which a generic parameter doesn't have. Use a concrete type, a @Union of the types, or 'JavaScriptValue'",
             id: "js-generic-member",
             severity: .error
           )
@@ -118,7 +118,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "@JS applies to a function, property or initializer, so \(kind) isn't bound to JavaScript. Expose a @JS function instead.",
+          "@JS applies to a function, property or initializer, so \(kind) isn't bound to JavaScript. Expose a @JS function instead",
           id: "js-unsupported-declaration",
           severity: .error
         )
@@ -132,7 +132,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'.",
+          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'",
           id: "js-in-extension",
           severity: .error
         )
@@ -148,7 +148,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of \(typeName) isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to \(typeName), or move the member into such a class.",
+          "A @JS member of \(typeName) isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to \(typeName), or move the member into such a class",
           id: "js-outside-binding-class",
           severity: .error
         )
@@ -164,7 +164,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of an @ExpoModule class can't be 'static' or 'class': JavaScript gets one module object, and @ExpoModule binds the members of the instance to it. Make the member an instance member.",
+          "A @JS member of an @ExpoModule class can't be 'static' or 'class': JavaScript gets one module object, and @ExpoModule binds the members of the instance to it. Make the member an instance member",
           id: "js-module-static-member",
           severity: .error
         )
@@ -180,7 +180,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead.",
+          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
           id: "js-module-initializer",
           severity: .error
         ),
@@ -223,7 +223,7 @@ private func diagnoseSymbolArgument(
       Diagnostic(
         node: argument,
         message: JSDiagnosticMessage(
-          "'symbol:' applies only to a @JS function or property: JavaScript constructs a shared object with 'new', so an initializer isn't bound under a key.",
+          "'symbol:' applies only to a @JS function or property: JavaScript constructs a shared object with 'new', so an initializer isn't bound under a key",
           id: "js-symbol-on-initializer",
           severity: .error
         )
@@ -236,7 +236,7 @@ private func diagnoseSymbolArgument(
       Diagnostic(
         node: argument.expression,
         message: JSDiagnosticMessage(
-          "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string.",
+          "'symbol:' takes a well-known symbol, such as '.iterator', or the registry key of 'Symbol.for' as a string literal, such as \"app.id\". The macro reads the argument from the source, so it can't be a variable, a constant or an interpolated string",
           id: "js-symbol-argument",
           severity: .error
         )
@@ -265,7 +265,7 @@ private func diagnoseConcurrentOption(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread.",
+          "'.concurrent' needs an 'async' function: a synchronous @JS member runs on the JavaScript thread by definition. Mark the function 'async' to run its body off that thread",
           id: "js-concurrent-requires-async",
           severity: .error
         ),
@@ -278,7 +278,7 @@ private func diagnoseConcurrentOption(
     Diagnostic(
       node: node,
       message: JSDiagnosticMessage(
-        "'.concurrent' applies only to an 'async' @JS function, not to a property or initializer.",
+        "'.concurrent' applies only to an 'async' @JS function, not to a property or initializer",
         id: "js-concurrent-requires-function",
         severity: .error
       )
@@ -302,7 +302,7 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer.",
+          "'.withAsync' applies only to a synchronous @JS function, not to a property or initializer",
           id: "js-async-variant-requires-function",
           severity: .error
         )
@@ -315,10 +315,11 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
+          "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread",
           id: "js-async-variant-on-async-function",
           severity: .error
-        )
+        ),
+        fixIts: removeAsyncVariantFixIt(from: node).map { [$0] } ?? []
       )
     )
     return
@@ -328,7 +329,7 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: duplicate,
         message: JSDiagnosticMessage(
-          "'.withAsync' can be listed only once: a function gets one promise-returning variant.",
+          "'.withAsync' can be listed only once: a function gets one promise-returning variant",
           id: "js-async-variant-duplicate",
           severity: .error
         )
@@ -340,7 +341,7 @@ private func diagnoseAsyncVariantOption(
       Diagnostic(
         node: option,
         message: JSDiagnosticMessage(
-          "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'.",
+          "'.withAsync' takes the JavaScript name of the variant as a string literal, for example '.withAsync(\"loadAsync\")'",
           id: "js-async-variant-name",
           severity: .error
         )
@@ -353,15 +354,30 @@ private func diagnoseAsyncVariantOption(
         node: node,
         message: JSDiagnosticMessage(
           isolation.enclosingTypeName.map {
-            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '\(isolation.attribute)' from '\($0)'. Mark the function 'nonisolated'."
+            "'.withAsync' calls the function on the concurrent thread pool, so the function can't inherit '\(isolation.attribute)' from '\($0)'. Mark the function 'nonisolated'"
           }
-            ?? "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '\(isolation.attribute)'.",
+            ?? "'.withAsync' calls the function on the concurrent thread pool, so the function can't be isolated to '\(isolation.attribute)'",
           id: "js-async-variant-isolated",
           severity: .error
         )
       )
     )
   }
+}
+
+/// The fix-it that removes the `.withAsync` option of an `async` function. It is offered only for one
+/// option written as an argument of the attribute, not in an array literal. It is the only fix-it:
+/// replacing the option with `.concurrent` would be an alternative, and `fix` skips a diagnostic with
+/// alternatives.
+private func removeAsyncVariantFixIt(from node: AttributeSyntax) -> FixIt? {
+  let options = asyncVariantOptions(of: node)
+  guard options.count == 1, let argument = options.first?.parent?.as(LabeledExprSyntax.self) else {
+    return nil
+  }
+  return FixIt(
+    message: JSFixItMessage("Remove '.withAsync'", id: "js-remove-async-variant"),
+    changes: [.replace(oldNode: Syntax(node), newNode: Syntax(removingArgument(argument, from: node)))]
+  )
 }
 
 /// The global actor a function is isolated to, written on the function itself or inherited from its
@@ -462,7 +478,7 @@ private func diagnoseJavaScriptValuesOffThread(
       Diagnostic(
         node: parameter.type,
         message: JSDiagnosticMessage(
-          "'\(parameterName)' can't be a '\(name)' in a '\(option)' function: \(reason), and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '\(option)'.",
+          "'\(parameterName)' can't be a '\(name)' in a '\(option)' function: \(reason), and a JavaScript value is valid only on the JavaScript thread. Take a native type that the value decodes to, such as a @Record or [String: Any], or remove '\(option)'",
           id: "js-javascript-value-off-thread",
           severity: .error
         )
@@ -494,16 +510,16 @@ private func diagnoseRuntimeParameter(
     // function synchronous doesn't help (a synchronous `.concurrent` function is an error too).
     let offThread: (reason: String, remedy: String)?
     if hasOption(node, named: "concurrent") {
-      offThread = ("'.concurrent' runs the body on the concurrent thread pool", "Remove the parameter.")
+      offThread = ("'.concurrent' runs the body on the concurrent thread pool", "Remove the parameter")
     } else if funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil {
       offThread = (
         "an 'async' function can resume on another thread after an 'await'",
-        "Remove the parameter, or make the function synchronous."
+        "Remove the parameter, or make the function synchronous"
       )
     } else if asyncVariantOption(of: node) != nil {
       offThread = (
         "the variant that '.withAsync' adds runs the function on the concurrent thread pool",
-        "Remove the parameter, or remove '.withAsync'."
+        "Remove the parameter, or remove '.withAsync'"
       )
     } else {
       offThread = nil
@@ -534,7 +550,7 @@ private func diagnoseRuntimeParameter(
         Diagnostic(
           node: parameter,
           message: JSDiagnosticMessage(
-            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'.",
+            "The JavaScript runtime must be the last parameter of a @JS function or initializer, and only one parameter can take it. Move it to the end as 'in runtime: borrowing JavaScriptRuntime'",
             id: "js-runtime-parameter-position",
             severity: .error
           )
@@ -549,7 +565,7 @@ private func diagnoseRuntimeParameter(
         Diagnostic(
           node: parameter.firstName,
           message: JSDiagnosticMessage(
-            "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'.",
+            "The parameter that takes the JavaScript runtime must be labeled 'in', as in 'in runtime: borrowing JavaScriptRuntime'",
             id: "js-runtime-parameter-label",
             severity: .error
           ),
@@ -564,7 +580,7 @@ private func diagnoseRuntimeParameter(
         Diagnostic(
           node: specified.type,
           message: JSDiagnosticMessage(
-            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call.",
+            "The parameter that takes the JavaScript runtime can't be optional: the binding always passes the runtime of the call",
             id: "js-runtime-parameter-optional",
             severity: .error
           ),
@@ -591,7 +607,7 @@ private func diagnoseRuntimeParameter(
         Diagnostic(
           node: parameter.type,
           message: JSDiagnosticMessage(
-            "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'.",
+            "The parameter that takes the JavaScript runtime must be 'borrowing': the runtime can be used only on the JavaScript thread, and a borrowed parameter can't be kept for later without an explicit 'copy'",
             id: "js-runtime-parameter-borrowing",
             severity: .error
           ),
@@ -661,7 +677,7 @@ private func diagnoseParameterSpecifiers(
       Diagnostic(
         node: parameter.type,
         message: JSDiagnosticMessage(
-          "A @JS parameter can't be '\(specifier)': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation.",
+          "A @JS parameter can't be '\(specifier)': its argument is a value decoded from JavaScript, which can't be written back or carry an isolation",
           id: "js-parameter-specifier",
           severity: .error
         )
@@ -710,7 +726,7 @@ private func diagnoseFreeFormTypes(
 
 private func unconvertibleFreeFormError(for type: String) -> JSDiagnosticMessage {
   return JSDiagnosticMessage(
-    "A @JS member can't use the type '\(type)': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted.",
+    "A @JS member can't use the type '\(type)': a type holding 'Any' converts to and from JavaScript only when it's built from 'Any', arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as '[String: Any]', or 'JavaScriptValue' to keep the JavaScript value unconverted",
     id: "js-free-form-unsupported",
     severity: .error
   )

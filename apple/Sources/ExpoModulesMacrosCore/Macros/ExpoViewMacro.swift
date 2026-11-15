@@ -65,7 +65,7 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
     // `@ViewProps` rejects generic props types for the same reason.
     if classDecl.genericParameterClause != nil {
       throw MacroExpansionErrorMessage(
-        "@ExpoView does not support generic classes — a view registered with @ExpoModule(views:) must be concrete"
+        "@ExpoView does not support generic classes: a view registered with @ExpoModule(views:) must be concrete"
       )
     }
 
@@ -143,7 +143,7 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
 /// can't make (see the indirect-inheritance note on `expoViewBaseClassNames`).
 private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagnostic {
   let message = ExpoViewDiagnosticMessage(
-    "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration.",
+    "@ExpoView class must inherit from ExpoNativeView. Add `: ExpoNativeView` to the class declaration",
     id: "expoview-missing-base-class"
   )
   var fixIts: [FixIt] = []

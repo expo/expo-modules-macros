@@ -149,10 +149,8 @@ private func validatedEvent(
   guard let varDecl = declaration.as(VariableDeclSyntax.self) else {
     throw MacroExpansionErrorMessage("@Event can only be applied to a property")
   }
-  if varDecl.attributes.firstAttribute(named: "JS") != nil {
-    throw MacroExpansionErrorMessage(
-      "@Event and @JS cannot be combined on the same property; an event is exposed to JS on its own, so remove one of the attributes"
-    )
+  if let jsAttribute = varDecl.attributes.firstAttribute(named: "JS") {
+    throw jsAttributeDiagnostic(for: jsAttribute)
   }
   // The compiler also rejects accessor macros on a `let`, but with a generic message; this one says
   // what to do instead and carries the fix-it doing it. The synthesized property is getter-only, so
@@ -160,26 +158,22 @@ private func validatedEvent(
   if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
     throw letBindingDiagnostic(for: varDecl)
   }
-  if varDecl.modifiers.contains(where: isTypeLevelModifier) {
-    throw MacroExpansionErrorMessage(
-      "@Event must be an instance property; events are emitted from a module or shared object instance."
-    )
+  if let typeLevelModifier = varDecl.modifiers.first(where: isTypeLevelModifier) {
+    throw typeLevelModifierDiagnostic(for: typeLevelModifier)
   }
   guard varDecl.bindings.count == 1, let binding = varDecl.bindings.first,
     let identifier = binding.pattern.as(IdentifierPatternSyntax.self)
   else {
     throw MacroExpansionErrorMessage(
-      "@Event must be applied to a single named property; declare each event separately"
+      "@Event must be applied to a single named property. Declare each event separately"
     )
   }
-  if binding.initializer != nil {
-    throw MacroExpansionErrorMessage(
-      "@Event property cannot have an initial value; the macro synthesizes the closure"
-    )
+  if let initializer = binding.initializer {
+    throw initialValueDiagnostic(for: initializer, in: binding, of: varDecl)
   }
   if binding.accessorBlock != nil {
     throw MacroExpansionErrorMessage(
-      "@Event property cannot declare its own accessors; the macro synthesizes the getter"
+      "@Event property cannot declare its own accessors: the macro synthesizes the getter"
     )
   }
   guard let functionType = underlyingFunctionType(of: binding.typeAnnotation?.type) else {
@@ -188,13 +182,11 @@ private func validatedEvent(
     )
   }
   guard isVoidReturn(functionType.returnClause.type) else {
-    throw MacroExpansionErrorMessage(
-      "@Event function type must return 'Void'; an event dispatches to JS and has no return value"
-    )
+    throw returnTypeDiagnostic(for: functionType.returnClause.type)
   }
   guard functionType.parameters.count <= 1 else {
     throw MacroExpansionErrorMessage(
-      "@Event function type takes at most one payload parameter; combine multiple values into a single record"
+      "@Event function type takes at most one payload parameter. Combine multiple values into a single record"
     )
   }
   // The payload is encoded to JavaScript, and a native closure can't be encoded.
@@ -203,7 +195,7 @@ private func validatedEvent(
       Diagnostic(
         node: payloadClosure,
         message: EventDiagnosticMessage(
-          "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded.",
+          "@Event payload can't hold a closure: the payload is encoded to JavaScript, and a native closure can't be encoded",
           id: "event-closure-payload"
         )
       )
@@ -259,7 +251,7 @@ private func eventDispatch(of node: AttributeSyntax) throws -> EventDispatch {
 /// a diagnostic with alternatives.
 private func conflictingOptionsDiagnostic(in node: AttributeSyntax) -> DiagnosticsError {
   let message = EventDiagnosticMessage(
-    "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+    "@Event can't be both '.inline' and '.blocking': '.blocking' also runs the listeners inline on the JS thread. Remove one of the options",
     id: "event-conflicting-options"
   )
   guard let arguments = node.arguments?.as(LabeledExprListSyntax.self),
@@ -268,17 +260,11 @@ private func conflictingOptionsDiagnostic(in node: AttributeSyntax) -> Diagnosti
     return DiagnosticsError(diagnostics: [Diagnostic(node: node, message: message)])
   }
   let removed = arguments[index]
-  var remaining = Array(arguments)
-  remaining.removeAll { $0.id == removed.id }
-  // The argument before the removed one keeps its comma only when another argument follows it.
-  if let last = remaining.indices.last {
-    remaining[last] = remaining[last].with(\.trailingComma, nil)
-  }
   let optionName = removed.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text ?? "option"
   let fixIt = FixIt(
     message: EventFixItMessage("Remove '.\(optionName)'", id: "event-remove-option"),
     changes: [
-      .replace(oldNode: Syntax(arguments), newNode: Syntax(LabeledExprListSyntax(remaining)))
+      .replace(oldNode: Syntax(node), newNode: Syntax(removingArgument(removed, from: node)))
     ]
   )
   return DiagnosticsError(diagnostics: [Diagnostic(node: node, message: message, fixIts: [fixIt])])
@@ -356,12 +342,92 @@ private func letBindingDiagnostic(for varDecl: VariableDeclSyntax) -> Diagnostic
     ]
   )
   let message = EventDiagnosticMessage(
-    "@Event must be applied to a 'var': it expands into a computed property, which a 'let' cannot be. The synthesized property is read-only anyway.",
+    "@Event must be applied to a 'var': it expands into a computed property, which a 'let' cannot be. The synthesized property is read-only anyway",
     id: "event-on-let"
   )
   return DiagnosticsError(diagnostics: [
     Diagnostic(node: specifier, message: message, fixIts: [fixIt])
   ])
+}
+
+// MARK: - Declaration shape diagnostics
+
+/// The error for `@Event @JS var`, attached to `@JS` and carrying a fix-it that removes it. An event
+/// is exposed to JavaScript through `addListener`, so `@JS` has nothing to add. Removing it also
+/// removes the error `@JS` reports for a property with a closure type.
+private func jsAttributeDiagnostic(for attribute: AttributeSyntax) -> DiagnosticsError {
+  let fixIt = FixIt(
+    message: EventFixItMessage("Remove '@JS'", id: "event-remove-js"),
+    changes: removalChanges(of: attribute)
+  )
+  let message = EventDiagnosticMessage(
+    "@Event and @JS can't be combined on the same property: an event is exposed to JavaScript on its own. Remove @JS",
+    id: "event-with-js"
+  )
+  return DiagnosticsError(diagnostics: [Diagnostic(node: attribute, message: message, fixIts: [fixIt])])
+}
+
+/// The error for `@Event static var` or `@Event class var`, attached to the modifier and carrying a
+/// fix-it that removes it.
+private func typeLevelModifierDiagnostic(for modifier: DeclModifierSyntax) -> DiagnosticsError {
+  let keyword = modifier.name.text
+  let fixIt = FixIt(
+    message: EventFixItMessage("Remove '\(keyword)'", id: "event-remove-type-level-modifier"),
+    changes: removalChanges(of: modifier)
+  )
+  let message = EventDiagnosticMessage(
+    "@Event must be an instance property: events are emitted from a module or shared object instance. Remove '\(keyword)'",
+    id: "event-type-level"
+  )
+  return DiagnosticsError(diagnostics: [Diagnostic(node: modifier, message: message, fixIts: [fixIt])])
+}
+
+/// The error for an `@Event` property with an initial value, attached to the initializer. When the
+/// property declares its type, a fix-it removes the initial value; without the type, the property
+/// would be left with no type at all.
+private func initialValueDiagnostic(
+  for initializer: InitializerClauseSyntax,
+  in binding: PatternBindingSyntax,
+  of varDecl: VariableDeclSyntax
+) -> DiagnosticsError {
+  let message = EventDiagnosticMessage(
+    "@Event property can't have an initial value: the macro synthesizes the closure. Remove the initial value",
+    id: "event-initial-value"
+  )
+  guard binding.typeAnnotation != nil else {
+    return DiagnosticsError(diagnostics: [Diagnostic(node: initializer, message: message)])
+  }
+  // The type before the initializer takes over the trailing trivia of the initializer, so the space
+  // before `=` doesn't stay behind.
+  var newBinding = binding.with(\.initializer, nil)
+  newBinding.typeAnnotation?.trailingTrivia = initializer.trailingTrivia
+  let fixIt = FixIt(
+    message: EventFixItMessage("Remove the initial value", id: "event-remove-initial-value"),
+    changes: [
+      .replace(
+        oldNode: Syntax(varDecl),
+        newNode: Syntax(varDecl.with(\.bindings, PatternBindingListSyntax([newBinding])))
+      )
+    ]
+  )
+  return DiagnosticsError(diagnostics: [Diagnostic(node: initializer, message: message, fixIts: [fixIt])])
+}
+
+/// The error for an `@Event` function type that doesn't return `Void`, attached to the return type
+/// and carrying a fix-it that replaces it with `Void`.
+private func returnTypeDiagnostic(for returnType: TypeSyntax) -> DiagnosticsError {
+  let voidType = TypeSyntax(IdentifierTypeSyntax(name: .identifier("Void")))
+    .with(\.leadingTrivia, returnType.leadingTrivia)
+    .with(\.trailingTrivia, returnType.trailingTrivia)
+  let fixIt = FixIt(
+    message: EventFixItMessage("Replace '\(returnType.trimmedDescription)' with 'Void'", id: "event-return-void"),
+    changes: [.replace(oldNode: Syntax(returnType), newNode: Syntax(voidType))]
+  )
+  let message = EventDiagnosticMessage(
+    "@Event function type must return 'Void': an event dispatches to JavaScript and has no return value",
+    id: "event-non-void-return"
+  )
+  return DiagnosticsError(diagnostics: [Diagnostic(node: returnType, message: message, fixIts: [fixIt])])
 }
 
 private struct EventDiagnosticMessage: DiagnosticMessage {

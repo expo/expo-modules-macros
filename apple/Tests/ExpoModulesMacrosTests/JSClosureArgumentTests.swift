@@ -553,7 +553,7 @@ struct JSClosureArgumentTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return.",
+            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return",
           line: 5,
           column: 22,
           severity: .error,
@@ -580,7 +580,7 @@ struct JSClosureArgumentTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return.",
+            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return",
           line: 2,
           column: 20,
           severity: .error,
@@ -607,7 +607,7 @@ struct JSClosureArgumentTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return.",
+            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return",
           line: 2,
           column: 18,
           severity: .error,
@@ -639,26 +639,53 @@ struct JSClosureArgumentTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "A @JS function can't return a closure: a native closure can't be encoded to a JavaScript function.",
+          message: "A @JS function can't return a closure: a native closure can't be encoded to a JavaScript function",
           line: 2,
           column: 23,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function.",
+            "A @JS property can't have a closure type: a native closure can't be encoded to a JavaScript function",
           line: 4,
           column: 15,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A closure in a @JS argument must be the argument's own type, optionally wrapped in an optional. Closures inside other types, such as arrays or dictionaries, aren't supported.",
+            "A closure in a @JS argument must be the argument's own type, optionally wrapped in an optional. Closures inside other types, such as arrays or dictionaries, aren't supported",
           line: 6,
           column: 27,
           severity: .error
         ),
       ]
+    )
+  }
+
+  @Test
+  func `The typed throws fix-it replaces the typed throws with throws`() {
+    assertExpansion(
+      """
+      @JS
+      func run(callback: @escaping (Int) throws(MyError) -> Void) {}
+      """,
+      expandedSource: """
+        func run(callback: @escaping (Int) throws(MyError) -> Void) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type",
+          line: 2,
+          column: 36,
+          severity: .error,
+          fixIts: [FixItSpec(message: "Replace 'throws(MyError)' with 'throws'")]
+        )
+      ],
+      fixedSource: """
+        @JS
+        func run(callback: @escaping (Int) throws -> Void) {}
+        """
     )
   }
 
@@ -687,41 +714,42 @@ struct JSClosureArgumentTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'@MainActor' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed.",
+            "'@MainActor' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed",
           line: 2,
           column: 18,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
+            "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type",
           line: 4,
           column: 24,
-          severity: .error
+          severity: .error,
+          fixIts: [FixItSpec(message: "Replace 'throws(MyError)' with 'throws'")]
         ),
         DiagnosticSpec(
-          message: "A @JS closure argument can't take or return another closure.",
+          message: "A @JS closure argument can't take or return another closure",
           line: 6,
           column: 19,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS closure argument can't use the free-form 'Any'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS closure argument can't use the free-form 'Any'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged",
           line: 8,
           column: 19,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS closure argument can't use the free-form '[String: Any]?'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS closure argument can't use the free-form '[String: Any]?'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged",
           line: 10,
           column: 19,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS closure argument can't use the free-form '[String: [Any]]'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged.",
+            "A @JS closure argument can't use the free-form '[String: [Any]]'. Use a concrete type, or 'JavaScriptValue' to pass a JS value through unchanged",
           line: 10,
           column: 45,
           severity: .error
@@ -755,20 +783,20 @@ struct JSClosureArgumentTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS closure argument can't take an 'inout' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
+            "A @JS closure argument can't take an 'inout' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation",
           line: 2,
           column: 25,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "A @JS closure argument can't take an 'isolated' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation.",
+            "A @JS closure argument can't take an 'isolated' parameter: its value is encoded and sent to JavaScript, which can't write it back or share its isolation",
           line: 4,
           column: 28,
           severity: .error
         ),
         DiagnosticSpec(
-          message: "A @JS closure argument can't take a variadic parameter. Use an array instead.",
+          message: "A @JS closure argument can't take a variadic parameter. Use an array instead",
           line: 6,
           column: 19,
           severity: .error

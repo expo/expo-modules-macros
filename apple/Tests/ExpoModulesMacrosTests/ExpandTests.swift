@@ -354,6 +354,124 @@ struct FixTests {
   }
 
   @Test
+  func `Applies the Fix-Its of @Event, @Record, typed throws and .withAsync`() throws {
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event static var onA: () -> Void
+        @Event @JS var onB: () -> Void
+        @JS @Event var onC: () -> Void
+        @Event // The C event
+        @JS
+        var onD: () -> Void
+        @Event var onE: () -> Int
+        @Event var onF: () -> Void = {}
+
+        @JS
+        func run(_ callback: @escaping (Int) throws(MyError) -> Void) {}
+
+        @JS(.withAsync("loadAsync"))
+        func load() async -> Int { 1 }
+
+        @JS(.withAsync("saveAsync"), .concurrent)
+        func save() async {}
+      }
+
+      @Record
+      struct Options {
+        @Field var name: String = ""
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(
+        fixed == """
+          @ExpoModule
+          public final class MyModule: Module {
+            @Event var onA: () -> Void
+            @Event var onB: () -> Void
+            @Event var onC: () -> Void
+            @Event // The C event
+
+            var onD: () -> Void
+            @Event var onE: () -> Void
+            @Event var onF: () -> Void
+
+            @JS
+            func run(_ callback: @escaping (Int) throws -> Void) {}
+
+            @JS
+            func load() async -> Int { 1 }
+
+            @JS(.concurrent)
+            func save() async {}
+          }
+
+          @Record
+          struct Options {
+            var name: String = ""
+          }
+
+          """
+      )
+      #expect(expandMacros(source: fixed, file: file, symbols: []).diagnostics.isEmpty)
+    }
+  }
+
+  @Test
+  func `Removing @JS after a line comment keeps the property out of the comment`() throws {
+    // In a module, `@JavaScriptActor` follows `@JS` and takes over its trivia, so the macro can't
+    // tell whether `@JS` is alone on its line. The line break after the comment must stay either way.
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event // The A event
+        @JS var onA: () -> Void
+        @Event // The B event
+        @JS
+        var onB: () -> Void
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(
+        fixed == """
+          @ExpoModule
+          public final class MyModule: Module {
+            @Event // The A event
+           var onA: () -> Void
+            @Event // The B event
+
+            var onB: () -> Void
+          }
+
+          """
+      )
+      #expect(expandMacros(source: fixed, file: file, symbols: []).diagnostics.isEmpty)
+    }
+  }
+
+  @Test
+  func `Removing the initial value of an @Event with accessors leaves no space after them`() throws {
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event var onA: (Int) -> Void = { _ in } { didSet {} }
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(fixed.contains("  @Event var onA: (Int) -> Void { didSet {} }\n"))
+    }
+  }
+
+  @Test
   func `With a symbol, applies only the Fix-Its inside its declaration`() throws {
     let source = """
       @ExpoModule

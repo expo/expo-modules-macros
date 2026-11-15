@@ -948,7 +948,7 @@ struct SharedObjectMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'size' is already bound by an earlier @JS property. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\").",
+            "The JavaScript name 'size' is already bound by an earlier @JS property. A JavaScript object holds one member per name, so JavaScript could reach only one of them. Give one of them another name with @JS(\"...\")",
           line: 7,
           column: 7,
           severity: .error,
@@ -1564,7 +1564,7 @@ struct ExpoModuleClassesTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The event name 'statusChange' is already used by the earlier @Event 'onStatusChange'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\").",
+            "The event name 'statusChange' is already used by the earlier @Event 'onStatusChange'. Both properties emit the same event, so a JavaScript listener can't tell them apart. Give one of them another name with @Event(\"...\")",
           line: 6,
           column: 7,
           severity: .warning,
@@ -1593,7 +1593,7 @@ struct ExpoModuleClassesTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@SharedObject class 'Cache' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration.",
+            "@SharedObject class 'Cache' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration",
           line: 2,
           column: 20,
           fixIts: [FixItSpec(message: "Inherit from 'SharedObject'")]
@@ -1669,14 +1669,14 @@ struct ExpoModuleClassesTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The JavaScript name 'constructor' can't be bound: a member named 'constructor' replaces the prototype's reference to the class. Give the @JS function another name with @JS(\"...\").",
+            "The JavaScript name 'constructor' can't be bound: a member named 'constructor' replaces the prototype's reference to the class. Give the @JS function another name with @JS(\"...\")",
           line: 4,
           column: 8,
           severity: .error
         ),
         DiagnosticSpec(
           message:
-            "The JavaScript name 'prototype' can't be bound: a static member named 'prototype' replaces the prototype that holds the instance members. Give the @JS property another name with @JS(\"...\").",
+            "The JavaScript name 'prototype' can't be bound: a static member named 'prototype' replaces the prototype that holds the instance members. Give the @JS property another name with @JS(\"...\")",
           line: 7,
           column: 14,
           severity: .error
