@@ -483,7 +483,7 @@ export interface ScanStats {
 }
 
 /**
- * One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
+ * One class in the `scan-packages` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
  * class in `sharedObjects`, or an `@ExpoView` class in `views`.
  */
 export interface ScannedClass {
@@ -507,8 +507,8 @@ export interface ScannedClass {
   file: string;
 }
 
-/** The `scan-modules` result. */
-export interface ScanModulesResult {
+/** The `scan-packages` result. */
+export interface ScanPackagesResult {
   schemaVersion: number;
   /** The top-level `@ExpoModule` classes. */
   modules: ScannedClass[];
@@ -519,6 +519,9 @@ export interface ScanModulesResult {
   warnings: ScanWarning[];
   stats: ScanStats;
 }
+
+/** @deprecated Renamed to `ScanPackagesResult`. */
+export type ScanModulesResult = ScanPackagesResult;
 
 /** The `scan-exports` result. */
 export interface ScanExportsResult {
@@ -580,6 +583,9 @@ export interface ExpandResult {
  * `schemaVersion` in each report and throws on a mismatch, so a binary/wrapper version skew surfaces
  * as a clear error instead of silently misread fields.
  */
-export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = 2;
+export const SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION = 2;
 export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 12;
 export const SUPPORTED_EXPAND_SCHEMA_VERSION = 1;
+
+/** @deprecated Renamed to `SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION`. */
+export const SUPPORTED_SCAN_MODULES_SCHEMA_VERSION = SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION;

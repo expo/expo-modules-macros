@@ -12,7 +12,7 @@ import CRT
 // The binary that this package ships as `ExpoModulesMacros`: the compiler plugin, which CocoaPods
 // builds load, and the scanner CLI, which `expo-modules-autolinking` and `expo-modules-cli` run. The
 // compiler always launches a plugin executable without arguments and speaks the plugin protocol over
-// stdin, so any argument means a scanner invocation (`ExpoModulesMacros scan-modules <path>...`);
+// stdin, so any argument means a scanner invocation (`ExpoModulesMacros scan-packages <path>...`);
 // with none, this starts the plugin server. The CLI gets `expandMacros`, so `expand` runs the macros
 // of this executable.
 let arguments = Array(CommandLine.arguments.dropFirst())

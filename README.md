@@ -82,12 +82,12 @@ The Swift compiler launches a plugin executable with no arguments and speaks the
 ExpoModulesMacros <subcommand> [options] <path> [<path> ...]
 
 subcommands:
-  scan-modules   fast scan for top-level @ExpoModule and @SharedObject types (autolinking)
+  scan-packages  fast scan for top-level @ExpoModule, @SharedObject and @ExpoView classes (autolinking)
   scan-exports   deep scan of the full JS-exported surface (type generation)
   expand         print the code that the macros generate, and the macro diagnostics
   fix            apply the Fix-Its of the macro diagnostics to the files
 
-options (scan-modules only):
+options (scan-packages only):
   --define <flag>   treat a conditional compilation flag as set; repeatable
 
 options (expand and fix):
@@ -101,6 +101,8 @@ options (fix only):
   --dry-run            print the Fix-Its without changing the files
   --only-errors        apply only the Fix-Its of errors, not those of warnings
 ```
+
+`scan-modules` is a deprecated alias of `scan-packages`, and `scanModules()` of `scanPackages()` in the TypeScript wrapper.
 
 For the scans, each path is a `.swift` file or a directory, scanned recursively for `.swift` files. Both scans print a JSON report to stdout, each carrying its own `schemaVersion` so a consumer can check it understands the shape before trusting it. The two versions are independent: the commands serve different consumers and change for different reasons.
 
@@ -159,9 +161,9 @@ The exit code is `0` also when a Fix-It is skipped or errors remain, `1` when a 
 Node consumers can call the scanner through this package instead of locating the binary and shelling out themselves:
 
 ```ts
-import { expandMacros, scanModules, scanExports } from 'expo-modules-macros';
+import { expandMacros, scanPackages, scanExports } from 'expo-modules-macros';
 
-const { modules, warnings } = await scanModules(['ios/'], { defines: ['DEBUG'], timeout: 30_000 });
+const { modules, warnings } = await scanPackages(['ios/'], { defines: ['DEBUG'], timeout: 30_000 });
 const { exports } = await scanExports(['ios/']);
 const { files } = await expandMacros(['ios/HapticsModule.swift'], { symbols: ['HapticsModule.impactAsync'] });
 ```

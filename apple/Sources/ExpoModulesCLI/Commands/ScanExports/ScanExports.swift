@@ -9,7 +9,7 @@ import Foundation
 
 extension Scanner {
   /// Runs `scan-exports` over `paths`, prints the JSON report to stdout, and returns the exit code
-  /// (`0` on success, `1` if encoding fails). The deep counterpart to `runModules`.
+  /// (`0` on success, `1` if encoding fails). The deep counterpart to `runPackages`.
   public static func runExports(paths: [String]) -> Int32 {
     let result = scanExports(paths: paths)
 

@@ -4,7 +4,7 @@
 // Scans test modules through the `expo-modules-macros` package in the given directory, as a project
 // would. `getScannerBinaryPath()` must return the binary for this machine: `apple/ExpoModulesMacros`
 // on macOS, and the one in the installed `@expo/modules-macros-<platform>-<arch>` package on Windows
-// and Linux. `scanModules` must then report a module, `expandMacros` must expand it, and
+// and Linux. `scanPackages` must then report a module, `expandMacros` must expand it, and
 // `scanExports` must report the surface in `check-scan-exports.json` for `EXPORTS_FIXTURE`, the same
 // on every platform. The macOS, Windows and Linux workflows run it with the binaries they build, and
 // the Publish workflow with the release binaries before it publishes them.
@@ -189,7 +189,7 @@ async function update(scanExports) {
   console.log(`Wrote ${expectedExportsPath}`);
 }
 
-async function check({ expandMacros, getScannerBinaryPath, scanExports, scanModules }) {
+async function check({ expandMacros, getScannerBinaryPath, scanExports, scanPackages }) {
   const binaryPath = getScannerBinaryPath();
   if (!binaryPath.endsWith(expectedBinaryPath)) {
     throw new Error(`getScannerBinaryPath() returned ${binaryPath}, not a path ending in ${expectedBinaryPath}`);
@@ -200,12 +200,12 @@ async function check({ expandMacros, getScannerBinaryPath, scanExports, scanModu
   try {
     const moduleFile = path.join(fixture, 'Module.swift');
     fs.writeFileSync(moduleFile, '@ExpoModule\npublic final class ScanCheckModule {}\n');
-    const result = await scanModules([fixture], { timeout: 60_000 });
+    const result = await scanPackages([fixture], { timeout: 60_000 });
     const module = result.modules.find((candidate) => candidate.name === 'ScanCheckModule');
     if (!module) {
-      throw new Error(`scanModules didn't report ScanCheckModule:\n${JSON.stringify(result, null, 2)}`);
+      throw new Error(`scanPackages didn't report ScanCheckModule:\n${JSON.stringify(result, null, 2)}`);
     }
-    console.log(`scanModules reported ${module.name} in ${module.file}`);
+    console.log(`scanPackages reported ${module.name} in ${module.file}`);
 
     const expanded = await expandMacros([moduleFile], { timeout: 60_000 });
     const source = expanded.files[0]?.expansions[0]?.source ?? '';

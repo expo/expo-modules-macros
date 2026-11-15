@@ -42,7 +42,7 @@ struct ExpandCLITests {
   }
 
   @Test(arguments: [
-    ["scan-modules", "--json", "/tmp"],
+    ["scan-packages", "--json", "/tmp"],
     ["scan-exports", "--symbol", "MyModule", "/tmp"],
     ["scan-exports", "--diagnostics-only", "/tmp"],
   ])
@@ -51,7 +51,7 @@ struct ExpandCLITests {
   }
 
   @Test
-  func `expand rejects the scan-modules options`() {
+  func `expand rejects the scan-packages options`() {
     #expect(ScannerCLI.run(arguments: ["expand", "--define", "DEBUG", "File.swift"], expander: stubExpander()) == 2)
   }
 

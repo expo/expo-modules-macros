@@ -12,14 +12,14 @@ import Foundation
 /// The detection model (`Detection`, `DetectionVisitor`, …) stays `internal`: tests reach it via
 /// `@testable import`, and the CLI only needs these entries, so nothing else is exposed.
 public enum Scanner {
-  /// Runs the `scan-modules` command over `paths`, prints the JSON report to stdout, and returns a
+  /// Runs the `scan-packages` command over `paths`, prints the JSON report to stdout, and returns a
   /// process exit code: `0` on success, `1` if encoding fails. (The deep `scan-exports` command has
   /// its own `runExports` entry returning its own result type.)
   ///
-  /// `defines` (the `--define` options) asserts conditional compilation flags; see `scanModules`
+  /// `defines` (the `--define` options) asserts conditional compilation flags; see `scanPackages`
   /// for how they and platforms shape each module's `platforms` list.
-  public static func runModules(paths: [String], defines: [String] = []) -> Int32 {
-    let result = scanModules(paths: paths, defines: Set(defines))
+  public static func runPackages(paths: [String], defines: [String] = []) -> Int32 {
+    let result = scanPackages(paths: paths, defines: Set(defines))
 
     do {
       let encoder = JSONEncoder()
@@ -34,7 +34,7 @@ public enum Scanner {
   }
 }
 
-/// One class in the `scan-modules` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
+/// One class in the `scan-packages` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
 /// class in `sharedObjects`, or an `@ExpoView` class in `views`. Trimmed to what `expo-modules-autolinking` needs to register the class:
 /// the Swift class name, the JS name it registers under, the platforms that include it, and the file
 /// it's in. The richer fields the visitor captures (declaration kind, raw macro arguments,
@@ -67,17 +67,17 @@ struct ScannedClass: Codable, Equatable {
   let file: String
 }
 
-/// Version of the `scan-modules` output shape. Bumped on any breaking change to the envelope or to
+/// Version of the `scan-packages` output shape. Bumped on any breaking change to the envelope or to
 /// `ScannedClass`, so `expo-modules-autolinking` can verify it understands the output before
 /// trusting it (and fall back to config-declared modules when it doesn't). Version 2 added the
 /// per-module `platforms` list and made the module list platform-agnostic. A new field that older
 /// consumers can ignore, such as `sharedObjects` or `views`, doesn't change the version.
-let scanModulesSchemaVersion = 2
+let scanPackagesSchemaVersion = 2
 
-/// The `scan-modules` result: the detected modules plus the stats describing the run. Encoded as the
+/// The `scan-packages` result: the detected modules plus the stats describing the run. Encoded as the
 /// command's JSON output. (`scan-exports` returns its own `ScanExportsResult` shape; the two commands
 /// serve different consumers and don't share an envelope.)
-struct ScanModulesResult: Codable, Equatable {
+struct ScanPackagesResult: Codable, Equatable {
   let schemaVersion: Int
   let modules: [ScannedClass]
 
@@ -110,14 +110,14 @@ private let platformUniverse: [(condition: String, reported: String)] = [
 /// Scans the given paths for top-level `@ExpoModule`, `@SharedObject` and `@ExpoView` types and returns every one
 /// found in any
 /// `#if` branch (in file then source order), each with the platforms whose builds include it, plus
-/// the stats for the run — the `scan-modules` command. Kept separate from the public entry (and
+/// the stats for the run — the `scan-packages` command. Kept separate from the public entry (and
 /// `internal`) so tests can drive it without going through argv/stdout.
 ///
 /// Each file is parsed once and walked once per platform (plus once unconditionally to enumerate
 /// every type): a type's `platforms` are the OSes whose evaluated walk reached it, given the
 /// asserted `defines`. The scanner reports the facts; filtering to the platform being linked is the
 /// consumer's call.
-func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResult {
+func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesResult {
   var modules: [ScannedClass] = []
   var sharedObjects: [ScannedClass] = []
   var views: [ScannedClass] = []
@@ -176,8 +176,8 @@ func scanModules(paths: [String], defines: Set<String> = []) -> ScanModulesResul
     }
   }
 
-  return ScanModulesResult(
-    schemaVersion: scanModulesSchemaVersion,
+  return ScanPackagesResult(
+    schemaVersion: scanPackagesSchemaVersion,
     modules: modules,
     sharedObjects: sharedObjects,
     views: views,

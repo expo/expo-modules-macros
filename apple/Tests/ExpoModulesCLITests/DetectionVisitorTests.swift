@@ -349,7 +349,7 @@ struct MacroPrefilterTests {
   @Test
   func `Matches only the attributes when no conformance is given`() {
     let prefilter = MacroPrefilter(macros: Set(DetectedMacro.allCases))
-    // `scan-modules` passes no conformances, so an Enumerable enum doesn't force a parse there.
+    // `scan-packages` passes no conformances, so an Enumerable enum doesn't force a parse there.
     #expect(!mightContainMacro(in: "enum Status: String, Enumerable { case a }", prefilter: prefilter))
   }
 }
@@ -529,14 +529,14 @@ struct IfConfigTests {
 
 @Suite("Scanning a directory")
 struct ScanTests {
-  /// Creates a temporary directory tree of `(relativePath, contents)` files, runs `scanModules` on
+  /// Creates a temporary directory tree of `(relativePath, contents)` files, runs `scanPackages` on
   /// it, and removes the tree afterward.
   private func withTree(
     _ files: [(String, String)],
-    _ body: (ScanModulesResult) throws -> Void
+    _ body: (ScanPackagesResult) throws -> Void
   ) throws {
     try withTreeRoot(files) { root in
-      try body(scanModules(paths: [root.path]))
+      try body(scanPackages(paths: [root.path]))
     }
   }
 
@@ -570,7 +570,7 @@ struct ScanTests {
       #expect(result.modules.map(\.name) == ["MyModule"])
       // Reported paths are absolute: a relative one would get the current directory as its base URL.
       #expect(result.modules.first.map { URL(filePath: $0.file).baseURL == nil } == true)
-      #expect(result.schemaVersion == scanModulesSchemaVersion)
+      #expect(result.schemaVersion == scanPackagesSchemaVersion)
       // All three .swift files are read; only the one mentioning a macro is parsed.
       #expect(result.stats.filesScanned == 3)
       #expect(result.stats.filesParsed == 1)
@@ -593,14 +593,14 @@ struct ScanTests {
   }
 
   @Test
-  func `scanModules reports @ExpoModule and @SharedObject, ignoring other macros`() throws {
+  func `scanPackages reports @ExpoModule and @SharedObject, ignoring other macros`() throws {
     let files = [
       ("Module.swift", "@ExpoModule\nfinal class MyModule {}"),
       ("Shared.swift", "@SharedObject(\"JSCache\")\npublic final class Cache: SharedObject {}"),
       ("Options.swift", "@Record\nstruct Options { var name: String }"),
     ]
     try withTreeRoot(files) { root in
-      let result = scanModules(paths: [root.path])
+      let result = scanPackages(paths: [root.path])
       #expect(result.modules.map(\.name) == ["MyModule"])
       #expect(result.sharedObjects.map(\.name) == ["Cache"])
       #expect(result.sharedObjects.first?.jsName == "JSCache")
@@ -610,7 +610,7 @@ struct ScanTests {
       #expect(result.stats.filesParsed == 2)
 
       // The shared core, given the full macro set, surfaces all three, confirming it's the
-      // filter, not the walk, that scopes scanModules.
+      // filter, not the walk, that scopes scanPackages.
       let all = collectDetections(paths: [root.path], macros: Set(DetectedMacro.allCases))
       #expect(all.detections.map(\.name).sorted() == ["Cache", "MyModule", "Options"])
       #expect(all.stats.filesParsed == 3)
@@ -618,7 +618,7 @@ struct ScanTests {
   }
 
   @Test
-  func `scanModules reports @ExpoView classes in views`() throws {
+  func `scanPackages reports @ExpoView classes in views`() throws {
     try withTree([
       ("CardView.swift", "@ExpoView<CardProps>\npublic final class CardView: ExpoNativeView {}"),
       ("CardProps.swift", "@ViewProps\nstruct CardProps { var title = \"\" }"),
@@ -637,7 +637,7 @@ struct ScanTests {
   }
 
   @Test
-  func `scanModules reports the name argument of @ExpoView as the JS name`() throws {
+  func `scanPackages reports the name argument of @ExpoView as the JS name`() throws {
     try withTree([
       ("CardView.swift", "@ExpoView<CardProps>(\"FancyCard\")\npublic final class CardView: ExpoNativeView {}")
     ]) { result in
@@ -647,7 +647,7 @@ struct ScanTests {
   }
 
   @Test
-  func `scanModules reports a view whose attribute is qualified with ExpoModulesCore`() throws {
+  func `scanPackages reports a view whose attribute is qualified with ExpoModulesCore`() throws {
     try withTree([
       ("CardView.swift", "@ExpoModulesCore.ExpoView<CardProps>\npublic final class CardView: ExpoNativeView {}")
     ]) { result in
@@ -658,7 +658,7 @@ struct ScanTests {
   }
 
   @Test
-  func `scanModules reports only classes`() throws {
+  func `scanPackages reports only classes`() throws {
     try withTree([
       ("Module.swift", "@ExpoModule\npublic struct StructModule {}"),
       ("Shared.swift", "@SharedObject\npublic struct StructObject {}"),
@@ -717,7 +717,7 @@ struct ScanTests {
       ("Vendored.swift", "#if canImport(SomeVendoredSDK)\n@ExpoModule\nfinal class VendoredModule {}\n#endif"),
       ("Plain.swift", "@ExpoModule\nfinal class PlainModule {}"),
     ]) { root in
-      let result = scanModules(paths: [root.path])
+      let result = scanPackages(paths: [root.path])
       let byName = Dictionary(uniqueKeysWithValues: result.modules.map { ($0.name, $0.platforms) })
       // An unconditional module is included by every OS.
       #expect(byName["PlainModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
@@ -746,14 +746,14 @@ struct ScanTests {
       // Without asserted flags, a flag is unset, the way an undefined flag behaves in a real build:
       // the modules are still reported, with the platforms of the branches that remain.
       let unset = Dictionary(
-        uniqueKeysWithValues: scanModules(paths: [root.path]).modules.map { ($0.name, $0.platforms) }
+        uniqueKeysWithValues: scanPackages(paths: [root.path]).modules.map { ($0.name, $0.platforms) }
       )
       #expect(unset["DevModule"] == [])
       #expect(unset["ProdModule"] == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
       #expect(unset["DevIosModule"] == [])
 
       let debug = Dictionary(
-        uniqueKeysWithValues: scanModules(paths: [root.path], defines: ["DEBUG"]).modules.map {
+        uniqueKeysWithValues: scanPackages(paths: [root.path], defines: ["DEBUG"]).modules.map {
           ($0.name, $0.platforms)
         }
       )

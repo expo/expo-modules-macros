@@ -12,7 +12,7 @@ import Foundation
 /// file path. Returns the run's stats.
 ///
 /// The shared core every scan command builds on: the walk, read, pre-filter, and stats are identical;
-/// only what each command does per parsed file differs (`scan-modules` collects `Detection`s,
+/// only what each command does per parsed file differs (`scan-packages` collects `Detection`s,
 /// `scan-exports` walks a `SurfaceVisitor`), and that lives in `process`.
 func scanFiles(
   paths: [String],
@@ -53,7 +53,7 @@ func scanFiles(
 
 /// Walks `paths`, parses each `.swift` file that might contain one of `macros`, and returns every
 /// detection (in file then source order) with the accumulated `#if` warnings and the run's stats —
-/// the shape `scan-modules` projects. A thin layer over `scanFiles` that accumulates the per-file
+/// the shape `scan-packages` projects. A thin layer over `scanFiles` that accumulates the per-file
 /// results.
 func collectDetections(
   paths: [String],

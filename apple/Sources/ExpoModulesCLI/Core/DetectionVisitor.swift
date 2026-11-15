@@ -15,7 +15,7 @@ import SwiftSyntax
 /// recorded exactly when the scan targets tvOS, and conditions the configuration cannot answer make
 /// their region inactive and surface as warnings. With a `nil` configuration every clause of every
 /// `#if` is visited, so a declaration in any branch is recorded and nothing is evaluated; the
-/// per-platform aggregation in `scanModules` builds on both walks.
+/// per-platform aggregation in `scanPackages` builds on both walks.
 final class DetectionVisitor: SyntaxVisitor {
   private let file: String
   private let converter: SourceLocationConverter
