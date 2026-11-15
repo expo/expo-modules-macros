@@ -394,6 +394,7 @@ struct FixTests {
             @Event var onB: () -> Void
             @Event var onC: () -> Void
             @Event // The C event
+
             var onD: () -> Void
             @Event var onE: () -> Void
             @Event var onF: () -> Void
@@ -411,6 +412,41 @@ struct FixTests {
           @Record
           struct Options {
             var name: String = ""
+          }
+
+          """
+      )
+      #expect(expandMacros(source: fixed, file: file, symbols: []).diagnostics.isEmpty)
+    }
+  }
+
+  @Test
+  func `Removing @JS after a line comment keeps the property out of the comment`() throws {
+    // In a module, `@JavaScriptActor` follows `@JS` and takes over its trivia, so the macro can't
+    // tell whether `@JS` is alone on its line. The line break after the comment must stay either way.
+    let source = """
+      @ExpoModule
+      public final class MyModule: Module {
+        @Event // The A event
+        @JS var onA: () -> Void
+        @Event // The B event
+        @JS
+        var onB: () -> Void
+      }
+
+      """
+    try withFile(source) { file in
+      #expect(ScannerCLI.run(arguments: ["fix", file], expander: expander) == 0)
+      let fixed = try String(contentsOfFile: file, encoding: .utf8)
+      #expect(
+        fixed == """
+          @ExpoModule
+          public final class MyModule: Module {
+            @Event // The A event
+           var onA: () -> Void
+            @Event // The B event
+
+            var onB: () -> Void
           }
 
           """
