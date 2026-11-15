@@ -1517,11 +1517,65 @@ struct RecordMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Field is no longer used — @Record treats every stored property as a record property. Remove the @Field attribute",
-          line: 1,
-          column: 1
+            "@Field is no longer used: @Record treats every stored property as a record property. Remove the @Field attribute",
+          line: 4,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
         )
-      ]
+      ],
+      fixedSource: """
+        @Record
+        struct Options {
+          var name: String
+          var defaultName = "foo"
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Every leftover @Field attribute is reported, and one with arguments gets no fix-it`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        @Field("full_name") var name: String = ""
+        @Field
+        var age: Int = 0
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          @Field("full_name") var name: String = ""
+          @Field
+          var age: Int = 0
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @Record treats every stored property as a record property, named after the property. Remove the @Field attribute, and rename the property if its arguments set another key",
+          line: 3,
+          column: 3
+        ),
+        DiagnosticSpec(
+          message:
+            "@Field is no longer used: @Record treats every stored property as a record property. Remove the @Field attribute",
+          line: 4,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove the '@Field' attribute")]
+        ),
+      ],
+      fixedSource: """
+        @Record
+        struct Options {
+          @Field("full_name") var name: String = ""
+          var age: Int = 0
+        }
+        """
     )
   }
 

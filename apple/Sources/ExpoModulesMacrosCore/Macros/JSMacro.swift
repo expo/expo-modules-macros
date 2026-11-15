@@ -318,7 +318,8 @@ private func diagnoseAsyncVariantOption(
           "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
           id: "js-async-variant-on-async-function",
           severity: .error
-        )
+        ),
+        fixIts: removeAsyncVariantFixIt(from: node).map { [$0] } ?? []
       )
     )
     return
@@ -362,6 +363,21 @@ private func diagnoseAsyncVariantOption(
       )
     )
   }
+}
+
+/// The fix-it that removes the `.withAsync` option of an `async` function. It is offered only for one
+/// option written as an argument of the attribute, not in an array literal. It is the only fix-it:
+/// replacing the option with `.concurrent` would be an alternative, and `fix` skips a diagnostic with
+/// alternatives.
+private func removeAsyncVariantFixIt(from node: AttributeSyntax) -> FixIt? {
+  let options = asyncVariantOptions(of: node)
+  guard options.count == 1, let argument = options.first?.parent?.as(LabeledExprSyntax.self) else {
+    return nil
+  }
+  return FixIt(
+    message: JSFixItMessage("Remove '.withAsync'", id: "js-remove-async-variant"),
+    changes: [.replace(oldNode: Syntax(node), newNode: Syntax(removingArgument(argument, from: node)))]
+  )
 }
 
 /// The global actor a function is isolated to, written on the function itself or inherited from its

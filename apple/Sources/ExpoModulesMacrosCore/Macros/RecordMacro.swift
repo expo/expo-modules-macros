@@ -207,6 +207,23 @@ private struct RecordProperty {
 private func recordProperties(
   of declaration: some DeclGroupSyntax
 ) throws -> [RecordProperty] {
+  // `@Field` is the v1 property wrapper and has no meaning here: every stored property is a record
+  // property now. Left in place it would wrap the value in `Field<T>` (backing storage `_name`), so
+  // the synthesized conversions would be generated against the wrong type. Flag every one rather
+  // than emit broken code, all at once, so a `@Field` without a fix-it doesn't hide the fix-its of
+  // the others.
+  let fieldDiagnostics = declaration.memberBlock.members.compactMap { member -> Diagnostic? in
+    guard let varDecl = member.decl.as(VariableDeclSyntax.self), !isExcludedByModifier(varDecl.modifiers),
+      let fieldAttribute = varDecl.attributes.firstAttribute(named: "Field")
+    else {
+      return nil
+    }
+    return fieldAttributeDiagnostic(for: fieldAttribute, on: varDecl, in: .record)
+  }
+  if !fieldDiagnostics.isEmpty {
+    throw DiagnosticsError(diagnostics: fieldDiagnostics)
+  }
+
   var properties: [RecordProperty] = []
 
   for member in declaration.memberBlock.members {
@@ -215,15 +232,6 @@ private func recordProperties(
     }
     if isExcludedByModifier(varDecl.modifiers) {
       continue
-    }
-    // `@Field` is the v1 property wrapper and has no meaning here — every stored property is a
-    // record property now. Left in place it would wrap the value in `Field<T>` (backing storage
-    // `_name`), so the synthesized conversions would be generated against the wrong type. Flag it
-    // explicitly rather than emit broken code.
-    if varDecl.attributes.firstAttribute(named: "Field") != nil {
-      throw MacroExpansionErrorMessage(
-        "@Field is no longer used — @Record treats every stored property as a record property. Remove the @Field attribute"
-      )
     }
     for binding in varDecl.bindings {
       // Computed properties (and `{ get set }`) carry an accessor block — never properties.

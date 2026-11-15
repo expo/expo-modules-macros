@@ -663,6 +663,33 @@ struct JSClosureArgumentTests {
   }
 
   @Test
+  func `The typed throws fix-it replaces the typed throws with throws`() {
+    assertExpansion(
+      """
+      @JS
+      func run(callback: @escaping (Int) throws(MyError) -> Void) {}
+      """,
+      expandedSource: """
+        func run(callback: @escaping (Int) throws(MyError) -> Void) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
+          line: 2,
+          column: 36,
+          severity: .error,
+          fixIts: [FixItSpec(message: "Replace 'throws(MyError)' with 'throws'")]
+        )
+      ],
+      fixedSource: """
+        @JS
+        func run(callback: @escaping (Int) throws -> Void) {}
+        """
+    )
+  }
+
+  @Test
   func `Unsupported closure shapes are errors`() {
     assertExpansion(
       """
@@ -697,7 +724,8 @@ struct JSClosureArgumentTests {
             "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
           line: 4,
           column: 24,
-          severity: .error
+          severity: .error,
+          fixIts: [FixItSpec(message: "Replace 'throws(MyError)' with 'throws'")]
         ),
         DiagnosticSpec(
           message: "A @JS closure argument can't take or return another closure.",

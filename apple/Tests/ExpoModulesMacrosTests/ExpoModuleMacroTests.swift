@@ -1413,9 +1413,17 @@ struct ExpoModuleMacroTests {
             "'.withAsync' adds a promise-returning variant to a synchronous function, and this function is already 'async'. Remove '.withAsync', and use '.concurrent' to run the function off the JavaScript thread.",
           line: 3,
           column: 3,
-          severity: .error
+          severity: .error,
+          fixIts: [FixItSpec(message: "Remove '.withAsync'")]
         )
-      ]
+      ],
+      fixedSource: """
+        @ExpoModule
+        public final class MyModule: Module {
+          @JS
+          func load() async -> Int { 0 }
+        }
+        """
     )
   }
 

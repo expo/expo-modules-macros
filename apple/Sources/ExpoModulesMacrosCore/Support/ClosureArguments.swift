@@ -290,13 +290,27 @@ private func diagnoseClosure(_ closure: JSClosureType, in context: some MacroExp
   }
 
   if let throwsClause = functionType.effectSpecifiers?.throwsClause, throwsClause.type != nil {
+    // `throws` takes over the trailing trivia of the closing parenthesis, the space before `->`.
+    let untypedThrows = ThrowsClauseSyntax(
+      throwsSpecifier: throwsClause.throwsSpecifier.with(\.trailingTrivia, throwsClause.trailingTrivia)
+    )
+    .with(\.leadingTrivia, throwsClause.leadingTrivia)
     context.diagnose(
       Diagnostic(
         node: throwsClause,
         message: ClosureDiagnosticMessage(
           "A @JS closure argument can't use typed throws: the error from JavaScript can be any error. Write 'throws' without a type.",
           id: "js-closure-typed-throws"
-        )
+        ),
+        fixIts: [
+          FixIt(
+            message: ClosureFixItMessage(
+              "Replace '\(throwsClause.trimmedDescription)' with 'throws'",
+              id: "js-closure-untyped-throws"
+            ),
+            changes: [.replace(oldNode: Syntax(throwsClause), newNode: Syntax(untypedThrows))]
+          )
+        ]
       )
     )
   }

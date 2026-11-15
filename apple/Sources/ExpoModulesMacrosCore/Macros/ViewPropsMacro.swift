@@ -187,76 +187,6 @@ private let maxValueProps = 64
 
 // MARK: - Diagnostics
 
-/// The error for a leftover `@Field`, attached to the attribute itself and carrying a fix-it that
-/// deletes it. `@ViewProps` treats every stored property as a prop, so the attribute has no meaning
-/// here; left in place it would wrap the value in `Field<T>` and the props type would decode against
-/// the wrong type. A `@Field` with arguments, such as `@Field(.keyed("borderColor"))`, gets no
-/// fix-it: they can set the prop name, which removing the attribute would change silently, so the
-/// message tells the author to rename the property.
-private func fieldAttributeDiagnostic(
-  for attribute: AttributeSyntax,
-  on varDecl: VariableDeclSyntax
-) -> Diagnostic {
-  // The token after the attribute takes over the trivia of the attribute: the line break,
-  // indentation and comments before it, and the comments after it. Its own leading whitespace is
-  // left out unless a comment comes before it, so `@Field var size` and `@Field` on its own line both
-  // become `var size` on the line of the attribute, and `@Field // note` keeps the line break after
-  // the comment.
-  var newDecl = varDecl
-  if let next = attribute.lastToken(viewMode: .sourceAccurate)?.nextToken(viewMode: .sourceAccurate) {
-    let comments = Trivia(pieces: attribute.trailingTrivia.pieces.drop(while: \.isWhitespace))
-    let nextTrivia =
-      comments.isEmpty ? Trivia(pieces: next.leadingTrivia.pieces.drop(while: \.isWhitespace)) : next.leadingTrivia
-    newDecl =
-      LeadingTriviaRewriter(token: next.id, trivia: attribute.leadingTrivia + comments + nextTrivia)
-      .rewrite(varDecl).cast(VariableDeclSyntax.self)
-  }
-  // Then remove the attribute with its trivia, so it doesn't leave a blank line behind. The rewritten
-  // declaration is a new tree, so the attribute is found by its place in the list.
-  if let index = varDecl.attributes.firstIndex(where: { element in
-    guard case .attribute(let candidate) = element else {
-      return false
-    }
-    return candidate == attribute
-  }) {
-    let offset = varDecl.attributes.distance(from: varDecl.attributes.startIndex, to: index)
-    newDecl.attributes.remove(at: newDecl.attributes.index(newDecl.attributes.startIndex, offsetBy: offset))
-  }
-  let fixIt = FixIt(
-    message: ViewPropsFixItMessage("Remove the '@Field' attribute", id: "viewprops-remove-field"),
-    changes: [
-      .replace(
-        oldNode: Syntax(varDecl),
-        newNode: Syntax(newDecl)
-      )
-    ]
-  )
-  let hasArguments = attribute.arguments?.as(LabeledExprListSyntax.self)?.isEmpty == false
-  let message = ViewPropsDiagnosticMessage(
-    hasArguments
-      ? "@Field is no longer used: @ViewProps treats every stored property as a prop, named after the property. Remove the @Field attribute, and rename the property if its arguments set another prop name"
-      : "@Field is no longer used: @ViewProps treats every stored property as a prop. Remove the @Field attribute",
-    id: "viewprops-field-attribute"
-  )
-  return Diagnostic(node: attribute, message: message, fixIts: hasArguments ? [] : [fixIt])
-}
-
-/// Replaces the leading trivia of one token.
-private final class LeadingTriviaRewriter: SyntaxRewriter {
-  private let token: SyntaxIdentifier
-  private let trivia: Trivia
-
-  init(token: SyntaxIdentifier, trivia: Trivia) {
-    self.token = token
-    self.trivia = trivia
-    super.init(viewMode: .sourceAccurate)
-  }
-
-  override func visit(_ token: TokenSyntax) -> TokenSyntax {
-    token.id == self.token ? token.with(\.leadingTrivia, trivia) : token
-  }
-}
-
 /// The error for an optional event prop, attached to the declared type and carrying a fix-it that
 /// unwraps it. Events are registered once at view creation from a static name list, so there is no
 /// shape that could express "sometimes emitted".
@@ -623,7 +553,7 @@ private func validatedViewProps(
     else {
       return nil
     }
-    return fieldAttributeDiagnostic(for: fieldAttribute, on: varDecl)
+    return fieldAttributeDiagnostic(for: fieldAttribute, on: varDecl, in: .viewProps)
   }
   if !fieldDiagnostics.isEmpty {
     throw DiagnosticsError(diagnostics: fieldDiagnostics)

@@ -588,11 +588,19 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event and @JS cannot be combined on the same property; an event is exposed to JS on its own, so remove one of the attributes",
-          line: 3,
-          column: 3
+            "@Event and @JS can't be combined on the same property: an event is exposed to JavaScript on its own. Remove @JS",
+          line: 2,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove '@JS'")]
         )
-      ]
+      ],
+      applyFixIts: ["Remove '@JS'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event
+          var onProgress: (ProgressEvent) -> Void
+        }
+        """
     )
   }
 
@@ -612,11 +620,20 @@ struct EventMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Event must be an instance property; events are emitted from a module or shared object instance.",
-          line: 2,
-          column: 3
+          message:
+            "@Event must be an instance property: events are emitted from a module or shared object instance. Remove 'static'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove 'static'")]
         )
-      ]
+      ],
+      applyFixIts: ["Remove 'static'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event
+          var onReady: () -> Void
+        }
+        """
     )
   }
 
@@ -684,11 +701,19 @@ struct EventMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Event function type must return 'Void'; an event dispatches to JS and has no return value",
-          line: 2,
-          column: 3
+          message: "@Event function type must return 'Void': an event dispatches to JavaScript and has no return value",
+          line: 3,
+          column: 38,
+          fixIts: [FixItSpec(message: "Replace 'Bool' with 'Void'")]
         )
-      ]
+      ],
+      applyFixIts: ["Replace 'Bool' with 'Void'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event
+          var onProgress: (ProgressEvent) -> Void
+        }
+        """
     )
   }
 
@@ -717,6 +742,8 @@ struct EventMacroTests {
     )
   }
 
+  // swift-syntax rewrites a property whose initializer holds a closure before the macro gets it, so
+  // `assertMacroExpansion` applies the fix-it at the wrong offset. `FixTests` applies it with `fix`.
   @Test
   func `Initial value produces a diagnostic`() {
     assertExpansion(
@@ -733,9 +760,163 @@ struct EventMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Event property cannot have an initial value; the macro synthesizes the closure",
+          message:
+            "@Event property can't have an initial value: the macro synthesizes the closure. Remove the initial value",
+          line: 3,
+          column: 27,
+          fixIts: [FixItSpec(message: "Remove the initial value")]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `The static removal fix-it keeps the other modifiers`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event public static var onReady: () -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          public static var onReady: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event must be an instance property: events are emitted from a module or shared object instance. Remove 'static'",
           line: 2,
-          column: 3
+          column: 17,
+          fixIts: [FixItSpec(message: "Remove 'static'")]
+        )
+      ],
+      applyFixIts: ["Remove 'static'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event public var onReady: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A class property produces a diagnostic with a fix-it that removes class`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        class var onReady: () -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          class var onReady: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event must be an instance property: events are emitted from a module or shared object instance. Remove 'class'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Remove 'class'")]
+        )
+      ],
+      applyFixIts: ["Remove 'class'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event
+          var onReady: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The @JS removal fix-it keeps @Event on the line of the property`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event @JS var onReady: () -> Void
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          @JS var onReady: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event and @JS can't be combined on the same property: an event is exposed to JavaScript on its own. Remove @JS",
+          line: 2,
+          column: 10,
+          fixIts: [FixItSpec(message: "Remove '@JS'")]
+        )
+      ],
+      applyFixIts: ["Remove '@JS'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event var onReady: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The Void fix-it replaces a parenthesized return type`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onProgress: (Double) -> (Int, String)
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onProgress: (Double) -> (Int, String)
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@Event function type must return 'Void': an event dispatches to JavaScript and has no return value",
+          line: 3,
+          column: 31,
+          fixIts: [FixItSpec(message: "Replace '(Int, String)' with 'Void'")]
+        )
+      ],
+      applyFixIts: ["Replace '(Int, String)' with 'Void'"],
+      fixedSource: """
+        class MyModule: Module {
+          @Event
+          var onProgress: (Double) -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An initial value without a type annotation gets no fix-it`() {
+    assertExpansion(
+      """
+      class MyModule: Module {
+        @Event
+        var onReady = {}
+      }
+      """,
+      expandedSource: """
+        class MyModule: Module {
+          var onReady = {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Event property can't have an initial value: the macro synthesizes the closure. Remove the initial value",
+          line: 3,
+          column: 15
         )
       ]
     )
