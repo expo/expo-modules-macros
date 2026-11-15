@@ -4,16 +4,16 @@ import path from 'node:path';
 import {
   ExpandResult,
   ScanExportsResult,
-  ScanModulesResult,
+  ScanPackagesResult,
   SUPPORTED_EXPAND_SCHEMA_VERSION,
   SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION,
-  SUPPORTED_SCAN_MODULES_SCHEMA_VERSION,
+  SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION,
 } from './types';
 
 export * from './types';
 
-/** Options accepted by `scanModules`, mirroring the CLI's `scan-modules` flags. */
-export interface ScanModulesOptions {
+/** Options accepted by `scanPackages`, mirroring the CLI's `scan-packages` flags. */
+export interface ScanPackagesOptions {
   /** Conditional compilation flags to treat as set, e.g. `['DEBUG']`. */
   defines?: string[];
 
@@ -235,42 +235,48 @@ function runScanner<T>(binaryPath: string, args: string[], timeout = 0): Promise
 }
 
 /**
- * Fast scan for top-level `@ExpoModule` types, for autolinking. Each path is a `.swift` file or a
+ * Fast scan for top-level `@ExpoModule`, `@SharedObject` and `@ExpoView` classes, for autolinking. Each path is a `.swift` file or a
  * directory, scanned recursively.
  *
  * Conditions the scan can't answer statically come back in `warnings` rather than throwing, so the
  * caller can surface them alongside its own diagnostics.
  */
-export async function scanModules(
+export async function scanPackages(
   paths: string[],
-  options: ScanModulesOptions = {}
-): Promise<ScanModulesResult> {
+  options: ScanPackagesOptions = {}
+): Promise<ScanPackagesResult> {
   if (paths.length === 0) {
-    throw new TypeError('scanModules requires at least one path');
+    throw new TypeError('scanPackages requires at least one path');
   }
-  assertRepresentablePaths('scanModules', paths);
+  assertRepresentablePaths('scanPackages', paths);
 
-  const args = ['scan-modules'];
+  const args = ['scan-packages'];
   for (const define of options.defines ?? []) {
     args.push('--define', define);
   }
   args.push(...paths);
 
-  const result = await runScanner<ScanModulesResult>(
+  const result = await runScanner<ScanPackagesResult>(
     options.binaryPath ?? getScannerBinaryPath(),
     args,
     options.timeout
   );
 
-  if (result.schemaVersion !== SUPPORTED_SCAN_MODULES_SCHEMA_VERSION) {
+  if (result.schemaVersion !== SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION) {
     throw new ScannerSchemaVersionError(
-      'scan-modules',
+      'scan-packages',
       result.schemaVersion,
-      SUPPORTED_SCAN_MODULES_SCHEMA_VERSION
+      SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION
     );
   }
   return result;
 }
+
+/** @deprecated Renamed to `scanPackages`. */
+export const scanModules = scanPackages;
+
+/** @deprecated Renamed to `ScanPackagesOptions`. */
+export type ScanModulesOptions = ScanPackagesOptions;
 
 /**
  * Deep scan of the full JS-exported surface, for TypeScript type generation. Each path is a `.swift`

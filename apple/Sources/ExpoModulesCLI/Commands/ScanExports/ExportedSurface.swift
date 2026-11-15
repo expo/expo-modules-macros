@@ -279,7 +279,7 @@ struct ExportedModule: Encodable, Equatable {
 
   let platforms: [ExportedPlatform]
 
-  /// Absolute source path, matching `scan-modules`.
+  /// Absolute source path, matching `scan-packages`.
   let file: String
 }
 
@@ -491,7 +491,7 @@ struct ExportedUnion: Encodable, Equatable {
 /// It is reported on its own rather than under a module, because core reaches it through its
 /// `AnyNativeView` conformance.
 struct ExportedView: Encodable, Equatable {
-  /// The Swift class name. Only a view declared at file scope is reported, as in `scan-modules`.
+  /// The Swift class name. Only a view declared at file scope is reported, as in `scan-packages`.
   let name: String
 
   /// The name the view registers under: the `@ExpoView<CardProps>("Foo")` override when present,
@@ -624,7 +624,7 @@ enum ExportedEventDispatch: String, Encodable, Equatable {
 
 /// Version of the `scan-exports` output shape. Bumped on any breaking change to the envelope or to
 /// anything under `exports`, so a consumer can verify it understands the output before trusting it.
-/// Versioned independently of `scanModulesSchemaVersion`: the two commands serve different consumers
+/// Versioned independently of `scanPackagesSchemaVersion`: the two commands serve different consumers
 /// and change for different reasons. Version 2 added `events` to modules and shared objects; version 3
 /// added `enums`; version 4 added `unions`; version 5 resolves refs, adding `refKind` and correcting
 /// an enum ref's `typeof`; version 6 added `classes` to modules; version 7 reports nested types under
@@ -639,7 +639,7 @@ enum ExportedEventDispatch: String, Encodable, Equatable {
 let scanExportsSchemaVersion = 12
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
-/// `ScanModulesResult` (different consumer: TS generation vs. autolinking).
+/// `ScanPackagesResult` (different consumer: TS generation vs. autolinking).
 struct ScanExportsResult: Encodable, Equatable {
   let schemaVersion: Int
   let exports: ExportedSurface

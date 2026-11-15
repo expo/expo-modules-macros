@@ -319,7 +319,7 @@ struct FixCLITests {
     ["fix", "--define", "DEBUG", "File.swift"],
     ["expand", "--dry-run", "File.swift"],
     ["expand", "--only-errors", "File.swift"],
-    ["scan-modules", "--dry-run", "/tmp"],
+    ["scan-packages", "--dry-run", "/tmp"],
   ])
   func `Rejects the options that fix doesn't take, and the options of fix elsewhere`(arguments: [String]) {
     #expect(ScannerCLI.run(arguments: arguments, expander: replacingExpander([])) == 2)

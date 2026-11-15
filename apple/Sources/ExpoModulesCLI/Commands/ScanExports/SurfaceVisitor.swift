@@ -214,7 +214,7 @@ final class SurfaceVisitor: SyntaxVisitor {
       let attribute = attributes.firstAttribute(named: DetectedMacro.expoView.rawValue),
       let propsType = genericArgumentType(of: attribute)
     {
-      // Only a file-scope view is reported, as `scan-modules` reports only those.
+      // Only a file-scope view is reported, as `scan-packages` reports only those.
       guard scope.isEmpty else {
         return
       }

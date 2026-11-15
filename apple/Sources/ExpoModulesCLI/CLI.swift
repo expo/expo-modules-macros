@@ -6,7 +6,7 @@
 /// files).
 ///
 /// Subcommands:
-///   scan-modules   <path>...   fast: top-level `@ExpoModule` and `@SharedObject` types, for autolinking
+///   scan-packages  <path>...   fast: top-level `@ExpoModule`, `@SharedObject` and `@ExpoView` classes, for autolinking
 ///   scan-exports   <path>...   deep: full JS-exported surface, for TS type generation
 ///   expand         <path>...   the code that the macros generate, and their diagnostics
 ///   fix            <path>...   applies the Fix-Its of the macro diagnostics to the files
@@ -25,9 +25,14 @@ public enum ScannerCLI {
       return 0
     }
 
-    guard let subcommand = arguments.first else {
+    guard var subcommand = arguments.first else {
       writeToStandardError(usageText)
       return 2
+    }
+    // `scan-modules` is the former name of `scan-packages`, kept as a deprecated alias.
+    if subcommand == "scan-modules" {
+      writeToStandardError("warning: scan-modules is deprecated, use scan-packages\n")
+      subcommand = "scan-packages"
     }
 
     var paths: [String] = []
@@ -80,18 +85,18 @@ public enum ScannerCLI {
     }
 
     switch subcommand {
-    case "scan-modules":
-      // scan-modules is platform-agnostic: each reported module carries the platforms that include
+    case "scan-packages":
+      // scan-packages is platform-agnostic: each reported module carries the platforms that include
       // it, and the consumer filters. An option selecting one platform would silently drop data.
       guard platform == nil else {
         return usageError(
-          "scan-modules does not take --platform; each module reports its 'platforms' and the consumer filters"
+          "scan-packages does not take --platform; each module reports its 'platforms' and the consumer filters"
         )
       }
       guard !paths.isEmpty else {
-        return usageError("scan-modules requires at least one path")
+        return usageError("scan-packages requires at least one path")
       }
-      return Scanner.runModules(paths: paths, defines: defines)
+      return Scanner.runPackages(paths: paths, defines: defines)
 
     case "scan-exports":
       // The exports surface visitor doesn't evaluate `#if` blocks yet, so accepting the options
@@ -153,7 +158,7 @@ private var usageText: String {
   usage: \(toolName) <subcommand> [options] <path> [<path> ...]
 
   subcommands:
-    scan-modules   fast scan for top-level @ExpoModule and @SharedObject types (autolinking)
+    scan-packages  fast scan for top-level @ExpoModule, @SharedObject and @ExpoView classes (autolinking)
     scan-exports   deep scan of the full JS-exported surface (type generation)
     expand         print the code that the macros generate in the given .swift files (and in the
                    files of the given directories that use a macro), and the macro diagnostics
@@ -161,7 +166,7 @@ private var usageText: String {
     fix            apply the Fix-Its of the macro diagnostics to the files that expand takes, in
                    place, and print each one; doesn't format the files
 
-  options (scan-modules only):
+  options (scan-packages only):
     --define <flag>   treat a conditional compilation flag (e.g. DEBUG) as set when resolving
                       each module's 'platforms' list; repeatable
 
