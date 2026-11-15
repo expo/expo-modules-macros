@@ -65,7 +65,7 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
     // `@ViewProps` rejects generic props types for the same reason.
     if classDecl.genericParameterClause != nil {
       throw MacroExpansionErrorMessage(
-        "@ExpoView does not support generic classes — a view registered with @ExpoModule(views:) must be concrete"
+        "@ExpoView does not support generic classes: a view registered with @ExpoModule(views:) must be concrete"
       )
     }
 

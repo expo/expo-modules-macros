@@ -89,7 +89,7 @@ public struct SharedObjectMacro: MemberMacro {
       {
         if constructor != nil {
           throw MacroExpansionErrorMessage(
-            "@SharedObject classes can have at most one @JS initializer; JavaScript classes have a single constructor."
+            "@SharedObject classes can have at most one @JS initializer: JavaScript classes have a single constructor."
           )
         }
         constructor = JSConstructor(initDecl: initDecl)

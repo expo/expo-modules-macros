@@ -180,7 +180,7 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
           Diagnostic(
             node: element,
             message: UnionDiagnosticMessage(
-              "@Union case '\(name)' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union; make it a raw-value enum conforming to 'Enumerable' instead.",
+              "@Union case '\(name)' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead.",
               id: "union-case-without-payload"
             )
           )

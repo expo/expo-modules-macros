@@ -461,7 +461,7 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+            "@Event can't be both '.inline' and '.blocking': '.blocking' also runs the listeners inline on the JS thread. Remove one of the options",
           line: 2,
           column: 3,
           fixIts: [FixItSpec(message: "Remove '.blocking'")]
@@ -493,7 +493,7 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+            "@Event can't be both '.inline' and '.blocking': '.blocking' also runs the listeners inline on the JS thread. Remove one of the options",
           line: 2,
           column: 3,
           fixIts: [FixItSpec(message: "Remove '.inline'")]
@@ -734,7 +734,7 @@ struct EventMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Event function type takes at most one payload parameter; combine multiple values into a single record",
+            "@Event function type takes at most one payload parameter. Combine multiple values into a single record",
           line: 2,
           column: 3
         )

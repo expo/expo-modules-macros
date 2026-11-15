@@ -975,7 +975,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union; make it a raw-value enum conforming to 'Enumerable' instead.",
+            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead.",
           line: 4,
           column: 8
         )
@@ -1265,7 +1265,7 @@ struct UnionMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union; make it a raw-value enum conforming to 'Enumerable' instead.",
+            "@Union case 'none' must carry exactly one associated value: the type this alternative decodes from. A payload-less enum is not a union. Make it a raw-value enum conforming to 'Enumerable' instead.",
           line: 4,
           column: 8
         ),

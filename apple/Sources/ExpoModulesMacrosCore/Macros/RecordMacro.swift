@@ -254,7 +254,7 @@ private func recordProperties(
         ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
       guard let type = inferredType else {
         throw MacroExpansionErrorMessage(
-          "@Record properties must declare an explicit type — '\(ident.identifier.text)' has none"
+          "@Record properties must declare an explicit type: '\(ident.identifier.text)' has none"
         )
       }
       // A literal-inferred type never mentions `Any` or a closure, so only an explicit annotation can.

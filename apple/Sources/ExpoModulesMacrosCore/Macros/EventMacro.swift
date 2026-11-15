@@ -165,7 +165,7 @@ private func validatedEvent(
     let identifier = binding.pattern.as(IdentifierPatternSyntax.self)
   else {
     throw MacroExpansionErrorMessage(
-      "@Event must be applied to a single named property; declare each event separately"
+      "@Event must be applied to a single named property. Declare each event separately"
     )
   }
   if let initializer = binding.initializer {
@@ -173,7 +173,7 @@ private func validatedEvent(
   }
   if binding.accessorBlock != nil {
     throw MacroExpansionErrorMessage(
-      "@Event property cannot declare its own accessors; the macro synthesizes the getter"
+      "@Event property cannot declare its own accessors: the macro synthesizes the getter"
     )
   }
   guard let functionType = underlyingFunctionType(of: binding.typeAnnotation?.type) else {
@@ -186,7 +186,7 @@ private func validatedEvent(
   }
   guard functionType.parameters.count <= 1 else {
     throw MacroExpansionErrorMessage(
-      "@Event function type takes at most one payload parameter; combine multiple values into a single record"
+      "@Event function type takes at most one payload parameter. Combine multiple values into a single record"
     )
   }
   // The payload is encoded to JavaScript, and a native closure can't be encoded.
@@ -251,7 +251,7 @@ private func eventDispatch(of node: AttributeSyntax) throws -> EventDispatch {
 /// a diagnostic with alternatives.
 private func conflictingOptionsDiagnostic(in node: AttributeSyntax) -> DiagnosticsError {
   let message = EventDiagnosticMessage(
-    "@Event can't be both '.inline' and '.blocking'; '.blocking' also runs the listeners inline on the JS thread, so remove one of the options",
+    "@Event can't be both '.inline' and '.blocking': '.blocking' also runs the listeners inline on the JS thread. Remove one of the options",
     id: "event-conflicting-options"
   )
   guard let arguments = node.arguments?.as(LabeledExprListSyntax.self),

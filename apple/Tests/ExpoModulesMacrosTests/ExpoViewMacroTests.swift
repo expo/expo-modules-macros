@@ -279,7 +279,7 @@ struct ExpoViewMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@ExpoView does not support generic classes — a view registered with @ExpoModule(views:) must be concrete",
+            "@ExpoView does not support generic classes: a view registered with @ExpoModule(views:) must be concrete",
           line: 1,
           column: 1
         )

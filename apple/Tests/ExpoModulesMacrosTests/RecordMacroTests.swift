@@ -773,7 +773,7 @@ struct RecordMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@Record properties must declare an explicit type — 'items' has none",
+          message: "@Record properties must declare an explicit type: 'items' has none",
           line: 1,
           column: 1
         )

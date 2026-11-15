@@ -206,7 +206,7 @@ private func optionalEventDiagnostic(for type: TypeSyntax, name: String) -> Diag
     )
   }
   let message = ViewPropsDiagnosticMessage(
-    "Event props cannot be optional — '\(name)' is registered once at view creation, so its presence can't vary. Drop the '?'",
+    "Event props cannot be optional: '\(name)' is registered once at view creation, so its presence can't vary. Drop the '?'",
     id: "viewprops-optional-event"
   )
   return Diagnostic(node: type, message: message, fixIts: fixIts)
@@ -531,7 +531,7 @@ private func validatedViewProps(
 ) throws -> ViewPropsModel {
   guard let structDecl = declaration.as(StructDeclSyntax.self) else {
     throw MacroExpansionErrorMessage(
-      "@ViewProps can only be applied to a struct — the class form (for SwiftUI views) is not supported yet"
+      "@ViewProps can only be applied to a struct: the class form (for SwiftUI views) is not supported yet"
     )
   }
   // A generic props type can't work: the synthesized extension would have to repeat the generic
@@ -539,7 +539,7 @@ private func validatedViewProps(
   // `Props` typealias, which names one concrete type.
   if structDecl.genericParameterClause != nil {
     throw MacroExpansionErrorMessage(
-      "@ViewProps does not support generic types — a view's props type must be concrete"
+      "@ViewProps does not support generic types: a view's props type must be concrete"
     )
   }
 
@@ -615,7 +615,7 @@ private func validatedViewProps(
       guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
         if binding.pattern.is(TuplePatternSyntax.self) {
           throw MacroExpansionErrorMessage(
-            "@ViewProps does not support tuple-destructuring properties — declare each prop separately"
+            "@ViewProps does not support tuple-destructuring properties. Declare each prop separately"
           )
         }
         continue
@@ -634,7 +634,7 @@ private func validatedViewProps(
         ?? binding.initializer.flatMap { inferredLiteralType(of: $0.value) }
       guard let resolvedType else {
         throw MacroExpansionErrorMessage(
-          "@ViewProps props must declare an explicit type — '\(name)' has none"
+          "@ViewProps props must declare an explicit type: '\(name)' has none"
         )
       }
 
@@ -653,7 +653,7 @@ private func validatedViewProps(
       // would point at generated code, so catch it here and name the property.
       if !isEvent && withoutBackticks(name) == "rawValue" {
         throw MacroExpansionErrorMessage(
-          "'rawValue' can't be used as a prop name — it collides with the synthesized PropSet's storage. Rename the property"
+          "'rawValue' can't be used as a prop name: it collides with the synthesized PropSet's storage. Rename the property"
         )
       }
       // Only stored storage takes an initial value; a computed prop with a setter needs none.
@@ -706,7 +706,7 @@ private func validatedViewProps(
 
   guard valueProps.count <= maxValueProps else {
     throw MacroExpansionErrorMessage(
-      "@ViewProps supports at most \(maxValueProps) value props (the changed-props mask is a UInt64), but this type declares \(valueProps.count); '\(valueProps[maxValueProps].name)' is the first over the limit. Event props don't count toward it"
+      "@ViewProps supports at most \(maxValueProps) value props (the changed-props mask is a UInt64), but this type declares \(valueProps.count), and '\(valueProps[maxValueProps].name)' is the first over the limit. Event props don't count toward it"
     )
   }
   return ViewPropsModel(

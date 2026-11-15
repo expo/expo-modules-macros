@@ -641,7 +641,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@ViewProps can only be applied to a struct — the class form (for SwiftUI views) is not supported yet",
+            "@ViewProps can only be applied to a struct: the class form (for SwiftUI views) is not supported yet",
           line: 1,
           column: 1
         )
@@ -666,7 +666,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+            "Event props cannot be optional: 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
@@ -719,7 +719,7 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ViewProps props must declare an explicit type — 'items' has none",
+          message: "@ViewProps props must declare an explicit type: 'items' has none",
           line: 1,
           column: 1
         )
@@ -873,7 +873,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@ViewProps supports at most 64 value props (the changed-props mask is a UInt64), but this type declares 65; 'p64' is the first over the limit. Event props don't count toward it",
+            "@ViewProps supports at most 64 value props (the changed-props mask is a UInt64), but this type declares 65, and 'p64' is the first over the limit. Event props don't count toward it",
           line: 1,
           column: 1
         )
@@ -1821,7 +1821,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+            "Event props cannot be optional: 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
@@ -1848,7 +1848,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'rawValue' can't be used as a prop name — it collides with the synthesized PropSet's storage. Rename the property",
+            "'rawValue' can't be used as a prop name: it collides with the synthesized PropSet's storage. Rename the property",
           line: 1,
           column: 1
         )
@@ -1872,7 +1872,7 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ViewProps does not support tuple-destructuring properties — declare each prop separately",
+          message: "@ViewProps does not support tuple-destructuring properties. Declare each prop separately",
           line: 1,
           column: 1
         )
@@ -1896,7 +1896,7 @@ struct ViewPropsMacroTests {
         """,
       diagnostics: [
         DiagnosticSpec(
-          message: "@ViewProps does not support generic types — a view's props type must be concrete",
+          message: "@ViewProps does not support generic types: a view's props type must be concrete",
           line: 1,
           column: 1
         )
@@ -2235,7 +2235,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+            "Event props cannot be optional: 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
@@ -3886,7 +3886,7 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "Event props cannot be optional — 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
+            "Event props cannot be optional: 'onTap' is registered once at view creation, so its presence can't vary. Drop the '?'",
           line: 3,
           column: 14,
           fixIts: [FixItSpec(message: "Make 'onTap' non-optional")]
