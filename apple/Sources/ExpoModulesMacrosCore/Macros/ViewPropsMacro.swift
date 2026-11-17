@@ -50,7 +50,9 @@ import SwiftSyntaxMacros
 /// can't be `inout`. An event prop is a `var`, because core assigns it when it binds the events, and an
 /// initial value other than an empty closure gets a warning, because core replaces it. Two events can't
 /// map to the same React Native event type (`onTap` and `tap` are both `topTap`), and no prop can be
-/// named `key` or `ref`, which React keeps for itself.
+/// named `key` or `ref`, which React keeps for itself. An event's name can't be one that React Native
+/// uses for a bubbling event, such as `onPress` or `onChange`: core registers view events as direct
+/// events, and an event type can't be both.
 ///
 /// The extension that conforms the type to `AnyViewProps` adds:
 ///
@@ -464,6 +466,27 @@ private func reactReservedPropDiagnostic(for pattern: IdentifierPatternSyntax, n
 
 /// The props that React keeps for itself and never passes to a native view.
 private let reactReservedPropNames: Set<String> = ["key", "ref"]
+
+/// The error for an event prop whose name React Native already uses for a bubbling event, attached to the property
+/// name. Core registers each view event as a direct event, and React Native throws "Event cannot be both direct and
+/// bubbling" when the view renders. There is no fix-it, since the new name is the author's choice.
+private func bubblingEventNameDiagnostic(for pattern: IdentifierPatternSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "Event prop '\(withoutBackticks(name))' can't have this name, because React Native already uses it for a bubbling event, and the view would fail to render. Rename the event",
+    id: "viewprops-bubbling-event-name"
+  )
+  return Diagnostic(node: pattern, message: message)
+}
+
+/// The bubbling event types in React Native's base view config on iOS (`bubblingEventTypes` in
+/// `Libraries/NativeComponent/BaseViewConfig.ios.js`, React Native 0.89). Every native view has them, so a view event
+/// with one of these types is both direct and bubbling.
+private let bubblingEventTypes: Set<String> = [
+  "topPress", "topChange", "topFocus", "topBlur", "topSubmitEditing", "topEndEditing", "topKeyPress",
+  "topTouchStart", "topTouchMove", "topTouchCancel", "topTouchEnd", "topClick",
+  "topPointerCancel", "topPointerDown", "topPointerMove", "topPointerUp", "topPointerEnter", "topPointerLeave",
+  "topPointerOver", "topPointerOut", "topGotPointerCapture", "topLostPointerCapture",
+]
 
 /// The event type that React Native registers for a view event, as `RCTNormalizeInputEventName` makes it: `onTap` and
 /// `tap` are `topTap`, and a name that starts with `top` stays.
@@ -930,6 +953,9 @@ private func validatedViewProps(
           )
         }
         let eventType = normalizedEventType(of: withoutBackticks(name))
+        if bubblingEventTypes.contains(eventType) {
+          propDiagnostics.append(bubblingEventNameDiagnostic(for: ident, name: name))
+        }
         if let otherName = eventPropsByType[eventType] {
           propDiagnostics.append(
             duplicateEventTypeDiagnostic(for: ident, name: name, otherName: otherName, eventType: eventType)
