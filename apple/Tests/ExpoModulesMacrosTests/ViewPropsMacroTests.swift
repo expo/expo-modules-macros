@@ -119,6 +119,12 @@ struct ViewPropsMacroTests {
               self.radius = try Self._decodeViewProp(value, in: runtime)
             }
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
+          }
         }
         """
     )
@@ -271,6 +277,15 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onClose = {
+              _events.dispatch("onClose", $0)
+            }
+          }
         }
         """
     )
@@ -329,6 +344,12 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
           }
         }
         """
@@ -2429,6 +2450,12 @@ struct ViewPropsMacroTests {
               self.tint = try Self._decodeViewProp(value, in: runtime)
             }
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
+          }
         }
         """
     )
@@ -2962,7 +2989,7 @@ struct ViewPropsMacroTests {
       @ViewProps
       struct Props {
         var onTap: () -> Void
-        var onMove: @Sendable (Double, Double) throws -> ()
+        var onMove: @Sendable (MoveEvent) throws -> ()
         var `default`: (Int) async -> Swift.Void
         var onClose: (CloseEvent) -> Void = { _ in }
       }
@@ -2970,7 +2997,7 @@ struct ViewPropsMacroTests {
       expandedSource: """
         struct Props {
           var onTap: () -> Void
-          var onMove: @Sendable (Double, Double) throws -> ()
+          var onMove: @Sendable (MoveEvent) throws -> ()
           var `default`: (Int) async -> Swift.Void
           var onClose: (CloseEvent) -> Void = { _ in }
 
@@ -3000,7 +3027,7 @@ struct ViewPropsMacroTests {
           nonisolated public init() {
             self.onTap = {
             }
-            self.onMove = { _, _ in
+            self.onMove = { _ in
             }
             self.`default` = { _ in
             }
@@ -3018,6 +3045,21 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onMove = {
+              _events.dispatch("onMove", $0)
+            }
+            self.`default` = {
+              _events.dispatch("default", $0)
+            }
+            self.onClose = {
+              _events.dispatch("onClose", $0)
+            }
           }
         }
         """
@@ -3074,6 +3116,15 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onClose = {
+              _events.dispatch("onClose", $0)
+            }
           }
         }
         """
@@ -3137,6 +3188,12 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
+          }
         }
         """
     )
@@ -3172,6 +3229,535 @@ struct ViewPropsMacroTests {
           var onTap: (TapEvent) -> Void
         }
         """
+    )
+  }
+
+  @Test
+  func `An event with more than one parameter produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onMove: (Double, Double) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onMove: (Double, Double) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onMove' takes 2 parameters, but JavaScript gets one payload for an event. Take one parameter, such as a record with the values",
+          line: 3,
+          column: 16
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A let event prop produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let onTap: () -> Void = {}
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let onTap: () -> Void = {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' can't be a 'let' constant, because core assigns the closure that dispatches the event. Declare it with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ],
+      applyFixIts: ["Replace 'let' with 'var'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void = {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A let declaring a value prop and an event prop gets one diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let title = "", onTap: () -> Void = {}
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let title = "", onTap: () -> Void = {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Props 'title' and 'onTap' can't be 'let' constants, because core assigns them. Declare them with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An event that takes a tuple produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onMove: ((x: Double, y: Double)) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onMove: ((x: Double, y: Double)) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onMove' takes a tuple, but an event payload must be 'JavaScriptEncodable', which a tuple can't be. Take a record with the values",
+          line: 3,
+          column: 16
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An event that takes a Void parameter produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void
+        var onClose: (Void) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void
+          var onClose: (Void) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15,
+          fixIts: [FixItSpec(message: "Remove the parameter")]
+        ),
+        DiagnosticSpec(
+          message:
+            "Event prop 'onClose' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 4,
+          column: 17,
+          fixIts: [FixItSpec(message: "Remove the parameter")]
+        ),
+      ],
+      applyFixIts: ["Remove the parameter"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void
+          var onClose: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An event with an inout parameter produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onStep: (inout Int) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onStep: (inout Int) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The parameter of event prop 'onStep' can't be 'inout', because the payload is sent to JavaScript, which can't write it back. Remove 'inout'",
+          line: 3,
+          column: 16,
+          fixIts: [FixItSpec(message: "Remove 'inout'")]
+        )
+      ],
+      applyFixIts: ["Remove 'inout'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onStep: (Int) -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Two events of the same React Native event type produce a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> Void
+        var tap: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> Void
+          var tap: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event props 'onTap' and 'tap' are the same event, 'topTap', in React Native, so only one of them would get it in JavaScript. Rename one of them",
+          line: 4,
+          column: 7
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Props that React keeps for itself produce diagnostics`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var key: String = ""
+        var ref: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var key: String = ""
+          var ref: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "Prop 'key' never reaches the view, because React keeps it for itself. Rename the prop",
+          line: 3,
+          column: 7
+        ),
+        DiagnosticSpec(
+          message: "Prop 'ref' never reaches the view, because React keeps it for itself. Rename the prop",
+          line: 4,
+          column: 7
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `An event with an initial value that isn't empty produces a warning with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> Void = { print("tapped") }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> Void = { print("tapped") }
+
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          nonisolated public static let _eventNames: [String] = ["onTap"]
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The initial value of event prop 'onTap' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Replace it with an empty closure",
+          line: 3,
+          column: 27,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Replace the initial value with '{}'")]
+        )
+      ],
+      applyFixIts: ["Replace the initial value with '{}'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void = {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The initial value fix-it keeps the struct's own initializers valid`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var title = ""
+        var onMove: (Int) -> Void = { print($0) }
+
+        init(title: String) {
+          self.title = title
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var title = ""
+          var onMove: (Int) -> Void = { print($0) }
+
+          init(title: String) {
+            self.title = title
+          }
+
+          @frozen nonisolated public enum PropName: String, CaseIterable {
+            case title
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let title = PropSet(rawValue: 1 << 0)
+          }
+
+          nonisolated public static let _eventNames: [String] = ["onMove"]
+
+          public typealias Diff = PropsDiff<Self>
+
+          nonisolated public init() {
+          }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .title:
+              _props.title = ""
+            }
+          }
+        }
+
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .title:
+              return .title
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .title:
+              self.title = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onMove = {
+              _events.dispatch("onMove", $0)
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The initial value of event prop 'onMove' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Replace it with an empty closure",
+          line: 4,
+          column: 31,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Replace the initial value with '{ _ in }'")]
+        )
+      ],
+      applyFixIts: ["Replace the initial value with '{ _ in }'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var title = ""
+          var onMove: (Int) -> Void = { _ in }
+
+          init(title: String) {
+            self.title = title
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The Void parameter fix-it also replaces an empty closure that takes the parameter`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void = { _ in }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void = { _ in }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15,
+          fixIts: [FixItSpec(message: "Remove the parameter")]
+        )
+      ],
+      applyFixIts: ["Remove the parameter"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void = {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The parameter fix-its aren't offered when a closure might not fit the new type`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void = { print($0) }
+        var onStep: (inout Int) -> Void = { $0 += 1 }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void = { print($0) }
+          var onStep: (inout Int) -> Void = { $0 += 1 }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15
+        ),
+        DiagnosticSpec(
+          message:
+            "The parameter of event prop 'onStep' can't be 'inout', because the payload is sent to JavaScript, which can't write it back. Remove 'inout'",
+          line: 4,
+          column: 16
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `The parameter fix-its aren't offered when the struct declares an initializer`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void
+
+        init() {
+          onTap = { _ in }
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void
+
+          init() {
+            onTap = { _ in }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15
+        )
+      ]
     )
   }
 
@@ -3560,6 +4146,12 @@ struct ViewPropsMacroTests {
             switch name {
             case .color:
               self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
             }
           }
         }
@@ -4070,6 +4662,18 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onClose = {
+              _events.dispatch("onClose")
+            }
+            self.onMove = {
+              _events.dispatch("onMove", $0)
+            }
           }
         }
         """

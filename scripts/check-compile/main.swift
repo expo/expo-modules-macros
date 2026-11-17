@@ -1,5 +1,5 @@
-// Decodes and resets the props of `Props.swift` through the generic code in `Core.swift`, and compares
-// each reset prop with its value in `Self()`. Exits with a nonzero status when a check fails.
+// Decodes and resets the props of `Props.swift` through the generic code in `Core.swift`, compares
+// each reset prop with its value in `Self()`, and dispatches the bound events. Exits with a nonzero status when a check fails.
 
 import Core
 import Darwin
@@ -54,6 +54,24 @@ func check() throws -> [String] {
   computed.storage = 100
   expect(try decoding(computed, [(.doubled, nil)]).props.storage, 4, "ComputedProps.doubled reset")
   expect(try decoding(computed, [(.halved, nil)]).props.storage, 4, "ComputedProps.halved reset")
+
+  let dispatcher = ViewEventDispatcher()
+  let boundEvents = bindingEvents(of: EventsOnlyProps.self, to: dispatcher)
+  boundEvents.onTap()
+  boundEvents.onChange(3)
+  // Without events, the props keep the default of `AnyViewProps`, which binds nothing.
+  _ = bindingEvents(of: PublicProps.self, to: dispatcher)
+  expect(dispatcher.events, ["onTap", "onChange: 3"], "EventsOnlyProps dispatched events")
+
+  let kindsDispatcher = ViewEventDispatcher()
+  let kinds = bindingEvents(of: EventKindsProps.self, to: kindsDispatcher)
+  kinds.onSendable(1)
+  try kinds.onThrows(2)
+  kinds.onNonSendable(NonSendablePayload())
+  kinds._events(4)
+  kinds.`default`()
+  expect(kindsDispatcher.events.count, 5, "EventKindsProps dispatched events")
+  expect(Array(kindsDispatcher.events.suffix(2)), ["_events: 4", "default"], "EventKindsProps event names")
 
   expect(propNames(of: PublicProps.self), ["title", "count", "ratio"], "PublicProps names")
   expect(propNames(of: EventsOnlyProps.self), ["onTap", "onChange"], "EventsOnlyProps names")

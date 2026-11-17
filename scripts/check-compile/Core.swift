@@ -35,6 +35,10 @@ public struct JavaScriptUnownedValue: ~Copyable {
 
 public struct DecodingError: Error {}
 
+public protocol JavaScriptEncodable: ~Copyable {}
+
+extension Int: JavaScriptEncodable {}
+
 public protocol JavaScriptDecodable: ~Copyable {
   @JavaScriptActor
   static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self
@@ -110,9 +114,13 @@ public protocol AnyViewProps {
     from value: borrowing JavaScriptUnownedValue,
     in runtime: borrowing JavaScriptRuntime
   ) throws
+
+  mutating func _bindEvents(to events: ViewEventDispatcher)
 }
 
 extension AnyViewProps {
+  public mutating func _bindEvents(to events: ViewEventDispatcher) {}
+
   @JavaScriptActor
   @inlinable
   public static func _decodeViewProp<T: JavaScriptDecodable>(
@@ -125,6 +133,21 @@ extension AnyViewProps {
 
 public struct PropsDiff<Props: AnyViewProps> {}
 
+/// Records the events that bound props dispatch, in place of sending them to JavaScript.
+public final class ViewEventDispatcher: @unchecked Sendable {
+  public private(set) var events: [String] = []
+
+  public init() {}
+
+  public func dispatch(_ name: String) {
+    events.append(name)
+  }
+
+  public func dispatch<Payload: JavaScriptEncodable>(_ name: String, _ payload: Payload) {
+    events.append("\(name): \(payload)")
+  }
+}
+
 @attached(
   member,
   names: named(PropName),
@@ -134,7 +157,14 @@ public struct PropsDiff<Props: AnyViewProps> {}
   named(init),
   named(_resetViewProp)
 )
-@attached(extension, conformances: AnyViewProps, names: named(allProps), named(propSet), named(_decode))
+@attached(
+  extension,
+  conformances: AnyViewProps,
+  names: named(allProps),
+  named(propSet),
+  named(_decode),
+  named(_bindEvents)
+)
 public macro ViewProps() =
   #externalMacro(module: "ExpoModulesMacros", type: "ViewPropsMacro")
 
@@ -156,6 +186,14 @@ public func decoding<Props: AnyViewProps>(
     changed.insert(Props.propSet(for: name))
   }
   return (props, changed.rawValue)
+}
+
+/// Returns new props with the events bound to the given dispatcher, from generic code with no isolation,
+/// as `ViewPropsDecoder` makes the first props of a view.
+public func bindingEvents<Props: AnyViewProps>(of type: Props.Type, to dispatcher: ViewEventDispatcher) -> Props {
+  var props = Props()
+  props._bindEvents(to: dispatcher)
+  return props
 }
 
 /// The names of the value props and of the events, from generic code with no isolation.
