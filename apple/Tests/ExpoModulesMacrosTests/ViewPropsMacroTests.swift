@@ -3258,6 +3258,301 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `A let event prop produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let onTap: () -> Void = {}
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let onTap: () -> Void = {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' can't be a 'let' constant, because core assigns the closure that dispatches the event. Declare it with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ],
+      applyFixIts: ["Replace 'let' with 'var'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void = {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A let declaring a value prop and an event prop gets one diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        let title = "", onTap: () -> Void = {}
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          let title = "", onTap: () -> Void = {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Props 'title' and 'onTap' can't be 'let' constants, because core assigns them. Declare them with 'var'",
+          line: 3,
+          column: 3,
+          fixIts: [FixItSpec(message: "Replace 'let' with 'var'")]
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An event that takes a tuple produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onMove: ((x: Double, y: Double)) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onMove: ((x: Double, y: Double)) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onMove' takes a tuple, but an event payload must be 'JavaScriptEncodable', which a tuple can't be. Take a record with the values",
+          line: 3,
+          column: 16
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An event that takes a Void parameter produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void
+        var onClose: (Void) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void
+          var onClose: (Void) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15,
+          fixIts: [FixItSpec(message: "Remove the parameter")]
+        ),
+        DiagnosticSpec(
+          message:
+            "Event prop 'onClose' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 4,
+          column: 17,
+          fixIts: [FixItSpec(message: "Remove the parameter")]
+        ),
+      ],
+      applyFixIts: ["Remove the parameter"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void
+          var onClose: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An event with an inout parameter produces a diagnostic with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onStep: (inout Int) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onStep: (inout Int) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The parameter of event prop 'onStep' can't be 'inout', because the payload is sent to JavaScript, which can't write it back. Remove 'inout'",
+          line: 3,
+          column: 16,
+          fixIts: [FixItSpec(message: "Remove 'inout'")]
+        )
+      ],
+      applyFixIts: ["Remove 'inout'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onStep: (Int) -> Void
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Two events of the same React Native event type produce a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> Void
+        var tap: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> Void
+          var tap: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event props 'onTap' and 'tap' are the same event, 'topTap', in React Native, so only one of them would get it in JavaScript. Rename one of them",
+          line: 4,
+          column: 7
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `Props that React keeps for itself produce diagnostics`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var key: String = ""
+        var ref: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var key: String = ""
+          var ref: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "Prop 'key' never reaches the view, because React keeps it for itself. Rename the prop",
+          line: 3,
+          column: 7
+        ),
+        DiagnosticSpec(
+          message: "Prop 'ref' never reaches the view, because React keeps it for itself. Rename the prop",
+          line: 4,
+          column: 7
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `An event with an initial value that isn't empty produces a warning with a fix-it`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: () -> Void = { print("tapped") }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: () -> Void = { print("tapped") }
+
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable {
+            public init?(rawValue: String) {
+              return nil
+            }
+
+            public var rawValue: String {
+              switch self {
+              }
+            }
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+          }
+
+          nonisolated public static let _eventNames: [String] = ["onTap"]
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The initial value of event prop 'onTap' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Remove it",
+          line: 3,
+          column: 27,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Remove the initial value")]
+        )
+      ],
+      applyFixIts: ["Remove the initial value"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void
+        }
+        """
+    )
+  }
+
+  @Test
   func `An implicitly unwrapped value prop needs no initial value`() {
     assertExpansion(
       """

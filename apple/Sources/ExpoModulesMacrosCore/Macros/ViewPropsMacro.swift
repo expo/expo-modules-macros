@@ -46,7 +46,11 @@ import SwiftSyntaxMacros
 ///
 /// An event's function type must return `Void`, because JavaScript can't return a value to it, and
 /// takes at most one parameter, the payload, because JavaScript gets one payload object for an event.
-/// The payload type must be `JavaScriptEncodable`.
+/// The payload type must be `JavaScriptEncodable`, so it can't be a tuple or `Void`, and the parameter
+/// can't be `inout`. An event prop is a `var`, because core assigns it when it binds the events, and an
+/// initial value other than an empty closure gets a warning, because core replaces it. Two events can't
+/// map to the same React Native event type (`onTap` and `tap` are both `topTap`), and no prop can be
+/// named `key` or `ref`, which React keeps for itself.
 ///
 /// The extension that conforms the type to `AnyViewProps` adds:
 ///
@@ -92,6 +96,10 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
     let props = try validatedViewProps(of: declaration, in: context.lexicalContext)
+    // Reported by the member role only, so each warning appears once.
+    for warning in props.warnings {
+      context.diagnose(warning)
+    }
 
     var members: [DeclSyntax] = []
     members.append(propNameEnum(valueProps: props.valueProps))
@@ -241,11 +249,14 @@ private func innerFunctionType(of type: TypeSyntax) -> TypeSyntax? {
   return only.type
 }
 
-/// The error for a `let` declaring value props, attached to the `let` keyword and carrying a fix-it
-/// that changes it to `var`. `_decode` assigns each value prop when React sets or removes it, which a
-/// constant doesn't allow. The fix-it changes every binding of the declaration, so the message names
-/// each value prop it declares.
-private func letValuePropDiagnostic(for varDecl: VariableDeclSyntax, names: [String]) -> Diagnostic {
+/// The error for a `let` that declares props, attached to the keyword and carrying a fix-it that
+/// replaces it with `var`. Core assigns a value prop whenever React sets or removes it, and the closure
+/// that dispatches an event prop when it binds the events.
+private func letPropDiagnostic(
+  for varDecl: VariableDeclSyntax,
+  valueNames: [String],
+  eventNames: [String]
+) -> Diagnostic {
   let specifier = varDecl.bindingSpecifier
   let fixIt = FixIt(
     message: ViewPropsFixItMessage("Replace 'let' with 'var'", id: "viewprops-let-to-var"),
@@ -256,11 +267,24 @@ private func letValuePropDiagnostic(for varDecl: VariableDeclSyntax, names: [Str
       )
     ]
   )
-  let quoted = names.map { "'\(withoutBackticks($0))'" }
-  let text =
+  let quoted = (valueNames + eventNames).map { "'\(withoutBackticks($0))'" }
+  let names =
     quoted.count == 1
-    ? "View prop \(quoted[0]) can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'"
-    : "View props \(quoted.dropLast().joined(separator: ", ")) and \(quoted[quoted.count - 1]) can't be 'let' constants, because they're assigned whenever React sets or removes the props. Declare them with 'var'"
+    ? quoted[0] : "\(quoted.dropLast().joined(separator: ", ")) and \(quoted[quoted.count - 1])"
+  let text: String
+  if eventNames.isEmpty {
+    text =
+      quoted.count == 1
+      ? "View prop \(names) can't be a 'let' constant, because it's assigned whenever React sets or removes the prop. Declare it with 'var'"
+      : "View props \(names) can't be 'let' constants, because they're assigned whenever React sets or removes the props. Declare them with 'var'"
+  } else if valueNames.isEmpty {
+    text =
+      quoted.count == 1
+      ? "Event prop \(names) can't be a 'let' constant, because core assigns the closure that dispatches the event. Declare it with 'var'"
+      : "Event props \(names) can't be 'let' constants, because core assigns the closures that dispatch the events. Declare them with 'var'"
+  } else {
+    text = "Props \(names) can't be 'let' constants, because core assigns them. Declare them with 'var'"
+  }
   return Diagnostic(
     node: specifier,
     message: ViewPropsDiagnosticMessage(text, id: "viewprops-let-prop"),
@@ -296,6 +320,150 @@ private func eventParameterCountDiagnostic(for functionType: FunctionTypeSyntax,
     id: "viewprops-event-parameter-count"
   )
   return Diagnostic(node: functionType.parameters, message: message)
+}
+
+/// The error for the one parameter of an event prop that `_bindEvents(to:)` can't pass on as the payload, or `nil`
+/// when the parameter works. An `inout` parameter can't take the closure's argument, a `Void` parameter has no
+/// payload to send, and a tuple can't conform to `JavaScriptEncodable`.
+private func eventParameterDiagnostic(
+  for parameter: TupleTypeElementSyntax,
+  in functionType: FunctionTypeSyntax,
+  name: String
+) -> Diagnostic? {
+  let eventName = withoutBackticks(name)
+  if let attributed = parameter.type.as(AttributedTypeSyntax.self),
+    attributed.specifiers.contains(where: { $0.trimmedDescription == "inout" })
+  {
+    let specifiers = attributed.specifiers.filter { $0.trimmedDescription != "inout" }
+    let newType =
+      specifiers.isEmpty && attributed.attributes.isEmpty
+      ? attributed.baseType.with(\.leadingTrivia, attributed.leadingTrivia)
+      : TypeSyntax(attributed.with(\.specifiers, specifiers))
+    return Diagnostic(
+      node: parameter.type,
+      message: ViewPropsDiagnosticMessage(
+        "The parameter of event prop '\(eventName)' can't be 'inout', because the payload is sent to JavaScript, which can't write it back. Remove 'inout'",
+        id: "viewprops-event-inout-parameter"
+      ),
+      fixIts: [
+        FixIt(
+          message: ViewPropsFixItMessage("Remove 'inout'", id: "viewprops-event-remove-inout"),
+          changes: [.replace(oldNode: Syntax(parameter.type), newNode: Syntax(newType))]
+        )
+      ]
+    )
+  }
+  if isVoidType(parameter.type) {
+    let noParameters = functionType.with(\.parameters, TupleTypeElementListSyntax([]))
+    return Diagnostic(
+      node: parameter.type,
+      message: ViewPropsDiagnosticMessage(
+        "Event prop '\(eventName)' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+        id: "viewprops-event-void-parameter"
+      ),
+      fixIts: [
+        FixIt(
+          message: ViewPropsFixItMessage("Remove the parameter", id: "viewprops-event-remove-void-parameter"),
+          changes: [.replace(oldNode: Syntax(functionType), newNode: Syntax(noParameters))]
+        )
+      ]
+    )
+  }
+  if let tuple = withoutParentheses(parameter.type).as(TupleTypeSyntax.self), tuple.elements.count > 1 {
+    return Diagnostic(
+      node: parameter.type,
+      message: ViewPropsDiagnosticMessage(
+        "Event prop '\(eventName)' takes a tuple, but an event payload must be 'JavaScriptEncodable', which a tuple can't be. Take a record with the values",
+        id: "viewprops-event-tuple-parameter"
+      )
+    )
+  }
+  return nil
+}
+
+/// The warning for an event prop whose initial value isn't an empty closure, attached to the initial value. Core
+/// replaces the closure with one that dispatches the event when it binds the events, so the code in it doesn't run
+/// when the view calls the event. The fix-it removes the initial value, unless the struct declares its own
+/// `init()`, which would then have to set the prop.
+private func unusedEventInitialValueDiagnostic(
+  for binding: PatternBindingSyntax,
+  name: String,
+  offersFixIt: Bool
+) -> Diagnostic {
+  // `binding.initializer` is non-nil here: the caller only reports a binding with an initial value.
+  let initializer = binding.initializer!
+  var fixIts: [FixIt] = []
+  if offersFixIt, let typeAnnotation = binding.typeAnnotation {
+    let newBinding =
+      binding
+      .with(\.initializer, nil)
+      .with(\.typeAnnotation, typeAnnotation.with(\.trailingTrivia, initializer.trailingTrivia))
+    fixIts.append(
+      FixIt(
+        message: ViewPropsFixItMessage("Remove the initial value", id: "viewprops-event-remove-initial-value"),
+        changes: [.replace(oldNode: Syntax(binding), newNode: Syntax(newBinding))]
+      )
+    )
+  }
+  return Diagnostic(
+    node: initializer.value,
+    message: ViewPropsDiagnosticMessage(
+      "The initial value of event prop '\(withoutBackticks(name))' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Remove it",
+      id: "viewprops-event-initial-value",
+      severity: .warning
+    ),
+    fixIts: fixIts
+  )
+}
+
+/// The error for an event prop that React Native registers as the same event as an earlier one, attached to the
+/// property name. The view config has one entry for each event type, so only one of the two props would get the
+/// event in JavaScript.
+private func duplicateEventTypeDiagnostic(
+  for pattern: IdentifierPatternSyntax,
+  name: String,
+  otherName: String,
+  eventType: String
+) -> Diagnostic {
+  return Diagnostic(
+    node: pattern,
+    message: ViewPropsDiagnosticMessage(
+      "Event props '\(withoutBackticks(otherName))' and '\(withoutBackticks(name))' are the same event, '\(eventType)', in React Native, so only one of them would get it in JavaScript. Rename one of them",
+      id: "viewprops-duplicate-event-type"
+    )
+  )
+}
+
+/// The error for a prop named `key` or `ref`, attached to the property name. React keeps these props for itself,
+/// so they never reach a native view.
+private func reactReservedPropDiagnostic(for pattern: IdentifierPatternSyntax, name: String) -> Diagnostic {
+  return Diagnostic(
+    node: pattern,
+    message: ViewPropsDiagnosticMessage(
+      "Prop '\(withoutBackticks(name))' never reaches the view, because React keeps it for itself. Rename the prop",
+      id: "viewprops-react-reserved-name"
+    )
+  )
+}
+
+/// The props that React keeps for itself and never passes to a native view.
+private let reactReservedPropNames: Set<String> = ["key", "ref"]
+
+/// The event type that React Native registers for a view event, as `RCTNormalizeInputEventName` makes it: `onTap` and
+/// `tap` are `topTap`, and a name that starts with `top` stays.
+private func normalizedEventType(of eventName: String) -> String {
+  if eventName.hasPrefix("on") {
+    return "top" + eventName.dropFirst(2)
+  }
+  if eventName.hasPrefix("top") {
+    return eventName
+  }
+  return "top" + eventName.prefix(1).uppercased() + eventName.dropFirst()
+}
+
+/// Whether the expression is a closure literal with no statements, such as `{}` or `{ _ in }`.
+private func isEmptyClosure(_ expression: ExprSyntax) -> Bool {
+  return expression.as(ClosureExprSyntax.self)?.statements.isEmpty ?? false
 }
 
 /// The error for a value prop with no default, attached to the property name. A value prop starts
@@ -427,11 +595,12 @@ private func unusableInitializerDiagnostic(
 private struct ViewPropsDiagnosticMessage: DiagnosticMessage {
   let message: String
   let diagnosticID: MessageID
-  let severity: DiagnosticSeverity = .error
+  let severity: DiagnosticSeverity
 
-  init(_ message: String, id: String) {
+  init(_ message: String, id: String, severity: DiagnosticSeverity = .error) {
     self.message = message
     self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+    self.severity = severity
   }
 }
 
@@ -543,6 +712,8 @@ private struct ViewPropsModel {
   let eventDefaults: [EventDefault]
   /// Whether the macro generates `init()`. See `needsGeneratedInitializer`.
   let generatesInitializer: Bool
+  /// Warnings that don't stop the expansion.
+  let warnings: [Diagnostic]
 }
 
 /// Reads and validates the props type's stored properties, splitting them into value props and events.
@@ -618,6 +789,9 @@ private func validatedViewProps(
   var valueProps: [ViewProp] = []
   var eventProps: [ViewEvent] = []
   var eventDefaults: [EventDefault] = []
+  var warnings: [Diagnostic] = []
+  // The event prop that registers each event type, to find two props of the same type.
+  var eventPropsByType: [String: String] = [:]
 
   for member in declaration.memberBlock.members {
     guard let varDecl = member.decl.as(VariableDeclSyntax.self) else {
@@ -632,6 +806,7 @@ private func validatedViewProps(
     // One `let` can declare several props, but its diagnostic and fix-it belong to the keyword, so
     // it comes before the diagnostics of the bindings, in source order.
     var letValuePropNames: [String] = []
+    var letEventPropNames: [String] = []
     let letDiagnosticIndex = propDiagnostics.count
     for binding in varDecl.bindings {
       // A computed property is never a prop, but an accessor block alone doesn't mean computed:
@@ -666,6 +841,11 @@ private func validatedViewProps(
         throw MacroExpansionErrorMessage(
           "@ViewProps props must declare an explicit type: '\(name)' has none"
         )
+      }
+
+      // React keeps `key` and `ref` for itself and never passes them to a native view.
+      if reactReservedPropNames.contains(withoutBackticks(name)) {
+        propDiagnostics.append(reactReservedPropDiagnostic(for: ident, name: name))
       }
 
       // A function type means an event. An *optional* function type would make the event's presence
@@ -709,6 +889,27 @@ private func validatedViewProps(
         // assigns can pass on at most one parameter.
         if eventFunctionType.parameters.count > 1 {
           propDiagnostics.append(eventParameterCountDiagnostic(for: eventFunctionType, name: name))
+        } else if let parameter = eventFunctionType.parameters.first,
+          let diagnostic = eventParameterDiagnostic(for: parameter, in: eventFunctionType, name: name)
+        {
+          propDiagnostics.append(diagnostic)
+        }
+        // `_bindEvents(to:)` assigns every event prop, so none can be a constant.
+        if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
+          letEventPropNames.append(name)
+        }
+        if let initializer = binding.initializer, !isEmptyClosure(initializer.value) {
+          warnings.append(
+            unusedEventInitialValueDiagnostic(for: binding, name: name, offersFixIt: !declaresUsableInitializer)
+          )
+        }
+        let eventType = normalizedEventType(of: withoutBackticks(name))
+        if let otherName = eventPropsByType[eventType] {
+          propDiagnostics.append(
+            duplicateEventTypeDiagnostic(for: ident, name: name, otherName: otherName, eventType: eventType)
+          )
+        } else {
+          eventPropsByType[eventType] = name
         }
         if needsInitialValue {
           eventDefaults.append(
@@ -729,8 +930,11 @@ private func validatedViewProps(
       }
       valueProps.append(prop)
     }
-    if !letValuePropNames.isEmpty {
-      propDiagnostics.insert(letValuePropDiagnostic(for: varDecl, names: letValuePropNames), at: letDiagnosticIndex)
+    if !letValuePropNames.isEmpty || !letEventPropNames.isEmpty {
+      propDiagnostics.insert(
+        letPropDiagnostic(for: varDecl, valueNames: letValuePropNames, eventNames: letEventPropNames),
+        at: letDiagnosticIndex
+      )
     }
   }
   // Reported together, so one run names every prop that the generated code can't reset, assign or
@@ -754,7 +958,8 @@ private func validatedViewProps(
       eventDefaults: eventDefaults,
       declaresUsableInitializer: declaresUsableInitializer,
       declaresOtherInitializer: declaresOtherInitializer
-    )
+    ),
+    warnings: warnings
   )
 }
 
