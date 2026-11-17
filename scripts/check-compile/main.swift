@@ -63,6 +63,13 @@ func check() throws -> [String] {
   _ = bindingEvents(of: PublicProps.self, to: dispatcher)
   expect(dispatcher.events, ["onTap", "onChange: 3"], "EventsOnlyProps dispatched events")
 
+  let kindsDispatcher = ViewEventDispatcher()
+  let kinds = bindingEvents(of: EventKindsProps.self, to: kindsDispatcher)
+  kinds.onSendable(1)
+  try kinds.onThrows(2)
+  kinds.onNonSendable(NonSendablePayload())
+  expect(kindsDispatcher.events.count, 3, "EventKindsProps dispatched events")
+
   expect(propNames(of: PublicProps.self), ["title", "count", "ratio"], "PublicProps names")
   expect(propNames(of: EventsOnlyProps.self), ["onTap", "onChange"], "EventsOnlyProps names")
   return failures

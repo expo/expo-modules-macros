@@ -86,3 +86,20 @@ nonisolated struct ComputedProps {
 private struct PrivateProps {
   var title = ""
 }
+
+// Event function types other than a plain closure, and a payload that isn't `Sendable`. `_bindEvents(to:)` assigns
+// a closure to each of them.
+nonisolated public final class NonSendablePayload: JavaScriptEncodable {
+  public var count = 0
+
+  public init() {}
+}
+
+@ViewProps
+nonisolated public struct EventKindsProps {
+  public var onSendable: @Sendable (Int) -> Void
+  public var onMainActor: @MainActor (Int) -> Void
+  public var onAsync: (Int) async -> Void
+  public var onThrows: (Int) throws -> Void
+  public var onNonSendable: (NonSendablePayload) -> Void
+}
