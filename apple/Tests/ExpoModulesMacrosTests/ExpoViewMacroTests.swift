@@ -86,7 +86,7 @@ struct ExpoViewMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'didUpdateProps' never runs, because core calls 'didUpdateProps(_:)' with a 'CardProps.Diff'. Change the parameter to '_ diff: CardProps.Diff'",
+            "'didUpdateProps' never runs, because it doesn't match the method that core calls: 'func didUpdateProps(_ diff: CardProps.Diff)', which isn't 'async', doesn't throw and returns nothing. Change the method to match it",
           line: 3,
           column: 8,
           severity: .warning,
@@ -125,7 +125,7 @@ struct ExpoViewMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "'didUpdateProps' never runs, because core calls 'didUpdateProps(_:)' with a 'CardProps.Diff'. Change the parameter to '_ diff: CardProps.Diff'",
+            "'didUpdateProps' never runs, because it doesn't match the method that core calls: 'func didUpdateProps(_ diff: CardProps.Diff)', which isn't 'async', doesn't throw and returns nothing. Change the method to match it",
           line: 3,
           column: 8,
           severity: .warning,
@@ -137,6 +137,99 @@ struct ExpoViewMacroTests {
         @ExpoView<CardProps>
         class CardView: ExpoNativeView {
           func didUpdateProps(_ diff: CardProps.Diff) {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An async, throwing or returning didUpdateProps produces a warning without a fix-it`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>
+      class AsyncCardView: ExpoNativeView {
+        func didUpdateProps(_ diff: CardProps.Diff) async {}
+      }
+
+      @ExpoView<CardProps>
+      class ThrowingCardView: ExpoNativeView {
+        func didUpdateProps(_ diff: CardProps.Diff) throws {}
+      }
+
+      @ExpoView<CardProps>
+      class ReturningCardView: ExpoNativeView {
+        func didUpdateProps(_ diff: CardProps.Diff) -> Bool { true }
+      }
+      """,
+      expandedSource: """
+        class AsyncCardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) async {}
+
+          public typealias Props = CardProps
+        }
+        class ThrowingCardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) throws {}
+
+          public typealias Props = CardProps
+        }
+        class ReturningCardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) -> Bool { true }
+
+          public typealias Props = CardProps
+        }
+
+        extension AsyncCardView: AnyNativeUIKitView {
+        }
+
+        extension ThrowingCardView: AnyNativeUIKitView {
+        }
+
+        extension ReturningCardView: AnyNativeUIKitView {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'didUpdateProps' never runs, because it doesn't match the method that core calls: 'func didUpdateProps(_ diff: CardProps.Diff)', which isn't 'async', doesn't throw and returns nothing. Change the method to match it",
+          line: 3,
+          column: 8,
+          severity: .warning
+        ),
+        DiagnosticSpec(
+          message:
+            "'didUpdateProps' never runs, because it doesn't match the method that core calls: 'func didUpdateProps(_ diff: CardProps.Diff)', which isn't 'async', doesn't throw and returns nothing. Change the method to match it",
+          line: 8,
+          column: 8,
+          severity: .warning
+        ),
+        DiagnosticSpec(
+          message:
+            "'didUpdateProps' never runs, because it doesn't match the method that core calls: 'func didUpdateProps(_ diff: CardProps.Diff)', which isn't 'async', doesn't throw and returns nothing. Change the method to match it",
+          line: 13,
+          column: 8,
+          severity: .warning
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `didUpdateProps that returns Void gets no warning`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>
+      class CardView: ExpoNativeView {
+        func didUpdateProps(_ diff: CardProps.Diff) -> Void {}
+      }
+      """,
+      expandedSource: """
+        class CardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) -> Void {}
+
+          public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeUIKitView {
         }
         """
     )

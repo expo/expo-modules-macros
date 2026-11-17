@@ -177,21 +177,26 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
 
 /// The warning for `didUpdateProps` methods of which none matches the `AnyNativeUIKitView` requirement, attached to the
 /// first one, or `nil` when one matches or there is none. Core calls the requirement. A method with another parameter
-/// label or type is a separate overload, so the default that does nothing runs instead, and Swift reports nothing.
-/// It's a warning, because the macro can't resolve a type alias that names the right type.
+/// label or type, with `async` or `throws`, with a result or with generic parameters is a separate overload, so the
+/// default that does nothing runs instead, and Swift reports nothing. It's a warning, because the macro can't resolve
+/// a type alias that names the right type.
+///
+/// The fix-it changes only the parameter, so it's offered only when the parameter is the one difference: removing
+/// `async` or `throws` could break the method's body.
 private func didUpdatePropsDiagnostic(in memberBlock: MemberBlockSyntax, propsType: String) -> Diagnostic? {
   let methods = memberBlock.members.compactMap { $0.decl.as(FunctionDeclSyntax.self) }.filter { method in
     method.name.text == "didUpdateProps"
       && !method.modifiers.contains { [.keyword(.static), .keyword(.class)].contains($0.name.tokenKind) }
   }
-  guard let method = methods.first, !methods.contains(where: { matchesDidUpdateProps($0, propsType: propsType) })
+  guard let method = methods.first,
+    !methods.contains(where: { hasDidUpdatePropsShape($0) && hasDidUpdatePropsParameter($0, propsType: propsType) })
   else {
     return nil
   }
   let expectedType = "\(propsType).Diff"
   var fixIts: [FixIt] = []
   let parameters = method.signature.parameterClause.parameters
-  if parameters.count == 1, let parameter = parameters.first {
+  if hasDidUpdatePropsShape(method), parameters.count == 1, let parameter = parameters.first {
     let parameterName = parameter.secondName ?? parameter.firstName
     let newParameter =
       parameter
@@ -216,7 +221,7 @@ private func didUpdatePropsDiagnostic(in memberBlock: MemberBlockSyntax, propsTy
   return Diagnostic(
     node: method.name,
     message: ExpoViewDiagnosticMessage(
-      "'didUpdateProps' never runs, because core calls 'didUpdateProps(_:)' with a '\(expectedType)'. Change the parameter to '_ diff: \(expectedType)'",
+      "'didUpdateProps' never runs, because it doesn't match the method that core calls: 'func didUpdateProps(_ diff: \(expectedType))', which isn't 'async', doesn't throw and returns nothing. Change the method to match it",
       id: "expoview-did-update-props-signature",
       severity: .warning
     ),
@@ -224,9 +229,26 @@ private func didUpdatePropsDiagnostic(in memberBlock: MemberBlockSyntax, propsTy
   )
 }
 
-/// Whether the method has the signature of the `AnyNativeUIKitView` requirement: one unlabeled parameter whose type
-/// is the diff of the props type, in one of the spellings that name it without a type alias.
-private func matchesDidUpdateProps(_ method: FunctionDeclSyntax, propsType: String) -> Bool {
+/// Whether the method has the shape of the `AnyNativeUIKitView` requirement apart from its parameters: it isn't
+/// `async`, doesn't throw, has no generic parameters and returns nothing.
+private func hasDidUpdatePropsShape(_ method: FunctionDeclSyntax) -> Bool {
+  let effects = method.signature.effectSpecifiers
+  guard effects?.asyncSpecifier == nil, effects?.throwsClause == nil, method.genericParameterClause == nil else {
+    return false
+  }
+  guard let returnType = method.signature.returnClause?.type else {
+    return true
+  }
+  let type = withoutParentheses(returnType)
+  if let tuple = type.as(TupleTypeSyntax.self) {
+    return tuple.elements.isEmpty
+  }
+  return ["Void", "Swift.Void"].contains(type.trimmedDescription)
+}
+
+/// Whether the method has the parameter of the `AnyNativeUIKitView` requirement: one unlabeled parameter whose type is
+/// the diff of the props type, in one of the spellings that name it without a type alias.
+private func hasDidUpdatePropsParameter(_ method: FunctionDeclSyntax, propsType: String) -> Bool {
   let parameters = method.signature.parameterClause.parameters
   guard parameters.count == 1, let parameter = parameters.first, parameter.firstName.tokenKind == .wildcard else {
     return false
