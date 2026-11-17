@@ -44,7 +44,9 @@ import SwiftSyntaxMacros
 ///   the struct body, because an initial value can name a static member without `Self.` or a member of
 ///   an enclosing type, which an instance method or the extension can't.
 ///
-/// An event's function type must return `Void`, because JavaScript can't return a value to it.
+/// An event's function type must return `Void`, because JavaScript can't return a value to it, and
+/// takes at most one parameter, the payload, because JavaScript gets one payload object for an event.
+/// The payload type must be `JavaScriptEncodable`.
 ///
 /// The extension that conforms the type to `AnyViewProps` adds:
 ///
@@ -53,6 +55,9 @@ import SwiftSyntaxMacros
 /// - `_decode(_:from:in:)`: assigns one value prop from a JavaScript value. `null` and `undefined`
 ///   reset it with `_resetViewProp(_:in:)`, and any other value decodes through
 ///   `JavaScriptDecodable`.
+/// - `_bindEvents(to:)`, only when the type has events: sets each event prop to a closure that
+///   dispatches the event through core's `ViewEventDispatcher`, with its parameter as the payload.
+///   Core binds the props that a view starts from, and later decodes copy the bound closures.
 ///
 /// `_decode` and `_resetViewProp` run on the JavaScript actor. The other generated types and members
 /// and the conformance are `nonisolated`, so core can use them on any thread also when the module
@@ -151,6 +156,7 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     }
 
     let decodeBody = decodeFunctionBody(valueProps: props.valueProps)
+    let bindEvents = bindEventsFunction(eventProps: props.eventProps)
 
     // `nonisolated` keeps the conformance and its members usable on the JavaScript thread when the
     // module builds with a default isolation, which would otherwise isolate them to the main actor.
@@ -167,7 +173,7 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
 
         @JavaScriptActor
         public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {\(raw: decodeBody)
-        }
+        }\(raw: bindEvents)
       }
       """
     guard let extDecl = ext.as(ExtensionDeclSyntax.self) else {
@@ -279,6 +285,17 @@ private func eventReturnTypeDiagnostic(for returnType: TypeSyntax, name: String)
     changes: [.replace(oldNode: Syntax(returnType), newNode: Syntax(void))]
   )
   return Diagnostic(node: returnType, message: message, fixIts: [fixIt])
+}
+
+/// The error for an event prop whose function type takes more than one parameter, attached to the
+/// parameter list. JavaScript gets one payload object for an event, so core can't pass on more than one
+/// value. There is no fix-it: the author picks the record that holds the values.
+private func eventParameterCountDiagnostic(for functionType: FunctionTypeSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "Event prop '\(withoutBackticks(name))' takes \(functionType.parameters.count) parameters, but JavaScript gets one payload for an event. Take one parameter, such as a record with the values",
+    id: "viewprops-event-parameter-count"
+  )
+  return Diagnostic(node: functionType.parameters, message: message)
 }
 
 /// The error for a value prop with no default, attached to the property name. A value prop starts
@@ -494,6 +511,19 @@ private func propDefault(
   return .newInstance
 }
 
+/// One event prop, which `_bindEvents(to:)` sets to a closure that dispatches the event.
+private struct ViewEvent {
+  /// The property name as written, backticks included for an escaped name.
+  let name: String
+  /// Whether the event's function type takes a parameter, the payload that JavaScript gets.
+  let takesPayload: Bool
+
+  /// The name with any escaping backticks removed: the event name in JavaScript.
+  var wireName: String {
+    return withoutBackticks(name)
+  }
+}
+
 /// An event prop declared without an initial value, which the generated `init()` assigns.
 private struct EventDefault {
   /// The property name as written, backticks included.
@@ -508,7 +538,7 @@ private struct ViewPropsModel {
   /// between a compiled view and the runtime that fills the mask.
   let valueProps: [ViewProp]
   /// Event props, in declaration order.
-  let eventProps: [ViewProp]
+  let eventProps: [ViewEvent]
   /// The event props without an initial value, in declaration order.
   let eventDefaults: [EventDefault]
   /// Whether the macro generates `init()`. See `needsGeneratedInitializer`.
@@ -586,7 +616,7 @@ private func validatedViewProps(
   }
 
   var valueProps: [ViewProp] = []
-  var eventProps: [ViewProp] = []
+  var eventProps: [ViewEvent] = []
   var eventDefaults: [EventDefault] = []
 
   for member in declaration.memberBlock.members {
@@ -675,12 +705,17 @@ private func validatedViewProps(
         if !returnsVoid(eventFunctionType) {
           propDiagnostics.append(eventReturnTypeDiagnostic(for: eventFunctionType.returnClause.type, name: name))
         }
+        // JavaScript gets one payload object for an event, so the closure that `_bindEvents(to:)`
+        // assigns can pass on at most one parameter.
+        if eventFunctionType.parameters.count > 1 {
+          propDiagnostics.append(eventParameterCountDiagnostic(for: eventFunctionType, name: name))
+        }
         if needsInitialValue {
           eventDefaults.append(
             EventDefault(name: name, emptyClosure: emptyClosure(arity: eventFunctionType.parameters.count))
           )
         }
-        eventProps.append(prop)
+        eventProps.append(ViewEvent(name: name, takesPayload: !eventFunctionType.parameters.isEmpty))
         continue
       }
       // `_decode` assigns every value prop, so none can be a constant.
@@ -1004,10 +1039,33 @@ private func propSetStruct(valueProps: [ViewProp]) -> DeclSyntax {
 /// The event props' names, verbatim, for core to register at view creation. Verbatim because a view
 /// event prop is a React prop name Fabric carries as-is — unlike `@Event` on a module, which strips
 /// the `on` prefix.
-private func eventNamesConstant(eventProps: [ViewProp]) -> DeclSyntax {
+private func eventNamesConstant(eventProps: [ViewEvent]) -> DeclSyntax {
   let names = eventProps.map { "\"\($0.wireName)\"" }.joined(separator: ", ")
   return """
     nonisolated public static let _eventNames: [String] = [\(raw: names)]
+    """
+}
+
+/// `_bindEvents(to:)`, which sets each event prop to a closure that dispatches the event with its name in
+/// JavaScript and its parameter as the payload. Core calls it once for each view, on the props that the
+/// view starts from, and the closures stay in the copies that later decodes make. Members are reached
+/// through `self.` and the dispatcher is `_events`, so an event named like the parameter isn't shadowed
+/// by it. Returns an empty string when there is no event: `AnyViewProps` has a default that does
+/// nothing.
+private func bindEventsFunction(eventProps: [ViewEvent]) -> String {
+  guard !eventProps.isEmpty else {
+    return ""
+  }
+  let assignments = eventProps.map { event in
+    let payload = event.takesPayload ? ", $0" : ""
+    return "    self.\(event.name) = { _events.dispatch(\"\(event.wireName)\"\(payload)) }"
+  }
+  return """
+
+
+      nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+    \(assignments.joined(separator: "\n"))
+      }
     """
 }
 

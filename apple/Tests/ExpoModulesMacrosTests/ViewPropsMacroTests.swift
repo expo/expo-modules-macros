@@ -119,6 +119,12 @@ struct ViewPropsMacroTests {
               self.radius = try Self._decodeViewProp(value, in: runtime)
             }
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
+          }
         }
         """
     )
@@ -271,6 +277,15 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onClose = {
+              _events.dispatch("onClose", $0)
+            }
+          }
         }
         """
     )
@@ -329,6 +344,12 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
           }
         }
         """
@@ -2429,6 +2450,12 @@ struct ViewPropsMacroTests {
               self.tint = try Self._decodeViewProp(value, in: runtime)
             }
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
+          }
         }
         """
     )
@@ -2962,7 +2989,7 @@ struct ViewPropsMacroTests {
       @ViewProps
       struct Props {
         var onTap: () -> Void
-        var onMove: @Sendable (Double, Double) throws -> ()
+        var onMove: @Sendable (MoveEvent) throws -> ()
         var `default`: (Int) async -> Swift.Void
         var onClose: (CloseEvent) -> Void = { _ in }
       }
@@ -2970,7 +2997,7 @@ struct ViewPropsMacroTests {
       expandedSource: """
         struct Props {
           var onTap: () -> Void
-          var onMove: @Sendable (Double, Double) throws -> ()
+          var onMove: @Sendable (MoveEvent) throws -> ()
           var `default`: (Int) async -> Swift.Void
           var onClose: (CloseEvent) -> Void = { _ in }
 
@@ -3000,7 +3027,7 @@ struct ViewPropsMacroTests {
           nonisolated public init() {
             self.onTap = {
             }
-            self.onMove = { _, _ in
+            self.onMove = { _ in
             }
             self.`default` = { _ in
             }
@@ -3018,6 +3045,21 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onMove = {
+              _events.dispatch("onMove", $0)
+            }
+            self.`default` = {
+              _events.dispatch("default", $0)
+            }
+            self.onClose = {
+              _events.dispatch("onClose", $0)
+            }
           }
         }
         """
@@ -3074,6 +3116,15 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onClose = {
+              _events.dispatch("onClose", $0)
+            }
           }
         }
         """
@@ -3137,6 +3188,12 @@ struct ViewPropsMacroTests {
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
           }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
+            }
+          }
         }
         """
     )
@@ -3172,6 +3229,31 @@ struct ViewPropsMacroTests {
           var onTap: (TapEvent) -> Void
         }
         """
+    )
+  }
+
+  @Test
+  func `An event with more than one parameter produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onMove: (Double, Double) -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onMove: (Double, Double) -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onMove' takes 2 parameters, but JavaScript gets one payload for an event. Take one parameter, such as a record with the values",
+          line: 3,
+          column: 16
+        )
+      ]
     )
   }
 
@@ -3560,6 +3642,12 @@ struct ViewPropsMacroTests {
             switch name {
             case .color:
               self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap", $0)
             }
           }
         }
@@ -4070,6 +4158,18 @@ struct ViewPropsMacroTests {
 
           @JavaScriptActor
           public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onTap = {
+              _events.dispatch("onTap")
+            }
+            self.onClose = {
+              _events.dispatch("onClose")
+            }
+            self.onMove = {
+              _events.dispatch("onMove", $0)
+            }
           }
         }
         """
