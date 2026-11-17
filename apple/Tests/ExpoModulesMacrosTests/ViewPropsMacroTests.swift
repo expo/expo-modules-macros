@@ -3535,18 +3535,128 @@ struct ViewPropsMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "The initial value of event prop 'onTap' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Remove it",
+            "The initial value of event prop 'onTap' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Replace it with an empty closure",
           line: 3,
           column: 27,
           severity: .warning,
-          fixIts: [FixItSpec(message: "Remove the initial value")]
+          fixIts: [FixItSpec(message: "Replace the initial value with '{}'")]
         )
       ],
-      applyFixIts: ["Remove the initial value"],
+      applyFixIts: ["Replace the initial value with '{}'"],
       fixedSource: """
         @ViewProps
         struct Props {
-          var onTap: () -> Void
+          var onTap: () -> Void = {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The initial value fix-it keeps the struct's own initializers valid`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var title = ""
+        var onMove: (Int) -> Void = { print($0) }
+
+        init(title: String) {
+          self.title = title
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var title = ""
+          var onMove: (Int) -> Void = { print($0) }
+
+          init(title: String) {
+            self.title = title
+          }
+
+          @frozen nonisolated public enum PropName: String, CaseIterable {
+            case title
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let title = PropSet(rawValue: 1 << 0)
+          }
+
+          nonisolated public static let _eventNames: [String] = ["onMove"]
+
+          public typealias Diff = PropsDiff<Self>
+
+          nonisolated public init() {
+          }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .title:
+              _props.title = ""
+            }
+          }
+        }
+
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .title:
+              return .title
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .title:
+              self.title = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onMove = {
+              _events.dispatch("onMove", $0)
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "The initial value of event prop 'onMove' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Replace it with an empty closure",
+          line: 4,
+          column: 31,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Replace the initial value with '{ _ in }'")]
+        )
+      ],
+      applyFixIts: ["Replace the initial value with '{ _ in }'"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var title = ""
+          var onMove: (Int) -> Void = { _ in }
+
+          init(title: String) {
+            self.title = title
+          }
         }
         """
     )

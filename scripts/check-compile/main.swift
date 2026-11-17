@@ -68,7 +68,10 @@ func check() throws -> [String] {
   kinds.onSendable(1)
   try kinds.onThrows(2)
   kinds.onNonSendable(NonSendablePayload())
-  expect(kindsDispatcher.events.count, 3, "EventKindsProps dispatched events")
+  kinds._events(4)
+  kinds.`default`()
+  expect(kindsDispatcher.events.count, 5, "EventKindsProps dispatched events")
+  expect(Array(kindsDispatcher.events.suffix(2)), ["_events: 4", "default"], "EventKindsProps event names")
 
   expect(propNames(of: PublicProps.self), ["title", "count", "ratio"], "PublicProps names")
   expect(propNames(of: EventsOnlyProps.self), ["onTap", "onChange"], "EventsOnlyProps names")

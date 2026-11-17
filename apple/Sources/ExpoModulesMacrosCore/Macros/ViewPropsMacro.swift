@@ -117,8 +117,9 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
 
   /// Auto-conforms the type to `AnyViewProps`, supplying the requirements that can only be written
   /// per-props: `allProps` (every bit set, the changed set on the first application),
-  /// `propSet(for:)` (one name's bit, for folding raw changed keys into the mask) and `_decode`
-  /// (one value prop assigned from a JavaScript value).
+  /// `propSet(for:)` (one name's bit, for folding raw changed keys into the mask), `_decode`
+  /// (one value prop assigned from a JavaScript value) and, when the type has events,
+  /// `_bindEvents(to:)` (each event prop set to a closure that dispatches the event).
   ///
   /// A conformance the author already spelled out in the inheritance clause is not repeated.
   public static func expansion(
@@ -383,36 +384,32 @@ private func eventParameterDiagnostic(
 
 /// The warning for an event prop whose initial value isn't an empty closure, attached to the initial value. Core
 /// replaces the closure with one that dispatches the event when it binds the events, so the code in it doesn't run
-/// when the view calls the event. The fix-it removes the initial value, unless the struct declares its own
-/// `init()`, which would then have to set the prop.
+/// when the view calls the event. The fix-it replaces the initial value with an empty closure, rather than removing
+/// it, so that every initializer of the struct stays valid, also one the macro can't see.
 private func unusedEventInitialValueDiagnostic(
-  for binding: PatternBindingSyntax,
+  for initializer: InitializerClauseSyntax,
   name: String,
-  offersFixIt: Bool
+  arity: Int
 ) -> Diagnostic {
-  // `binding.initializer` is non-nil here: the caller only reports a binding with an initial value.
-  let initializer = binding.initializer!
-  var fixIts: [FixIt] = []
-  if offersFixIt, let typeAnnotation = binding.typeAnnotation {
-    let newBinding =
-      binding
-      .with(\.initializer, nil)
-      .with(\.typeAnnotation, typeAnnotation.with(\.trailingTrivia, initializer.trailingTrivia))
-    fixIts.append(
-      FixIt(
-        message: ViewPropsFixItMessage("Remove the initial value", id: "viewprops-event-remove-initial-value"),
-        changes: [.replace(oldNode: Syntax(binding), newNode: Syntax(newBinding))]
-      )
-    )
-  }
+  let emptyValue = ExprSyntax(stringLiteral: emptyClosure(arity: arity))
+    .with(\.leadingTrivia, initializer.value.leadingTrivia)
+    .with(\.trailingTrivia, initializer.value.trailingTrivia)
   return Diagnostic(
     node: initializer.value,
     message: ViewPropsDiagnosticMessage(
-      "The initial value of event prop '\(withoutBackticks(name))' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Remove it",
+      "The initial value of event prop '\(withoutBackticks(name))' doesn't run when the view calls the event, because core replaces it with a closure that dispatches the event. Replace it with an empty closure",
       id: "viewprops-event-initial-value",
       severity: .warning
     ),
-    fixIts: fixIts
+    fixIts: [
+      FixIt(
+        message: ViewPropsFixItMessage(
+          "Replace the initial value with '\(emptyValue.trimmedDescription)'",
+          id: "viewprops-event-empty-initial-value"
+        ),
+        changes: [.replace(oldNode: Syntax(initializer.value), newNode: Syntax(emptyValue))]
+      )
+    ]
   )
 }
 
@@ -900,7 +897,11 @@ private func validatedViewProps(
         }
         if let initializer = binding.initializer, !isEmptyClosure(initializer.value) {
           warnings.append(
-            unusedEventInitialValueDiagnostic(for: binding, name: name, offersFixIt: !declaresUsableInitializer)
+            unusedEventInitialValueDiagnostic(
+              for: initializer,
+              name: name,
+              arity: eventFunctionType.parameters.count
+            )
           )
         }
         let eventType = normalizedEventType(of: withoutBackticks(name))

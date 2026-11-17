@@ -102,4 +102,7 @@ nonisolated public struct EventKindsProps {
   public var onAsync: (Int) async -> Void
   public var onThrows: (Int) throws -> Void
   public var onNonSendable: (NonSendablePayload) -> Void
+  // Named like the parameter of `_bindEvents(to:)`, and escaped with backticks.
+  public var _events: (Int) -> Void
+  public var `default`: () -> Void
 }
