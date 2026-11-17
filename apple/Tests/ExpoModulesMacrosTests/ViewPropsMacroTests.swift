@@ -3663,6 +3663,105 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `The Void parameter fix-it also replaces an empty closure that takes the parameter`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void = { _ in }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void = { _ in }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15,
+          fixIts: [FixItSpec(message: "Remove the parameter")]
+        )
+      ],
+      applyFixIts: ["Remove the parameter"],
+      fixedSource: """
+        @ViewProps
+        struct Props {
+          var onTap: () -> Void = {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `The parameter fix-its aren't offered when a closure might not fit the new type`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void = { print($0) }
+        var onStep: (inout Int) -> Void = { $0 += 1 }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void = { print($0) }
+          var onStep: (inout Int) -> Void = { $0 += 1 }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15
+        ),
+        DiagnosticSpec(
+          message:
+            "The parameter of event prop 'onStep' can't be 'inout', because the payload is sent to JavaScript, which can't write it back. Remove 'inout'",
+          line: 4,
+          column: 16
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `The parameter fix-its aren't offered when the struct declares an initializer`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onTap: (()) -> Void
+
+        init() {
+          onTap = { _ in }
+        }
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onTap: (()) -> Void
+
+          init() {
+            onTap = { _ in }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onTap' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
+          line: 3,
+          column: 15
+        )
+      ]
+    )
+  }
+
+  @Test
   func `An implicitly unwrapped value prop needs no initial value`() {
     assertExpansion(
       """

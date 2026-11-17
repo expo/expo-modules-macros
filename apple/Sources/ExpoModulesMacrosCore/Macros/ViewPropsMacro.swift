@@ -326,12 +326,21 @@ private func eventParameterCountDiagnostic(for functionType: FunctionTypeSyntax,
 /// The error for the one parameter of an event prop that `_bindEvents(to:)` can't pass on as the payload, or `nil`
 /// when the parameter works. An `inout` parameter can't take the closure's argument, a `Void` parameter has no
 /// payload to send, and a tuple can't conform to `JavaScriptEncodable`.
+///
+/// The fix-its change the function type, so a closure that the struct assigns to the prop must still fit it. They're
+/// offered only when that's sure: the prop has no initial value, or an empty closure, and the struct declares no
+/// initializer, which could assign another closure. The `Void` fix-it also replaces an empty closure with `{}`.
 private func eventParameterDiagnostic(
   for parameter: TupleTypeElementSyntax,
   in functionType: FunctionTypeSyntax,
-  name: String
+  binding: PatternBindingSyntax,
+  name: String,
+  structDeclaresInitializer: Bool
 ) -> Diagnostic? {
   let eventName = withoutBackticks(name)
+  let initialValue = binding.initializer?.value
+  let offersFixIt = !structDeclaresInitializer && (initialValue.map(isEmptyClosure) ?? true)
+
   if let attributed = parameter.type.as(AttributedTypeSyntax.self),
     attributed.specifiers.contains(where: { $0.trimmedDescription == "inout" })
   {
@@ -340,34 +349,44 @@ private func eventParameterDiagnostic(
       specifiers.isEmpty && attributed.attributes.isEmpty
       ? attributed.baseType.with(\.leadingTrivia, attributed.leadingTrivia)
       : TypeSyntax(attributed.with(\.specifiers, specifiers))
+    let fixIt = FixIt(
+      message: ViewPropsFixItMessage("Remove 'inout'", id: "viewprops-event-remove-inout"),
+      changes: [.replace(oldNode: Syntax(parameter.type), newNode: Syntax(newType))]
+    )
     return Diagnostic(
       node: parameter.type,
       message: ViewPropsDiagnosticMessage(
         "The parameter of event prop '\(eventName)' can't be 'inout', because the payload is sent to JavaScript, which can't write it back. Remove 'inout'",
         id: "viewprops-event-inout-parameter"
       ),
-      fixIts: [
-        FixIt(
-          message: ViewPropsFixItMessage("Remove 'inout'", id: "viewprops-event-remove-inout"),
-          changes: [.replace(oldNode: Syntax(parameter.type), newNode: Syntax(newType))]
-        )
-      ]
+      fixIts: offersFixIt ? [fixIt] : []
     )
   }
   if isVoidType(parameter.type) {
-    let noParameters = functionType.with(\.parameters, TupleTypeElementListSyntax([]))
+    var changes: [FixIt.Change] = [
+      .replace(
+        oldNode: Syntax(functionType),
+        newNode: Syntax(functionType.with(\.parameters, TupleTypeElementListSyntax([])))
+      )
+    ]
+    // An empty closure that takes the parameter, such as `{ _ in }`, must take none either.
+    if let initialValue {
+      let emptyClosure = ExprSyntax(stringLiteral: "{}")
+        .with(\.leadingTrivia, initialValue.leadingTrivia)
+        .with(\.trailingTrivia, initialValue.trailingTrivia)
+      changes.append(.replace(oldNode: Syntax(initialValue), newNode: Syntax(emptyClosure)))
+    }
+    let fixIt = FixIt(
+      message: ViewPropsFixItMessage("Remove the parameter", id: "viewprops-event-remove-void-parameter"),
+      changes: changes
+    )
     return Diagnostic(
       node: parameter.type,
       message: ViewPropsDiagnosticMessage(
         "Event prop '\(eventName)' takes a 'Void' parameter, but an event without a payload takes no parameter. Remove the parameter",
         id: "viewprops-event-void-parameter"
       ),
-      fixIts: [
-        FixIt(
-          message: ViewPropsFixItMessage("Remove the parameter", id: "viewprops-event-remove-void-parameter"),
-          changes: [.replace(oldNode: Syntax(functionType), newNode: Syntax(noParameters))]
-        )
-      ]
+      fixIts: offersFixIt ? [fixIt] : []
     )
   }
   if let tuple = withoutParentheses(parameter.type).as(TupleTypeSyntax.self), tuple.elements.count > 1 {
@@ -887,7 +906,13 @@ private func validatedViewProps(
         if eventFunctionType.parameters.count > 1 {
           propDiagnostics.append(eventParameterCountDiagnostic(for: eventFunctionType, name: name))
         } else if let parameter = eventFunctionType.parameters.first,
-          let diagnostic = eventParameterDiagnostic(for: parameter, in: eventFunctionType, name: name)
+          let diagnostic = eventParameterDiagnostic(
+            for: parameter,
+            in: eventFunctionType,
+            binding: binding,
+            name: name,
+            structDeclaresInitializer: declaresUsableInitializer || declaresOtherInitializer
+          )
         {
           propDiagnostics.append(diagnostic)
         }
