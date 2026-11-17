@@ -3,7 +3,8 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-/// Member and extension macro applied to an `ExpoNativeView` subclass, binding it to its props type:
+/// Member and extension macro applied to an `ExpoNativeView` subclass or to a SwiftUI view struct, binding it to its
+/// props type. The class form:
 ///
 ///   @ExpoView<CardProps>
 ///   final class CardView: ExpoNativeView {
@@ -24,16 +25,39 @@ import SwiftSyntaxMacros
 /// The expansion is a typealias and a conformance:
 ///
 ///   public typealias Props = CardProps
-///   extension CardView: AnyNativeView {}
+///   extension CardView: AnyNativeUIKitView {}
 ///
+/// The struct form is a SwiftUI view. Core keeps the props and the React children and creates the struct again
+/// with them, so the macro adds both as constants and the initializer that core calls:
+///
+///   @ExpoView<SliderProps>
+///   struct SliderView: View {
+///     var body: some View {
+///       Slider(value: .constant(props.value))
+///     }
+///   }
+///
+/// expands to:
+///
+///   public typealias Props = SliderProps
+///   public let props: Props
+///   public let children: ExpoSwiftUI.Children
+///   public init(props: Props, children: ExpoSwiftUI.Children) {
+///     self.props = props
+///     self.children = children
+///   }
+///   extension SliderView: AnyNativeSwiftUIView {}
+///
+/// The struct must name `View` in its inheritance clause, and it can't declare members with these names.
 /// The view registers under its class name. Pass `@ExpoView<CardProps>("FancyCard")` to override it,
 /// and the expansion also gets a `_jsName` static that core reads in place of the class name:
 ///
 ///   public nonisolated static let _jsName = "FancyCard"
 ///
 /// There is **no view definition**: no `ViewDefinition`, no `View(…) { }` builder, no `Props(_:)` or
-/// `Events(_:)` element. Core reaches the view through the `AnyNativeView` conformance: it reads the
-/// props type from the `Props` typealias, which satisfies the protocol's associated type, and the
+/// `Events(_:)` element. Core reaches the view through the conformance to `AnyNativeUIKitView` or
+/// `AnyNativeSwiftUIView`, which refine `AnyNativeView`: it reads the props type from the `Props`
+/// typealias, which satisfies the protocol's associated type, and the
 /// event names from the props type's own `_eventNames` (synthesized by `@ViewProps`). Both are
 /// static, so no builder has to be evaluated.
 ///
@@ -41,7 +65,7 @@ import SwiftSyntaxMacros
 /// members into a JS object, and a view has no such object. Props reach a view through Fabric's
 /// mounting layer, not a JS call, so a view's runtime entry point is the props update hook.
 ///
-/// `didUpdateProps` is an `AnyNativeView` requirement with a default in core, not synthesized here.
+/// `didUpdateProps` is an `AnyNativeUIKitView` requirement with a default in core, not synthesized here.
 /// It isn't an `override`: `ExpoNativeView` has no such method, because its parameter type depends on
 /// the props type.
 public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
@@ -51,8 +75,11 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
+    if let structDecl = declaration.as(StructDeclSyntax.self) {
+      return try swiftUIViewMembers(of: node, structDecl: structDecl)
+    }
     guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
-      throw MacroExpansionErrorMessage("@ExpoView can only be applied to a class")
+      throw MacroExpansionErrorMessage("@ExpoView can only be applied to a class or a struct")
     }
 
     guard inheritsFromAny(classDecl, names: expoViewBaseClassNames) else {
@@ -72,7 +99,7 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
     // The expansion is a `Props` typealias, so a member of that name already on the class collides.
     // Left alone, the compiler reports "invalid redeclaration of 'Props'" positioned inside the
     // macro expansion, which is code the author never wrote. Name it here instead.
-    if let existing = existingPropsMemberKind(in: classDecl) {
+    if let existing = existingPropsMemberKind(in: classDecl.memberBlock) {
       throw MacroExpansionErrorMessage(
         "@ExpoView synthesizes a `Props` typealias, but this class already declares a \(existing) named 'Props'. Rename it"
       )
@@ -94,7 +121,7 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
       """
     ]
 
-    // `AnyNativeView` defaults `_jsName` to the class name, so it's emitted only for an override.
+    // `AnyNativeView` defaults `_jsName` to the type name, so it's emitted only for an override.
     // `nonisolated`, because the protocol is `@MainActor` and core reads the name off the main actor.
     if let jsName = jsNameArgument(of: node) {
       emitted.append("public nonisolated static let _jsName = \"\(raw: jsName)\"")
@@ -109,26 +136,166 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
-    // A class that the member macro rejects gets no conformance either: the member macro has already
+    // A type that the member macro rejects gets no conformance either: the member macro has already
     // reported the error, and a conformance without the `Props` typealias would only add a second
     // error about the associated type.
-    guard let classDecl = declaration.as(ClassDeclSyntax.self),
+    let conformance: String
+    if let structDecl = declaration.as(StructDeclSyntax.self) {
+      guard isValidSwiftUIView(structDecl), genericArgument(of: node) != nil else {
+        return []
+      }
+      conformance = swiftUIViewProtocolName
+    } else if let classDecl = declaration.as(ClassDeclSyntax.self),
       inheritsFromAny(classDecl, names: expoViewBaseClassNames),
       classDecl.genericParameterClause == nil,
-      existingPropsMemberKind(in: classDecl) == nil,
-      genericArgument(of: node) != nil,
-      !inheritsProtocol(named: nativeViewProtocolName, in: declaration)
-    else {
+      existingPropsMemberKind(in: classDecl.memberBlock) == nil,
+      genericArgument(of: node) != nil
+    {
+      conformance = uiKitViewProtocolName
+    } else {
+      return []
+    }
+    guard !inheritsProtocol(named: conformance, in: declaration) else {
       return []
     }
     let ext: DeclSyntax = """
-      extension \(type.trimmed): \(raw: nativeViewProtocolName) {}
+      extension \(type.trimmed): \(raw: conformance) {}
       """
     guard let extDecl = ext.as(ExtensionDeclSyntax.self) else {
       return []
     }
     return [extDecl]
   }
+}
+
+// MARK: - SwiftUI views
+
+/// The members of a SwiftUI view struct: the `Props` typealias, the `props` and `children` constants, the initializer
+/// that core calls with them, and the `_jsName` override.
+private func swiftUIViewMembers(of node: AttributeSyntax, structDecl: StructDeclSyntax) throws -> [DeclSyntax] {
+  guard conformsToSwiftUIView(structDecl) else {
+    throw DiagnosticsError(diagnostics: [missingViewConformanceDiagnostic(for: structDecl)])
+  }
+  // Like a generic class, a generic struct can't be listed in `@ExpoModule(views:)`.
+  if structDecl.genericParameterClause != nil {
+    throw MacroExpansionErrorMessage(
+      "@ExpoView does not support generic structs: a view registered with @ExpoModule(views:) must be concrete"
+    )
+  }
+  if let existing = existingPropsMemberKind(in: structDecl.memberBlock) {
+    throw MacroExpansionErrorMessage(
+      "@ExpoView synthesizes a `Props` typealias, but this struct already declares a \(existing) named 'Props'. Rename it"
+    )
+  }
+  if let existing = existingSynthesizedSwiftUIMember(in: structDecl.memberBlock) {
+    throw MacroExpansionErrorMessage(
+      "@ExpoView synthesizes `\(existing)` for a SwiftUI view, but this struct already declares it. Remove or rename it"
+    )
+  }
+  guard let propsType = genericArgument(of: node) else {
+    throw MacroExpansionErrorMessage(
+      "@ExpoView requires its props type as a generic argument, as in `@ExpoView<MyViewProps>`"
+    )
+  }
+
+  var members: [DeclSyntax] = [
+    "public typealias Props = \(raw: propsType)",
+    "public let props: Props",
+    "public let children: ExpoSwiftUI.Children",
+    """
+    public init(props: Props, children: ExpoSwiftUI.Children) {
+      self.props = props
+      self.children = children
+    }
+    """,
+  ]
+  if let jsName = jsNameArgument(of: node) {
+    members.append("public nonisolated static let _jsName = \"\(raw: jsName)\"")
+  }
+  return members
+}
+
+/// Whether the struct is a SwiftUI view that the member macro accepts, so the extension macro conforms it.
+private func isValidSwiftUIView(_ structDecl: StructDeclSyntax) -> Bool {
+  return conformsToSwiftUIView(structDecl)
+    && structDecl.genericParameterClause == nil
+    && existingPropsMemberKind(in: structDecl.memberBlock) == nil
+    && existingSynthesizedSwiftUIMember(in: structDecl.memberBlock) == nil
+}
+
+/// Whether the struct names `View` or `SwiftUI.View` in its inheritance clause. A macro can't resolve names, so a
+/// conformance through another protocol or an extension isn't seen.
+private func conformsToSwiftUIView(_ structDecl: StructDeclSyntax) -> Bool {
+  return structDecl.inheritanceClause?.inheritedTypes.contains { baseIdentifier(of: $0.type) == "View" } ?? false
+}
+
+/// The name of a member that the struct form synthesizes and the struct already declares: a `props` or `children`
+/// property, or an initializer with the labels `props:children:`. `nil` when there is none.
+private func existingSynthesizedSwiftUIMember(in memberBlock: MemberBlockSyntax) -> String? {
+  for member in memberBlock.members {
+    if let variable = member.decl.as(VariableDeclSyntax.self) {
+      for binding in variable.bindings {
+        if let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+          ["props", "children"].contains(withoutBackticks(name))
+        {
+          return withoutBackticks(name)
+        }
+      }
+    }
+    if let initializer = member.decl.as(InitializerDeclSyntax.self) {
+      let labels = initializer.signature.parameterClause.parameters.map { $0.firstName.text }
+      if labels == ["props", "children"] {
+        return "init(props:children:)"
+      }
+    }
+  }
+  return nil
+}
+
+/// The error for a struct that doesn't name `View` in its inheritance clause, carrying a fix-it that adds it. A struct
+/// has no superclass, so the conformance can always go at the end of the clause.
+private func missingViewConformanceDiagnostic(for structDecl: StructDeclSyntax) -> Diagnostic {
+  let message = ExpoViewDiagnosticMessage(
+    "@ExpoView struct must be a SwiftUI view. Add `: View` to the struct declaration",
+    id: "expoview-missing-view-conformance"
+  )
+  let viewType = InheritedTypeSyntax(type: TypeSyntax(IdentifierTypeSyntax(name: .identifier("View"))))
+  let fixIt: FixIt
+  if let clause = structDecl.inheritanceClause {
+    var inherited = clause.inheritedTypes
+    if var last = inherited.last {
+      // The trivia after the last entry, such as the space before `{`, moves to the new last entry.
+      let trailingTrivia = last.trailingTrivia
+      last = last.with(\.trailingTrivia, []).with(\.trailingComma, .commaToken(trailingTrivia: .space))
+      inherited = InheritedTypeListSyntax(
+        Array(inherited.dropLast()) + [last, viewType.with(\.trailingTrivia, trailingTrivia)]
+      )
+    }
+    fixIt = FixIt(
+      message: ExpoViewFixItMessage("Conform to 'View'", id: "expoview-add-view-conformance"),
+      changes: [.replace(oldNode: Syntax(clause), newNode: Syntax(clause.with(\.inheritedTypes, inherited)))]
+    )
+  } else {
+    let name = structDecl.name
+    let clause = InheritanceClauseSyntax(
+      colon: .colonToken(trailingTrivia: .space),
+      inheritedTypes: InheritedTypeListSyntax([viewType])
+    )
+    fixIt = FixIt(
+      message: ExpoViewFixItMessage("Conform to 'View'", id: "expoview-add-view-conformance"),
+      changes: [
+        .replace(
+          oldNode: Syntax(structDecl),
+          newNode: Syntax(
+            structDecl
+              .with(\.name, name.with(\.trailingTrivia, []))
+              .with(\.inheritanceClause, clause.with(\.trailingTrivia, name.trailingTrivia))
+          )
+        )
+      ]
+    )
+  }
+  return Diagnostic(node: structDecl.name, message: message, fixIts: [fixIt])
 }
 
 // MARK: - Diagnostics
@@ -239,11 +406,11 @@ private struct ExpoViewFixItMessage: FixItMessage {
   }
 }
 
-/// Describes an existing `Props` member on the class, for the collision diagnostic, or `nil` when the
+/// Describes an existing `Props` member on the type, for the collision diagnostic, or `nil` when the
 /// name is free. Covers the shapes that would clash with the synthesized typealias: another typealias,
 /// and a nested type of any kind.
-private func existingPropsMemberKind(in classDecl: ClassDeclSyntax) -> String? {
-  for member in classDecl.memberBlock.members {
+private func existingPropsMemberKind(in memberBlock: MemberBlockSyntax) -> String? {
+  for member in memberBlock.members {
     let decl = member.decl
     if let typealiasDecl = decl.as(TypeAliasDeclSyntax.self), typealiasDecl.name.text == "Props" {
       return "typealias"
@@ -300,6 +467,10 @@ private func genericArgument(of attribute: AttributeSyntax) -> String? {
   return type.trimmedDescription
 }
 
-/// The core protocol that `@ExpoView` conforms the class to. Core registers the view and decodes its
-/// props through it.
-private let nativeViewProtocolName = "AnyNativeView"
+/// The core protocol that `@ExpoView` conforms a class to. Core registers the view, decodes its props and applies
+/// them through it.
+private let uiKitViewProtocolName = "AnyNativeUIKitView"
+
+/// The core protocol that `@ExpoView` conforms a SwiftUI view struct to. Core registers the view, decodes its props
+/// and creates the struct with them through it.
+private let swiftUIViewProtocolName = "AnyNativeSwiftUIView"

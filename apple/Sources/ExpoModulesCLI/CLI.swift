@@ -158,7 +158,7 @@ private var usageText: String {
   usage: \(toolName) <subcommand> [options] <path> [<path> ...]
 
   subcommands:
-    scan-packages  fast scan for top-level @ExpoModule, @SharedObject and @ExpoView classes (autolinking)
+    scan-packages  fast scan for top-level @ExpoModule, @SharedObject and @ExpoView types (autolinking)
     scan-exports   deep scan of the full JS-exported surface (type generation)
     expand         print the code that the macros generate in the given .swift files (and in the
                    files of the given directories that use a macro), and the macro diagnostics

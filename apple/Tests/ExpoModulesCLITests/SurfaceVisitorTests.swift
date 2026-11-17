@@ -1070,6 +1070,27 @@ struct ViewSurfaceTests {
   }
 
   @Test
+  func `Extracts an @ExpoView struct with its props type`() throws {
+    let view = try #require(
+      surface(
+        """
+        @ExpoView<SliderProps>("Slider")
+        public struct SliderView: View {
+          public var body: some View {
+            EmptyView()
+          }
+        }
+        """
+      ).views.first
+    )
+
+    #expect(view.name == "SliderView")
+    #expect(view.jsName == "Slider")
+    #expect(view.propsType == "SliderProps")
+    #expect(view.accessLevel == "public")
+  }
+
+  @Test
   func `Reads the JS name of a view from its name argument`() throws {
     let view = try #require(
       surface(
@@ -1136,9 +1157,9 @@ struct ViewSurfaceTests {
       @ExpoView
       final class BareView: ExpoNativeView {}
 
-      // `@ExpoView` applies only to a class.
+      // `@ExpoView` applies only to a class or a struct.
       @ExpoView<CardProps>
-      struct NotAView {}
+      enum NotAView {}
       """
     )
 

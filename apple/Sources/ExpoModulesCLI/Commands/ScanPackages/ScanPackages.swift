@@ -35,7 +35,7 @@ public enum Scanner {
 }
 
 /// One class in the `scan-packages` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
-/// class in `sharedObjects`, or an `@ExpoView` class in `views`. Trimmed to what `expo-modules-autolinking` needs to register the class:
+/// class in `sharedObjects`, or an `@ExpoView` class or struct in `views`. Trimmed to what `expo-modules-autolinking` needs to register the class:
 /// the Swift class name, the JS name it registers under, the platforms that include it, and the file
 /// it's in. The richer fields the visitor captures (declaration kind, raw macro arguments,
 /// line/column) are dropped here, because this command doesn't need them (the macro is always on a
@@ -85,8 +85,8 @@ struct ScanPackagesResult: Codable, Equatable {
   /// `modules`.
   let sharedObjects: [ScannedClass]
 
-  /// The top-level `@ExpoView` classes, in the same order and with the same platform rules as
-  /// `modules`.
+  /// The top-level `@ExpoView` classes and SwiftUI view structs, in the same order and with the same platform
+  /// rules as `modules`.
   let views: [ScannedClass]
 
   /// Warnings for `#if` conditions the scan couldn't answer statically (see `ScanWarning`). Carried
@@ -154,8 +154,9 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
       }
     }
 
-    // The macros reject anything but a class, so a struct with one of them is never registered.
-    for detection in allModules.detections where detection.declarationKind == "class" {
+    // `@ExpoModule` and `@SharedObject` reject anything but a class, and `@ExpoView` anything but a class or a
+    // SwiftUI view struct, so other declarations are never registered.
+    for detection in allModules.detections where isRegistrable(detection) {
       // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")`,
       // `@SharedObject("Foo")` or `@ExpoView<CardProps>("Foo")` override, else the class name.
       let scanned = ScannedClass(
@@ -184,6 +185,14 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
     warnings: warnings,
     stats: stats
   )
+}
+
+/// Whether the macro on the declaration accepts its kind, so the declaration is registered.
+private func isRegistrable(_ detection: Detection) -> Bool {
+  if detection.declarationKind == "class" {
+    return true
+  }
+  return detection.macro == .expoView && detection.declarationKind == "struct"
 }
 
 /// Identifies one declaration across the per-platform walks of the same tree: the source position

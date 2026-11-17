@@ -658,16 +658,18 @@ struct ScanTests {
   }
 
   @Test
-  func `scanPackages reports only classes`() throws {
+  func `scanPackages reports only classes, and structs of views`() throws {
     try withTree([
       ("Module.swift", "@ExpoModule\npublic struct StructModule {}"),
       ("Shared.swift", "@SharedObject\npublic struct StructObject {}"),
-      ("View.swift", "@ExpoView<Props>\npublic struct StructView {}"),
+      ("View.swift", "@ExpoView<Props>\npublic struct StructView: View {}"),
+      ("Enum.swift", "@ExpoView<Props>\npublic enum EnumView {}"),
     ]) { result in
       // The macros reject anything but a class, so a struct is never a module or a shared object.
       #expect(result.modules.isEmpty)
       #expect(result.sharedObjects.isEmpty)
-      #expect(result.views.isEmpty)
+      // A struct with `@ExpoView` is a SwiftUI view.
+      #expect(result.views.map(\.name) == ["StructView"])
     }
   }
 
