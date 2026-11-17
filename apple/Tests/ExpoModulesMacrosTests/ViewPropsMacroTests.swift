@@ -3762,6 +3762,66 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `Events named like bubbling React Native events produce diagnostics`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var onPress: () -> Void
+        var onChange: (ChangeEvent) -> Void
+        var onPressIn: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var onPress: () -> Void
+          var onChange: (ChangeEvent) -> Void
+          var onPressIn: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'onPress' can't have this name, because React Native already uses it for a bubbling event, and the view would fail to render. Rename the event",
+          line: 3,
+          column: 7
+        ),
+        DiagnosticSpec(
+          message:
+            "Event prop 'onChange' can't have this name, because React Native already uses it for a bubbling event, and the view would fail to render. Rename the event",
+          line: 4,
+          column: 7
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `An event named like a bubbling React Native event without the on prefix produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var focus: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var focus: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "Event prop 'focus' can't have this name, because React Native already uses it for a bubbling event, and the view would fail to render. Rename the event",
+          line: 3,
+          column: 7
+        )
+      ]
+    )
+  }
+
+  @Test
   func `An implicitly unwrapped value prop needs no initial value`() {
     assertExpansion(
       """

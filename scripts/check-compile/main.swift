@@ -58,10 +58,10 @@ func check() throws -> [String] {
   let dispatcher = ViewEventDispatcher()
   let boundEvents = bindingEvents(of: EventsOnlyProps.self, to: dispatcher)
   boundEvents.onTap()
-  boundEvents.onChange(3)
+  boundEvents.onValueChange(3)
   // Without events, the props keep the default of `AnyViewProps`, which binds nothing.
   _ = bindingEvents(of: PublicProps.self, to: dispatcher)
-  expect(dispatcher.events, ["onTap", "onChange: 3"], "EventsOnlyProps dispatched events")
+  expect(dispatcher.events, ["onTap", "onValueChange: 3"], "EventsOnlyProps dispatched events")
 
   let kindsDispatcher = ViewEventDispatcher()
   let kinds = bindingEvents(of: EventKindsProps.self, to: kindsDispatcher)
@@ -74,7 +74,7 @@ func check() throws -> [String] {
   expect(Array(kindsDispatcher.events.suffix(2)), ["_events: 4", "default"], "EventKindsProps event names")
 
   expect(propNames(of: PublicProps.self), ["title", "count", "ratio"], "PublicProps names")
-  expect(propNames(of: EventsOnlyProps.self), ["onTap", "onChange"], "EventsOnlyProps names")
+  expect(propNames(of: EventsOnlyProps.self), ["onTap", "onValueChange"], "EventsOnlyProps names")
   return failures
 }
 

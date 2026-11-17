@@ -18,7 +18,7 @@ public struct PublicProps {
 @ViewProps
 nonisolated public struct EventsOnlyProps {
   public var onTap: () -> Void = {}
-  public var onChange: (Int) -> Void
+  public var onValueChange: (Int) -> Void
 }
 
 // A struct nested in another type, with an initial value that names a static member of that type
