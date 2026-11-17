@@ -25,7 +25,11 @@ public struct ProvidedMacro {
         conformances: ["JavaScriptDecodable", "JavaScriptEncodable"]
       ),
       ProvidedMacro(name: "ViewProps", type: ViewPropsMacro.self, conformances: ["AnyViewProps"]),
-      ProvidedMacro(name: "ExpoView", type: ExpoViewMacro.self, conformances: ["AnyNativeView"]),
+      ProvidedMacro(
+        name: "ExpoView",
+        type: ExpoViewMacro.self,
+        conformances: ["AnyNativeUIKitView", "AnyNativeSwiftUIView"]
+      ),
     ]
   }
 }

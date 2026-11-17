@@ -209,8 +209,8 @@ final class SurfaceVisitor: SyntaxVisitor {
       return
     }
 
-    // `@ExpoView` applies only to a class, and needs the props type as its generic argument.
-    if node.is(ClassDeclSyntax.self),
+    // `@ExpoView` applies to a class or a SwiftUI view struct, and needs the props type as its generic argument.
+    if node.is(ClassDeclSyntax.self) || node.is(StructDeclSyntax.self),
       let attribute = attributes.firstAttribute(named: DetectedMacro.expoView.rawValue),
       let propsType = genericArgumentType(of: attribute)
     {

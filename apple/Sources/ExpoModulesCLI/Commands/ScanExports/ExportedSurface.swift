@@ -487,11 +487,11 @@ struct ExportedUnion: Encodable, Equatable {
   let file: String
 }
 
-/// An `@ExpoView` class with the props and events of the `@ViewProps` struct in its generic argument.
-/// It is reported on its own rather than under a module, because core reaches it through its
+/// An `@ExpoView` class or SwiftUI view struct with the props and events of the `@ViewProps` struct in its
+/// generic argument. It is reported on its own rather than under a module, because core reaches it through its
 /// `AnyNativeView` conformance.
 struct ExportedView: Encodable, Equatable {
-  /// The Swift class name. Only a view declared at file scope is reported, as in `scan-packages`.
+  /// The Swift type name. Only a view declared at file scope is reported, as in `scan-packages`.
   let name: String
 
   /// The name the view registers under: the `@ExpoView<CardProps>("Foo")` override when present,
