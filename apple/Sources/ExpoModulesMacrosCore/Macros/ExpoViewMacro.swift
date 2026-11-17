@@ -115,6 +115,11 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
       )
     }
 
+    // Reported without throwing, so the class still gets its members and conformance.
+    if let diagnostic = didUpdatePropsDiagnostic(in: classDecl.memberBlock, propsType: propsType) {
+      context.diagnose(diagnostic)
+    }
+
     var emitted: [DeclSyntax] = [
       """
       public typealias Props = \(raw: propsType)
@@ -166,6 +171,73 @@ public struct ExpoViewMacro: MemberMacro, ExtensionMacro {
     }
     return [extDecl]
   }
+}
+
+// MARK: - didUpdateProps
+
+/// The warning for `didUpdateProps` methods of which none matches the `AnyNativeUIKitView` requirement, attached to the
+/// first one, or `nil` when one matches or there is none. Core calls the requirement. A method with another parameter
+/// label or type is a separate overload, so the default that does nothing runs instead, and Swift reports nothing.
+/// It's a warning, because the macro can't resolve a type alias that names the right type.
+private func didUpdatePropsDiagnostic(in memberBlock: MemberBlockSyntax, propsType: String) -> Diagnostic? {
+  let methods = memberBlock.members.compactMap { $0.decl.as(FunctionDeclSyntax.self) }.filter { method in
+    method.name.text == "didUpdateProps"
+      && !method.modifiers.contains { [.keyword(.static), .keyword(.class)].contains($0.name.tokenKind) }
+  }
+  guard let method = methods.first, !methods.contains(where: { matchesDidUpdateProps($0, propsType: propsType) })
+  else {
+    return nil
+  }
+  let expectedType = "\(propsType).Diff"
+  var fixIts: [FixIt] = []
+  let parameters = method.signature.parameterClause.parameters
+  if parameters.count == 1, let parameter = parameters.first {
+    let parameterName = parameter.secondName ?? parameter.firstName
+    let newParameter =
+      parameter
+      .with(\.firstName, .wildcardToken(trailingTrivia: .space))
+      .with(\.secondName, parameterName.with(\.leadingTrivia, []).with(\.trailingTrivia, []))
+      .with(
+        \.type,
+        TypeSyntax(stringLiteral: expectedType)
+          .with(\.leadingTrivia, parameter.type.leadingTrivia)
+          .with(\.trailingTrivia, parameter.type.trailingTrivia)
+      )
+    fixIts.append(
+      FixIt(
+        message: ExpoViewFixItMessage(
+          "Change the parameter to '_ \(parameterName.text): \(expectedType)'",
+          id: "expoview-fix-did-update-props"
+        ),
+        changes: [.replace(oldNode: Syntax(parameter), newNode: Syntax(newParameter))]
+      )
+    )
+  }
+  return Diagnostic(
+    node: method.name,
+    message: ExpoViewDiagnosticMessage(
+      "'didUpdateProps' never runs, because core calls 'didUpdateProps(_:)' with a '\(expectedType)'. Change the parameter to '_ diff: \(expectedType)'",
+      id: "expoview-did-update-props-signature",
+      severity: .warning
+    ),
+    fixIts: fixIts
+  )
+}
+
+/// Whether the method has the signature of the `AnyNativeUIKitView` requirement: one unlabeled parameter whose type
+/// is the diff of the props type, in one of the spellings that name it without a type alias.
+private func matchesDidUpdateProps(_ method: FunctionDeclSyntax, propsType: String) -> Bool {
+  let parameters = method.signature.parameterClause.parameters
+  guard parameters.count == 1, let parameter = parameters.first, parameter.firstName.tokenKind == .wildcard else {
+    return false
+  }
+  let props = propsType.filter { !$0.isWhitespace }
+  let diffTypes: Set<String> = [
+    "\(props).Diff", "Props.Diff", "Self.Props.Diff",
+    "PropsDiff<\(props)>", "PropsDiff<Props>", "PropsDiff<Self.Props>",
+    "ExpoModulesCore.PropsDiff<\(props)>", "ExpoModulesCore.PropsDiff<Props>",
+  ]
+  return diffTypes.contains(parameter.type.trimmedDescription.filter { !$0.isWhitespace })
 }
 
 // MARK: - SwiftUI views
@@ -388,11 +460,12 @@ private func inheritsOnlyProtocolsByConvention(_ clause: InheritanceClauseSyntax
 private struct ExpoViewDiagnosticMessage: DiagnosticMessage {
   let message: String
   let diagnosticID: MessageID
-  let severity: DiagnosticSeverity = .error
+  let severity: DiagnosticSeverity
 
-  init(_ message: String, id: String) {
+  init(_ message: String, id: String, severity: DiagnosticSeverity = .error) {
     self.message = message
     self.diagnosticID = MessageID(domain: "ExpoModulesMacros", id: id)
+    self.severity = severity
   }
 }
 

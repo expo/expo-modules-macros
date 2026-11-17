@@ -65,6 +65,119 @@ struct ExpoViewMacroTests {
   }
 
   @Test
+  func `didUpdateProps with another parameter type produces a warning with a fix-it`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>
+      class CardView: ExpoNativeView {
+        func didUpdateProps(_ diff: OtherProps.Diff) {}
+      }
+      """,
+      expandedSource: """
+        class CardView: ExpoNativeView {
+          func didUpdateProps(_ diff: OtherProps.Diff) {}
+
+          public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeUIKitView {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'didUpdateProps' never runs, because core calls 'didUpdateProps(_:)' with a 'CardProps.Diff'. Change the parameter to '_ diff: CardProps.Diff'",
+          line: 3,
+          column: 8,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Change the parameter to '_ diff: CardProps.Diff'")]
+        )
+      ],
+      applyFixIts: ["Change the parameter to '_ diff: CardProps.Diff'"],
+      fixedSource: """
+        @ExpoView<CardProps>
+        class CardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `didUpdateProps with a parameter label produces a warning with a fix-it`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>
+      class CardView: ExpoNativeView {
+        func didUpdateProps(diff: CardProps.Diff) {}
+      }
+      """,
+      expandedSource: """
+        class CardView: ExpoNativeView {
+          func didUpdateProps(diff: CardProps.Diff) {}
+
+          public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeUIKitView {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'didUpdateProps' never runs, because core calls 'didUpdateProps(_:)' with a 'CardProps.Diff'. Change the parameter to '_ diff: CardProps.Diff'",
+          line: 3,
+          column: 8,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Change the parameter to '_ diff: CardProps.Diff'")]
+        )
+      ],
+      applyFixIts: ["Change the parameter to '_ diff: CardProps.Diff'"],
+      fixedSource: """
+        @ExpoView<CardProps>
+        class CardView: ExpoNativeView {
+          func didUpdateProps(_ diff: CardProps.Diff) {}
+        }
+        """
+    )
+  }
+
+  @Test
+  func `didUpdateProps that takes the generic diff or Props.Diff gets no warning`() {
+    assertExpansion(
+      """
+      @ExpoView<CardProps>
+      class CardView: ExpoNativeView {
+        func didUpdateProps(_ diff: PropsDiff<CardProps>) {}
+      }
+
+      @ExpoView<CardProps>
+      class OtherCardView: ExpoNativeView {
+        func didUpdateProps(_ diff: Props.Diff) {}
+      }
+      """,
+      expandedSource: """
+        class CardView: ExpoNativeView {
+          func didUpdateProps(_ diff: PropsDiff<CardProps>) {}
+
+          public typealias Props = CardProps
+        }
+        class OtherCardView: ExpoNativeView {
+          func didUpdateProps(_ diff: Props.Diff) {}
+
+          public typealias Props = CardProps
+        }
+
+        extension CardView: AnyNativeUIKitView {
+        }
+
+        extension OtherCardView: AnyNativeUIKitView {
+        }
+        """
+    )
+  }
+
+  @Test
   func `A final class is supported`() {
     assertExpansion(
       """
