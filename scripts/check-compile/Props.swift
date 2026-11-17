@@ -87,8 +87,8 @@ private struct PrivateProps {
   var title = ""
 }
 
-// Event function types other than a plain closure, and a payload that isn't `Sendable`. `_bindEvents(to:)` assigns
-// a closure to each of them.
+// Event function types other than a plain closure, and a payload that isn't `Sendable`, which core takes as `sending`,
+// so its event declares the parameter `sending`. `_bindEvents(to:)` assigns a closure to each of them.
 nonisolated public final class NonSendablePayload: JavaScriptEncodable {
   public var count = 0
 
@@ -101,7 +101,7 @@ nonisolated public struct EventKindsProps {
   public var onMainActor: @MainActor (Int) -> Void
   public var onAsync: (Int) async -> Void
   public var onThrows: (Int) throws -> Void
-  public var onNonSendable: (NonSendablePayload) -> Void
+  public var onNonSendable: (sending NonSendablePayload) -> Void
   // Named like the parameter of `_bindEvents(to:)`, and escaped with backticks.
   public var _events: (Int) -> Void
   public var `default`: () -> Void

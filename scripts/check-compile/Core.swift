@@ -143,7 +143,7 @@ public final class ViewEventDispatcher: @unchecked Sendable {
     events.append(name)
   }
 
-  public func dispatch<Payload: JavaScriptEncodable>(_ name: String, _ payload: Payload) {
+  public func dispatch<Payload: JavaScriptEncodable>(_ name: String, _ payload: sending Payload) {
     events.append("\(name): \(payload)")
   }
 }

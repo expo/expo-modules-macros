@@ -47,7 +47,9 @@ import SwiftSyntaxMacros
 /// An event's function type must return `Void`, because JavaScript can't return a value to it, and
 /// takes at most one parameter, the payload, because JavaScript gets one payload object for an event.
 /// The payload type must be `JavaScriptEncodable`, so it can't be a tuple or `Void`, and the parameter
-/// can't be `inout`. An event prop is a `var`, because core assigns it when it binds the events, and an
+/// can't be `inout`. Core takes the payload as `sending`, because it encodes it later on the JavaScript
+/// thread, so with Swift 6 a payload type that isn't `Sendable` needs `sending` in the event's function
+/// type, as in `(sending MoveEvent) -> Void`. An event prop is a `var`, because core assigns it when it binds the events, and an
 /// initial value other than an empty closure gets a warning, because core replaces it. Two events can't
 /// map to the same React Native event type (`onTap` and `tap` are both `topTap`), and no prop can be
 /// named `key` or `ref`, which React keeps for itself. An event's name can't be one that React Native
