@@ -1,5 +1,6 @@
 // Decodes and resets the props of `Props.swift` through the generic code in `Core.swift`, compares
-// each reset prop with its value in `Self()`, and dispatches the bound events. Exits with a nonzero status when a check fails.
+// each reset prop with its value in `Self()`, and dispatches the bound events. Then checks the views of
+// `Views.swift`. Exits with a nonzero status when a check fails.
 
 import Core
 import Darwin
@@ -94,7 +95,49 @@ func check() throws -> [String] {
   return failures
 }
 
-let failures = try await check()
+// Applies props to the views of `Views.swift` and creates them through the generic code in `Core.swift`, checks
+// the app context that they keep, and their names.
+@MainActor
+func checkViews() -> [String] {
+  var failures: [String] = []
+  func expect<T: Equatable>(_ actual: T, _ expected: T, _ label: String) {
+    if actual != expected {
+      failures.append("\(label): \(actual) isn't \(expected)")
+    }
+  }
+
+  let card = CardView()
+  var cardProps = PublicProps()
+  cardProps.title = "Card"
+  applying(cardProps, to: card)
+  expect(card.titles, ["Card"], "CardView.didUpdateProps")
+  expect(jsName(of: CardView.self), "CardView", "CardView name")
+  expect(jsName(of: NamedCardView.self), "FancyCard", "NamedCardView name")
+
+  let preview = SliderView(props: PublicProps(), children: ExpoSwiftUI.Children())
+  expect(preview.appContext == nil, true, "SliderView.appContext in a preview")
+  expect(preview.hasAppContext(), false, "SliderView.hasAppContext() in a preview")
+
+  var appContext: AppContext? = AppContext()
+  let slider = makingView(SliderView.self, props: PublicProps(), appContext: appContext)
+  expect(slider.appContext === appContext, true, "SliderView.appContext")
+  expect(slider.hasAppContext(), true, "SliderView.hasAppContext()")
+  // The view keeps a weak reference, so it doesn't keep the app context alive.
+  appContext = nil
+  expect(slider.appContext == nil, true, "SliderView.appContext after release")
+  expect(ObjectIdentifier(SliderView.Props.self), ObjectIdentifier(PublicProps.self), "SliderView.Props")
+  expect(jsName(of: SliderView.self), "SliderView", "SliderView name")
+
+  let labeledContext = AppContext()
+  expect(LabeledView(props: PublicProps(), children: ExpoSwiftUI.Children()).isPreview, true, "LabeledView preview")
+  let labeled = makingView(LabeledView.self, props: PublicProps(), appContext: labeledContext)
+  expect(labeled.isPreview, false, "LabeledView.isPreview")
+  expect(labeled.appContext === labeledContext, true, "LabeledView.appContext")
+  expect(jsName(of: LabeledView.self), "Labeled", "LabeledView name")
+  return failures
+}
+
+let failures = try await check() + checkViews()
 for failure in failures {
   print("error: \(failure)")
 }
