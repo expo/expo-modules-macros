@@ -11,8 +11,8 @@ import SwiftSyntax
 ///
 /// Shared across the macro pipeline: `@Record` properties and `@JS` arguments, return values and
 /// properties convert through `FreeFormConversion` (the `@JS` bindings by way of
-/// `MacroHelpers.decodeCall` and `encodeCall`), `TypeConformanceAssertion` skips the free-form shapes,
-/// and `JSMacro` uses them for its diagnostics.
+/// `MacroHelpers.decodeCall` and `encodeCall`), `@ViewProps` value props decode through it,
+/// `TypeConformanceAssertion` skips the free-form shapes, and `JSMacro` uses them for its diagnostics.
 
 /// The free-form boundary types: an untyped value (`Any`), an untyped array (`[Any]`), and an untyped
 /// string-keyed dictionary (`[String: Any]`). Matched by whitespace-normalized spelling so

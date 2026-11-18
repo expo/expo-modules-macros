@@ -12,7 +12,16 @@ import SwiftSyntaxMacros
 /// - every other property is a **value prop**, decoded from the raw props Fabric delivers.
 ///
 /// An event must be spelled as a function type. The macro reads only the syntax, so a closure type
-/// behind a typealias (`var onTap: TapHandler`) is a value prop.
+/// behind a typealias (`var onTap: TapHandler`) is a value prop. A closure inside the type of a value
+/// prop, such as `[String: () -> Void]`, is an error, since no closure can decode.
+///
+/// A value prop whose type holds `Any` is free-form: `Any`, `[Any]`, `[String: Any]`, or a type built
+/// from them with arrays, `String`-keyed dictionaries and optionals, such as `[[String: Any]]?`. Such a
+/// type can't conform to `JavaScriptDecodable`, so it decodes through the free-form methods of
+/// `JavaScriptValue` (see `FreeFormConversion`). Any other type that holds `Any`, such as `[Int: Any]`, is
+/// an error. The macro must see `Any` in the type as written, so a free-form prop needs a type
+/// annotation, and a free-form type behind a typealias (`var modifiers: ModifierArray?`) decodes through
+/// `JavaScriptDecodable`, which it doesn't conform to.
 ///
 /// Core creates the props with `Self()` and resets a prop that React removes (sends as `null`) to its
 /// value there, so every value prop is a `var` with a default. When the type declares its own
@@ -62,7 +71,7 @@ import SwiftSyntaxMacros
 /// - `propSet(for:)`: one name's bit, for folding raw changed keys into the mask.
 /// - `_decode(_:from:in:)`: assigns one value prop from a JavaScript value. `null` and `undefined`
 ///   reset it with `_resetViewProp(_:in:)`, and any other value decodes through
-///   `JavaScriptDecodable`.
+///   `JavaScriptDecodable`, or through the free-form methods of `JavaScriptValue` for a free-form prop.
 /// - `_bindEvents(to:)`, only when the type has events: sets each event prop to a closure that
 ///   dispatches the event through core's `ViewEventDispatcher`, with its parameter as the payload.
 ///   Core binds the props that a view starts from, and later decodes copy the bound closures.
@@ -538,6 +547,28 @@ private func missingDefaultDiagnostic(
   return Diagnostic(node: pattern, message: message)
 }
 
+/// The error for a value prop whose type holds a closure, such as `[String: () -> Void]`, attached to
+/// the first function type in it. A value prop decodes through `JavaScriptDecodable`, which no closure
+/// conforms to. There is no fix-it, since the author picks the events.
+private func valuePropClosureDiagnostic(for functionType: FunctionTypeSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "View prop '\(withoutBackticks(name))' can't hold a closure, because a value prop decodes through 'JavaScriptDecodable', which a closure can't conform to. To call JavaScript, declare an event prop, whose type is a function type such as '(Payload) -> Void'",
+    id: "viewprops-closure-value-prop"
+  )
+  return Diagnostic(node: functionType, message: message)
+}
+
+/// The error for a value prop whose type holds `Any` in a shape that the free-form methods of
+/// `JavaScriptValue` can't decode, such as `[Int: Any]`, attached to the type. There is no fix-it, since
+/// the type is the author's choice.
+private func unconvertibleFreeFormTypeDiagnostic(for type: TypeSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "View prop '\(withoutBackticks(name))' can't be typed '\(type.trimmedDescription)', because a type holding Any decodes from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any]",
+    id: "viewprops-unconvertible-free-form-type"
+  )
+  return Diagnostic(node: type, message: message)
+}
+
 /// `T?` for a type written as `Optional<T>`, with the trivia of the original, or `nil` for any other
 /// type. A wrapped `any P`, `some P` or `P & Q` keeps parentheses, since `any P?` would make only `P`
 /// optional.
@@ -662,9 +693,10 @@ private struct ViewProp {
   /// The property name as written, backticks included for an escaped name. Every identifier position
   /// in the generated code uses this, since `case default` and `static let default` don't parse.
   let name: String
-  /// The property's declared type, verbatim, or the type of its literal initial value. `_decode`
-  /// doesn't spell it: the decoded type is inferred from the assignment.
+  /// The property's declared type, verbatim, or the type of its literal initial value.
   let type: String
+  /// The expression, after `try`, that `_decode` assigns to the prop. See `valuePropDecodeExpression`.
+  let decodeExpression: String
   /// Whether the prop is computed with a `mutating get`, which `_resetViewProp` can only read from a
   /// mutable value.
   let hasMutatingGetter: Bool
@@ -762,8 +794,9 @@ private struct ViewPropsModel {
 /// Rejects what can't be expressed: a non-`struct` declaration (the class form is the SwiftUI path and
 /// needs the observable protocol, which is deferred), a leftover `@Field` attribute, an optional
 /// function type, an event whose function type returns a value, a property with no determinable type,
-/// a value prop declared with `let` or without a default, a `private` stored property without an
-/// initial value, an `init()` that is failable, throwing or `async`, and more than 64 value props.
+/// a value prop declared with `let` or without a default, a value prop whose type holds a closure or
+/// holds `Any` in a shape that can't decode, a `private` stored property without an initial value, an
+/// `init()` that is failable, throwing or `async`, and more than 64 value props.
 ///
 /// When the type declares a usable `init()`, that initializer is the default: it must set every
 /// stored property, which the compiler checks, so the props need no initial values.
@@ -913,6 +946,7 @@ private func validatedViewProps(
       let prop = ViewProp(
         name: name,
         type: resolvedType,
+        decodeExpression: valuePropDecodeExpression(declaredType: declaredType),
         hasMutatingGetter: hasMutatingGetter(binding),
         defaultValue: propDefault(
           of: binding,
@@ -976,6 +1010,15 @@ private func validatedViewProps(
       // `_decode` assigns every value prop, so none can be a constant.
       if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
         letValuePropNames.append(name)
+      }
+      // Only a prop whose type is a function type is an event, so a closure inside a value prop's type
+      // can't decode. It comes before the check for a type that holds `Any`, whose error would name
+      // the wrong problem for `[String: (Any) -> Void]`. A type that holds `Any` decodes only through
+      // the free-form methods, which produce `Any`, arrays, `String`-keyed dictionaries and optionals.
+      if let functionType = declaredType.flatMap({ firstFunctionType(in: $0) }) {
+        propDiagnostics.append(valuePropClosureDiagnostic(for: functionType, name: name))
+      } else if let declaredType, mentionsFreeFormAny(declaredType), !isConvertibleFreeFormType(declaredType) {
+        propDiagnostics.append(unconvertibleFreeFormTypeDiagnostic(for: declaredType, name: name))
       }
       // A removed prop is reset to its value in a fresh `Self()`, so every value prop needs a
       // default: its initial value, or the `nil` that Swift gives an optional `var` without one.
@@ -1330,11 +1373,9 @@ private func bindEventsFunction(eventProps: [ViewEvent]) -> String {
 
 /// The body of `_decode`, which core calls once per changed prop. React sends a removed prop as
 /// `null`, so `null` and `undefined` reset the prop with `_resetViewProp`; any other value decodes
-/// through `JavaScriptDecodable`, with the type inferred from the assignment. `_decodeViewProp` is a
-/// static member of `AnyViewProps`, reached through `Self.`, so a prop with the same name doesn't
-/// shadow it. The checks run once, before the switch, so each case is a single assignment. Members
-/// are reached through `self.` so that a prop named like a parameter (`value`, `runtime`) isn't
-/// shadowed by it.
+/// with the prop's `decodeExpression`. The checks run once, before the switch, so each case is a
+/// single assignment. Members are reached through `self.` so that a prop named like a parameter
+/// (`value`, `runtime`) isn't shadowed by it.
 ///
 /// With no value prop the body is empty: `PropName` is uninhabited, so the function is never called.
 private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
@@ -1343,7 +1384,7 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
   }
   let decodeCases =
     valueProps
-    .map { "    case .\($0.name):\n      self.\($0.name) = try Self._decodeViewProp(value, in: runtime)" }
+    .map { "    case .\($0.name):\n      self.\($0.name) = try \($0.decodeExpression)" }
     .joined(separator: "\n")
   // Starts with a line break, so the empty body closes on the next line instead of leaving a blank
   // one.
@@ -1357,6 +1398,23 @@ private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
     \(decodeCases)
         }
     """
+}
+
+/// The expression, after `try`, that `_decode` assigns to a value prop with the given declared type.
+/// Most types decode through `JavaScriptDecodable`, by core's `_decodeViewProp`, which takes the type
+/// from the assignment. It is a static member of `AnyViewProps`, reached through `Self.`, so a prop
+/// with the same name doesn't shadow it.
+///
+/// A free-form type, which holds `Any`, can't conform to `JavaScriptDecodable`, so it decodes through
+/// the free-form methods of `JavaScriptValue` (see `FreeFormConversion`). `_decode` resets the prop on
+/// `null` and `undefined` before it decodes, so an optional type decodes as the type that it wraps,
+/// and the assignment wraps the value.
+private func valuePropDecodeExpression(declaredType: TypeSyntax?) -> String {
+  let decodedType = declaredType.map { optionalWrappedType($0) ?? $0 }
+  guard let decodedType, let freeForm = freeFormConversion(of: decodedType) else {
+    return "Self._decodeViewProp(value, in: runtime)"
+  }
+  return freeForm.decodeExpression(of: "value", as: expressionType(decodedType.trimmedDescription))
 }
 
 /// `_resetViewProp(_:in:)`, which sets one value prop back to its default when React removes it. Each
