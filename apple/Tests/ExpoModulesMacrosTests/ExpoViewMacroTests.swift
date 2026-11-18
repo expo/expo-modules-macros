@@ -392,7 +392,7 @@ struct ExpoViewMacroTests {
   }
 
   @Test
-  func `A SwiftUI view struct gets the props, the children and the initializer`() {
+  func `A SwiftUI view struct gets the props, the children, the app context and the initializer`() {
     assertExpansion(
       """
       @ExpoView<SliderProps>
@@ -418,9 +418,12 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public init(props: Props, children: ExpoSwiftUI.Children) {
+          public weak let appContext: AppContext?
+
+          public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props
             self.children = children
+            self.appContext = appContext
           }
         }
 
@@ -453,9 +456,12 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public init(props: Props, children: ExpoSwiftUI.Children) {
+          public weak let appContext: AppContext?
+
+          public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props
             self.children = children
+            self.appContext = appContext
           }
 
           public nonisolated static let _jsName = "Slider"
@@ -484,9 +490,12 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public init(props: Props, children: ExpoSwiftUI.Children) {
+          public weak let appContext: AppContext?
+
+          public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props
             self.children = children
+            self.appContext = appContext
           }
         }
         """
@@ -577,27 +586,90 @@ struct ExpoViewMacroTests {
   }
 
   @Test
-  func `A struct that declares the initializer produces a diagnostic`() {
+  func `A struct that declares appContext produces a diagnostic`() {
     assertExpansion(
       """
       @ExpoView<SliderProps>
       struct SliderView: View {
-        init(props: SliderProps, children: ExpoSwiftUI.Children) {}
+        @Environment(\\.appContext) var appContext
       }
       """,
       expandedSource: """
         struct SliderView: View {
-          init(props: SliderProps, children: ExpoSwiftUI.Children) {}
+          @Environment(\\.appContext) var appContext
         }
         """,
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@ExpoView synthesizes `init(props:children:)` for a SwiftUI view, but this struct already declares it. Remove or rename it",
+            "@ExpoView synthesizes `appContext` for a SwiftUI view, but this struct already declares it. Remove or rename it",
           line: 1,
           column: 1
         )
       ]
+    )
+  }
+
+  @Test
+  func `A struct that declares the initializer produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ExpoView<SliderProps>
+      struct SliderView: View {
+        init(props: SliderProps, children: ExpoSwiftUI.Children, appContext: AppContext?) {}
+      }
+      """,
+      expandedSource: """
+        struct SliderView: View {
+          init(props: SliderProps, children: ExpoSwiftUI.Children, appContext: AppContext?) {}
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ExpoView synthesizes `init(props:children:appContext:)` for a SwiftUI view, but this struct already declares it. Remove or rename it",
+          line: 1,
+          column: 1
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A struct can declare an initializer without the app context`() {
+    assertExpansion(
+      """
+      @ExpoView<SliderProps>
+      struct SliderView: View {
+        init(props: SliderProps, children: ExpoSwiftUI.Children) {
+          self.init(props: props, children: children, appContext: nil)
+        }
+      }
+      """,
+      expandedSource: """
+        struct SliderView: View {
+          init(props: SliderProps, children: ExpoSwiftUI.Children) {
+            self.init(props: props, children: children, appContext: nil)
+          }
+
+          public typealias Props = SliderProps
+
+          public let props: Props
+
+          public let children: ExpoSwiftUI.Children
+
+          public weak let appContext: AppContext?
+
+          public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
+            self.props = props
+            self.children = children
+            self.appContext = appContext
+          }
+        }
+
+        extension SliderView: AnyNativeSwiftUIView {
+        }
+        """
     )
   }
 

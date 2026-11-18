@@ -1,7 +1,11 @@
-// Stand-ins for the ExpoModulesJSI and expo-modules-core symbols that the `@ViewProps` expansion uses,
-// with the signatures of the real ones. `AnyViewProps` and the `@ViewProps` declaration are copies of
-// `ios/Core/Views/v2/AnyViewProps.swift` and `ios/Core/ExpoModulesMacros.swift` in expo-modules-core.
-// `check-compile.js` builds this file as the `Core` module, with library evolution.
+// Stand-ins for the ExpoModulesJSI and expo-modules-core symbols that the `@ViewProps` and `@ExpoView`
+// expansions use, with the signatures of the real ones. `AnyViewProps` and the macro declarations are copies of
+// `ios/Core/Views/v2/AnyViewProps.swift` and `ios/Core/ExpoModulesMacros.swift` in expo-modules-core. The view
+// protocols keep the requirements and defaults of `ios/Core/Views/v2/AnyNativeView.swift` and
+// `AnyNativeSwiftUIView.swift` that the expansions and the views of `Views.swift` use. `check-compile.js` builds
+// this file as the `Core` module, with library evolution.
+
+import SwiftUI
 
 // MARK: - ExpoModulesJSI
 
@@ -230,6 +234,101 @@ public final class ViewEventDispatcher: @unchecked Sendable {
 public macro ViewProps() =
   #externalMacro(module: "ExpoModulesMacros", type: "ViewPropsMacro")
 
+// MARK: - Views
+
+public class AppContext: @unchecked Sendable {
+  public init() {}
+}
+
+/// The props of a UIKit view, which `ExpoNativeView` holds.
+public final class DecodedViewProps<Props: AnyViewProps> {
+  public let props: Props
+
+  public init(props: Props) {
+    self.props = props
+  }
+}
+
+/// The base class of the UIKit views. In core, it's a `UIView` subclass, so it's isolated to the main actor.
+@MainActor
+open class ExpoNativeView {
+  public private(set) weak var appContext: AppContext?
+
+  @usableFromInline
+  internal final var decodedProps: AnyObject?
+
+  public init(appContext: AppContext? = nil) {
+    self.appContext = appContext
+  }
+}
+
+@MainActor
+public protocol AnyNativeView {
+  associatedtype Props: AnyViewProps
+
+  nonisolated static var _jsName: String { get }
+}
+
+extension AnyNativeView {
+  public nonisolated static var _jsName: String {
+    return String(describing: self)
+  }
+}
+
+@MainActor
+public protocol AnyNativeUIKitView: AnyNativeView, AnyObject {
+  func didUpdateProps(_ diff: PropsDiff<Props>)
+}
+
+extension AnyNativeUIKitView {
+  public func didUpdateProps(_ diff: PropsDiff<Props>) {}
+
+  @inlinable
+  public var props: Props {
+    _read {
+      if let decodedProps = unsafeDowncast(self, to: ExpoNativeView.self).decodedProps {
+        yield unsafeDowncast(decodedProps, to: DecodedViewProps<Props>.self).props
+      } else {
+        yield Props()
+      }
+    }
+  }
+}
+
+public struct ExpoSwiftUI {}
+
+extension ExpoSwiftUI {
+  /// The React children of a SwiftUI view. The stand-in has none.
+  public struct Children {
+    public init() {}
+  }
+}
+
+// The conformance is in an extension, so it doesn't isolate the type to the main actor.
+extension ExpoSwiftUI.Children: SwiftUI.View {
+  public var body: some SwiftUI.View {
+    EmptyView()
+  }
+}
+
+@MainActor
+public protocol AnyNativeSwiftUIView: AnyNativeView, SwiftUI.View {
+  init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext?)
+}
+
+@attached(
+  member,
+  names: named(Props),
+  named(_jsName),
+  named(props),
+  named(children),
+  named(appContext),
+  named(init)
+)
+@attached(extension, conformances: AnyNativeUIKitView, AnyNativeSwiftUIView)
+public macro ExpoView<Props: AnyViewProps>(_ name: String? = nil) =
+  #externalMacro(module: "ExpoModulesMacros", type: "ExpoViewMacro")
+
 // MARK: - Generic use, as in `ViewPropsDecoder`
 
 /// Decodes the given values into a copy of `props`, from generic code on the JavaScript actor, as
@@ -263,4 +362,30 @@ public func propNames<Props: AnyViewProps>(of type: Props.Type) -> [String] {
   let valueProps = Props.PropName.allCases.filter { !Props.propSet(for: $0).isEmpty }.map(\.rawValue)
   assert(Props.allProps.rawValue.nonzeroBitCount == valueProps.count)
   return valueProps + Props._eventNames
+}
+
+// MARK: - Generic use of views
+
+/// Applies the props to a UIKit view and calls its `didUpdateProps(_:)` through the `AnyNativeUIKitView`
+/// requirement, as `applyDecodedProps` does.
+@MainActor
+public func applying<View: AnyNativeUIKitView>(_ props: View.Props, to view: View) {
+  unsafeDowncast(view, to: ExpoNativeView.self).decodedProps = DecodedViewProps(props: props)
+  view.didUpdateProps(PropsDiff())
+}
+
+/// Creates a SwiftUI view through the `AnyNativeSwiftUIView` requirement, as `ExpoSwiftUI.NativeChild.content`
+/// does.
+@MainActor
+public func makingView<Content: AnyNativeSwiftUIView>(
+  _ type: Content.Type,
+  props: Content.Props,
+  appContext: AppContext?
+) -> Content {
+  return Content(props: props, children: ExpoSwiftUI.Children(), appContext: appContext)
+}
+
+/// The name that a view registers under, from generic code with no isolation.
+public func jsName<View: AnyNativeView>(of type: View.Type) -> String {
+  return View._jsName
 }

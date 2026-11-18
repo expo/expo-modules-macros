@@ -5,10 +5,10 @@
 // that doesn't compile, or that compiles only in some build settings. This builds the stand-in core
 // module of `Core.swift` with library evolution, then, in each configuration of `CONFIGURATIONS`:
 //
-// - builds `Props.swift` as a library, with no warnings allowed;
+// - builds `Props.swift` and `Views.swift` as a library, with no warnings allowed;
 // - with library evolution, also verifies its `.swiftinterface` and builds `Client.swift` from it;
-// - builds `Props.swift` and `main.swift` as an executable and runs it, which checks the decoded and
-//   reset values.
+// - builds `Props.swift`, `Views.swift` and `main.swift` as an executable and runs it, which checks the
+//   decoded and reset values, and the views.
 //
 // It runs on macOS. The macOS workflow runs it with the debug tool that `swift test` builds, during
 // the release build.
@@ -121,8 +121,9 @@ function check(configuration, coreDirectory, directory) {
     '-o',
     path.join(libraryDirectory, 'libProps.dylib'),
     fixture('Props.swift'),
+    fixture('Views.swift'),
   ]);
-  console.log(`  built Props.swift as a library`);
+  console.log(`  built Props.swift and Views.swift as a library`);
 
   if (configuration.libraryEvolution) {
     // The interface directory has no binary module, so `import Props` builds the module from the
@@ -157,6 +158,7 @@ function check(configuration, coreDirectory, directory) {
     '-o',
     executable,
     fixture('Props.swift'),
+    fixture('Views.swift'),
     fixture('main.swift'),
   ]);
   const result = childProcess.spawnSync(executable, { encoding: 'utf8' });
