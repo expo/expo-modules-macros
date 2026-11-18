@@ -418,7 +418,7 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public private(set) weak var appContext: AppContext?
+          public weak let appContext: AppContext?
 
           public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props
@@ -456,7 +456,7 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public private(set) weak var appContext: AppContext?
+          public weak let appContext: AppContext?
 
           public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props
@@ -490,7 +490,7 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public private(set) weak var appContext: AppContext?
+          public weak let appContext: AppContext?
 
           public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props
@@ -658,7 +658,7 @@ struct ExpoViewMacroTests {
 
           public let children: ExpoSwiftUI.Children
 
-          public private(set) weak var appContext: AppContext?
+          public weak let appContext: AppContext?
 
           public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
             self.props = props

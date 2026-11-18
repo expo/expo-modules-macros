@@ -43,7 +43,7 @@ import SwiftSyntaxMacros
 ///   public typealias Props = SliderProps
 ///   public let props: Props
 ///   public let children: ExpoSwiftUI.Children
-///   public private(set) weak var appContext: AppContext?
+///   public weak let appContext: AppContext?
 ///   public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
 ///     self.props = props
 ///     self.children = children
@@ -53,8 +53,9 @@ import SwiftSyntaxMacros
 ///
 /// The app context is a stored property, not an `@Environment` value, because a parent view can also call a method of
 /// a child's struct outside of `body`, where an environment value reads `nil`. The reference is weak, like
-/// `ExpoNativeView.appContext`, so that a view doesn't keep the app context alive. It's a `var`, because `weak let`
-/// needs Swift 6.3. The `nil` default lets a SwiftUI preview create the view with `SliderView(props:children:)`.
+/// `ExpoNativeView.appContext`, so that a view doesn't keep the app context alive. `weak let` needs Swift 6.3 in the
+/// module that uses the macro, and expo-modules-core already uses `weak let` itself. The `nil` default lets a SwiftUI
+/// preview create the view with `SliderView(props:children:)`.
 ///
 /// The struct must name `View` in its inheritance clause, and it can't declare members with these names.
 /// The view registers under its class name. Pass `@ExpoView<CardProps>("FancyCard")` to override it,
@@ -304,7 +305,7 @@ private func swiftUIViewMembers(of node: AttributeSyntax, structDecl: StructDecl
     "public typealias Props = \(raw: propsType)",
     "public let props: Props",
     "public let children: ExpoSwiftUI.Children",
-    "public private(set) weak var appContext: AppContext?",
+    "public weak let appContext: AppContext?",
     """
     public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
       self.props = props
