@@ -42,6 +42,22 @@ func check() throws -> [String] {
   expect(initialValues.levelChanges, 2, "InitialValueProps.level observer")
   expect(initialValues.maybe, nil, "InitialValueProps.maybe reset")
 
+  let freeForm = try decoding(FreeFormProps(), FreeFormProps.PropName.allCases.map { ($0, 2) })
+  expect(freeForm.props.extraProps?["value"] as? Double, 2, "FreeFormProps.extraProps decoded")
+  expect(freeForm.props.modifiers?.first?["value"] as? Double, 2, "FreeFormProps.modifiers decoded")
+  expect(freeForm.props.items.first as? Double, 2, "FreeFormProps.items decoded")
+  expect(freeForm.props.payload as? Double, 2, "FreeFormProps.payload decoded")
+  expect(freeForm.props.options["value"] as? Double, 2, "FreeFormProps.options decoded")
+  expect(freeForm.props.maybe as? Double, 2, "FreeFormProps.maybe decoded")
+  expect(freeForm.changed, FreeFormProps.allProps.rawValue, "FreeFormProps changed props")
+  let freeFormReset = try decoding(freeForm.props, FreeFormProps.PropName.allCases.map { ($0, nil) }).props
+  expect(freeFormReset.extraProps == nil, true, "FreeFormProps.extraProps reset")
+  expect(freeFormReset.modifiers == nil, true, "FreeFormProps.modifiers reset")
+  expect(freeFormReset.items.isEmpty, true, "FreeFormProps.items reset")
+  expect(freeFormReset.payload as? Int, 0, "FreeFormProps.payload reset")
+  expect(freeFormReset.options as? [String: String], ["key": "default"], "FreeFormProps.options reset")
+  expect(freeFormReset.maybe == nil, true, "FreeFormProps.maybe reset")
+
   var nested = Screen.NestedProps()
   nested.gap = 0
   expect(try decoding(nested, [(.gap, nil)]).props.gap, 8, "Screen.NestedProps.gap reset")

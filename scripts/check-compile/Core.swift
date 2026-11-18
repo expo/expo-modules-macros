@@ -31,6 +31,68 @@ public struct JavaScriptUnownedValue: ~Copyable {
   public func isUndefined() -> Bool {
     return false
   }
+
+  public func copied(in runtime: JavaScriptRuntime) -> JavaScriptValue {
+    return JavaScriptValue(number: number)
+  }
+}
+
+/// An owning JavaScript value that is `null` or a number.
+public final class JavaScriptValue {
+  let number: Double?
+
+  public init(number: Double?) {
+    self.number = number
+  }
+}
+
+// The free-form decoding of `JavaScriptCodable+Any.swift` in ExpoModulesJSI, for types that hold `Any`.
+// Each method puts the number in the shape that it returns.
+extension JavaScriptValue {
+  @JavaScriptActor
+  public static func decodeAny(
+    _ value: borrowing JavaScriptUnownedValue,
+    in runtime: borrowing JavaScriptRuntime
+  ) throws -> Any {
+    return try freeFormNumber(value.number)
+  }
+
+  @JavaScriptActor
+  public static func decodeAnyArray(
+    _ value: borrowing JavaScriptUnownedValue,
+    in runtime: borrowing JavaScriptRuntime
+  ) throws -> [Any] {
+    return [try freeFormNumber(value.number)]
+  }
+
+  @JavaScriptActor
+  public static func decodeAnyDictionary(
+    _ value: borrowing JavaScriptUnownedValue,
+    in runtime: borrowing JavaScriptRuntime
+  ) throws -> [String: Any] {
+    return ["value": try freeFormNumber(value.number)]
+  }
+
+  /// Puts the number in an array with one dictionary, the shape of a modifier array, and casts it to `type`.
+  @JavaScriptActor
+  public static func decodeAny<T>(
+    _ value: borrowing JavaScriptValue,
+    as type: T.Type,
+    in runtime: borrowing JavaScriptRuntime
+  ) throws -> T {
+    let decoded: [[String: Any]] = [["value": try freeFormNumber(value.number)]]
+    guard let result = decoded as Any as? T else {
+      throw DecodingError()
+    }
+    return result
+  }
+
+  private static func freeFormNumber(_ number: Double?) throws -> Double {
+    guard let number else {
+      throw DecodingError()
+    }
+    return number
+  }
 }
 
 public struct DecodingError: Error {}

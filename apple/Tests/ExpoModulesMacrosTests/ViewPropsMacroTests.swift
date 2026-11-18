@@ -507,6 +507,184 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `Free-form value props decode through the free-form methods of JavaScriptValue`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct SlotProps {
+        var extraProps: [String: Any]?
+        var modifiers: [[String: Any]]?
+        var items: [Any] = []
+        var payload: Any = 0
+        var options: [String : Swift.Any]!
+        var groups: Dictionary<String, [Any]> = [:]
+      }
+      """,
+      expandedSource: """
+        struct SlotProps {
+          var extraProps: [String: Any]?
+          var modifiers: [[String: Any]]?
+          var items: [Any] = []
+          var payload: Any = 0
+          var options: [String : Swift.Any]!
+          var groups: Dictionary<String, [Any]> = [:]
+
+          @frozen nonisolated public enum PropName: String, CaseIterable {
+            case extraProps
+            case modifiers
+            case items
+            case payload
+            case options
+            case groups
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let extraProps = PropSet(rawValue: 1 << 0)
+            public static let modifiers = PropSet(rawValue: 1 << 1)
+            public static let items = PropSet(rawValue: 1 << 2)
+            public static let payload = PropSet(rawValue: 1 << 3)
+            public static let options = PropSet(rawValue: 1 << 4)
+            public static let groups = PropSet(rawValue: 1 << 5)
+          }
+
+          nonisolated public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .extraProps:
+              _props.extraProps = nil
+            case .modifiers:
+              _props.modifiers = nil
+            case .items:
+              _props.items = []
+            case .payload:
+              _props.payload = 0
+            case .options:
+              _props.options = nil
+            case .groups:
+              _props.groups = [:]
+            }
+          }
+        }
+
+        extension SlotProps: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b111111)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .extraProps:
+              return .extraProps
+            case .modifiers:
+              return .modifiers
+            case .items:
+              return .items
+            case .payload:
+              return .payload
+            case .options:
+              return .options
+            case .groups:
+              return .groups
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .extraProps:
+              self.extraProps = try JavaScriptValue.decodeAnyDictionary(value, in: runtime)
+            case .modifiers:
+              self.modifiers = try JavaScriptValue.decodeAny(value.copied(in: runtime), as: [[String: Any]].self, in: runtime)
+            case .items:
+              self.items = try JavaScriptValue.decodeAnyArray(value, in: runtime)
+            case .payload:
+              self.payload = try JavaScriptValue.decodeAny(value, in: runtime)
+            case .options:
+              self.options = try JavaScriptValue.decodeAnyDictionary(value, in: runtime)
+            case .groups:
+              self.groups = try JavaScriptValue.decodeAny(value.copied(in: runtime), as: Dictionary<String, [Any]>.self, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `A value prop that holds Any in a shape that can't decode produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var byIndex: [Int: Any] = [:]
+        var boxed: Box<Any>?
+        var title: String = ""
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var byIndex: [Int: Any] = [:]
+          var boxed: Box<Any>?
+          var title: String = ""
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'byIndex' can't be typed '[Int: Any]', because a type holding Any decodes from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any]",
+          line: 3,
+          column: 16
+        ),
+        DiagnosticSpec(
+          message:
+            "View prop 'boxed' can't be typed 'Box<Any>?', because a type holding Any decodes from JavaScript only when it's built from Any, arrays, String-keyed dictionaries and optionals. Use one of those shapes, such as [String: Any]",
+          line: 4,
+          column: 14
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `A free-form value prop without a type annotation produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var extraProps = [String: Any]()
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var extraProps = [String: Any]()
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "@ViewProps props must declare an explicit type: 'extraProps' has none",
+          line: 1,
+          column: 1
+        )
+      ]
+    )
+  }
+
+  @Test
   func `A conformance already declared is not repeated`() {
     assertExpansion(
       """

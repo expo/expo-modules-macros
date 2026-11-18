@@ -87,6 +87,19 @@ private struct PrivateProps {
   var title = ""
 }
 
+// Free-form props, whose types hold `Any`, so they can't conform to `JavaScriptDecodable`. They decode through
+// the free-form methods of `JavaScriptValue`. They aren't `Sendable`, so with a default isolation the struct needs
+// `nonisolated`.
+@ViewProps
+nonisolated public struct FreeFormProps {
+  public var extraProps: [String: Any]?
+  public var modifiers: [[String: Any]]?
+  public var items: [Any] = []
+  public var payload: Any = 0
+  public var options: [String: Any] = ["key": "default"]
+  public var maybe: Any!
+}
+
 // Event function types other than a plain closure, and a payload that isn't `Sendable`, which core takes as `sending`,
 // so its event declares the parameter `sending`. `_bindEvents(to:)` assigns a closure to each of them.
 nonisolated public final class NonSendablePayload: JavaScriptEncodable {
