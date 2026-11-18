@@ -32,6 +32,11 @@ if (process.platform !== 'darwin') {
 }
 
 const fixturesDirectory = path.join(__dirname, 'check-compile');
+
+// The module of `Props.swift` and `Views.swift`. Its name differs from every type and member name in the fixtures:
+// a `.swiftinterface` of Swift 6.3 or older qualifies a type with the module name, so for a module named `Props`
+// the `Props` typealias of an `@ExpoView` view reads `Props.PublicProps`, where `Props` is the typealias itself.
+const LIBRARY_MODULE = 'Fixtures';
 const plugin = `${path.resolve(binaryArgument)}#ExpoModulesMacros`;
 
 // The upcoming features that ExpoModulesJSI builds with, also used by apps that build with Xcode's
@@ -104,7 +109,7 @@ function check(configuration, coreDirectory, directory) {
     '-lCore',
   ];
 
-  const interfacePath = path.join(interfaceDirectory, 'Props.swiftinterface');
+  const interfacePath = path.join(interfaceDirectory, `${LIBRARY_MODULE}.swiftinterface`);
   const interfaceFlags = configuration.libraryEvolution
     ? ['-emit-module-interface-path', interfacePath, '-verify-emitted-module-interface']
     : [];
@@ -114,19 +119,19 @@ function check(configuration, coreDirectory, directory) {
     '-emit-library',
     '-emit-module',
     '-module-name',
-    'Props',
+    LIBRARY_MODULE,
     '-emit-module-path',
-    path.join(libraryDirectory, 'Props.swiftmodule'),
+    path.join(libraryDirectory, `${LIBRARY_MODULE}.swiftmodule`),
     ...interfaceFlags,
     '-o',
-    path.join(libraryDirectory, 'libProps.dylib'),
+    path.join(libraryDirectory, `lib${LIBRARY_MODULE}.dylib`),
     fixture('Props.swift'),
     fixture('Views.swift'),
   ]);
   console.log(`  built Props.swift and Views.swift as a library`);
 
   if (configuration.libraryEvolution) {
-    // The interface directory has no binary module, so `import Props` builds the module from the
+    // The interface directory has no binary module, so `import Fixtures` builds the module from the
     // interface, as for a prebuilt package.
     swiftc([
       ...common,
@@ -135,7 +140,7 @@ function check(configuration, coreDirectory, directory) {
       interfaceDirectory,
       '-L',
       libraryDirectory,
-      '-lProps',
+      `-l${LIBRARY_MODULE}`,
       '-emit-library',
       '-module-name',
       'Client',
@@ -143,7 +148,7 @@ function check(configuration, coreDirectory, directory) {
       path.join(directory, 'libClient.dylib'),
       fixture('Client.swift'),
     ]);
-    console.log(`  built Client.swift from Props.swiftinterface`);
+    console.log(`  built Client.swift from ${LIBRARY_MODULE}.swiftinterface`);
   }
 
   const executable = path.join(directory, 'check');
