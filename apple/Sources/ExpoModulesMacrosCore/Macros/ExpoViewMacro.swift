@@ -27,8 +27,9 @@ import SwiftSyntaxMacros
 ///   public typealias Props = CardProps
 ///   extension CardView: AnyNativeUIKitView {}
 ///
-/// The struct form is a SwiftUI view. Core keeps the props and the React children and creates the struct again
-/// with them, so the macro adds both as constants and the initializer that core calls:
+/// The struct form is a SwiftUI view. Core keeps the props, the React children and the app context, and creates the
+/// struct again with them. The macro adds the props and the children as constants, the app context as a property, and
+/// the initializer that core calls:
 ///
 ///   @ExpoView<SliderProps>
 ///   struct SliderView: View {
@@ -42,11 +43,18 @@ import SwiftSyntaxMacros
 ///   public typealias Props = SliderProps
 ///   public let props: Props
 ///   public let children: ExpoSwiftUI.Children
-///   public init(props: Props, children: ExpoSwiftUI.Children) {
+///   public private(set) weak var appContext: AppContext?
+///   public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
 ///     self.props = props
 ///     self.children = children
+///     self.appContext = appContext
 ///   }
 ///   extension SliderView: AnyNativeSwiftUIView {}
+///
+/// The app context is a stored property, not an `@Environment` value, because a parent view can also call a method of
+/// a child's struct outside of `body`, where an environment value reads `nil`. The reference is weak, like
+/// `ExpoNativeView.appContext`, so that a view doesn't keep the app context alive. It's a `var`, because `weak let`
+/// needs Swift 6.3. The `nil` default lets a SwiftUI preview create the view with `SliderView(props:children:)`.
 ///
 /// The struct must name `View` in its inheritance clause, and it can't declare members with these names.
 /// The view registers under its class name. Pass `@ExpoView<CardProps>("FancyCard")` to override it,
@@ -264,8 +272,8 @@ private func hasDidUpdatePropsParameter(_ method: FunctionDeclSyntax, propsType:
 
 // MARK: - SwiftUI views
 
-/// The members of a SwiftUI view struct: the `Props` typealias, the `props` and `children` constants, the initializer
-/// that core calls with them, and the `_jsName` override.
+/// The members of a SwiftUI view struct: the `Props` typealias, the `props` and `children` constants, the weak
+/// `appContext` property, the initializer that core calls with them, and the `_jsName` override.
 private func swiftUIViewMembers(of node: AttributeSyntax, structDecl: StructDeclSyntax) throws -> [DeclSyntax] {
   guard conformsToSwiftUIView(structDecl) else {
     throw DiagnosticsError(diagnostics: [missingViewConformanceDiagnostic(for: structDecl)])
@@ -296,10 +304,12 @@ private func swiftUIViewMembers(of node: AttributeSyntax, structDecl: StructDecl
     "public typealias Props = \(raw: propsType)",
     "public let props: Props",
     "public let children: ExpoSwiftUI.Children",
+    "public private(set) weak var appContext: AppContext?",
     """
-    public init(props: Props, children: ExpoSwiftUI.Children) {
+    public init(props: Props, children: ExpoSwiftUI.Children, appContext: AppContext? = nil) {
       self.props = props
       self.children = children
+      self.appContext = appContext
     }
     """,
   ]
@@ -323,14 +333,15 @@ private func conformsToSwiftUIView(_ structDecl: StructDeclSyntax) -> Bool {
   return structDecl.inheritanceClause?.inheritedTypes.contains { baseIdentifier(of: $0.type) == "View" } ?? false
 }
 
-/// The name of a member that the struct form synthesizes and the struct already declares: a `props` or `children`
-/// property, or an initializer with the labels `props:children:`. `nil` when there is none.
+/// The name of a member that the struct form synthesizes and the struct already declares: a `props`, `children` or
+/// `appContext` property, or an initializer with the labels `props:children:appContext:`. `nil` when there is none.
+/// An initializer with other labels, such as `props:children:`, is a separate overload, so the struct can declare it.
 private func existingSynthesizedSwiftUIMember(in memberBlock: MemberBlockSyntax) -> String? {
   for member in memberBlock.members {
     if let variable = member.decl.as(VariableDeclSyntax.self) {
       for binding in variable.bindings {
         if let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
-          ["props", "children"].contains(withoutBackticks(name))
+          ["props", "children", "appContext"].contains(withoutBackticks(name))
         {
           return withoutBackticks(name)
         }
@@ -338,8 +349,8 @@ private func existingSynthesizedSwiftUIMember(in memberBlock: MemberBlockSyntax)
     }
     if let initializer = member.decl.as(InitializerDeclSyntax.self) {
       let labels = initializer.signature.parameterClause.parameters.map { $0.firstName.text }
-      if labels == ["props", "children"] {
-        return "init(props:children:)"
+      if labels == ["props", "children", "appContext"] {
+        return "init(props:children:appContext:)"
       }
     }
   }
