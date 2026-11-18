@@ -1,8 +1,8 @@
-// Uses a props type and a view of the `Props` module, which `check-compile.js` builds with library evolution and
+// Uses a props type and a view of the `Fixtures` module, which `check-compile.js` builds with library evolution and
 // gives to this module only as its `.swiftinterface`.
 
 import Core
-import Props
+import Fixtures
 
 public func position(of name: PublicProps.PropName) -> Int {
   switch name {
@@ -19,7 +19,7 @@ public func bit(of name: PublicProps.PropName) -> UInt64 {
   return PublicProps.propSet(for: name).rawValue
 }
 
-// Creates a SwiftUI view of the `Props` module as a SwiftUI preview in another module does, without the app
+// Creates a SwiftUI view of the `Fixtures` module as a SwiftUI preview in another module does, without the app
 // context, and reads the app context.
 @MainActor
 public func previewHasAppContext() -> Bool {
