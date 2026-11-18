@@ -661,6 +661,41 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `A value prop that holds a closure produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var handlers: [String: (Any) -> Void] = [:]
+        var callbacks: [() -> Void]?
+        var onTap: () -> Void
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var handlers: [String: (Any) -> Void] = [:]
+          var callbacks: [() -> Void]?
+          var onTap: () -> Void
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "View prop 'handlers' can't hold a closure, because a value prop decodes through 'JavaScriptDecodable', which a closure can't conform to. To call JavaScript, declare an event prop, whose type is a function type such as '(Payload) -> Void'",
+          line: 3,
+          column: 26
+        ),
+        DiagnosticSpec(
+          message:
+            "View prop 'callbacks' can't hold a closure, because a value prop decodes through 'JavaScriptDecodable', which a closure can't conform to. To call JavaScript, declare an event prop, whose type is a function type such as '(Payload) -> Void'",
+          line: 4,
+          column: 19
+        ),
+      ]
+    )
+  }
+
+  @Test
   func `A free-form value prop without a type annotation produces a diagnostic`() {
     assertExpansion(
       """

@@ -12,7 +12,8 @@ import SwiftSyntaxMacros
 /// - every other property is a **value prop**, decoded from the raw props Fabric delivers.
 ///
 /// An event must be spelled as a function type. The macro reads only the syntax, so a closure type
-/// behind a typealias (`var onTap: TapHandler`) is a value prop.
+/// behind a typealias (`var onTap: TapHandler`) is a value prop. A closure inside the type of a value
+/// prop, such as `[String: () -> Void]`, is an error, since no closure can decode.
 ///
 /// A value prop whose type holds `Any` is free-form: `Any`, `[Any]`, `[String: Any]`, or a type built
 /// from them with arrays, `String`-keyed dictionaries and optionals, such as `[[String: Any]]?`. Such a
@@ -546,6 +547,17 @@ private func missingDefaultDiagnostic(
   return Diagnostic(node: pattern, message: message)
 }
 
+/// The error for a value prop whose type holds a closure, such as `[String: () -> Void]`, attached to
+/// the first function type in it. A value prop decodes through `JavaScriptDecodable`, which no closure
+/// conforms to. There is no fix-it, since the author picks the events.
+private func valuePropClosureDiagnostic(for functionType: FunctionTypeSyntax, name: String) -> Diagnostic {
+  let message = ViewPropsDiagnosticMessage(
+    "View prop '\(withoutBackticks(name))' can't hold a closure, because a value prop decodes through 'JavaScriptDecodable', which a closure can't conform to. To call JavaScript, declare an event prop, whose type is a function type such as '(Payload) -> Void'",
+    id: "viewprops-closure-value-prop"
+  )
+  return Diagnostic(node: functionType, message: message)
+}
+
 /// The error for a value prop whose type holds `Any` in a shape that the free-form methods of
 /// `JavaScriptValue` can't decode, such as `[Int: Any]`, attached to the type. There is no fix-it, since
 /// the type is the author's choice.
@@ -782,9 +794,9 @@ private struct ViewPropsModel {
 /// Rejects what can't be expressed: a non-`struct` declaration (the class form is the SwiftUI path and
 /// needs the observable protocol, which is deferred), a leftover `@Field` attribute, an optional
 /// function type, an event whose function type returns a value, a property with no determinable type,
-/// a value prop declared with `let` or without a default, a value prop whose type holds `Any` in a shape
-/// that can't decode, a `private` stored property without an initial value, an `init()` that is
-/// failable, throwing or `async`, and more than 64 value props.
+/// a value prop declared with `let` or without a default, a value prop whose type holds a closure or
+/// holds `Any` in a shape that can't decode, a `private` stored property without an initial value, an
+/// `init()` that is failable, throwing or `async`, and more than 64 value props.
 ///
 /// When the type declares a usable `init()`, that initializer is the default: it must set every
 /// stored property, which the compiler checks, so the props need no initial values.
@@ -999,9 +1011,13 @@ private func validatedViewProps(
       if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
         letValuePropNames.append(name)
       }
-      // A type that holds `Any` decodes only through the free-form methods, which produce `Any`,
-      // arrays, `String`-keyed dictionaries and optionals.
-      if let declaredType, mentionsFreeFormAny(declaredType), !isConvertibleFreeFormType(declaredType) {
+      // Only a prop whose type is a function type is an event, so a closure inside a value prop's type
+      // can't decode. It comes before the check for a type that holds `Any`, whose error would name
+      // the wrong problem for `[String: (Any) -> Void]`. A type that holds `Any` decodes only through
+      // the free-form methods, which produce `Any`, arrays, `String`-keyed dictionaries and optionals.
+      if let functionType = declaredType.flatMap({ firstFunctionType(in: $0) }) {
+        propDiagnostics.append(valuePropClosureDiagnostic(for: functionType, name: name))
+      } else if let declaredType, mentionsFreeFormAny(declaredType), !isConvertibleFreeFormType(declaredType) {
         propDiagnostics.append(unconvertibleFreeFormTypeDiagnostic(for: declaredType, name: name))
       }
       // A removed prop is reset to its value in a fresh `Self()`, so every value prop needs a
