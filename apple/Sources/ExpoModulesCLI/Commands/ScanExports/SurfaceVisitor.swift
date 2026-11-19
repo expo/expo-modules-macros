@@ -235,9 +235,19 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
 
     // `@ViewProps` applies only to a struct.
-    if node.is(StructDeclSyntax.self), attributes.firstAttribute(named: DetectedMacro.viewProps.rawValue) != nil {
+    if node.is(StructDeclSyntax.self),
+      let attribute = attributes.firstAttribute(named: DetectedMacro.viewProps.rawValue)
+    {
       let (props, events) = collectViewProps(members)
-      viewProps.append(ViewPropsDeclaration(name: qualified, props: props, events: events, platforms: platforms))
+      viewProps.append(
+        ViewPropsDeclaration(
+          name: qualified,
+          props: props,
+          events: events,
+          platforms: platforms,
+          baseLookupName: extendedPropsType(of: attribute)
+        )
+      )
     }
   }
 
@@ -1186,6 +1196,21 @@ private func classListArgument(of attribute: AttributeSyntax, label: String) -> 
     }
     return base.trimmedDescription
   }
+}
+
+/// The props type of `@ViewProps(extending: BaseProps.self)` without backticks (`BaseProps`,
+/// `Outer.BaseProps`), or `nil` without an `extending:` argument of that shape, which the macro rejects.
+private func extendedPropsType(of attribute: AttributeSyntax) -> String? {
+  guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self), arguments.count == 1,
+    let argument = arguments.first, argument.label?.text == "extending",
+    let memberAccess = argument.expression.as(MemberAccessExprSyntax.self),
+    memberAccess.declName.baseName.text == "self",
+    let base = memberAccess.base,
+    base.is(DeclReferenceExprSyntax.self) || base.is(MemberAccessExprSyntax.self)
+  else {
+    return nil
+  }
+  return String(base.trimmedDescription.filter { $0 != "`" })
 }
 
 /// The node for a property/field value type: the annotation, else the literal default's inferred

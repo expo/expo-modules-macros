@@ -447,10 +447,14 @@ export interface ExportedView extends ExportedAccess, ExportedAvailability {
    * The value props of the `@ViewProps` struct, in declaration order. Absent when the scan declares
    * no struct named `propsType` on a platform of the view, so unknown props differ from no props. A
    * struct declared in several `#if` branches contributes the props of each declaration whose
-   * platforms overlap the view's, and each prop keeps its own `platforms`.
+   * platforms overlap the view's, and each prop keeps its own `platforms`. The props of the struct
+   * that `@ViewProps(extending:)` names follow, when the scan declares it.
    */
   props?: ExportedViewProp[];
-  /** The events of the `@ViewProps` struct, in declaration order. Absent when `props` is absent. */
+  /**
+   * The events of the `@ViewProps` struct, in declaration order, then those of the struct that it
+   * extends. Absent when `props` is absent.
+   */
   events?: ExportedViewEvent[];
   file: string;
 }

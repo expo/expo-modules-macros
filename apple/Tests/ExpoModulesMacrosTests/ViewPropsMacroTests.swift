@@ -5742,4 +5742,375 @@ struct ViewPropsMacroTests {
         """
     )
   }
+
+  @Test
+  func `Props that extend other props forward the base props to base`() {
+    assertExpansion(
+      """
+      @ViewProps(extending: ExpoUIProps.self)
+      struct StepperProps {
+        var label = ""
+        var value: Int?
+        var onValueChange: (Int) -> Void
+      }
+      """,
+      expandedSource: """
+        struct StepperProps {
+          var label = ""
+          var value: Int?
+          var onValueChange: (Int) -> Void
+
+          public var base = ExpoUIProps()
+
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable, Hashable {
+            case label
+            case value
+            case base(ExpoUIProps.PropName)
+
+            public static let allCases: [PropName] = [.label, .value] + ExpoUIProps.PropName.allCases.map(PropName.base)
+
+            public init?(rawValue: String) {
+              switch rawValue {
+              case "label":
+                self = .label
+              case "value":
+                self = .value
+              default:
+                guard let name = ExpoUIProps.PropName(rawValue: rawValue) else {
+                  return nil
+                }
+                self = .base(name)
+              }
+            }
+
+            public var rawValue: String {
+              switch self {
+              case .label:
+                return "label"
+              case .value:
+                return "value"
+              case .base(let name):
+                return name.rawValue
+              }
+            }
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let label = PropSet(rawValue: 1 << 0)
+            public static let value = PropSet(rawValue: 1 << 1)
+
+            @inlinable
+            public static func base(_ props: ExpoUIProps.PropSet) -> PropSet {
+              return PropSet(rawValue: props.rawValue << 2)
+            }
+          }
+
+          nonisolated public static let _eventNames: [String] = ["onValueChange"] + ExpoUIProps._eventNames
+
+          public typealias Diff = PropsDiff<Self>
+
+          nonisolated public init() {
+            self.onValueChange = { _ in
+            }
+          }
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .label:
+              _props.label = ""
+            case .value:
+              _props.value = nil
+            case .base:
+              break
+            }
+          }
+        }
+
+        extension StepperProps: nonisolated AnyViewProps {
+          nonisolated public static let allProps: PropSet = {
+            precondition(
+              ExpoUIProps.allProps.rawValue.leadingZeroBitCount >= 2,
+              "'StepperProps' and 'ExpoUIProps', the props that it extends, have more than 64 value props together, but the changed-props mask is a UInt64"
+            )
+            return PropSet(rawValue: 0b11).union(.base(ExpoUIProps.allProps))
+          }()
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .label:
+              return .label
+            case .value:
+              return .value
+            case .base(let name):
+              return .base(ExpoUIProps.propSet(for: name))
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            switch name {
+            case .base(let name):
+              try self.base._decode(name, from: value, in: runtime)
+            case _ where value.isNull() || value.isUndefined():
+              Self._resetViewProp(name, in: &self)
+            case .label:
+              self.label = try Self._decodeViewProp(value, in: runtime)
+            case .value:
+              self.value = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onValueChange = {
+              _events.dispatch("onValueChange", $0)
+            }
+            self.base._bindEvents(to: _events)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Props without value props of their own get the base props only`() {
+    assertExpansion(
+      """
+      @ViewProps(extending: Outer.CommonProps.self)
+      public struct ButtonProps {
+        public var onSelect: () -> Void = {}
+      }
+      """,
+      expandedSource: """
+        public struct ButtonProps {
+          public var onSelect: () -> Void = {}
+
+          public var base = Outer.CommonProps()
+
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable, Hashable {
+            case base(Outer.CommonProps.PropName)
+
+            public static let allCases: [PropName] = Outer.CommonProps.PropName.allCases.map(PropName.base)
+
+            public init?(rawValue: String) {
+              guard let name = Outer.CommonProps.PropName(rawValue: rawValue) else {
+                return nil
+              }
+              self = .base(name)
+            }
+
+            public var rawValue: String {
+              switch self {
+              case .base(let name):
+                return name.rawValue
+              }
+            }
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            @inlinable
+            public static func base(_ props: Outer.CommonProps.PropSet) -> PropSet {
+              return PropSet(rawValue: props.rawValue)
+            }
+          }
+
+          nonisolated public static let _eventNames: [String] = ["onSelect"] + Outer.CommonProps._eventNames
+
+          public typealias Diff = PropsDiff<Self>
+
+          nonisolated public init() {
+          }
+        }
+
+        extension ButtonProps: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet.base(Outer.CommonProps.allProps)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .base(let name):
+              return .base(Outer.CommonProps.propSet(for: name))
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            switch name {
+            case .base(let name):
+              try self.base._decode(name, from: value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.onSelect = {
+              _events.dispatch("onSelect")
+            }
+            self.base._bindEvents(to: _events)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Props without props of their own bind the events of the base`() {
+    assertExpansion(
+      """
+      @ViewProps(extending: CommonProps.self)
+      struct PlainProps {
+      }
+      """,
+      expandedSource: """
+        struct PlainProps {
+
+          public var base = CommonProps()
+
+          @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable, Hashable {
+            case base(CommonProps.PropName)
+
+            public static let allCases: [PropName] = CommonProps.PropName.allCases.map(PropName.base)
+
+            public init?(rawValue: String) {
+              guard let name = CommonProps.PropName(rawValue: rawValue) else {
+                return nil
+              }
+              self = .base(name)
+            }
+
+            public var rawValue: String {
+              switch self {
+              case .base(let name):
+                return name.rawValue
+              }
+            }
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            @inlinable
+            public static func base(_ props: CommonProps.PropSet) -> PropSet {
+              return PropSet(rawValue: props.rawValue)
+            }
+          }
+
+          nonisolated public static let _eventNames: [String] = CommonProps._eventNames
+
+          public typealias Diff = PropsDiff<Self>
+        }
+
+        extension PlainProps: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet.base(CommonProps.allProps)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .base(let name):
+              return .base(CommonProps.propSet(for: name))
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            switch name {
+            case .base(let name):
+              try self.base._decode(name, from: value, in: runtime)
+            }
+          }
+
+          nonisolated public mutating func _bindEvents(to _events: ViewEventDispatcher) {
+            self.base._bindEvents(to: _events)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `An argument other than extending a props type produces a diagnostic`() {
+    for argument in [
+      "extending: CommonProps", "base: CommonProps.self", "extending: CommonProps.self, extending: OtherProps.self",
+    ] {
+      assertExpansion(
+        """
+        @ViewProps(\(argument))
+        struct Props {
+          var title = ""
+        }
+        """,
+        expandedSource: """
+          struct Props {
+            var title = ""
+          }
+          """,
+        diagnostics: [
+          DiagnosticSpec(
+            message: "@ViewProps takes the props that the struct extends as 'extending: BaseProps.self'",
+            line: 1,
+            column: 12
+          )
+        ]
+      )
+    }
+  }
+
+  @Test
+  func `A property named base in props that extend other props produces a diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps(extending: CommonProps.self)
+      struct Props {
+        static var base = 0
+        var title = ""
+        var base = 0
+        private var `base`: Int?
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          static var base = 0
+          var title = ""
+          var base = 0
+          private var `base`: Int?
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@ViewProps(extending:) adds the property 'base', which holds the props of 'CommonProps', so the struct can't declare its own. Rename the property",
+          line: 5,
+          column: 7
+        ),
+        DiagnosticSpec(
+          message:
+            "@ViewProps(extending:) adds the property 'base', which holds the props of 'CommonProps', so the struct can't declare its own. Rename the property",
+          line: 6,
+          column: 15
+        ),
+      ]
+    )
+  }
 }

@@ -108,6 +108,61 @@ nonisolated public final class NonSendablePayload: JavaScriptEncodable {
   public init() {}
 }
 
+// Props that extend other props, which `base` holds. `PublicProps` isn't `Sendable`, so with a default isolation the
+// struct needs `nonisolated`. Library evolution checks the `@frozen` `PropName` with a case for the base props, and
+// `Client.swift` switches over it.
+@ViewProps(extending: PublicProps.self)
+nonisolated public struct ExtendingProps {
+  public var label = "label"
+  public var onSelect: (Int) -> Void
+}
+
+// The common props of a family of views, as in `@expo/ui`: free-form props and an event, which an extending struct
+// binds through `base`.
+@ViewProps
+nonisolated public struct CommonProps {
+  public var modifiers: [[String: Any]]?
+  public var testID: String?
+  public var onGlobalEvent: (Int) -> Void
+}
+
+// Props that extend props that extend other props, so the base props of the base take the bits above both.
+@ViewProps(extending: ExtendingProps.self)
+nonisolated struct ChainedProps {
+  var level = 3
+}
+
+// Events only, extending props with events only, so `PropName` has only the case for the base props, whose
+// `PropName` has no case.
+@ViewProps(extending: EventsOnlyProps.self)
+nonisolated struct ExtendingEventsOnlyProps {
+  var onClose: () -> Void
+}
+
+// Props that extend the common props, with an `init()` of their own, which doesn't set `base`.
+@ViewProps(extending: CommonProps.self)
+nonisolated struct StepperProps {
+  var value: Int
+  var onValueChange: (Int) -> Void
+
+  init() {
+    value = 5
+    onValueChange = { _ in }
+  }
+}
+
+// A base named with the type that encloses it.
+@ViewProps(extending: Screen.NestedProps.self)
+nonisolated struct ExtendingNestedProps {
+  var title = ""
+}
+
+// A `private` struct that extends a `private` struct, so `base` and the case of `PropName` use a `private` type.
+@ViewProps(extending: PrivateProps.self)
+private struct ExtendingPrivateProps {
+  var count = 0
+}
+
 @ViewProps
 nonisolated public struct EventKindsProps {
   public var onSendable: @Sendable (Int) -> Void

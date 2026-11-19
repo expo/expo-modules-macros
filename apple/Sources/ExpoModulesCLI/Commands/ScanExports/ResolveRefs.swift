@@ -221,18 +221,19 @@ extension ExportedSurface {
         }
         return resolved
       },
-      // The props and events are written in the `@ViewProps` struct, so their refs are looked up from
-      // it. `joiningViewProps(_:)` runs first and sets `propsType` to the struct's qualified name.
+      // The props and events are written in a `@ViewProps` struct, so their refs are looked up from it.
+      // `joiningViewProps(_:)` runs first and sets the `scope` of each one to the qualified name of its
+      // struct, which is the view's `propsType` or a struct that it extends.
       views: views.map { view in
         var resolved = view
         resolved.props = view.props?.map { prop in
           var resolvedProp = prop
-          resolvedProp.type = prop.type.resolvingRefs(using: index, in: view.propsType)
+          resolvedProp.type = prop.type.resolvingRefs(using: index, in: prop.scope ?? view.propsType)
           return resolvedProp
         }
         resolved.events = view.events?.map { event in
           var resolvedEvent = event
-          resolvedEvent.payload = event.payload?.resolvingRefs(using: index, in: view.propsType)
+          resolvedEvent.payload = event.payload?.resolvingRefs(using: index, in: event.scope ?? view.propsType)
           return resolvedEvent
         }
         return resolved
@@ -250,6 +251,9 @@ extension ExportedSurface {
   /// declaration whose platforms overlap the platforms of the view, as a superclass does in
   /// `mergingInheritedMembers()`. Each prop and event keeps its own `platforms`. A view that builds on
   /// none of those platforms is treated as one whose struct the scan doesn't declare.
+  ///
+  /// The props and events of a struct that `@ViewProps(extending:)` names come after the own ones, as
+  /// the macro orders `PropName.allCases`, because JavaScript sets them on the view by their own names.
   func joiningViewProps(_ declarations: [ViewPropsDeclaration]) -> ExportedSurface {
     let entries = Dictionary(grouping: declarations, by: \.name)
     return ExportedSurface(
@@ -261,21 +265,82 @@ extension ExportedSurface {
       views: views.map { view in
         let platforms = Set(view.platforms.map(\.name))
         guard let name = view.propsTypeLookupName,
-          let variants = scopedLookup(name, in: view.name, entries: entries)?.filter({ declaration in
-            declaration.platforms.contains { platforms.contains($0.name) }
-          }),
-          let first = variants.first
+          let variants = viewPropsVariants(named: name, in: view.name, platforms: platforms, entries: entries)
         else {
           return view
         }
+        let members = viewPropsMembers(of: variants, platforms: platforms, entries: entries)
         var joined = view
-        joined.propsType = first.name
-        joined.props = variants.flatMap(\.props)
-        joined.events = variants.flatMap(\.events)
+        joined.propsType = variants[0].name
+        joined.props = members.props
+        joined.events = members.events
         return joined
       }
     )
   }
+}
+
+/// The declarations of the `@ViewProps` struct that `name` names from `scope`, which build on one of the
+/// given platforms, or `nil` when there is none.
+private func viewPropsVariants(
+  named name: String,
+  in scope: String,
+  platforms: Set<String>,
+  entries: [String: [ViewPropsDeclaration]]
+) -> [ViewPropsDeclaration]? {
+  let variants = scopedLookup(name, in: scope, entries: entries)?.filter { declaration in
+    declaration.platforms.contains { platforms.contains($0.name) }
+  }
+  guard let variants, !variants.isEmpty else {
+    return nil
+  }
+  return variants
+}
+
+/// The props and events of the declarations of one `@ViewProps` struct, then those of the struct that it
+/// extends, and so on. Each one gets the name of its struct as its `scope`, which `resolvingRefs()` looks
+/// its refs up from. A base that the scan doesn't declare adds nothing. `visited` holds the structs that
+/// extend this one, to stop at a cycle, which the compiler rejects.
+private func viewPropsMembers(
+  of variants: [ViewPropsDeclaration],
+  platforms: Set<String>,
+  entries: [String: [ViewPropsDeclaration]],
+  visited: Set<String> = []
+) -> (props: [ExportedViewProp], events: [ExportedViewEvent]) {
+  let name = variants[0].name
+  guard !visited.contains(name) else {
+    return ([], [])
+  }
+  var props = variants.flatMap(\.props).map { prop in
+    var scoped = prop
+    scoped.scope = name
+    return scoped
+  }
+  var events = variants.flatMap(\.events).map { event in
+    var scoped = event
+    scoped.scope = name
+    return scoped
+  }
+  // The declarations in `#if` branches can each extend props. Each base is joined once.
+  var baseNames: [String] = []
+  for case let baseName? in variants.map(\.baseLookupName) where !baseNames.contains(baseName) {
+    baseNames.append(baseName)
+  }
+  for baseName in baseNames {
+    guard let baseVariants = viewPropsVariants(named: baseName, in: name, platforms: platforms, entries: entries)
+    else {
+      continue
+    }
+    let base = viewPropsMembers(
+      of: baseVariants,
+      platforms: platforms,
+      entries: entries,
+      visited: visited.union([name])
+    )
+    props += base.props
+    events += base.events
+  }
+  return (props, events)
 }
 
 extension ExportedParameter {

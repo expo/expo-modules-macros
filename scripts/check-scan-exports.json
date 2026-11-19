@@ -938,6 +938,31 @@
                 "name": "visionOS"
               }
             ]
+          },
+          {
+            "name": "onError",
+            "payload": {
+              "kind": "primitive",
+              "name": "String",
+              "typeof": "string"
+            },
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
           }
         ],
         "file": "PlayerModule.swift",
@@ -1017,6 +1042,33 @@
                 "name": "String",
                 "typeof": "string"
               }
+            }
+          },
+          {
+            "defaultValue": "false",
+            "name": "muted",
+            "optional": false,
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "type": {
+              "kind": "primitive",
+              "name": "Bool",
+              "typeof": "boolean"
             }
           }
         ],
