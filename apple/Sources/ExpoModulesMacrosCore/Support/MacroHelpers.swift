@@ -93,6 +93,13 @@ internal func isConcurrentJSMember(_ decl: DeclSyntaxProtocol) -> Bool {
   return hasOption(attribute, named: "concurrent")
 }
 
+/// True if a `@JS` attribute lists `.cached`. The getter of such a property stores its first value as a
+/// data property on the JavaScript object, like the getter of a `lazy var` (see `JSProperty`). `@JS`
+/// reports the option on anything other than a getter-only computed property.
+internal func hasCachedOption(_ attribute: AttributeSyntax) -> Bool {
+  return hasOption(attribute, named: "cached")
+}
+
 /// The `.withAsync("name")` option of a `@JS` attribute, e.g. `@JS(.withAsync("loadAsync"))` or
 /// `@JS("load", [.withAsync("loadAsync")])`, or `nil` when the attribute doesn't list it. When the
 /// option is listed more than once, the first one counts and `@JS` reports the others.
@@ -603,9 +610,10 @@ internal func collectProperties(
   varDecl: VariableDeclSyntax,
   attribute: AttributeSyntax
 ) -> [JSProperty] {
-  // A `let` is never settable; only `var` bindings can carry a setter.
+  // A `let` is never settable; only `var` bindings can carry a setter. A property whose getter caches
+  // its first value is read-only too.
   let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
-  let isLazy = isLazy(varDecl.modifiers)
+  let cachesValue = isLazy(varDecl.modifiers) || hasCachedOption(attribute)
 
   return varDecl.bindings.compactMap { binding in
     guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
@@ -623,10 +631,22 @@ internal func collectProperties(
       valueType: valueType,
       // A literal-inferred type never mentions `Any`, so only an explicit annotation can be free-form.
       freeForm: binding.typeAnnotation.flatMap { freeFormConversion(of: $0.type) },
-      isSettable: isVar && !isLazy && bindingIsSettable(binding),
-      isLazy: isLazy,
+      isSettable: isVar && !cachesValue && bindingIsSettable(binding),
+      cachesValue: cachesValue,
+      getterThrows: getterThrows(binding),
       nameToken: ident.identifier
     )
+  }
+}
+
+/// Whether the `get` accessor of a computed property is marked `throws`. A shorthand getter can't throw,
+/// and neither can a stored property.
+internal func getterThrows(_ binding: PatternBindingSyntax) -> Bool {
+  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
+    return false
+  }
+  return accessors.contains {
+    $0.accessorSpecifier.tokenKind == .keyword(.get) && $0.effectSpecifiers?.throwsClause != nil
   }
 }
 

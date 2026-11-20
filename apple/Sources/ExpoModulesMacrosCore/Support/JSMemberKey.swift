@@ -85,6 +85,20 @@ internal enum JSMemberKey: Hashable {
     }
   }
 
+  /// The key argument of `JavaScriptObject.defineLazyProperty`: the string literal, or a
+  /// `JavaScriptSymbol.Shared` under the `symbol:` label, `.wellKnown(.<case>)` or `.for(<registry key>)`.
+  /// The function gets the symbol from the runtime, so a statement passing a symbol needs `tryPrefix` too.
+  var lazyPropertyArgument: String {
+    switch self {
+    case .name(let name):
+      return "\"\(name)\""
+    case .wellKnownSymbol(let name):
+      return "symbol: .wellKnown(.\(name))"
+    case .registeredSymbol(let key):
+      return "symbol: .for(\(swiftStringLiteral(key)))"
+    }
+  }
+
   /// The `try ` that a statement passing `expression` needs, or an empty string for a string key.
   var tryPrefix: String {
     return isSymbol ? "try " : ""

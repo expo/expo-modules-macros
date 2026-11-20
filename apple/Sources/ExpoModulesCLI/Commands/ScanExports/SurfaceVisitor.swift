@@ -333,8 +333,8 @@ final class SurfaceVisitor: SyntaxVisitor {
     }
     let override = stringArgument(of: attribute)
     let dispatch: ExportedEventDispatch =
-      hasEventOption(attribute, named: "inline")
-      ? .inline : hasEventOption(attribute, named: "blocking") ? .blocking : .scheduled
+      hasOption(attribute, named: "inline")
+      ? .inline : hasOption(attribute, named: "blocking") ? .blocking : .scheduled
     var result: [ExportedEvent] = []
 
     for binding in varDecl.bindings {
@@ -411,8 +411,10 @@ final class SurfaceVisitor: SyntaxVisitor {
     platforms: [ExportedPlatform]
   ) -> [ExportedProperty] {
     let isLet = varDecl.bindingSpecifier.tokenKind == .keyword(.let)
-    // A `lazy var` is read-only from JS, like a `let`: the macro binds it getter-only.
-    let isLazy = varDecl.modifiers.contains { $0.name.tokenKind == .keyword(.lazy) }
+    // A `lazy var` and a `.cached` property are read-only from JS, like a `let`: the macro binds them
+    // getter-only, and the getter replaces the property with its first value.
+    let cachesValue =
+      varDecl.modifiers.contains { $0.name.tokenKind == .keyword(.lazy) } || hasOption(attribute, named: "cached")
     let isStatic = isTypeLevel(varDecl.modifiers)
     let symbol = symbolArgument(of: attribute)
     let override = stringArgument(of: attribute)
@@ -430,7 +432,7 @@ final class SurfaceVisitor: SyntaxVisitor {
           jsName: symbol == nil ? override ?? name : nil,
           symbol: symbol,
           type: type,
-          isSettable: !isLazy && isSettable(binding: binding, isLet: isLet),
+          isSettable: !cachesValue && isSettable(binding: binding, isLet: isLet),
           isStatic: isStatic,
           // Only a stored property has an initializer; a computed one has none to report.
           defaultValue: binding.initializer?.value.trimmedDescription,
@@ -898,15 +900,24 @@ private func isOptionalEventType(_ type: TypeSyntax) -> Bool {
   return isOptionalType(type)
 }
 
-/// True if an `@Event` attribute lists the given option member (`@Event(.inline)` or
-/// `@Event("name", EventOptions.inline)`). Like `hasOption` in the macros, but without the array-literal
-/// branch, which `EventOptions...` doesn't accept.
-private func hasEventOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
+/// True if an `@Event` or `@JS` attribute lists the given option member (`@Event(.inline)`,
+/// `@Event("name", EventOptions.inline)` or `@JS(.cached)`). Mirrors `hasOption` in the macros, which
+/// also scans the elements of an array literal.
+private func hasOption(_ attribute: AttributeSyntax, named option: String) -> Bool {
   guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self) else {
     return false
   }
+  let namesOption = { (expression: ExprSyntax) in
+    expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == option
+  }
   return arguments.contains { argument in
-    argument.expression.as(MemberAccessExprSyntax.self)?.declName.baseName.text == option
+    guard argument.label == nil else {
+      return false
+    }
+    if let array = argument.expression.as(ArrayExprSyntax.self) {
+      return array.elements.contains { namesOption($0.expression) }
+    }
+    return namesOption(argument.expression)
   }
 }
 

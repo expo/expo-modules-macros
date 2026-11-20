@@ -318,6 +318,11 @@ struct ModuleSurfaceTests {
           @JS lazy var limit: Int = 0 {
             didSet {}
           }
+          @JS(.cached) var cacheDir: String { "" }
+          @JS(.cached) var title: String {
+            get { "" }
+            set {}
+          }
         }
         """
       ).modules.first
@@ -341,6 +346,10 @@ struct ModuleSurfaceTests {
     #expect(byName["config"]?.isSettable == false)
     // Lazy var with an observer: still read-only.
     #expect(byName["limit"]?.isSettable == false)
+    // `.cached` getter-only computed var: read-only.
+    #expect(byName["cacheDir"]?.isSettable == false)
+    // `.cached` with a setter, which the macro reports: bound getter-only, so read-only.
+    #expect(byName["title"]?.isSettable == false)
   }
 
   @Test
