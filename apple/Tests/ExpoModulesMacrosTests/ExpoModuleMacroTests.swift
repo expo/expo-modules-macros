@@ -1072,6 +1072,44 @@ struct ExpoModuleMacroTests {
   }
 
   @Test
+  func `Cached property with a throwing getter reads it with try`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.cached)
+        var config: MyRecord {
+          get throws { try loadConfig() }
+        }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          var config: MyRecord {
+            get throws { try loadConfig() }
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.defineLazyProperty("config", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> MyRecord in
+              try self.config
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func config(_: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            config(MyRecord.self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `@JS(.cached) on a function is diagnosed on the attribute`() {
     assertExpansion(
       """

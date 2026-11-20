@@ -633,8 +633,20 @@ internal func collectProperties(
       freeForm: binding.typeAnnotation.flatMap { freeFormConversion(of: $0.type) },
       isSettable: isVar && !cachesValue && bindingIsSettable(binding),
       cachesValue: cachesValue,
+      getterThrows: getterThrows(binding),
       nameToken: ident.identifier
     )
+  }
+}
+
+/// Whether the `get` accessor of a computed property is marked `throws`. A shorthand getter can't throw,
+/// and neither can a stored property.
+internal func getterThrows(_ binding: PatternBindingSyntax) -> Bool {
+  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
+    return false
+  }
+  return accessors.contains {
+    $0.accessorSpecifier.tokenKind == .keyword(.get) && $0.effectSpecifiers?.throwsClause != nil
   }
 }
 

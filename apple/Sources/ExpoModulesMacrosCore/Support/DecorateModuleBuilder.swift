@@ -431,6 +431,8 @@ internal struct JSProperty {
   /// Whether the getter replaces the accessor with the first value: `true` for a `lazy var` and for a
   /// property marked `@JS(.cached)`.
   let cachesValue: Bool
+  /// Whether the `get` accessor is marked `throws`, so reading the property needs `try`.
+  let getterThrows: Bool
   /// The property's name in the source, where a JavaScript name collision is reported.
   let nameToken: TokenSyntax
 
@@ -513,7 +515,9 @@ internal struct JSProperty {
     let result: String
     if let valueType, freeForm == nil, tupleConversion(of: valueType) == nil {
       returnType = expressionType(valueType)
-      result = value
+      // The other branches read the value inside a `try` expression already. Only a computed property can
+      // have a throwing getter, so the untyped branch, which only a `lazy var` reaches, can't need it.
+      result = getterThrows ? "try \(value)" : value
     } else if let valueType {
       returnType = "JavaScriptValue"
       result = "try \(encodeCall(valueType, freeForm: freeForm, of: value))"

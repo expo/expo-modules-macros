@@ -1114,6 +1114,39 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `Cached tuple property encodes the tuple in the factory`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Canvas: SharedObject {
+        @JS(.cached)
+        var origin: (x: Int, y: Int) { (0, 0) }
+      }
+      """,
+      expandedSource: """
+        public final class Canvas: SharedObject {
+          @JavaScriptActor
+          var origin: (x: Int, y: Int) { (0, 0) }
+
+          public override class var _jsName: String {
+            "Canvas"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.defineLazyProperty("origin", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> JavaScriptValue in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)
+              return try JavaScriptValue.encoding(in: runtime) { slot in
+                try JavaScriptValue.encodeTuple(_self.origin as (Int, Int), labels: ["x", "y"], into: slot, in: runtime)
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `No-argument void method calls through and returns undefined`() {
     assertExpansion(
       """
