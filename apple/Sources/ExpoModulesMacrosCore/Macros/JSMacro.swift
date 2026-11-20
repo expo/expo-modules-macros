@@ -26,6 +26,9 @@ import SwiftSyntaxMacros
 ///   @JS
 ///   var status: String { "ok" }
 ///
+///   @JS(.cached)
+///   var cacheDir: String { ... }
+///
 ///   @JS(symbol: .iterator)
 ///   func makeIterator() -> JavaScriptObject { ... }
 ///
@@ -56,6 +59,7 @@ public struct JSMacro: PeerMacro {
     diagnoseClosureTypes(in: declaration, in: context)
     diagnoseConcurrentOption(of: node, on: declaration, in: context)
     diagnoseAsyncVariantOption(of: node, on: declaration, in: context)
+    diagnoseCachedOption(of: node, on: declaration, in: context)
     diagnoseJavaScriptValuesOffThread(of: node, on: declaration, in: context)
     diagnoseRuntimeParameter(of: node, on: declaration, in: context)
     diagnoseSymbolArgument(of: node, on: declaration, in: context)
@@ -362,6 +366,58 @@ private func diagnoseAsyncVariantOption(
         )
       )
     )
+  }
+}
+
+/// Emits the diagnostic for `@JS(.cached)` on a member that can't take it. The getter of a `.cached`
+/// property stores its first value as a data property on the JavaScript object (see `JSProperty`), so
+/// the option needs a getter-only computed property:
+/// - a function or an initializer has no value to store;
+/// - a stored property, `let` or `var`, already has its value in Swift, and a `var` can change it;
+/// - the setter of a settable property could never be called after the first read;
+/// - a `lazy var` already stores its first value. Its Swift storage is what `.cached` avoids: two
+///   runtimes on different threads can read it for the first time at once.
+private func diagnoseCachedOption(
+  of node: AttributeSyntax,
+  on declaration: some DeclSyntaxProtocol,
+  in context: some MacroExpansionContext
+) {
+  guard hasCachedOption(node) else {
+    return
+  }
+  let message: String
+  let id: String
+  if let varDecl = declaration.as(VariableDeclSyntax.self) {
+    if isLazy(varDecl.modifiers) {
+      message =
+        "'.cached' applies only to a getter-only computed @JS property, and a 'lazy var' already stores its first value on the JavaScript object. Make the property computed, or remove '.cached'. A computed property has no storage that two runtimes on different threads could initialize at once"
+      id = "js-cached-on-lazy-property"
+    } else if varDecl.bindingSpecifier.tokenKind == .keyword(.let) || varDecl.bindings.contains(where: isStored) {
+      message =
+        "'.cached' applies only to a getter-only computed @JS property, not to a stored property. Make the property computed, or remove '.cached'"
+      id = "js-cached-on-stored-property"
+    } else if varDecl.bindings.contains(where: bindingIsSettable) {
+      message =
+        "'.cached' applies only to a getter-only computed @JS property: the first read replaces the property with a read-only value on the JavaScript object, so JavaScript can't call the setter. Remove the setter, or remove '.cached'"
+      id = "js-cached-on-settable-property"
+    } else {
+      return
+    }
+  } else {
+    message = "'.cached' applies only to a getter-only computed @JS property, not to a function or initializer"
+    id = "js-cached-requires-property"
+  }
+  context.diagnose(Diagnostic(node: node, message: JSDiagnosticMessage(message, id: id, severity: .error)))
+}
+
+/// True when a `var` binding is a stored property: it has no accessors, or only the `willSet` and
+/// `didSet` observers.
+private func isStored(_ binding: PatternBindingSyntax) -> Bool {
+  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
+    return binding.accessorBlock == nil
+  }
+  return accessors.allSatisfy {
+    $0.accessorSpecifier.tokenKind == .keyword(.willSet) || $0.accessorSpecifier.tokenKind == .keyword(.didSet)
   }
 }
 

@@ -174,21 +174,56 @@ struct JSSymbolTests {
                 return .undefined()
               }
             }
-            let tagDescriptor = runtime.createObject()
-            tagDescriptor.setProperty("enumerable", value: true)
-            tagDescriptor.setProperty("configurable", value: true)
-            tagDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
-              let value = try String.encode(self.tag, in: runtime)
-              if this.isObject() {
-                try this.getObject(in: runtime).defineProperty(JavaScriptSymbol.wellKnown(runtime, .toStringTag), value: value, options: [.enumerable])
-              }
-              result.emplace(value)
+            try object.defineLazyProperty(symbol: .wellKnown(.toStringTag), options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              self.tag
             }
-            try object.defineProperty(JavaScriptSymbol.wellKnown(runtime, .toStringTag), descriptor: tagDescriptor)
           }
         }
 
         extension Files: AnyModule {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Cached properties bind under a registered and a well-known symbol`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Cache: SharedObject {
+        @JS(symbol: "app.id", .cached)
+        var id: String { makeID() }
+
+        @JS(symbol: .toStringTag, .cached)
+        static var tag: String { "Cache" }
+      }
+      """,
+      expandedSource: """
+        public final class Cache: SharedObject {
+          @JavaScriptActor
+          var id: String { makeID() }
+          @JavaScriptActor
+          static var tag: String { "Cache" }
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            try prototype.defineLazyProperty(symbol: .for("app.id"), options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
+              return _self.id
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            try constructor.defineLazyProperty(symbol: .wellKnown(.toStringTag), options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              Cache.tag
+            }
+          }
         }
         """
     )

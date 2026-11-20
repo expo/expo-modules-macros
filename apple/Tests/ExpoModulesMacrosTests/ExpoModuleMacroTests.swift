@@ -892,17 +892,9 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            let configDescriptor = runtime.createObject()
-            configDescriptor.setProperty("enumerable", value: true)
-            configDescriptor.setProperty("configurable", value: true)
-            configDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
-              let value = try MyRecord.encode(self.config, in: runtime)
-              if this.isObject() {
-                this.getObject(in: runtime).defineProperty("config", value: value, options: [.enumerable])
-              }
-              result.emplace(value)
+            object.defineLazyProperty("config", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> MyRecord in
+              self.config
             }
-            object.defineProperty("config", descriptor: configDescriptor)
           }
 
           private func _assertTypesConformance() {
@@ -934,17 +926,9 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            let cachedTokenDescriptor = runtime.createObject()
-            cachedTokenDescriptor.setProperty("enumerable", value: true)
-            cachedTokenDescriptor.setProperty("configurable", value: true)
-            cachedTokenDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
-              let value = self.cachedToken.toJavaScriptValue(in: runtime)
-              if this.isObject() {
-                this.getObject(in: runtime).defineProperty("token", value: value, options: [.enumerable])
-              }
-              result.emplace(value)
+            object.defineLazyProperty("token", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> JavaScriptValue in
+              self.cachedToken.toJavaScriptValue(in: runtime)
             }
-            object.defineProperty("token", descriptor: cachedTokenDescriptor)
           }
         }
         """
@@ -970,17 +954,9 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            let infoDescriptor = runtime.createObject()
-            infoDescriptor.setProperty("enumerable", value: true)
-            infoDescriptor.setProperty("configurable", value: true)
-            infoDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
-              let value = try JavaScriptValue.encodeAnyDictionary(self.info, in: runtime)
-              if this.isObject() {
-                this.getObject(in: runtime).defineProperty("info", value: value, options: [.enumerable])
-              }
-              result.emplace(value)
+            object.defineLazyProperty("info", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> JavaScriptValue in
+              try JavaScriptValue.encodeAnyDictionary(self.info, in: runtime)
             }
-            object.defineProperty("info", descriptor: infoDescriptor)
           }
         }
         """
@@ -1010,17 +986,9 @@ struct ExpoModuleMacroTests {
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            let cacheDescriptor = runtime.createObject()
-            cacheDescriptor.setProperty("enumerable", value: true)
-            cacheDescriptor.setProperty("configurable", value: true)
-            cacheDescriptor.setProperty("get") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
-              let value = try MyRecord.encode(self.cache, in: runtime)
-              if this.isObject() {
-                this.getObject(in: runtime).defineProperty("cache", value: value, options: [.enumerable])
-              }
-              result.emplace(value)
+            object.defineLazyProperty("cache", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> MyRecord in
+              self.cache
             }
-            object.defineProperty("cache", descriptor: cacheDescriptor)
           }
 
           private func _assertTypesConformance() {
@@ -1030,6 +998,252 @@ struct ExpoModuleMacroTests {
           }
         }
         """
+    )
+  }
+
+  @Test
+  func `Cached computed property binds a configurable getter that caches the value on this`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.cached)
+        var cacheDir: String {
+          FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.path ?? ""
+        }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          var cacheDir: String {
+            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.path ?? ""
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.defineLazyProperty("cacheDir", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              self.cacheDir
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Cached property with a JS name and a get accessor caches the value under that name`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS("config", JSOptions.cached)
+        var loadedConfig: MyRecord {
+          get { loadConfig() }
+        }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          var loadedConfig: MyRecord {
+            get { loadConfig() }
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.defineLazyProperty("config", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> MyRecord in
+              self.loadedConfig
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func loadedConfig(_: (some JavaScriptEncodable & ~Copyable).Type) {
+            }
+            loadedConfig(MyRecord.self)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@JS(.cached) on a function is diagnosed on the attribute`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.cached)
+        func version() -> String { "1.0" }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          func version() -> String { "1.0" }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("version") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "version", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = self.version()
+              try String.encode(value, into: result, in: runtime)
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message: "'.cached' applies only to a getter-only computed @JS property, not to a function or initializer",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.cached) on a stored property or a let is diagnosed`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.cached)
+        let version: String = "1.0"
+
+        @JS(.cached)
+        var count: Int = 0 {
+          didSet {}
+        }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          let version: String = "1.0"
+          @JavaScriptActor
+          var count: Int = 0 {
+            didSet {}
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.defineLazyProperty("version", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              self.version
+            }
+            object.defineLazyProperty("count", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
+              self.count
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.cached' applies only to a getter-only computed @JS property, not to a stored property. Make the property computed, or remove '.cached'",
+          line: 3,
+          column: 3,
+          severity: .error
+        ),
+        DiagnosticSpec(
+          message:
+            "'.cached' applies only to a getter-only computed @JS property, not to a stored property. Make the property computed, or remove '.cached'",
+          line: 6,
+          column: 3,
+          severity: .error
+        ),
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.cached) on a settable computed property is diagnosed`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.cached)
+        var name: String {
+          get { "" }
+          set {}
+        }
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          var name: String {
+            get { "" }
+            set {}
+          }
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.defineLazyProperty("name", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              self.name
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.cached' applies only to a getter-only computed @JS property: the first read replaces the property with a read-only value on the JavaScript object, so JavaScript can't call the setter. Remove the setter, or remove '.cached'",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `@JS(.cached) on a lazy property is diagnosed`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS(.cached)
+        lazy var token: String = makeToken()
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          lazy var token: String = makeToken()
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.defineLazyProperty("token", options: [.enumerable]) { [self] (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
+              self.token
+            }
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'.cached' applies only to a getter-only computed @JS property, and a 'lazy var' already stores its first value on the JavaScript object. Make the property computed, or remove '.cached'. A computed property has no storage that two runtimes on different threads could initialize at once",
+          line: 3,
+          column: 3,
+          severity: .error
+        )
+      ]
     )
   }
 

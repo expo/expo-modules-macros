@@ -1060,16 +1060,53 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            let sizeDescriptor = runtime.createObject()
-            sizeDescriptor.setProperty("enumerable", value: true)
-            sizeDescriptor.setProperty("configurable", value: true)
-            sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+            prototype.defineLazyProperty("size", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
-              let value = try Int.encode(_self.size, in: runtime)
-              this.getObject(in: runtime).defineProperty("size", value: value, options: [.enumerable])
-              result.emplace(value)
+              return _self.size
             }
-            prototype.defineProperty("size", descriptor: sizeDescriptor)
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Cached properties cache the value on the instance and on the constructor`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Cache: SharedObject {
+        @JS(.cached)
+        var size: Int { computeSize() }
+
+        @JS(.cached)
+        static var limit: Int { computeLimit() }
+      }
+      """,
+      expandedSource: """
+        public final class Cache: SharedObject {
+          @JavaScriptActor
+          var size: Int { computeSize() }
+          @JavaScriptActor
+          static var limit: Int { computeLimit() }
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.defineLazyProperty("size", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
+              let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
+              return _self.size
+            }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            constructor.defineLazyProperty("limit", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
+              Cache.limit
+            }
           }
         }
         """

@@ -404,12 +404,13 @@ internal struct JSFunction {
 /// `JavaScriptEncodable.encode` (or the free-form methods for a type that mentions `Any`), the same
 /// path as functions.
 ///
-/// A `lazy var` binds a getter only, on a configurable accessor. On the first read the getter defines
-/// the encoded value as a data property on the JS `this` with `defineProperty`, so later reads don't
-/// call into native code. The data property goes on `this`, not on the object that holds the accessor,
-/// so each shared object instance stores its own value. `defineProperty` leaves a frozen object
-/// unchanged, so there the property stays an accessor. A `this` that isn't an object doesn't fail the read
-/// either: the getter still returns the value.
+/// A `lazy var` and a getter-only computed `var` marked `@JS(.cached)` bind through
+/// `JavaScriptObject.defineLazyProperty` instead (see `lazyPropertyStatements`). On the first read, its
+/// getter defines the encoded value as a data property on the JS `this`, so later reads don't call into
+/// native code. The data property goes on `this`, not on the object that holds the accessor, so each
+/// runtime stores its own value, and so does each shared object instance. Two runtimes on different
+/// threads can read the property for the first time at once. For a `lazy var`, that is a data race on
+/// its Swift storage. A `.cached` property has no storage, so each runtime only runs the getter.
 ///
 /// A property marked `@JS(symbol: ...)` binds under a symbol instead of a string name (see
 /// `JSMemberKey`).
@@ -424,10 +425,12 @@ internal struct JSProperty {
   /// How the value converts when its type mentions `Any`, or `nil` for any other type.
   let freeForm: FreeFormConversion?
   /// Whether the property is settable from JS: `true` for a stored `var` or a computed `var` with an
-  /// explicit `set` accessor; `false` for a getter-only computed `var`, a `lazy var` or a `let`.
+  /// explicit `set` accessor; `false` for a getter-only computed `var`, a `lazy var`, a `.cached`
+  /// property or a `let`.
   let isSettable: Bool
-  /// Whether the property is a `lazy var`, whose getter replaces the accessor with the first value.
-  let isLazy: Bool
+  /// Whether the getter replaces the accessor with the first value: `true` for a `lazy var` and for a
+  /// property marked `@JS(.cached)`.
+  let cachesValue: Bool
   /// The property's name in the source, where a JavaScript name collision is reported.
   let nameToken: TokenSyntax
 
@@ -439,8 +442,12 @@ internal struct JSProperty {
   /// instance. Getter and setter are gated independently.
   ///
   /// With `configurable`, the accessor can be redefined, so a subclass of a shared object class can
-  /// replace it with its own member of the same JS name. A `lazy var` is always configurable.
+  /// replace it with its own member of the same JS name. A property whose getter caches the value binds
+  /// through `lazyPropertyStatements`, whose accessor is always configurable.
   func decorateStatements(object: String, receiver: Receiver, configurable: Bool = false) -> String {
+    if cachesValue {
+      return lazyPropertyStatements(object: object, receiver: receiver)
+    }
     let descriptorName = derivedIdentifier(from: swiftName, suffix: "Descriptor")
     let callee = receiver.callee
     // A shared object's accessors unwrap the JS `this` into `_self` before reading/writing; a module
@@ -451,40 +458,19 @@ internal struct JSProperty {
 
     lines.append("let \(descriptorName) = runtime.createObject()")
     lines.append("\(descriptorName).setProperty(\"enumerable\", value: true)")
-    if isLazy || configurable {
-      // A lazy getter redefines the property on `this`, which needs a configurable accessor when `this`
-      // is the object that holds it (a module).
+    if configurable {
       lines.append("\(descriptorName).setProperty(\"configurable\", value: true)")
     }
 
-    // Getter: read `<callee>.<name>` and encode the result back to JS through `encode`. When the value
-    // type couldn't be inferred (no annotation and no literal default, rare for a stored var) there's
-    // no static type to call `encode` on, so the value's own `toJavaScriptValue(in:)` is the fallback.
-    let encode: String
-    if let valueType {
-      encode = "try \(encodeCall(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)"))"
-    } else {
-      encode = "\(callee).\(swiftName).toJavaScriptValue(in: runtime)"
-    }
-    // A getter encodes straight into the engine's result slot. A lazy getter needs the encoded value as
-    // a `JavaScriptValue` to define it on `this` as well, and then moves it into the slot.
+    // Getter: read `<callee>.<name>` and encode it straight into the engine's result slot. When the
+    // value type couldn't be inferred (no annotation and no literal default, rare for a stored var)
+    // there's no static type to call `encode` on, so the value's own `toJavaScriptValue(in:)` is the
+    // fallback.
     let getBody: String
-    if !isLazy {
-      if let valueType {
-        getBody = encodeIntoSlotStatement(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)")
-      } else {
-        getBody = "result.emplace(\(encode))"
-      }
+    if let valueType {
+      getBody = encodeIntoSlotStatement(valueType, freeForm: freeForm, of: "\(callee).\(swiftName)")
     } else {
-      let define =
-        "\(key.tryPrefix)this.getObject(in: runtime).defineProperty(\(key.expression), value: value, options: [.enumerable])"
-      // A module getter ignores `this` otherwise, so it can be anything, and only an object can hold the
-      // value. A shared object's unwrap has already checked that `this` is an object.
-      let defineStatement =
-        receiver.unwrapStatement == nil
-        ? "if this.isObject() {\n  \(define)\n}"
-        : define
-      getBody = "let value = \(encode)\n\(defineStatement)\nresult.emplace(value)"
+      getBody = "result.emplace(\(callee).\(swiftName).toJavaScriptValue(in: runtime))"
     }
     lines.append(
       accessorClosure(descriptorName, "get", receiver: receiver, body: "\(unwrap)\(getBody)")
@@ -509,6 +495,42 @@ internal struct JSProperty {
       .flatMap { $0.split(separator: "\n", omittingEmptySubsequences: false) }
       .map { "  " + $0 }
       .joined(separator: "\n")
+  }
+
+  /// The `defineLazyProperty` statement of a property whose getter caches the value. The factory returns
+  /// the value for `defineLazyProperty` to encode. A type that has no `encode` of its own (one that
+  /// mentions `Any` or holds a tuple, or a type that couldn't be inferred) is encoded in the factory,
+  /// which returns the `JavaScriptValue`, and its `encode` passes it through. A shared object's factory
+  /// unwraps the instance from `this` first. A property under a symbol passes a
+  /// `JavaScriptSymbol.Shared` (see `JSMemberKey.lazyPropertyArgument`), and `defineLazyProperty` gets the
+  /// symbol from the runtime, which can throw.
+  ///
+  /// The accessor is always configurable, so a subclass of a shared object class can replace it. The data
+  /// property is enumerable only, so JavaScript can't change or delete it.
+  private func lazyPropertyStatements(object: String, receiver: Receiver) -> String {
+    let value = "\(receiver.callee).\(swiftName)"
+    let returnType: String
+    let result: String
+    if let valueType, freeForm == nil, tupleConversion(of: valueType) == nil {
+      returnType = expressionType(valueType)
+      result = value
+    } else if let valueType {
+      returnType = "JavaScriptValue"
+      result = "try \(encodeCall(valueType, freeForm: freeForm, of: value))"
+    } else {
+      returnType = "JavaScriptValue"
+      result = "\(value).toJavaScriptValue(in: runtime)"
+    }
+    let body = receiver.unwrapStatement.map { "\($0)\n    return \(result)" } ?? result
+    // The factory gets the runtime as a parameter, which shadows the decorator's `runtime`, so it doesn't
+    // capture it (see `resultSlotClosureParameters`).
+    let factoryParameters =
+      "(this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> \(returnType)"
+    return """
+        \(key.tryPrefix)\(object).defineLazyProperty(\(key.lazyPropertyArgument), options: [.enumerable]) { \(receiver.captureClause)\(factoryParameters) in
+          \(body)
+        }
+      """
   }
 
   /// One `descriptor.setProperty("get"/"set") { … }` accessor entry. The capture list follows the
