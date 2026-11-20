@@ -234,6 +234,27 @@ public final class ViewEventDispatcher: @unchecked Sendable {
 public macro ViewProps() =
   #externalMacro(module: "ExpoModulesMacros", type: "ViewPropsMacro")
 
+@attached(
+  member,
+  names: named(PropName),
+  named(PropSet),
+  named(_eventNames),
+  named(Diff),
+  named(init),
+  named(_resetViewProp),
+  named(base)
+)
+@attached(
+  extension,
+  conformances: AnyViewProps,
+  names: named(allProps),
+  named(propSet),
+  named(_decode),
+  named(_bindEvents)
+)
+public macro ViewProps<Base: AnyViewProps>(extending base: Base.Type) =
+  #externalMacro(module: "ExpoModulesMacros", type: "ViewPropsMacro")
+
 // MARK: - Views
 
 public class AppContext: @unchecked Sendable {

@@ -510,10 +510,12 @@ struct ExportedView: Encodable, Equatable {
   /// The value props of the `@ViewProps` struct, or `nil` when the scan declares no struct named
   /// `propsType` on a platform of the view. A struct shared by several views is copied into each of
   /// them, and a struct declared in several `#if` branches contributes the props of each declaration
-  /// whose platforms overlap the view's.
+  /// whose platforms overlap the view's. The props of the struct that `@ViewProps(extending:)` names
+  /// follow, when the scan declares it.
   var props: [ExportedViewProp]? = nil
 
-  /// The events of the `@ViewProps` struct, or `nil` when `props` is `nil`.
+  /// The events of the `@ViewProps` struct, then those of the struct that it extends, or `nil` when
+  /// `props` is `nil`.
   var events: [ExportedViewEvent]? = nil
 
   /// The spelled access modifier, or `nil` when none is written.
@@ -546,6 +548,11 @@ struct ExportedViewProp: Encodable, Equatable {
   let accessLevel: String?
 
   let platforms: [ExportedPlatform]
+
+  /// The qualified name of the `@ViewProps` struct that declares the prop, which its refs are looked up
+  /// from: the view's props struct, or a struct that it extends. Set when the prop is copied into a view.
+  /// Not encoded.
+  var scope: String? = nil
 
   /// Optional-typed, read from `type`, so every spelling of an optional counts (`T?`, `T!`,
   /// `Optional<T>`, `(T?)`). Encoded as `optional`.
@@ -586,6 +593,14 @@ struct ExportedViewEvent: Encodable, Equatable {
   let accessLevel: String?
 
   let platforms: [ExportedPlatform]
+
+  /// The qualified name of the `@ViewProps` struct that declares the event, which the refs of its
+  /// payload are looked up from, as for `ExportedViewProp.scope`. Not encoded.
+  var scope: String? = nil
+
+  private enum CodingKeys: String, CodingKey {
+    case name, payload, accessLevel, platforms
+  }
 }
 
 /// A `@ViewProps` struct the scan found. Not encoded: `ExportedSurface.joiningViewProps(_:)` copies its
@@ -602,6 +617,10 @@ struct ViewPropsDeclaration: Equatable {
 
   /// The platforms that build the struct, to match it with the views that build on them.
   let platforms: [ExportedPlatform]
+
+  /// The props type of `@ViewProps(extending: BaseProps.self)` as written, without backticks, which the
+  /// struct is looked up under from this one. `nil` when the struct extends no props.
+  var baseLookupName: String? = nil
 }
 
 /// The exported types grouped by kind, nested under `exports` in the result so the surface is one

@@ -89,6 +89,12 @@ public final class Player: SharedRef<Data> {
 }
 
 @ViewProps
+public struct MediaViewProps {
+  var muted = false
+  var onError: (String) -> Void
+}
+
+@ViewProps(extending: MediaViewProps.self)
 public struct PlayerViewProps {
   var quality: Quality = .high
   var title: String?

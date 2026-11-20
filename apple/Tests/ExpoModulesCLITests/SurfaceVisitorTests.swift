@@ -1262,6 +1262,25 @@ struct ViewSurfaceTests {
   }
 
   @Test
+  func `Reports the props type that a @ViewProps struct extends`() {
+    let visitor = surface(
+      """
+      @ViewProps(extending: Theme.`CommonProps`.self)
+      struct ButtonProps {}
+
+      @ViewProps
+      struct CommonProps {}
+
+      // The macro rejects any other argument.
+      @ViewProps(extending: CommonProps)
+      struct InvalidProps {}
+      """
+    )
+
+    #expect(visitor.viewProps.map(\.baseLookupName) == ["Theme.CommonProps", nil, nil])
+  }
+
+  @Test
   func `Reports the platforms of views, props, and events in #if blocks`() throws {
     let visitor = surface(
       """
@@ -2010,6 +2029,96 @@ struct RefResolutionTests {
     #expect(view.events == [])
     // `Size` names the enum nested in the props struct, not the one at file scope.
     #expect(view.props?.first?.type == .ref(name: "CardView.Props.Size", refKind: .enum, jsTypeOverride: .number))
+  }
+
+  @Test
+  func `Adds the props and events of the props that a view's props struct extends`() throws {
+    let surface = try resolvedSurface(
+      """
+      @Record struct TapEvent { var x: Double }
+      enum Size: String, Enumerable { case small }
+
+      extension Theme {
+        @ViewProps
+        struct CommonProps {
+          enum Size: Int, Enumerable { case large }
+
+          var size: Size = .large
+          var testID: String?
+          var onGlobalEvent: (TapEvent) -> Void
+        }
+      }
+
+      @ViewProps(extending: Theme.CommonProps.self)
+      struct ButtonProps {
+        var title: String = ""
+        var onTap: () -> Void
+      }
+
+      @ViewProps(extending: `ButtonProps`.self)
+      struct IconButtonProps {
+        var icon: Size = .small
+      }
+
+      @ViewProps(extending: ExternalProps.self)
+      struct ExternalButtonProps {
+        var title: String = ""
+      }
+
+      @ExpoView<IconButtonProps>
+      final class IconButtonView: ExpoNativeView {}
+
+      @ExpoView<ExternalButtonProps>
+      final class ExternalButtonView: ExpoNativeView {}
+      """
+    )
+    let views = Dictionary(uniqueKeysWithValues: surface.views.map { ($0.name, $0) })
+
+    // The own props come first, then those of each struct that the props extend, as in `PropName.allCases`.
+    let iconButton = try #require(views["IconButtonView"])
+    #expect(iconButton.propsType == "IconButtonProps")
+    #expect(iconButton.props?.map(\.name) == ["icon", "title", "size", "testID"])
+    #expect(iconButton.events?.map(\.name) == ["onTap", "onGlobalEvent"])
+    // Each `Size` is looked up from the struct that declares the prop.
+    #expect(
+      iconButton.props?.map(\.type).first == .ref(name: "Size", refKind: .enum, jsTypeOverride: .string)
+    )
+    #expect(
+      iconButton.props?.map(\.type)[2]
+        == .ref(name: "Theme.CommonProps.Size", refKind: .enum, jsTypeOverride: .number)
+    )
+    #expect(iconButton.events?.last?.payload == .ref(name: "TapEvent", refKind: .record))
+
+    // A base that the scan doesn't declare adds nothing.
+    let externalButton = try #require(views["ExternalButtonView"])
+    #expect(externalButton.props?.map(\.name) == ["title"])
+    #expect(externalButton.events == [])
+
+    // The scope that the refs are looked up from isn't encoded.
+    let data = try JSONEncoder().encode(surface.views)
+    #expect(!String(decoding: data, as: UTF8.self).contains("scope"))
+  }
+
+  @Test
+  func `Stops at props that extend themselves`() throws {
+    let surface = try resolvedSurface(
+      """
+      @ViewProps(extending: SecondProps.self)
+      struct FirstProps {
+        var first: String = ""
+      }
+
+      @ViewProps(extending: FirstProps.self)
+      struct SecondProps {
+        var second: String = ""
+      }
+
+      @ExpoView<FirstProps>
+      final class LoopView: ExpoNativeView {}
+      """
+    )
+
+    #expect(surface.views.first?.props?.map(\.name) == ["first", "second"])
   }
 
   @Test

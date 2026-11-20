@@ -101,6 +101,23 @@ import SwiftSyntaxMacros
 /// Event names are emitted **verbatim**, with no `on`-prefix stripping. This differs from `@Event` on
 /// modules and shared objects, which strips it (`onStatusChange` → `"statusChange"`): a view event prop
 /// is a React prop name that Fabric carries as-is, so the native and JS spellings must match exactly.
+///
+/// `@ViewProps(extending: BaseProps.self)` gives the struct the props and events of another `@ViewProps`
+/// struct, as a subclass of a props class gets them in Expo Modules v1. A macro sees only the
+/// declaration that it's attached to, so it can't copy the properties of `BaseProps`. It adds a stored
+/// `public var base = BaseProps()` and forwards to it, so JavaScript still sets the base props by their
+/// own names, and the view reads them as `props.base.title`:
+///
+/// - `PropName` has the cases of the own value props, and `case base(BaseProps.PropName)` for the base
+///   props. Its raw values and `allCases` are written by hand: the own props come first, so an own prop
+///   hides a base prop with the same name.
+/// - `PropSet` gives the own props the low bits and the base props the bits above them, through
+///   `PropSet.base(_:)`, so a view asks `diff.changed(.base(.title))`. `allProps` checks at run time that
+///   the own and base props fit in the 64 bits, because the macro can't count the base props.
+/// - `_decode` passes a base prop to `base._decode`, also `null`, so a base prop goes back to its value
+///   in `BaseProps()`. `_eventNames` and `_bindEvents(to:)` add the events of the base.
+///
+/// The struct can't have its own property named `base`.
 public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -108,21 +125,24 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
-    let props = try validatedViewProps(of: declaration, in: context.lexicalContext)
+    let props = try validatedViewProps(of: declaration, attribute: node, in: context.lexicalContext)
     // Reported by the member role only, so each warning appears once.
     for warning in props.warnings {
       context.diagnose(warning)
     }
 
     var members: [DeclSyntax] = []
-    members.append(propNameEnum(valueProps: props.valueProps))
-    members.append(propSetStruct(valueProps: props.valueProps))
-    members.append(eventNamesConstant(eventProps: props.eventProps))
+    if let baseType = props.baseType {
+      members.append(basePropsProperty(baseType: baseType))
+    }
+    members.append(propNameEnum(valueProps: props.valueProps, baseType: props.baseType))
+    members.append(propSetStruct(valueProps: props.valueProps, baseType: props.baseType))
+    members.append(eventNamesConstant(eventProps: props.eventProps, baseType: props.baseType))
     members.append(diffTypealias())
     if let initializer = defaultInitializer(props: props) {
       members.append(initializer)
     }
-    if let reset = resetFunction(valueProps: props.valueProps) {
+    if let reset = resetFunction(valueProps: props.valueProps, extendsBase: props.baseType != nil) {
       members.append(reset)
     }
     return members
@@ -149,43 +169,32 @@ public struct ViewPropsMacro: MemberMacro, ExtensionMacro {
     // expansion runs each role independently, so throwing here too would surface every diagnostic
     // twice. When the model doesn't validate, the member macro has already emitted the error and
     // there is nothing to extend.
-    guard let props = try? validatedViewProps(of: declaration, in: context.lexicalContext) else {
+    guard let props = try? validatedViewProps(of: declaration, attribute: node, in: context.lexicalContext) else {
       return []
     }
     let alreadyConforms = inheritsProtocol(named: viewPropsProtocolName, in: declaration)
 
-    // `allProps` is read on every first application of props, once per view instance, so it's a
-    // stored constant with the mask already folded rather than a computed property rebuilding an
-    // array literal per call. The macro knows the bit count, so the literal is exact: n props
-    // occupy bits 0..<n, which is the low n bits set.
-    let allPropsMask =
-      props.valueProps.isEmpty
-      ? "0"
-      : "0b" + String(repeating: "1", count: props.valueProps.count)
-
-    // With no value prop, `PropName` has no case, so the function can't be called and its body is
-    // empty, like the one of `_decode`. Swift reports any statement in it, also an empty `switch`, as
-    // "will never be executed". The body starts with a line break, so the empty one closes on the
-    // next line.
-    let propSetBody: String
-    if props.valueProps.isEmpty {
-      propSetBody = ""
-    } else {
-      let cases = props.valueProps
-        .map { "    case .\($0.name):\n      return .\($0.name)" }
-        .joined(separator: "\n")
-      propSetBody = "\n    switch name {\n\(cases)\n    }"
+    // With no value prop and no base, `PropName` has no case, so the function can't be called and its
+    // body is empty, like the one of `_decode`. Swift reports any statement in it, also an empty
+    // `switch`, as "will never be executed". The body starts with a line break, so the empty one closes
+    // on the next line.
+    var propSetCases = props.valueProps.map { "    case .\($0.name):\n      return .\($0.name)" }
+    if let baseType = props.baseType {
+      propSetCases.append("    case .base(let name):\n      return .base(\(baseType).propSet(for: name))")
     }
+    let propSetBody =
+      propSetCases.isEmpty ? "" : "\n    switch name {\n\(propSetCases.joined(separator: "\n"))\n    }"
 
-    let decodeBody = decodeFunctionBody(valueProps: props.valueProps)
-    let bindEvents = bindEventsFunction(eventProps: props.eventProps)
+    let allProps = allPropsConstant(valueProps: props.valueProps, baseType: props.baseType, propsType: type)
+    let decodeBody = decodeFunctionBody(valueProps: props.valueProps, extendsBase: props.baseType != nil)
+    let bindEvents = bindEventsFunction(eventProps: props.eventProps, extendsBase: props.baseType != nil)
 
     // `nonisolated` keeps the conformance and its members usable on the JavaScript thread when the
     // module builds with a default isolation, which would otherwise isolate them to the main actor.
     let conformanceClause = alreadyConforms ? "" : ": nonisolated \(viewPropsProtocolName)"
     let ext: DeclSyntax = """
       extension \(type.trimmed)\(raw: conformanceClause) {
-        nonisolated public static let allProps = PropSet(rawValue: \(raw: allPropsMask))
+        \(raw: allProps)
 
         /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
         /// it runs once per changed key per props batch.
@@ -785,8 +794,50 @@ private struct ViewPropsModel {
   let eventDefaults: [EventDefault]
   /// Whether the macro generates `init()`. See `needsGeneratedInitializer`.
   let generatesInitializer: Bool
+  /// The props type of `@ViewProps(extending: BaseProps.self)` as written, or `nil` when the struct
+  /// extends no props.
+  let baseType: String?
   /// Warnings that don't stop the expansion.
   let warnings: [Diagnostic]
+}
+
+/// The name of the stored property that holds the props of the base, which `@ViewProps(extending:)` adds.
+private let basePropertyName = "base"
+
+/// The props type that `@ViewProps(extending: BaseProps.self)` names, as written (`BaseProps` or
+/// `Outer.BaseProps`), or `nil` for `@ViewProps` without arguments. Any other argument is an error.
+private func basePropsType(of attribute: AttributeSyntax) throws -> String? {
+  guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self), !arguments.isEmpty else {
+    return nil
+  }
+  guard arguments.count == 1, let argument = arguments.first, argument.label?.text == "extending",
+    let memberAccess = argument.expression.as(MemberAccessExprSyntax.self),
+    memberAccess.declName.baseName.text == "self",
+    let base = memberAccess.base,
+    base.is(DeclReferenceExprSyntax.self) || base.is(MemberAccessExprSyntax.self)
+  else {
+    throw DiagnosticsError(diagnostics: [
+      Diagnostic(
+        node: attribute.arguments.map(Syntax.init) ?? Syntax(attribute),
+        message: ViewPropsDiagnosticMessage(
+          "@ViewProps takes the props that the struct extends as 'extending: BaseProps.self'",
+          id: "viewprops-extending-argument"
+        )
+      )
+    ])
+  }
+  return base.trimmedDescription
+}
+
+/// The error for a property named like the one that holds the props of the base, attached to its name.
+private func basePropertyCollisionDiagnostic(for pattern: IdentifierPatternSyntax, baseType: String) -> Diagnostic {
+  return Diagnostic(
+    node: pattern,
+    message: ViewPropsDiagnosticMessage(
+      "@ViewProps(extending:) adds the property '\(basePropertyName)', which holds the props of '\(baseType)', so the struct can't declare its own. Rename the property",
+      id: "viewprops-base-property-collision"
+    )
+  )
 }
 
 /// Reads and validates the props type's stored properties, splitting them into value props and events.
@@ -800,8 +851,11 @@ private struct ViewPropsModel {
 ///
 /// When the type declares a usable `init()`, that initializer is the default: it must set every
 /// stored property, which the compiler checks, so the props need no initial values.
+///
+/// With `@ViewProps(extending: BaseProps.self)`, an instance property named `base` is an error too.
 private func validatedViewProps(
   of declaration: some DeclGroupSyntax,
+  attribute: AttributeSyntax,
   in lexicalContext: [Syntax]
 ) throws -> ViewPropsModel {
   guard let structDecl = declaration.as(StructDeclSyntax.self) else {
@@ -809,6 +863,7 @@ private func validatedViewProps(
       "@ViewProps can only be applied to a struct: the class form (for SwiftUI views) is not supported yet"
     )
   }
+  let baseType = try basePropsType(of: attribute)
   // A generic props type can't work: the synthesized extension would have to repeat the generic
   // parameter list and its constraints, and core reaches the props type through a view's static
   // `Props` typealias, which names one concrete type.
@@ -870,6 +925,17 @@ private func validatedViewProps(
   for member in declaration.memberBlock.members {
     guard let varDecl = member.decl.as(VariableDeclSyntax.self) else {
       continue
+    }
+    // Any instance property named `base` collides with the one that holds the base props, also a
+    // `private` or computed one. A `static` one doesn't.
+    if let baseType, !isTypeLevel(varDecl.modifiers) {
+      for binding in varDecl.bindings {
+        if let ident = binding.pattern.as(IdentifierPatternSyntax.self),
+          withoutBackticks(ident.identifier.text) == basePropertyName
+        {
+          propDiagnostics.append(basePropertyCollisionDiagnostic(for: ident, baseType: baseType))
+        }
+      }
     }
     if isExcludedByModifier(varDecl.modifiers) {
       if !declaresUsableInitializer {
@@ -1056,6 +1122,7 @@ private func validatedViewProps(
       declaresUsableInitializer: declaresUsableInitializer,
       declaresOtherInitializer: declaresOtherInitializer
     ),
+    baseType: baseType,
     warnings: warnings
   )
 }
@@ -1272,7 +1339,12 @@ private func underlyingFunctionType(of type: TypeSyntax) -> FunctionTypeSyntax? 
 /// The enum is `@frozen`, so the `switch` in the `@inlinable` `propSet(for:)` compiles in a module
 /// built with library evolution, where it would otherwise need a case for unknown values. The cases
 /// and their order are already part of the ABI, as the bits of `PropSet`.
-private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
+///
+/// When the struct extends props, see `extendingPropNameEnum`.
+private func propNameEnum(valueProps: [ViewProp], baseType: String?) -> DeclSyntax {
+  if let baseType {
+    return extendingPropNameEnum(valueProps: valueProps, baseType: baseType)
+  }
   // An escaped case takes its raw value from the bare identifier already, but spelling it out keeps
   // the wire key visible in the generated source and independent of that implicit rule.
   let cases =
@@ -1304,17 +1376,106 @@ private func propNameEnum(valueProps: [ViewProp]) -> DeclSyntax {
     """
 }
 
+/// The `PropName` enum of a struct that extends props: a case for each own value prop, and
+/// `base(BaseProps.PropName)` for the props of the base. An enum with an associated value can't have a raw
+/// type, so it conforms to `RawRepresentable` and `CaseIterable` by hand. Own names come first in
+/// `init?(rawValue:)` and in `allCases`, so an own prop hides a base prop with the same name in both
+/// the keyed and the indexed decode. `Hashable` isn't synthesized for an enum with an associated value,
+/// so the enum declares it, as the enums without one get it.
+private func extendingPropNameEnum(valueProps: [ViewProp], baseType: String) -> DeclSyntax {
+  let ownCases = valueProps.map { "  case \($0.name)" }
+  // The case is passed as a function rather than in a closure: when the `PropName` of the base has no
+  // case, Swift reports the body of a closure that takes one as "will never be executed".
+  let baseCases = "\(baseType).PropName.allCases.map(PropName.base)"
+  let allCases =
+    valueProps.isEmpty
+    ? baseCases
+    : "[\(valueProps.map { ".\($0.name)" }.joined(separator: ", "))] + \(baseCases)"
+
+  let baseInitializer = """
+    guard let name = \(baseType).PropName(rawValue: rawValue) else {
+      return nil
+    }
+    self = .base(name)
+    """
+  let initializerBody: String
+  if valueProps.isEmpty {
+    initializerBody = indented(baseInitializer, by: 4)
+  } else {
+    let cases = valueProps.map { "    case \"\($0.wireName)\":\n      self = .\($0.name)" }
+    initializerBody = """
+          switch rawValue {
+      \(cases.joined(separator: "\n"))
+          default:
+      \(indented(baseInitializer, by: 6))
+          }
+      """
+  }
+  let rawValueCases =
+    valueProps.map { "    case .\($0.name):\n      return \"\($0.wireName)\"" }
+    + ["    case .base(let name):\n      return name.rawValue"]
+
+  return """
+    @frozen nonisolated public enum PropName: RawRepresentable, CaseIterable, Hashable {
+    \(raw: (ownCases + ["  case base(\(baseType).PropName)"]).joined(separator: "\n"))
+
+      public static let allCases: [PropName] = \(raw: allCases)
+
+      public init?(rawValue: String) {
+    \(raw: initializerBody)
+      }
+
+      public var rawValue: String {
+        switch self {
+    \(raw: rawValueCases.joined(separator: "\n"))
+        }
+      }
+    }
+    """
+}
+
+/// Each line of `text` with `count` more spaces before it.
+private func indented(_ text: String, by count: Int) -> String {
+  let indentation = String(repeating: " ", count: count)
+  return text.split(separator: "\n", omittingEmptySubsequences: false)
+    .map { $0.isEmpty ? "" : indentation + $0 }
+    .joined(separator: "\n")
+}
+
+/// The stored property that holds the props of the base, which `_decode` and `_bindEvents(to:)` forward
+/// to. Its initial value is the default of each base prop.
+private func basePropsProperty(baseType: String) -> DeclSyntax {
+  return "public var \(raw: basePropertyName) = \(raw: baseType)()"
+}
+
 /// The `PropSet` option set: one static member per value prop, at its declaration-order bit. This is
 /// what a diff's `changedProps` holds, and what `changed(_:)` tests against, so the whole changed set
 /// is one machine word.
-private func propSetStruct(valueProps: [ViewProp]) -> DeclSyntax {
-  let members = valueProps.enumerated()
+///
+/// When the struct extends props, `base(_:)` moves a set of base props to the bits above the own
+/// props, so a view writes `diff.changed(.base(.title))`.
+private func propSetStruct(valueProps: [ViewProp], baseType: String?) -> DeclSyntax {
+  var memberLines = valueProps.enumerated()
     .map { index, prop in
       "  public static let \(prop.name) = PropSet(rawValue: 1 << \(index))"
     }
-    .joined(separator: "\n")
+  if let baseType {
+    let shifted = valueProps.isEmpty ? "props.rawValue" : "props.rawValue << \(valueProps.count)"
+    if !memberLines.isEmpty {
+      memberLines.append("")
+    }
+    memberLines.append(
+      """
+        @inlinable
+        public static func base(_ props: \(baseType).PropSet) -> PropSet {
+          return PropSet(rawValue: \(shifted))
+        }
+      """
+    )
+  }
+  let members = memberLines.joined(separator: "\n")
 
-  if valueProps.isEmpty {
+  if members.isEmpty {
     return """
       nonisolated public struct PropSet: OptionSet, Sendable {
         public let rawValue: UInt64
@@ -1340,27 +1501,73 @@ private func propSetStruct(valueProps: [ViewProp]) -> DeclSyntax {
 
 /// The event props' names, verbatim, for core to register at view creation. Verbatim because a view
 /// event prop is a React prop name Fabric carries as-is — unlike `@Event` on a module, which strips
-/// the `on` prefix.
-private func eventNamesConstant(eventProps: [ViewEvent]) -> DeclSyntax {
-  let names = eventProps.map { "\"\($0.wireName)\"" }.joined(separator: ", ")
+/// the `on` prefix. The events of the base come after the own events.
+private func eventNamesConstant(eventProps: [ViewEvent], baseType: String?) -> DeclSyntax {
+  let ownNames = "[\(eventProps.map { "\"\($0.wireName)\"" }.joined(separator: ", "))]"
+  let names: String
+  if let baseType {
+    names = eventProps.isEmpty ? "\(baseType)._eventNames" : "\(ownNames) + \(baseType)._eventNames"
+  } else {
+    names = ownNames
+  }
   return """
-    nonisolated public static let _eventNames: [String] = [\(raw: names)]
+    nonisolated public static let _eventNames: [String] = \(raw: names)
     """
+}
+
+/// `allProps`, every bit set: the low bits of the own props, and the bits of the base props above them.
+///
+/// `allProps` is read on every first application of props, once per view instance, so it's a stored
+/// constant with the mask already folded rather than a computed property rebuilding an array literal
+/// per call. The macro knows the bit count, so the literal is exact: n props occupy bits 0..<n, which
+/// is the low n bits set.
+///
+/// The macro can't count the props of the base, so the constant of a struct with own value props checks
+/// at run time that the shifted base props still fit in the 64 bits. Otherwise the base props in the
+/// high bits would never be reported as changed.
+private func allPropsConstant(valueProps: [ViewProp], baseType: String?, propsType: some TypeSyntaxProtocol) -> String {
+  let ownMask = valueProps.isEmpty ? "0" : "0b" + String(repeating: "1", count: valueProps.count)
+  guard let baseType else {
+    return "nonisolated public static let allProps = PropSet(rawValue: \(ownMask))"
+  }
+  if valueProps.isEmpty {
+    return "nonisolated public static let allProps = PropSet.base(\(baseType).allProps)"
+  }
+  let message =
+    "'\(propsType.trimmedDescription)' and '\(baseType)', the props that it extends, have more than 64 value props together, but the changed-props mask is a UInt64"
+  return """
+    nonisolated public static let allProps: PropSet = {
+        precondition(
+          \(baseType).allProps.rawValue.leadingZeroBitCount >= \(valueProps.count),
+          \(stringLiteral(message))
+        )
+        return PropSet(rawValue: \(ownMask)).union(.base(\(baseType).allProps))
+      }()
+    """
+}
+
+/// `text` as a Swift string literal, with its quotes and backslashes escaped.
+private func stringLiteral(_ text: String) -> String {
+  return StringLiteralExprSyntax(content: text).description
 }
 
 /// `_bindEvents(to:)`, which sets each event prop to a closure that dispatches the event with its name in
 /// JavaScript and its parameter as the payload. Core calls it once for each view, on the props that the
 /// view starts from, and the closures stay in the copies that later decodes make. Members are reached
 /// through `self.` and the dispatcher is `_events`, so an event named like the parameter isn't shadowed
-/// by it. Returns an empty string when there is no event: `AnyViewProps` has a default that does
-/// nothing.
-private func bindEventsFunction(eventProps: [ViewEvent]) -> String {
-  guard !eventProps.isEmpty else {
+/// by it. A struct that extends props also binds the events of `base`, which can have events that the
+/// macro doesn't see. Returns an empty string when there is no event and no base: `AnyViewProps` has a
+/// default that does nothing.
+private func bindEventsFunction(eventProps: [ViewEvent], extendsBase: Bool) -> String {
+  guard !eventProps.isEmpty || extendsBase else {
     return ""
   }
-  let assignments = eventProps.map { event in
+  var assignments = eventProps.map { event in
     let payload = event.takesPayload ? ", $0" : ""
     return "    self.\(event.name) = { _events.dispatch(\"\(event.wireName)\"\(payload)) }"
+  }
+  if extendsBase {
+    assignments.append("    self.\(basePropertyName)._bindEvents(to: _events)")
   }
   return """
 
@@ -1377,15 +1584,39 @@ private func bindEventsFunction(eventProps: [ViewEvent]) -> String {
 /// single assignment. Members are reached through `self.` so that a prop named like a parameter
 /// (`value`, `runtime`) isn't shadowed by it.
 ///
-/// With no value prop the body is empty: `PropName` is uninhabited, so the function is never called.
-private func decodeFunctionBody(valueProps: [ViewProp]) -> String {
-  if valueProps.isEmpty {
-    return ""
-  }
+/// With no value prop and no base the body is empty: `PropName` is uninhabited, so the function is
+/// never called.
+///
+/// A struct that extends props passes a base prop to `base._decode` first, also `null` and `undefined`,
+/// so the base resets the prop itself: its `_resetViewProp` isn't part of `AnyViewProps`, and the base
+/// can be in another module. Then a `where` case resets an own prop, so the `switch` needs no case that
+/// can't run.
+private func decodeFunctionBody(valueProps: [ViewProp], extendsBase: Bool) -> String {
   let decodeCases =
     valueProps
     .map { "    case .\($0.name):\n      self.\($0.name) = try \($0.decodeExpression)" }
     .joined(separator: "\n")
+  if extendsBase {
+    let baseCase = """
+          case .base(let name):
+            try self.\(basePropertyName)._decode(name, from: value, in: runtime)
+      """
+    if valueProps.isEmpty {
+      return "\n    switch name {\n\(baseCase)\n    }"
+    }
+    return """
+
+          switch name {
+      \(baseCase)
+          case _ where value.isNull() || value.isUndefined():
+            Self._resetViewProp(name, in: &self)
+      \(decodeCases)
+          }
+      """
+  }
+  if valueProps.isEmpty {
+    return ""
+  }
   // Starts with a line break, so the empty body closes on the next line instead of leaving a blank
   // one.
   return """
@@ -1429,8 +1660,10 @@ private func valuePropDecodeExpression(declaredType: TypeSyntax?) -> String {
 /// A default argument such as `#function` or `#line` of a function that an initial value calls gets
 /// the location of `_resetViewProp`, which the macro can't see.
 ///
-/// `nil` with no value prop: `PropName` is uninhabited, so `_decode` never resets.
-private func resetFunction(valueProps: [ViewProp]) -> DeclSyntax? {
+/// `nil` with no value prop: `PropName` is uninhabited, or has only the base props, so `_decode` never
+/// resets. When the struct extends props, `_decode` passes the base props to `base`, which resets them,
+/// so their case does nothing.
+private func resetFunction(valueProps: [ViewProp], extendsBase: Bool) -> DeclSyntax? {
   if valueProps.isEmpty {
     return nil
   }
@@ -1449,7 +1682,7 @@ private func resetFunction(valueProps: [ViewProp]) -> DeclSyntax? {
   )
   let nameParameter = unusedName("_name", in: usedNames)
   let propsParameter = unusedName("_props", in: usedNames)
-  let cases =
+  var caseLines =
     valueProps
     .map { prop -> String in
       let assignment: String
@@ -1467,7 +1700,10 @@ private func resetFunction(valueProps: [ViewProp]) -> DeclSyntax? {
       }
       return "  case .\(prop.name):\n    \(assignment)"
     }
-    .joined(separator: "\n")
+  if extendsBase {
+    caseLines.append("  case .base:\n    break")
+  }
+  let cases = caseLines.joined(separator: "\n")
   return """
     @JavaScriptActor
     static func _resetViewProp(_ \(raw: nameParameter): PropName, in \(raw: propsParameter): inout Self) {

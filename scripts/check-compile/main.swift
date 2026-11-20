@@ -92,6 +92,97 @@ func check() throws -> [String] {
 
   expect(propNames(of: PublicProps.self), ["title", "count", "ratio"], "PublicProps names")
   expect(propNames(of: EventsOnlyProps.self), ["onTap", "onValueChange"], "EventsOnlyProps names")
+
+  failures += try checkExtendingProps()
+  return failures
+}
+
+// Decodes, resets and binds the props that extend other props, through the generic code in `Core.swift`. The own
+// props take the low bits, and the props of `base` the bits above them.
+@JavaScriptActor
+func checkExtendingProps() throws -> [String] {
+  var failures: [String] = []
+  func expect<T: Equatable>(_ actual: T, _ expected: T, _ label: String) {
+    if actual != expected {
+      failures.append("\(label): \(actual) isn't \(expected)")
+    }
+  }
+
+  let extending = try decoding(ExtendingProps(), [(.label, 2), (.base(.count), 3), (.base(.title), 4)])
+  expect(extending.props.label, "2.0", "ExtendingProps.label decoded")
+  expect(extending.props.base.count, 3, "ExtendingProps.base.count decoded")
+  expect(extending.props.base.title, "4.0", "ExtendingProps.base.title decoded")
+  expect(extending.changed, 0b0111, "ExtendingProps changed props")
+  expect(ExtendingProps.allProps.rawValue, 0b1111, "ExtendingProps.allProps")
+  expect(ExtendingProps.PropSet.base(.ratio).rawValue, 0b1000, "ExtendingProps.PropSet.base(.ratio)")
+  let extendingReset = try decoding(extending.props, [(.label, nil), (.base(.count), nil), (.base(.title), nil)])
+  expect(extendingReset.props.label, "label", "ExtendingProps.label reset")
+  expect(extendingReset.props.base.count, 1, "ExtendingProps.base.count reset")
+  expect(extendingReset.props.base.title, "", "ExtendingProps.base.title reset")
+  expect(ExtendingProps.PropName(rawValue: "count"), .base(.count), "ExtendingProps.PropName(rawValue:) of a base prop")
+  expect(ExtendingProps.PropName(rawValue: "label"), .label, "ExtendingProps.PropName(rawValue:) of an own prop")
+  expect(ExtendingProps.PropName(rawValue: "onSelect"), nil, "ExtendingProps.PropName(rawValue:) of an event")
+  expect(
+    propNames(of: ExtendingProps.self),
+    ["label", "title", "count", "ratio", "onSelect"],
+    "ExtendingProps names"
+  )
+
+  let chained = try decoding(ChainedProps(), [(.base(.base(.count)), 7), (.level, 4)])
+  expect(chained.props.base.base.count, 7, "ChainedProps.base.base.count decoded")
+  expect(chained.props.level, 4, "ChainedProps.level decoded")
+  expect(chained.changed, 0b01001, "ChainedProps changed props")
+  expect(ChainedProps.allProps.rawValue, 0b11111, "ChainedProps.allProps")
+  expect(try decoding(chained.props, [(.base(.base(.count)), nil)]).props.base.base.count, 1, "ChainedProps reset")
+  expect(
+    propNames(of: ChainedProps.self),
+    ["level", "label", "title", "count", "ratio", "onSelect"],
+    "ChainedProps names"
+  )
+  let chainedDispatcher = ViewEventDispatcher()
+  bindingEvents(of: ChainedProps.self, to: chainedDispatcher).base.onSelect(2)
+  expect(chainedDispatcher.events, ["onSelect: 2"], "ChainedProps dispatched events")
+
+  expect(ExtendingEventsOnlyProps.allProps.rawValue, 0, "ExtendingEventsOnlyProps.allProps")
+  expect(
+    propNames(of: ExtendingEventsOnlyProps.self),
+    ["onClose", "onTap", "onValueChange"],
+    "ExtendingEventsOnlyProps names"
+  )
+  let eventsDispatcher = ViewEventDispatcher()
+  let events = bindingEvents(of: ExtendingEventsOnlyProps.self, to: eventsDispatcher)
+  events.onClose()
+  events.base.onTap()
+  events.base.onValueChange(3)
+  expect(
+    eventsDispatcher.events,
+    ["onClose", "onTap", "onValueChange: 3"],
+    "ExtendingEventsOnlyProps dispatched events"
+  )
+
+  var stepper = StepperProps()
+  stepper.value = 0
+  let stepperDecoded = try decoding(stepper, [(.value, nil), (.base(.modifiers), 2), (.base(.testID), 1)])
+  expect(stepperDecoded.props.value, 5, "StepperProps.value reset to its value in init()")
+  expect(stepperDecoded.props.base.modifiers?.first?["value"] as? Double, 2, "StepperProps.base.modifiers decoded")
+  expect(stepperDecoded.props.base.testID, "1.0", "StepperProps.base.testID decoded")
+  let stepperReset = try decoding(stepperDecoded.props, [(.base(.modifiers), nil), (.base(.testID), nil)]).props
+  expect(stepperReset.base.modifiers == nil, true, "StepperProps.base.modifiers reset")
+  expect(stepperReset.base.testID, nil, "StepperProps.base.testID reset")
+  expect(
+    propNames(of: StepperProps.self),
+    ["value", "modifiers", "testID", "onValueChange", "onGlobalEvent"],
+    "StepperProps names"
+  )
+  let stepperDispatcher = ViewEventDispatcher()
+  let stepperEvents = bindingEvents(of: StepperProps.self, to: stepperDispatcher)
+  stepperEvents.onValueChange(1)
+  stepperEvents.base.onGlobalEvent(2)
+  expect(stepperDispatcher.events, ["onValueChange: 1", "onGlobalEvent: 2"], "StepperProps dispatched events")
+
+  var nested = ExtendingNestedProps()
+  nested.base.gap = 0
+  expect(try decoding(nested, [(.base(.gap), nil)]).props.base.gap, 8, "ExtendingNestedProps.base.gap reset")
   return failures
 }
 
