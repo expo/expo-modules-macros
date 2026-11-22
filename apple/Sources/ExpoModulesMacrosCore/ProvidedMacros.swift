@@ -17,7 +17,11 @@ public struct ProvidedMacro {
       ProvidedMacro(name: "JS", type: JSMacro.self),
       ProvidedMacro(name: "Event", type: EventMacro.self),
       ProvidedMacro(name: "ExpoModule", type: ExpoModuleMacro.self, conformances: ["AnyModule", "Sendable"]),
-      ProvidedMacro(name: "SharedObject", type: SharedObjectMacro.self, conformances: ["Sendable"]),
+      ProvidedMacro(
+        name: "SharedObject",
+        type: SharedObjectMacro.self,
+        conformances: ["AnySharedObject", "Sendable"]
+      ),
       ProvidedMacro(name: "Record", type: RecordMacro.self, conformances: ["Record"]),
       ProvidedMacro(
         name: "Union",

@@ -23,8 +23,8 @@ import SwiftSyntaxMacros
 /// The companion `@ExpoModule(classes: [Cache.self])` registers the class with the module, which
 /// exposes it in its JavaScript object.
 ///
-/// As an extension macro, it adds an `@unchecked Sendable` conformance when the class isn't
-/// `Sendable` yet.
+/// As an extension macro, it adds an `AnySharedObject` conformance when the class doesn't conform
+/// yet, and an `@unchecked Sendable` conformance when the class isn't `Sendable` yet.
 public struct SharedObjectMacro: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -215,11 +215,43 @@ extension SharedObjectMacro: ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
-    guard let sendable = uncheckedSendableExtension(for: type, of: declaration, conformingTo: protocols) else {
-      return []
+    var extensions: [ExtensionDeclSyntax] = []
+    if let conformance = anySharedObjectExtension(for: type, of: declaration, conformingTo: protocols) {
+      extensions.append(conformance)
     }
-    return [sendable]
+    if let sendable = uncheckedSendableExtension(for: type, of: declaration, conformingTo: protocols) {
+      extensions.append(sendable)
+    }
+    return extensions
   }
+}
+
+/// The `AnySharedObject` conformance that `@SharedObject` adds to its class, or `nil` when the class
+/// already conforms. The compiler leaves `AnySharedObject` out of `protocols` when the class conforms,
+/// also through a superclass, as every subclass of `SharedObject` does. The inheritance clause is
+/// checked too, so that `expand`, which passes every declared conformance, gives the same result for a
+/// class that names `SharedObject`, `SharedRef` or `AnySharedObject`, also as
+/// `nonisolated AnySharedObject`. `expand` can't see that an indirect subclass
+/// (`class Thumbnail: ImageRef`) conforms, so it reports the conformance for it.
+///
+/// The extension is empty. Only a class that has no `SharedObject` superclass gets it, and the macro
+/// emits the hooks of every class as overrides of `SharedObject` members, so such a class doesn't
+/// compile. The conformance is `nonisolated`, so core can use it on any thread also when the module
+/// builds with `-default-isolation MainActor`.
+private func anySharedObjectExtension(
+  for type: some TypeSyntaxProtocol,
+  of declaration: some DeclGroupSyntax,
+  conformingTo protocols: [TypeSyntax]
+) -> ExtensionDeclSyntax? {
+  guard protocols.contains(where: { $0.trimmedDescription == "AnySharedObject" }),
+    let classDecl = declaration.as(ClassDeclSyntax.self),
+    !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"]),
+    !inheritsProtocol(named: "AnySharedObject", in: classDecl)
+  else {
+    return nil
+  }
+  let conformance: DeclSyntax = "extension \(type.trimmed): nonisolated AnySharedObject {}"
+  return conformance.cast(ExtensionDeclSyntax.self)
 }
 
 /// The error for a `@SharedObject` class without an inheritance clause, with a fix-it that makes it

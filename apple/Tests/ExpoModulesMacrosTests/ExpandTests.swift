@@ -38,7 +38,7 @@ struct ExpandTests {
   }
 
   @Test
-  func `Passes the Sendable conformance like the compiler`() throws {
+  func `Passes the Sendable and AnySharedObject conformances like the compiler`() throws {
     let source = """
       @ExpoModule
       public final class MyModule: Module {}
@@ -54,6 +54,8 @@ struct ExpandTests {
     #expect(expansion.source.contains("extension MyModule: @unchecked Sendable {"))
     #expect(expansion.source.contains("extension Cache: @unchecked Sendable {"))
     #expect(!expansion.source.contains("extension Session"))
+    // Both shared objects inherit `AnySharedObject` from `SharedObject`.
+    #expect(!expansion.source.contains(": nonisolated AnySharedObject"))
   }
 
   @Test

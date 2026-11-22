@@ -6,10 +6,10 @@ import SwiftSyntaxMacrosGenericTestSupport
 import Testing
 
 /// The conformances of the macro declarations in `expo-modules-core`. The other test files leave
-/// `Sendable` out, so that their expansions don't repeat the conformance.
+/// them out, so that their expansions don't repeat the conformances.
 private let macroSpecs: [String: MacroSpec] = [
   "ExpoModule": MacroSpec(type: ExpoModuleMacro.self, conformances: ["AnyModule", "Sendable"]),
-  "SharedObject": MacroSpec(type: SharedObjectMacro.self, conformances: ["Sendable"]),
+  "SharedObject": MacroSpec(type: SharedObjectMacro.self, conformances: ["AnySharedObject", "Sendable"]),
 ]
 
 private func assertExpansion(
@@ -137,6 +137,101 @@ struct SendableConformanceTests {
           public override class var _jsName: String {
             "Cache"
           }
+        }
+        """
+    )
+  }
+
+  @Test
+  func
+    `@SharedObject adds AnySharedObject before @unchecked Sendable to a class whose clause names no shared object base`()
+  {
+    // The compiler passes `AnySharedObject` only when the class doesn't conform. `expand` passes it
+    // for every class, so it reports the conformance for an indirect subclass like this one too.
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Thumbnail: ImageRef {
+      }
+      """,
+      expandedSource: """
+        public final class Thumbnail: ImageRef {
+
+          public override class var _jsName: String {
+            "Thumbnail"
+          }
+        }
+
+        extension Thumbnail: nonisolated AnySharedObject {
+        }
+
+        extension Thumbnail: @unchecked Sendable {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@SharedObject adds no AnySharedObject to a SharedRef subclass`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class ImageRef: SharedRef<UIImage> {
+      }
+      """,
+      expandedSource: """
+        public final class ImageRef: SharedRef<UIImage> {
+
+          public override class var _jsName: String {
+            "ImageRef"
+          }
+        }
+
+        extension ImageRef: @unchecked Sendable {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@SharedObject adds no AnySharedObject to a class that declares it`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Cache: Storage, AnySharedObject {
+      }
+      """,
+      expandedSource: """
+        public final class Cache: Storage, AnySharedObject {
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+        }
+
+        extension Cache: @unchecked Sendable {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `@SharedObject adds no AnySharedObject to a class that declares it as nonisolated`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Cache: Storage, nonisolated AnySharedObject {
+      }
+      """,
+      expandedSource: """
+        public final class Cache: Storage, nonisolated AnySharedObject {
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+        }
+
+        extension Cache: @unchecked Sendable {
         }
         """
     )
