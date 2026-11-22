@@ -115,6 +115,22 @@ struct SendableConformanceTests {
           public override class var _jsName: String {
             "Cache"
           }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
         }
 
         extension Cache: @unchecked Sendable {
@@ -136,6 +152,22 @@ struct SendableConformanceTests {
 
           public override class var _jsName: String {
             "Cache"
+          }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -159,6 +191,22 @@ struct SendableConformanceTests {
 
           public override class var _jsName: String {
             "Thumbnail"
+          }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Thumbnail.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 
@@ -185,6 +233,22 @@ struct SendableConformanceTests {
           public override class var _jsName: String {
             "ImageRef"
           }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            ImageRef.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
         }
 
         extension ImageRef: @unchecked Sendable {
@@ -207,6 +271,22 @@ struct SendableConformanceTests {
           public override class var _jsName: String {
             "Cache"
           }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
         }
 
         extension Cache: @unchecked Sendable {
@@ -228,6 +308,22 @@ struct SendableConformanceTests {
 
           public override class var _jsName: String {
             "Cache"
+          }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 

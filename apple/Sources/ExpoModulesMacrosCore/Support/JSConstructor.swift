@@ -64,7 +64,7 @@ internal struct JSConstructor {
   /// A subclass without a `@JS init` of its own inherits this override, and would construct an instance
   /// of this class instead of the subclass. Unless the class is `final`, the override returns `nil` when
   /// called on a subclass, so core reports that the subclass has no JavaScript constructor.
-  func buildConstructor(typeName: String, isFinal: Bool) -> DeclSyntax {
+  func buildConstructor(typeName: String, access: String, isFinal: Bool) -> DeclSyntax {
     let subclassGuard =
       isFinal
       ? ""
@@ -76,7 +76,7 @@ internal struct JSConstructor {
       """
     return """
       @JavaScriptActor
-      public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+      \(raw: access) override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
       \(raw: subclassGuard)\(raw: bodyStatements(typeName: typeName, indent: "  "))
       }
       """

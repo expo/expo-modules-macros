@@ -441,12 +441,9 @@ internal struct JSProperty {
   /// the closure-taking `setProperty(_:)` overload — with the read/write body inlined into each
   /// closure — and installs it with `object.defineProperty(name, descriptor:)`. Capture matches the
   /// function bindings: a module captures `self` strong, a shared object captures nothing of the
-  /// instance. Getter and setter are gated independently.
-  ///
-  /// With `configurable`, the accessor can be redefined, so a subclass of a shared object class can
-  /// replace it with its own member of the same JS name. A property whose getter caches the value binds
-  /// through `lazyPropertyStatements`, whose accessor is always configurable.
-  func decorateStatements(object: String, receiver: Receiver, configurable: Bool = false) -> String {
+  /// instance. Getter and setter are gated independently. A property whose getter caches the value binds
+  /// through `lazyPropertyStatements`.
+  func decorateStatements(object: String, receiver: Receiver) -> String {
     if cachesValue {
       return lazyPropertyStatements(object: object, receiver: receiver)
     }
@@ -460,9 +457,6 @@ internal struct JSProperty {
 
     lines.append("let \(descriptorName) = runtime.createObject()")
     lines.append("\(descriptorName).setProperty(\"enumerable\", value: true)")
-    if configurable {
-      lines.append("\(descriptorName).setProperty(\"configurable\", value: true)")
-    }
 
     // Getter: read `<callee>.<name>` and encode it straight into the engine's result slot. When the
     // value type couldn't be inferred (no annotation and no literal default, rare for a stored var)
@@ -507,8 +501,7 @@ internal struct JSProperty {
   /// `JavaScriptSymbol.Shared` (see `JSMemberKey.lazyPropertyArgument`), and `defineLazyProperty` gets the
   /// symbol from the runtime, which can throw.
   ///
-  /// The accessor is always configurable, so a subclass of a shared object class can replace it. The data
-  /// property is enumerable only, so JavaScript can't change or delete it.
+  /// The data property is enumerable only, so JavaScript can't change or delete it.
   private func lazyPropertyStatements(object: String, receiver: Receiver) -> String {
     let value = "\(receiver.callee).\(swiftName)"
     let returnType: String
@@ -593,18 +586,17 @@ private func encodeIntoSlotStatement(_ type: String, freeForm: FreeFormConversio
 /// how each binding reaches its Swift value (module `self`, shared-object instance `_self`, or the
 /// metatype for a static member).
 ///
-/// `configurableProperties` makes the property accessors configurable. `replacesInherited` first
-/// redefines the name of each function as a writable data property: the object may already hold an
-/// inherited accessor with that name, which an assignment would call instead of replacing. A function
-/// bound under a symbol that an object up the prototype chain holds as a read-only property or as an
-/// accessor without a setter is redefined first too, since an assignment can't shadow such a property
-/// (see `JSMemberKey.isInheritedReadOnly`).
+/// `replacesInherited` first defines the name of each function as a writable data property on the
+/// object: an object up its prototype chain may hold an accessor with that name, which an assignment
+/// would call instead of adding the function to the object. A function bound under a symbol that an
+/// object up the prototype chain holds as a read-only property or as an accessor without a setter is
+/// defined first too, since an assignment can't shadow such a property (see
+/// `JSMemberKey.isInheritedReadOnly`).
 private func decorateBody(
   functions: [JSFunction],
   properties: [JSProperty],
   object: String,
   receiver: Receiver,
-  configurableProperties: Bool = false,
   replacesInherited: Bool = false
 ) -> String {
   let functionBody = functions.map { function in
@@ -617,7 +609,7 @@ private func decorateBody(
     return redefine + "\n" + binding
   }
   let propertyBody = properties.map {
-    $0.decorateStatements(object: object, receiver: receiver, configurable: configurableProperties)
+    $0.decorateStatements(object: object, receiver: receiver)
   }
   return (functionBody + propertyBody).joined(separator: "\n")
 }
@@ -654,23 +646,24 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
 /// recovers its typed receiver from the JS `this` per call (`SharedObject.native(from:as:)`); a static
 /// binding calls the Swift member on the type and ignores `this` (which, on the static side, is the
 /// constructor). The constructor *object* the static members decorate is distinct from the `@JS init`,
-/// which builds an instance and is emitted separately (see `JSConstructor.buildConstructor`). Each phase
-/// is emitted only when the type has a member for it.
+/// which builds an instance and is emitted separately (see `JSConstructor.buildConstructor`). `access`
+/// is the access modifier of the override, `open` in an `open` class and `public` otherwise.
 ///
-/// With `callsSuper`, the phase first calls the superclass's phase, so a subclass of another
-/// `@SharedObject` class also gets the inherited `@JS` members. Core builds each JavaScript class on
-/// the base `SharedObject` class, not on the JavaScript class of the superclass, so the inherited
-/// members have to be bound on the subclass's own objects. They are bound first, so a subclass member
-/// with the same JavaScript name replaces the inherited one. For that, the property accessors of a
-/// class that isn't `final` are configurable, and a subclass redefines the name of each of its functions
-/// before it binds the function.
+/// Each phase binds only the members of its own class and doesn't call `super`. Core builds the
+/// JavaScript class of a subclass on the JavaScript class of its superclass (`_jsSuperclassType`), so the
+/// prototype and the constructor get the inherited members through their prototype chains, and a
+/// member of the subclass shadows an inherited one with the same JavaScript name. The macro emits both
+/// phases for every class, also when one binds nothing, so a class never runs the phase of its
+/// superclass. With `replacesInherited`, which the macro passes when the superclass may be another
+/// `@SharedObject` class, each function first defines its name as a data property (see
+/// `decorateBody`).
 internal func buildDecorateSharedObjectPhase(
   phase: Phase,
   functions: [JSFunction],
   properties: [JSProperty],
   typeName: String,
-  callsSuper: Bool,
-  isFinal: Bool
+  access: String,
+  replacesInherited: Bool
 ) -> DeclSyntax {
   let receiver: Receiver =
     phase == .constructor
@@ -681,18 +674,14 @@ internal func buildDecorateSharedObjectPhase(
     properties: properties,
     object: phase.rawValue,
     receiver: receiver,
-    configurableProperties: !isFinal,
-    replacesInherited: callsSuper
+    replacesInherited: replacesInherited
   )
-  let superCall =
-    callsSuper
-    ? "  try super._decorateSharedObject(\(phase.rawValue): \(phase.rawValue), in: runtime)\n"
-    : ""
+  // An empty phase gets an empty body, without a blank line in it.
+  let statements = body.isEmpty ? "" : "\(body)\n"
   return """
     @JavaScriptActor
-    public override class func _decorateSharedObject(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-    \(raw: superCall)\(raw: body)
-    }
+    \(raw: access) override class func _decorateSharedObject(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+    \(raw: statements)}
     """
 }
 

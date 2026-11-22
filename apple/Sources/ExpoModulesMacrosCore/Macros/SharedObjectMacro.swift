@@ -6,7 +6,8 @@ import SwiftSyntaxMacros
 /// Member macro applied to a `SharedObject` subclass, direct or not (a `SharedRef<T>` subclass too).
 /// Scans the class body for declarations marked with `@JS` and binds them directly through overrides of
 /// the `SharedObject` hooks core calls when it builds the JavaScript class. The class's JavaScript name
-/// is emitted as a `_jsName` override.
+/// is emitted as a `_jsName` override, and its place in the JavaScript class chain as `_jsClassType` and
+/// `_jsSuperclassType` overrides.
 ///
 ///   @SharedObject
 ///   public final class Cache: SharedObject {
@@ -53,10 +54,14 @@ public struct SharedObjectMacro: MemberMacro {
     let typeName = classDecl.name.text
     let jsName = jsNameArgument(of: node) ?? withoutBackticks(typeName)
 
-    // A superclass other than `SharedObject` or `SharedRef` may be another `@SharedObject` class, so the
-    // decorator phases call `super` to bind its `@JS` members too. The base classes' phases bind nothing.
-    let callsSuper = !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"])
+    // A superclass other than `SharedObject` or `SharedRef` may be another `@SharedObject` class, whose
+    // JavaScript class is up the prototype chain of this class's prototype and constructor (see
+    // `_jsSuperclassType` below). An assignment to a name that it binds as an accessor would call the
+    // accessor, so each function of this class defines its name as a data property first.
+    let mayInheritJSMembers = !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"])
     let isFinal = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.final) }
+    // The hooks of an `open` class are `open`, so that a subclass in another module can override them.
+    let access = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.open) } ? "open" : "public"
 
     // `@JS func`s/`var`s and the `@JS init` are bound directly into the shared object's JS object by
     // the synthesized `_decorateSharedObject(prototype:)` / `_decorateSharedObject(constructor:)` / `_constructSharedObject`.
@@ -139,41 +144,48 @@ public struct SharedObjectMacro: MemberMacro {
 
     // The resolved JS class name, read by core when it builds the class. An `override` of the
     // `SharedObject` class property, so core reads it through the concrete type's metatype.
+    //
+    // `_jsClassType` returns this class, written by name and not as `Self`, so a subclass without the
+    // macro inherits it and core gives that subclass the JavaScript class of this one. Inside a generic
+    // class, the bare name means the class with its own generic arguments. `_jsSuperclassType` returns the
+    // `_jsClassType` of the superclass, which is the nearest class above with the macro, or `nil` for the
+    // base `SharedObject` or `SharedRef`. Core builds the JavaScript class of that class first and
+    // creates this one on it, so the JavaScript chain follows the Swift chain.
     var emitted: [DeclSyntax] = [
-      "public override class var _jsName: String { \"\(raw: jsName)\" }"
+      "\(raw: access) override class var _jsName: String { \"\(raw: jsName)\" }",
+      "\(raw: access) override class var _jsClassType: (any AnySharedObject.Type)? { \(raw: typeName).self }",
+      "\(raw: access) override class var _jsSuperclassType: (any AnySharedObject.Type)? { super._jsClassType }",
     ]
 
     // Direct JSI binding, split by which JS object each member decorates:
     // `_decorateSharedObject(prototype:)` binds instance `@JS func`/`var`s (unwrapping the per-call receiver from
     // `this`); `_decorateSharedObject(constructor:)` binds `static`/`class` ones (called on the metatype); and
-    // `_constructSharedObject` builds an instance from the `@JS init` arguments. Each is emitted only
-    // when it has something to bind.
-    if !instanceFunctions.isEmpty || !instanceProperties.isEmpty {
-      emitted.append(
-        buildDecorateSharedObjectPhase(
-          phase: .prototype,
-          functions: instanceFunctions,
-          properties: instanceProperties,
-          typeName: typeName,
-          callsSuper: callsSuper,
-          isFinal: isFinal
-        )
+    // `_constructSharedObject` builds an instance from the `@JS init` arguments. Both decorator phases
+    // are emitted also when they bind nothing, since a class without its own phase would run the phase of
+    // its superclass on its own objects. Each class binds only its own members: the inherited ones are on
+    // the JavaScript class of the superclass. The constructor is emitted only for a `@JS init`.
+    emitted.append(
+      buildDecorateSharedObjectPhase(
+        phase: .prototype,
+        functions: instanceFunctions,
+        properties: instanceProperties,
+        typeName: typeName,
+        access: access,
+        replacesInherited: mayInheritJSMembers
       )
-    }
-    if !staticFunctions.isEmpty || !staticProperties.isEmpty {
-      emitted.append(
-        buildDecorateSharedObjectPhase(
-          phase: .constructor,
-          functions: staticFunctions,
-          properties: staticProperties,
-          typeName: typeName,
-          callsSuper: callsSuper,
-          isFinal: isFinal
-        )
+    )
+    emitted.append(
+      buildDecorateSharedObjectPhase(
+        phase: .constructor,
+        functions: staticFunctions,
+        properties: staticProperties,
+        typeName: typeName,
+        access: access,
+        replacesInherited: mayInheritJSMembers
       )
-    }
+    )
     if let constructor {
-      emitted.append(constructor.buildConstructor(typeName: typeName, isFinal: isFinal))
+      emitted.append(constructor.buildConstructor(typeName: typeName, access: access, isFinal: isFinal))
     }
 
     // The conformance assertions of the `@JS` members, which `@JS` leaves to this macro (see

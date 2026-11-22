@@ -8,7 +8,7 @@
 // - builds `Props.swift`, `Views.swift` and `SharedObjects.swift` as a library, with no warnings allowed;
 // - with library evolution, also verifies its `.swiftinterface` and builds `Client.swift` from it;
 // - builds the same files and `main.swift` as an executable and runs it, which checks the decoded and reset
-//   values, and the views.
+//   values, the views, and the JavaScript class chain of the shared objects.
 //
 // It runs on macOS. The macOS workflow runs it with the debug tool that `swift test` builds, during
 // the release build.
