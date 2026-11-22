@@ -28,9 +28,11 @@ if (!packageDir || (updateFlag !== undefined && (updateFlag !== '--update' || !u
 
 const expectedExportsPath = path.join(__dirname, 'check-scan-exports.json');
 
-// Declarations of each kind that `scan-exports` reports, in two files, one of them in a
+// Declarations of each kind that `scan-exports` reports, in three files, two of them in a
 // subdirectory. `Types/Models.swift` has CRLF line endings, as a Windows checkout can have, and a
-// non-ASCII string, which the scanner must pass through stdout unchanged.
+// non-ASCII string, which the scanner must pass through stdout unchanged. `Types/LocalPlayable.swift`
+// has no macro, so the pre-filter skips it, but a shared object inherits through the class in it, so
+// the scanner must parse it too.
 const EXPORTS_FIXTURE = {
   'PlayerModule.swift': {
     lineEnding: '\n',
@@ -88,6 +90,21 @@ public final class Player: SharedRef<Data> {
   func id() -> String { "" }
 }
 
+@SharedObject
+open class Playable: SharedObject {
+  @JS
+  func stop() {}
+
+  @Event
+  var onEnd: () -> Void
+}
+
+@SharedObject("ScanCheckPlaylist")
+public final class Playlist: LocalPlayable {
+  @JS
+  func next() {}
+}
+
 @ViewProps
 public struct MediaViewProps {
   var muted = false
@@ -104,6 +121,11 @@ public struct PlayerViewProps {
 
 @ExpoView<PlayerViewProps>
 public final class PlayerView: ExpoNativeView {}
+`,
+  },
+  'Types/LocalPlayable.swift': {
+    lineEnding: '\n',
+    source: `open class LocalPlayable: Playable {}
 `,
   },
   'Types/Models.swift': {

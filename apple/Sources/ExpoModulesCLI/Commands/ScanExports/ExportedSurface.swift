@@ -96,11 +96,16 @@ struct ExportedFunction: Encodable, Equatable {
   /// The spelled access modifier, or `nil` when none is written.
   let accessLevel: String?
 
-  let platforms: [ExportedPlatform]
+  var platforms: [ExportedPlatform]
+
+  /// The `name` of the `@SharedObject` superclass that declares the member, or `nil` for a member of the
+  /// type itself. Set on the members that a shared object inherits (see
+  /// `ExportedSurface.mergingInheritedMembers(through:)`).
+  var inheritedFrom: String? = nil
 
   /// The flags are encoded under their TS-keyword spellings.
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, symbol, parameters, returns, accessLevel, platforms
+    case name, jsName, symbol, parameters, returns, accessLevel, platforms, inheritedFrom
     case isAsync = "async"
     case isThrowing = "throws"
     case isStatic = "static"
@@ -154,10 +159,15 @@ struct ExportedProperty: Encodable, Equatable {
   /// `private(set)` is not the property's access level.
   let accessLevel: String?
 
-  let platforms: [ExportedPlatform]
+  var platforms: [ExportedPlatform]
+
+  /// The `name` of the `@SharedObject` superclass that declares the member, or `nil` for a member of the
+  /// type itself. Set on the members that a shared object inherits (see
+  /// `ExportedSurface.mergingInheritedMembers(through:)`).
+  var inheritedFrom: String? = nil
 
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, symbol, type, defaultValue, accessLevel, platforms
+    case name, jsName, symbol, type, defaultValue, accessLevel, platforms, inheritedFrom
     case isReadonly = "readonly"
     case isStatic = "static"
   }
@@ -173,6 +183,7 @@ struct ExportedProperty: Encodable, Equatable {
     try container.encodeIfPresent(defaultValue, forKey: .defaultValue)
     try container.encodeIfPresent(accessLevel, forKey: .accessLevel)
     try container.encode(platforms, forKey: .platforms)
+    try container.encodeIfPresent(inheritedFrom, forKey: .inheritedFrom)
   }
 }
 
@@ -240,10 +251,15 @@ struct ExportedEvent: Encodable, Equatable {
   /// The spelled access modifier, or `nil` when none is written.
   let accessLevel: String?
 
-  let platforms: [ExportedPlatform]
+  var platforms: [ExportedPlatform]
+
+  /// The `name` of the `@SharedObject` superclass that declares the event, or `nil` for an event of the
+  /// type itself. Set on the events that a shared object inherits (see
+  /// `ExportedSurface.mergingInheritedMembers(through:)`).
+  var inheritedFrom: String? = nil
 
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, payload, dispatch, accessLevel, platforms
+    case name, jsName, payload, dispatch, accessLevel, platforms, inheritedFrom
   }
 
   func encode(to encoder: Encoder) throws {
@@ -254,6 +270,7 @@ struct ExportedEvent: Encodable, Equatable {
     try container.encode(dispatch, forKey: .dispatch)
     try container.encodeIfPresent(accessLevel, forKey: .accessLevel)
     try container.encode(platforms, forKey: .platforms)
+    try container.encodeIfPresent(inheritedFrom, forKey: .inheritedFrom)
   }
 }
 
@@ -319,12 +336,18 @@ struct ExportedSharedObject: Encodable, Equatable {
   /// if a malformed source has more. Not named `constructor`, which every JS object inherits.
   var initializer: ExportedInitializer?
 
-  /// What the class inherits from `SharedRef<T>`, directly or through another scanned `@SharedObject`
-  /// class, or `nil` when it doesn't inherit `SharedRef`.
+  /// What the class inherits from `SharedRef<T>`, directly or through its scanned superclasses, or
+  /// `nil` when it doesn't inherit `SharedRef`.
   var sharedRef: ExportedSharedRef?
 
-  /// The class's `@JS` members, followed by the ones it inherits from scanned `@SharedObject`
-  /// superclasses (see `ExportedSurface.mergingInheritedMembers()`).
+  /// The nearest superclass with `@SharedObject`, whose JavaScript class core makes the parent of this
+  /// one, or `nil` when the class has none and its JavaScript parent is the base class (see
+  /// `ExportedSurface.mergingInheritedMembers(through:)`).
+  var superclass: ExportedSuperclass? = nil
+
+  /// The members that the class inherits from its `@SharedObject` superclasses, which have
+  /// `inheritedFrom`, followed by its own `@JS` members (see
+  /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var functions: [ExportedFunction]
   var properties: [ExportedProperty]
   var events: [ExportedEvent]
@@ -337,8 +360,9 @@ struct ExportedSharedObject: Encodable, Equatable {
   let file: String
 
   /// The superclass as written, without generic arguments, or `nil` when there is none or it is
-  /// `SharedObject` or `SharedRef`. Not encoded: it is only read to find the inherited members.
-  var superclass: String? = nil
+  /// `SharedObject`, `SharedRef` or `AnySharedObject`. Not encoded: `superclass` reports what it
+  /// resolves to.
+  var declaredSuperclass: String? = nil
 
   /// The value of the class's own `nativeRefType` override (see `ExportedSharedRef.nativeRefType`), or
   /// `.none` when it declares none. Not encoded: a subclass of a `SharedRef` subclass reports its own
@@ -346,13 +370,28 @@ struct ExportedSharedObject: Encodable, Equatable {
   var ownNativeRefType: String?? = .none
 
   private enum CodingKeys: String, CodingKey {
-    case name, jsName, initializer, sharedRef, functions, properties, events, accessLevel, platforms, file
+    case name, jsName, initializer, sharedRef, superclass, functions, properties, events, accessLevel, platforms, file
   }
 }
 
-/// The `SharedRef<T>` superclass of a shared object. A class that inherits `SharedRef` through another
-/// `@SharedObject` class reports the `T` of that class. A class that inherits it through a class the
-/// scan doesn't report has none.
+/// The superclass of a shared object, the nearest one with `@SharedObject`.
+struct ExportedSuperclass: Encodable, Equatable {
+  /// The `name` of the superclass, which is qualified when the class is nested (`Media.Player`). The
+  /// name as written when the scan found no class with this name, for example a class in another
+  /// package. The first entry of an inheritance clause can also be a protocol, which the scan can't
+  /// tell from a class in another package. Also the name as written when the superclass depends on the
+  /// platform: a class without the macro between them is declared in `#if` branches that lead to
+  /// different superclasses.
+  let name: String
+
+  /// The `jsName` of the superclass, or `nil` when the scan found no class with this name, or when the
+  /// superclass depends on the platform.
+  let jsName: String?
+}
+
+/// The `SharedRef<T>` superclass of a shared object. A class that inherits `SharedRef` through its
+/// superclasses reports the `T` of the nearest one that names it, also a class without the macro. A
+/// class that inherits it through a class the scan doesn't find has none.
 struct ExportedSharedRef: Encodable, Equatable {
   /// The `T` in `SharedRef<T>`: the native type the object holds, which JS never sees.
   let native: TypeNode

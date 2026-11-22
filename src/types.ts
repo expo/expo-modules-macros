@@ -203,6 +203,11 @@ export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
   async: boolean;
   throws: boolean;
   static: boolean;
+  /**
+   * The `name` of the shared object superclass that declares the member. Present only on the members
+   * that a shared object inherits.
+   */
+  inheritedFrom?: string;
 }
 
 /** One `@JS var` on a module or shared object. */
@@ -224,6 +229,11 @@ export interface ExportedProperty extends ExportedAccess, ExportedAvailability {
   static: boolean;
   /** The initial value of a stored property as Swift source text, absent when none is written. */
   defaultValue?: string;
+  /**
+   * The `name` of the shared object superclass that declares the member. Present only on the members
+   * that a shared object inherits.
+   */
+  inheritedFrom?: string;
 }
 
 /** One `@Record` property: a data slot, not a JS accessor. */
@@ -285,6 +295,11 @@ export interface ExportedEvent extends ExportedAccess, ExportedAvailability {
   payload?: TypeNode;
   /** How the event is dispatched: the default `scheduled`, or the `.inline` or `.blocking` option. */
   dispatch: 'scheduled' | 'inline' | 'blocking';
+  /**
+   * The `name` of the shared object superclass that declares the event. Present only on the events
+   * that a shared object inherits.
+   */
+  inheritedFrom?: string;
 }
 
 /** The `@JS init` of a shared object: the constructor JS calls with `new`. */
@@ -307,13 +322,21 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
    */
   initializer?: ExportedInitializer;
   /**
-   * What the class inherits from `SharedRef<T>`, directly or through another scanned `@SharedObject`
-   * class, or absent when it doesn't inherit `SharedRef`.
+   * What the class inherits from `SharedRef<T>`, directly or through its scanned superclasses, or
+   * absent when it doesn't inherit `SharedRef`.
    */
   sharedRef?: ExportedSharedRef;
   /**
-   * The class's `@JS` members include the ones it inherits from scanned `@SharedObject` superclasses,
-   * the inherited ones first. An own member replaces an inherited one with the same JS name.
+   * The nearest superclass with `@SharedObject`, whose JS class is the parent of this one, also when
+   * classes without the macro are between them. Absent when no superclass has the macro, so the JS
+   * parent is the base `SharedObject` class.
+   */
+  superclass?: ExportedSuperclass;
+  /**
+   * The class's `@JS` members include the ones it inherits from its `@SharedObject` superclasses, the
+   * inherited ones first, with `inheritedFrom`. An own member replaces an inherited one with the same
+   * JS name. When the superclass depends on the platform, an inherited member has only the platforms
+   * that inherit it.
    */
   functions: ExportedFunction[];
   properties: ExportedProperty[];
@@ -321,10 +344,28 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
   file: string;
 }
 
+/** The superclass of a shared object: the nearest one with `@SharedObject`. */
+export interface ExportedSuperclass {
+  /**
+   * The `name` of the superclass, which is qualified when the class is nested (`Media.Player`). The
+   * name as written when the scan found no class with this name, for example a class in another
+   * package. The first entry of an inheritance clause can also be a protocol, which the scan can't
+   * tell from a class in another package. Also the name as written when the superclass depends on the
+   * platform: a class without the macro between them is declared in `#if` branches that lead to
+   * different superclasses.
+   */
+  name: string;
+  /**
+   * The `jsName` of the superclass. Absent when the scan found no class with this name, or when the
+   * superclass depends on the platform.
+   */
+  jsName?: string;
+}
+
 /**
- * The `SharedRef<T>` superclass of a shared object. A class that inherits `SharedRef` through another
- * `@SharedObject` class reports the `T` of that class. A class that inherits it through a class the
- * scan doesn't report has none.
+ * The `SharedRef<T>` superclass of a shared object. A class that inherits `SharedRef` through its
+ * superclasses reports the `T` of the nearest one that names it, also a class without the macro. A
+ * class that inherits it through a class the scan doesn't find has none.
  */
 export interface ExportedSharedRef {
   /** The `T` in `SharedRef<T>`: the native type the object holds, which JS never sees. */
@@ -480,7 +521,11 @@ export interface ScanWarning {
 export interface ScanStats {
   /** `.swift` files the walk found and read. */
   filesScanned: number;
-  /** Of those, how many matched the pre-filter (a macro attribute or a scanned conformance). */
+  /**
+   * Of those, how many were parsed: the ones that matched the pre-filter (a macro attribute or a
+   * scanned conformance), and for `scanExports`, the ones that declare a class that a shared object
+   * inherits through.
+   */
   filesParsed: number;
   /** Wall-clock duration of the scan, in milliseconds. */
   durationMs: number;

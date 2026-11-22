@@ -75,7 +75,8 @@ struct ScanStats: Codable, Equatable {
   /// `.swift` files the walk found and read (after directory pruning).
   let filesScanned: Int
 
-  /// Of those, how many contained a macro attribute and so were parsed with SwiftSyntax.
+  /// Of those, how many were parsed with SwiftSyntax: the ones that contain a macro attribute, and for
+  /// `scan-exports`, the ones that declare a class that a shared object inherits through.
   let filesParsed: Int
 
   /// Wall-clock duration of the scan, in milliseconds (walking, reading, filtering, and parsing).

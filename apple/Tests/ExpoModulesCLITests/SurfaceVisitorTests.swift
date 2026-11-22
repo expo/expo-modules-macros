@@ -2428,6 +2428,11 @@ struct InheritedSharedObjectMembersTests {
   /// Runs a full `scanExports` over the given files, keyed by file name, and returns the surface. The
   /// members are merged in a whole-scan pass, so it can't be exercised through `SurfaceVisitor` alone.
   private func scannedSurface(_ files: [String: String]) throws -> ExportedSurface {
+    return try scanned(files).exports
+  }
+
+  /// Runs a full `scanExports` over the given files, keyed by file name, and returns the result.
+  private func scanned(_ files: [String: String]) throws -> ScanExportsResult {
     let fileManager = FileManager.default
     let root = fileManager.temporaryDirectory.appendingPathComponent(
       "scanner-inheritance-\(ProcessInfo.processInfo.globallyUniqueString)"
@@ -2437,7 +2442,7 @@ struct InheritedSharedObjectMembersTests {
     for (name, source) in files {
       try source.write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
     }
-    return scanExports(paths: [root.path]).exports
+    return scanExports(paths: [root.path])
   }
 
   private func sharedObject(_ name: String, in surface: ExportedSurface) throws -> ExportedSharedObject {
@@ -2502,11 +2507,17 @@ struct InheritedSharedObjectMembersTests {
     #expect(thumbnail.events.map(\.name) == ["onLoad", "onError", "onFailure"])
     #expect(thumbnail.events.last?.payload == .primitive(name: "Int", jsType: .number))
     #expect(thumbnail.initializer == nil)
+    #expect(thumbnail.superclass == ExportedSuperclass(name: "ImageRef", jsName: "ImageRef"))
+    #expect(thumbnail.functions.map(\.inheritedFrom) == ["ImageRef", "ImageRef", nil, nil])
+    #expect(thumbnail.properties.map(\.inheritedFrom) == ["ImageRef", nil])
+    #expect(thumbnail.events.map(\.inheritedFrom) == ["ImageRef", "ImageRef", nil])
 
     // The superclass itself doesn't change.
     let imageRef = try sharedObject("ImageRef", in: surface)
     #expect(imageRef.functions.map(\.jsName) == ["describe", "size", "clearCache"])
+    #expect(imageRef.functions.map(\.inheritedFrom) == [nil, nil, nil])
     #expect(imageRef.initializer != nil)
+    #expect(imageRef.superclass == nil)
   }
 
   @Test
@@ -2579,8 +2590,238 @@ struct InheritedSharedObjectMembersTests {
       """,
     ])
 
-    #expect(try sharedObject("Media.Middle", in: surface).functions.map(\.jsName) == ["base", "middle"])
-    #expect(try sharedObject("Leaf", in: surface).functions.map(\.jsName) == ["base", "middle", "leaf"])
+    let middle = try sharedObject("Media.Middle", in: surface)
+    #expect(middle.functions.map(\.jsName) == ["base", "middle"])
+    #expect(middle.superclass == ExportedSuperclass(name: "Media.Base", jsName: "Base"))
+    let leaf = try sharedObject("Leaf", in: surface)
+    #expect(leaf.functions.map(\.jsName) == ["base", "middle", "leaf"])
+    // Each inherited member names the class that declares it.
+    #expect(leaf.functions.map(\.inheritedFrom) == ["Media.Base", "Media.Middle", nil])
+    #expect(leaf.superclass == ExportedSuperclass(name: "Media.Middle", jsName: "Middle"))
+  }
+
+  @Test
+  func `The superclass and the members come through classes without the macro, also from files without a macro`()
+    throws
+  {
+    let result = try scanned([
+      "Root.swift": """
+      @SharedObject
+      open class Root: SharedObject {
+        @JS
+        func root() {}
+
+        @Event
+        var onReady: () -> Void
+      }
+      """,
+      // Neither of these files has a macro, so the pre-filter skips them. `Inner` is found first, and
+      // names `Middle`, which is found next.
+      "Inner.swift": """
+      open class Inner: Middle {}
+      """,
+      "Middle.swift": """
+      open class Middle: Root {}
+      """,
+      "Leaf.swift": """
+      @SharedObject
+      public final class Leaf: Inner {
+        @JS
+        func leaf() {}
+      }
+      """,
+      "Unrelated.swift": """
+      final class Unrelated: Base {}
+      """,
+    ])
+
+    let leaf = try sharedObject("Leaf", in: result.exports)
+    #expect(leaf.superclass == ExportedSuperclass(name: "Root", jsName: "Root"))
+    #expect(leaf.functions.map(\.jsName) == ["root", "leaf"])
+    #expect(leaf.functions.map(\.inheritedFrom) == ["Root", nil])
+    #expect(leaf.events.map(\.inheritedFrom) == ["Root"])
+    // `Root.swift` and `Leaf.swift`, then `Inner.swift` and `Middle.swift`. No shared object leads to
+    // `Unrelated.swift`.
+    #expect(result.stats.filesScanned == 5)
+    #expect(result.stats.filesParsed == 4)
+  }
+
+  @Test
+  func
+    `A chain that ends at the base class through a class without the macro has no superclass and keeps its sharedRef`()
+    throws
+  {
+    let surface = try scannedSurface([
+      "Bases.swift": """
+      class ImageBase: SharedRef<UIImage> {
+        override var nativeRefType: String { "image" }
+      }
+
+      class PlainBase: SharedObject {}
+      """,
+      "Source.swift": """
+      @SharedObject
+      final class Photo: ImageBase {}
+
+      @SharedObject
+      final class Icon: ImageBase {
+        override var nativeRefType: String { "icon" }
+      }
+
+      @SharedObject
+      final class Item: PlainBase {}
+      """,
+    ])
+
+    let photo = try sharedObject("Photo", in: surface)
+    #expect(photo.superclass == nil)
+    #expect(photo.sharedRef == ExportedSharedRef(native: .ref(name: "UIImage"), nativeRefType: "image"))
+    #expect(
+      try sharedObject("Icon", in: surface).sharedRef
+        == ExportedSharedRef(native: .ref(name: "UIImage"), nativeRefType: "icon")
+    )
+    let item = try sharedObject("Item", in: surface)
+    #expect(item.superclass == nil)
+    #expect(item.sharedRef == nil)
+  }
+
+  @Test
+  func `A superclass that the scan doesn't declare is reported by its spelling, without a JS name`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      final class Thumbnail: ImageRef {}
+
+      @SharedObject
+      final class Nested: Media.Remote {}
+
+      class Local: Remote {}
+
+      @SharedObject
+      final class FromLocal: Local {}
+
+      class Ping: Pong {}
+      class Pong: Ping {}
+
+      @SharedObject
+      final class InCycle: Ping {}
+      """
+    ])
+
+    #expect(try sharedObject("Thumbnail", in: surface).superclass == ExportedSuperclass(name: "ImageRef", jsName: nil))
+    #expect(try sharedObject("Nested", in: surface).superclass == ExportedSuperclass(name: "Media.Remote", jsName: nil))
+    // The spelling is the one that the class without the macro names.
+    #expect(try sharedObject("FromLocal", in: surface).superclass == ExportedSuperclass(name: "Remote", jsName: nil))
+    // A cycle of classes without the macro ends where it comes back.
+    #expect(try sharedObject("InCycle", in: surface).superclass == ExportedSuperclass(name: "Ping", jsName: nil))
+  }
+
+  @Test
+  func `A class without the macro in #if branches leads each platform to the superclass of its branch`()
+    throws
+  {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @SharedObject
+      class IOSRoot: SharedObject {
+        @JS
+        func ios() {}
+      }
+
+      @SharedObject
+      class OtherRoot: SharedObject {
+        @JS
+        func other() {}
+      }
+
+      #if os(iOS)
+      class Middle: IOSRoot {}
+      #else
+      class Middle: OtherRoot {}
+      #endif
+
+      #if os(tvOS)
+      @SharedObject
+      final class TVLeaf: Middle {}
+      #endif
+
+      @SharedObject
+      final class Leaf: Middle {}
+      """
+    ])
+
+    // Every platform of `TVLeaf` leads to `OtherRoot`.
+    let tvLeaf = try sharedObject("TVLeaf", in: surface)
+    #expect(tvLeaf.superclass == ExportedSuperclass(name: "OtherRoot", jsName: "OtherRoot"))
+    #expect(tvLeaf.functions.map(\.jsName) == ["other"])
+
+    // `Leaf` inherits from `IOSRoot` on iOS and from `OtherRoot` elsewhere, so `superclass` is the name it
+    // writes, and each inherited member has only the platforms that lead to its class.
+    let leaf = try sharedObject("Leaf", in: surface)
+    #expect(leaf.superclass == ExportedSuperclass(name: "Middle", jsName: nil))
+    #expect(leaf.functions.map(\.jsName) == ["ios", "other"])
+    #expect(leaf.functions.map(\.inheritedFrom) == ["IOSRoot", "OtherRoot"])
+    #expect(
+      leaf.functions.map { $0.platforms.map(\.name) } == [["iOS"], ["macOS", "tvOS", "watchOS", "visionOS"]]
+    )
+  }
+
+  @Test
+  func `A qualified superclass in a file without a macro is found before its name is looked up without the qualifier`()
+    throws
+  {
+    let result = try scanned([
+      "Source.swift": """
+      @SharedObject
+      class Root: SharedObject {
+        @JS
+        func root() {}
+      }
+
+      class Base: Root {}
+
+      @SharedObject
+      final class Leaf: Media.Base {}
+
+      @SharedObject
+      final class FromModule: ExpoKit.Root {}
+      """,
+      "Media.swift": """
+      enum Media {}
+
+      extension Media {
+        class Base: SharedObject {}
+      }
+      """,
+    ])
+
+    // `Media.Base` is the class in `Media.swift`, not the `Base` at file scope, so nothing is inherited.
+    let leaf = try sharedObject("Leaf", in: result.exports)
+    #expect(leaf.superclass == nil)
+    #expect(leaf.functions.isEmpty)
+    #expect(result.stats.filesParsed == 2)
+    // The scan declares no `ExpoKit`, so the name is looked up without it, as a module qualifier.
+    let fromModule = try sharedObject("FromModule", in: result.exports)
+    #expect(fromModule.superclass == ExportedSuperclass(name: "Root", jsName: "Root"))
+    #expect(fromModule.functions.map(\.jsName) == ["root"])
+  }
+
+  @Test
+  func `Class names in a file without a macro are read without a parse`() {
+    let names = declaredClassNames(
+      in: """
+        public final class Leaf: Base {}
+        open class `Type` {}
+        @objc(Foo) class Bar: NSObject {
+          class func make() {}
+        }
+        struct Subclassed {
+          let classify = 1
+        }
+        """
+    )
+    // `func` comes from `class func`, which no lookup asks for.
+    #expect(names == ["Leaf", "Type", "Bar", "func"])
   }
 
   @Test
@@ -2674,7 +2915,7 @@ struct InheritedSharedObjectMembersTests {
   }
 
   @Test
-  func `Nothing is inherited through a class the scan doesn't report or through a cycle`() throws {
+  func `Nothing is inherited from a class without the macro, a protocol or a cycle`() throws {
     let surface = try scannedSurface([
       "Source.swift": """
       class Plain: SharedObject {
@@ -2695,6 +2936,9 @@ struct InheritedSharedObjectMembersTests {
       }
 
       @SharedObject
+      final class FromAnySharedObject: AnySharedObject {}
+
+      @SharedObject
       class A: B {
         @JS
         func a() {}
@@ -2708,27 +2952,58 @@ struct InheritedSharedObjectMembersTests {
       """
     ])
 
-    #expect(try sharedObject("FromPlain", in: surface).functions.map(\.jsName) == ["own"])
-    #expect(try sharedObject("FromProtocol", in: surface).functions.map(\.jsName) == ["own"])
-    #expect(try sharedObject("A", in: surface).functions.map(\.jsName) == ["b", "a"])
-    #expect(try sharedObject("B", in: surface).functions.map(\.jsName) == ["a", "b"])
+    // `Plain` has no macro, so its `@JS` members aren't bound, and the chain ends at `SharedObject`.
+    let fromPlain = try sharedObject("FromPlain", in: surface)
+    #expect(fromPlain.functions.map(\.jsName) == ["own"])
+    #expect(fromPlain.superclass == nil)
+    // The scan can't tell a protocol from a class in another package.
+    let fromProtocol = try sharedObject("FromProtocol", in: surface)
+    #expect(fromProtocol.functions.map(\.jsName) == ["own"])
+    #expect(fromProtocol.superclass == ExportedSuperclass(name: "Sendable", jsName: nil))
+    // `AnySharedObject` is the protocol of the shared objects, so the chain ends there, as at `SharedObject`.
+    #expect(try sharedObject("FromAnySharedObject", in: surface).superclass == nil)
+    let a = try sharedObject("A", in: surface)
+    #expect(a.functions.map(\.jsName) == ["b", "a"])
+    #expect(a.superclass == ExportedSuperclass(name: "B", jsName: "B"))
+    let b = try sharedObject("B", in: surface)
+    #expect(b.functions.map(\.jsName) == ["a", "b"])
+    #expect(b.superclass == ExportedSuperclass(name: "A", jsName: "A"))
   }
 
   @Test
-  func `The superclass isn't encoded`() throws {
+  func `The superclass is encoded with its name and JS name, and only an inherited member has inheritedFrom`() throws {
     let surface = try scannedSurface([
       "Source.swift": """
       @SharedObject
-      class Base: SharedObject {}
+      class Base: SharedObject {
+        @JS
+        func base() {}
+      }
 
       @SharedObject
-      final class Sub: Base {}
+      final class Sub: Base {
+        @JS
+        func own() {}
+      }
+
+      @SharedObject
+      final class Far: Remote {}
       """
     ])
 
-    let data = try JSONEncoder().encode(try sharedObject("Sub", in: surface))
-    let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-    #expect(object["superclass"] == nil)
-    #expect(object["ownNativeRefType"] == nil)
+    func encoded(_ name: String) throws -> [String: Any] {
+      let data = try JSONEncoder().encode(try sharedObject(name, in: surface))
+      return try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+    let sub = try encoded("Sub")
+    #expect(sub["superclass"] as? [String: String] == ["name": "Base", "jsName": "Base"])
+    #expect(sub["declaredSuperclass"] == nil)
+    #expect(sub["ownNativeRefType"] == nil)
+    let functions = try #require(sub["functions"] as? [[String: Any]])
+    #expect(functions.map { $0["inheritedFrom"] as? String } == ["Base", nil])
+    #expect(functions.map { $0.keys.contains("inheritedFrom") } == [true, false])
+
+    #expect(try encoded("Base")["superclass"] == nil)
+    #expect(try encoded("Far")["superclass"] as? [String: String] == ["name": "Remote"])
   }
 }
