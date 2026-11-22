@@ -1,9 +1,11 @@
-// Stand-ins for the ExpoModulesJSI and expo-modules-core symbols that the `@ViewProps` and `@ExpoView`
-// expansions use, with the signatures of the real ones. `AnyViewProps` and the macro declarations are copies of
-// `ios/Core/Views/v2/AnyViewProps.swift` and `ios/Core/ExpoModulesMacros.swift` in expo-modules-core. The view
-// protocols keep the requirements and defaults of `ios/Core/Views/v2/AnyNativeView.swift` and
-// `AnyNativeSwiftUIView.swift` that the expansions and the views of `Views.swift` use. `check-compile.js` builds
-// this file as the `Core` module, with library evolution.
+// Stand-ins for the ExpoModulesJSI and expo-modules-core symbols that the `@ViewProps`, `@ExpoView` and
+// `@SharedObject` expansions use, with the signatures of the real ones. `AnyViewProps` and the macro declarations
+// are copies of `ios/Core/Views/v2/AnyViewProps.swift` and `ios/Core/ExpoModulesMacros.swift` in
+// expo-modules-core. The view protocols keep the requirements and defaults of
+// `ios/Core/Views/v2/AnyNativeView.swift` and `AnyNativeSwiftUIView.swift` that the expansions and the views of
+// `Views.swift` use. `SharedObject` keeps the hooks of `ios/Core/SharedObjects/SharedObject.swift` that the
+// expansions of the classes in `SharedObjects.swift` override. `check-compile.js` builds this file as the `Core`
+// module, with library evolution.
 
 import SwiftUI
 
@@ -254,6 +256,52 @@ public macro ViewProps() =
 )
 public macro ViewProps<Base: AnyViewProps>(extending base: Base.Type) =
   #externalMacro(module: "ExpoModulesMacros", type: "ViewPropsMacro")
+
+// MARK: - Shared objects
+
+/// The object that the decorator phases of a shared object bind members on. The classes of
+/// `SharedObjects.swift` have no `@JS` members, so it has no API.
+public struct JavaScriptObject: Sendable, ~Copyable {}
+
+/// The protocol of the shared objects, which the `@SharedObject` expansion adds to a class that doesn't conform yet.
+/// The one in core has requirements, which `SharedObject` implements. This stand-in leaves them out.
+public protocol AnySharedObject: AnyObject {}
+
+/// The base class of the shared objects, with the hooks that the `@SharedObject` expansion overrides.
+open class SharedObject: AnySharedObject {
+  public init() {}
+
+  open class var _jsName: String {
+    return String(describing: self)
+  }
+
+  @JavaScriptActor
+  open class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
+
+  @JavaScriptActor
+  open class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+  }
+}
+
+open class SharedRef<RefType>: SharedObject {
+  public let ref: RefType
+
+  public init(_ ref: RefType) {
+    self.ref = ref
+  }
+}
+
+@attached(
+  member,
+  names: named(_jsName),
+  named(_decorateSharedObject),
+  named(_constructSharedObject),
+  named(_assertTypesConformance)
+)
+@attached(memberAttribute)
+@attached(extension, conformances: AnySharedObject, Sendable)
+public macro SharedObject(_ name: String? = nil) =
+  #externalMacro(module: "ExpoModulesMacros", type: "SharedObjectMacro")
 
 // MARK: - Views
 
