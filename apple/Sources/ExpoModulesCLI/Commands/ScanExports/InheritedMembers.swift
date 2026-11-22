@@ -1,10 +1,10 @@
 /// Adds to each `@SharedObject` class the `@JS` members it inherits from scanned `@SharedObject`
 /// superclasses.
 ///
-/// The `@SharedObject` macro binds the members of the superclass on the JavaScript objects of the
-/// subclass too, since core builds each JavaScript class on the base `SharedObject` class and not on the
-/// JavaScript class of the superclass. So the reported surface of a subclass lists the inherited members
-/// as its own, and a consumer generates the same type as for any other class.
+/// Core builds the JavaScript class of a subclass on the JavaScript class of its nearest superclass
+/// with the macro, so an instance and the constructor of the subclass get the members of that class
+/// through their prototype chains. The reported surface of a subclass lists the inherited members as
+/// its own, so a consumer generates the same type as for any other class.
 
 extension ExportedSurface {
   /// This surface with the inherited members added to each shared object. Runs after
@@ -14,14 +14,16 @@ extension ExportedSurface {
   /// The superclass is looked up from the scope that encloses the class, the way `RefIndex` looks up a
   /// ref. A superclass the scan doesn't report as a shared object (a protocol, a class without
   /// `@SharedObject`, or a class from another module) ends the chain, so nothing is inherited through it.
+  /// At run time, the chain goes on through a class without `@SharedObject`, so the surface of a class
+  /// below such a class leaves out the members of the classes above it.
   ///
   /// A superclass declared more than once, in `#if` branches, contributes the members of each
   /// declaration whose platforms overlap the platforms of the class. Each member keeps its own
   /// `platforms`.
   ///
-  /// The members merge the way the macro binds them: the inherited ones first, then the class's own. An
-  /// own member replaces an inherited function or property with the same JS name or symbol, separately for static
-  /// and instance members. Events are kept from both: an event is a stored property that emits under its
+  /// The members merge the way the prototype chain resolves them: the inherited ones first, then the class's
+  /// own. An own member replaces an inherited function or property with the same JS name or symbol, separately for
+  /// static and instance members. Events are kept from both: an event is a stored property that emits under its
   /// JS name, so a subclass can't replace an inherited one, and both are sent. The `@JS init` isn't
   /// inherited: core doesn't construct a subclass through the initializer of its superclass.
   ///

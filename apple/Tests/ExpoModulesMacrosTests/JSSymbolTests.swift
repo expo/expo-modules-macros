@@ -70,6 +70,14 @@ struct JSSymbolTests {
             "Cache"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try prototype.setProperty(JavaScriptSymbol.wellKnown(runtime, .iterator)) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -210,6 +218,14 @@ struct JSSymbolTests {
             "Cache"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try prototype.defineLazyProperty(symbol: .for("app.id"), options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> String in
@@ -248,9 +264,16 @@ struct JSSymbolTests {
             "Image"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Image.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-            try super._decorateSharedObject(prototype: prototype, in: runtime)
             try prototype.defineProperty(JavaScriptSymbol.wellKnown(runtime, .toPrimitive), descriptor: .init(configurable: true, enumerable: true, writable: true))
             try prototype.setProperty(JavaScriptSymbol.wellKnown(runtime, .toPrimitive)) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Image.self)
@@ -261,6 +284,10 @@ struct JSSymbolTests {
               let value = _self.primitive(hint: arg0)
               try String.encode(value, into: result, in: runtime)
             }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -291,6 +318,14 @@ struct JSSymbolTests {
             "List"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            List.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try prototype.setProperty(JavaScriptSymbol.wellKnown(runtime, .iterator)) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -309,6 +344,10 @@ struct JSSymbolTests {
               let value = _self.iterator()
               try Int.encode(value, into: result, in: runtime)
             }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -339,6 +378,14 @@ struct JSSymbolTests {
             "List"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            List.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try prototype.setProperty(JavaScriptSymbol.for(runtime, "app.id")) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -360,6 +407,10 @@ struct JSSymbolTests {
               _self.id = try String.decode(arguments.unownedValue(at: 0), in: runtime)
             }
             try prototype.defineProperty(JavaScriptSymbol.for(runtime, "app.id"), descriptor: idDescriptor)
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -393,6 +444,22 @@ struct JSSymbolTests {
 
           public override class var _jsName: String {
             "List"
+          }
+
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            List.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -445,6 +512,14 @@ struct JSSymbolTests {
             "List"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            List.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("id") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -471,6 +546,10 @@ struct JSSymbolTests {
               let value = _self.constant()
               try Int.encode(value, into: result, in: runtime)
             }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -519,6 +598,14 @@ struct JSSymbolTests {
             "List"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            List.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try prototype.setProperty(JavaScriptSymbol.for(runtime, "app.\"id\"")) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -529,6 +616,10 @@ struct JSSymbolTests {
               let value = _self.id()
               try Int.encode(value, into: result, in: runtime)
             }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """#
@@ -559,6 +650,14 @@ struct JSSymbolTests {
             "List"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            List.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             try prototype.setProperty(JavaScriptSymbol.for(runtime, "app.id")) { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -577,6 +676,10 @@ struct JSSymbolTests {
               let value = _self.other()
               try Int.encode(value, into: result, in: runtime)
             }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """#,

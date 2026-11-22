@@ -1,5 +1,5 @@
-// Uses a props type and a view of the `Fixtures` module, which `check-compile.js` builds with library evolution and
-// gives to this module only as its `.swiftinterface`.
+// Uses a props type, a view and a shared object of the `Fixtures` module, which `check-compile.js` builds with library
+// evolution and gives to this module only as its `.swiftinterface`.
 
 import Core
 import Fixtures
@@ -44,3 +44,8 @@ public func previewHasAppContext() -> Bool {
   let view = SliderView(props: PublicProps(), children: ExpoSwiftUI.Children())
   return view.appContext != nil
 }
+
+// Subclasses an `open` shared object of the `Fixtures` module, so its expansion overrides the hooks of that class
+// from another module.
+@SharedObject
+public final class ClientObject: ChainRoot, @unchecked Sendable {}

@@ -1,6 +1,7 @@
 // Decodes and resets the props of `Props.swift` through the generic code in `Core.swift`, compares
 // each reset prop with its value in `Self()`, and dispatches the bound events. Then checks the views of
-// `Views.swift`. Exits with a nonzero status when a check fails.
+// `Views.swift` and the JavaScript class chain of the shared objects of `SharedObjects.swift`. Exits with a
+// nonzero status when a check fails.
 
 import Core
 import Darwin
@@ -228,7 +229,30 @@ func checkViews() -> [String] {
   return failures
 }
 
-let failures = try await check() + checkViews()
+// Checks the places of the shared objects of `SharedObjects.swift` in the JavaScript class chain.
+func checkSharedObjects() -> [String] {
+  var failures: [String] = []
+  func expect(_ actual: (any AnySharedObject.Type)?, _ expected: (any AnySharedObject.Type)?, _ label: String) {
+    if actual != expected {
+      failures.append("\(label): \(String(describing: actual)) isn't \(String(describing: expected))")
+    }
+  }
+
+  expect(ChainRoot._jsClassType, ChainRoot.self, "ChainRoot._jsClassType")
+  expect(ChainRoot._jsSuperclassType, nil, "ChainRoot._jsSuperclassType")
+  expect(ChainMiddle._jsClassType, ChainRoot.self, "ChainMiddle._jsClassType")
+  expect(ChainLeaf._jsClassType, ChainLeaf.self, "ChainLeaf._jsClassType")
+  expect(ChainLeaf._jsSuperclassType, ChainRoot.self, "ChainLeaf._jsSuperclassType")
+  expect(GenericBox<Int>._jsClassType, GenericBox<Int>.self, "GenericBox<Int>._jsClassType")
+  expect(GenericBox<String>._jsClassType, GenericBox<String>.self, "GenericBox<String>._jsClassType")
+  expect(IntBox._jsSuperclassType, GenericBox<Int>.self, "IntBox._jsSuperclassType")
+  expect(NumberRef._jsClassType, NumberRef.self, "NumberRef._jsClassType")
+  expect(NumberRef._jsSuperclassType, nil, "NumberRef._jsSuperclassType")
+  expect(Namespace.Nested._jsClassType, Namespace.Nested.self, "Namespace.Nested._jsClassType")
+  return failures
+}
+
+let failures = try await check() + checkViews() + checkSharedObjects()
 for failure in failures {
   print("error: \(failure)")
 }

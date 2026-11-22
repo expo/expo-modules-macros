@@ -313,6 +313,22 @@ struct JSClosureArgumentTests {
             "Watcher"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Watcher.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
           @JavaScriptActor
           public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
             guard arguments.count == 1 else {
@@ -395,6 +411,14 @@ struct JSClosureArgumentTests {
             "Downloader"
           }
 
+          public override class var _jsClassType: (any AnySharedObject.Type)? {
+            Downloader.self
+          }
+
+          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            super._jsClassType
+          }
+
           @JavaScriptActor
           public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("download") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
@@ -411,6 +435,10 @@ struct JSClosureArgumentTests {
                 return .undefined()
               }
             }
+          }
+
+          @JavaScriptActor
+          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """

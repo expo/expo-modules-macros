@@ -264,15 +264,26 @@ public macro ViewProps<Base: AnyViewProps>(extending base: Base.Type) =
 public struct JavaScriptObject: Sendable, ~Copyable {}
 
 /// The protocol of the shared objects, which the `@SharedObject` expansion adds to a class that doesn't conform yet.
-/// The one in core has requirements, which `SharedObject` implements. This stand-in leaves them out.
+/// It also types the members of the JavaScript class chain. The one in core has requirements, which `SharedObject`
+/// implements. This stand-in leaves them out.
 public protocol AnySharedObject: AnyObject {}
 
-/// The base class of the shared objects, with the hooks that the `@SharedObject` expansion overrides.
+/// The base class of the shared objects, with the hooks that the `@SharedObject` expansion overrides. The base
+/// class has no JavaScript class in the chain of a `@SharedObject` class, so `_jsClassType` and `_jsSuperclassType`
+/// return `nil`.
 open class SharedObject: AnySharedObject {
   public init() {}
 
   open class var _jsName: String {
     return String(describing: self)
+  }
+
+  open class var _jsClassType: (any AnySharedObject.Type)? {
+    return nil
+  }
+
+  open class var _jsSuperclassType: (any AnySharedObject.Type)? {
+    return nil
   }
 
   @JavaScriptActor
@@ -294,6 +305,8 @@ open class SharedRef<RefType>: SharedObject {
 @attached(
   member,
   names: named(_jsName),
+  named(_jsClassType),
+  named(_jsSuperclassType),
   named(_decorateSharedObject),
   named(_constructSharedObject),
   named(_assertTypesConformance)
