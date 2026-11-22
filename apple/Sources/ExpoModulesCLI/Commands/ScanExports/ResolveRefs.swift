@@ -79,8 +79,14 @@ struct RefIndex {
 }
 
 /// The entry that a use of `name` written inside the type `scope` names, from `entries` keyed by
-/// qualified name. Swift's lookup rules, as `RefIndex.lookup(_:in:)` documents them.
-private func scopedLookup<Entry>(_ name: String, in scope: String, entries: [String: Entry]) -> Entry? {
+/// qualified name. Swift's lookup rules, as `RefIndex.lookup(_:in:)` documents them. Without
+/// `dropsQualifiers`, a qualified spelling isn't looked up without its leading components.
+func scopedLookup<Entry>(
+  _ name: String,
+  in scope: String,
+  entries: [String: Entry],
+  dropsQualifiers: Bool = true
+) -> Entry? {
   let name = name.hasPrefix("Self.") ? String(name.dropFirst("Self.".count)) : name
   var components = scope.split(separator: ".").map(String.init)
   while true {
@@ -91,6 +97,9 @@ private func scopedLookup<Entry>(_ name: String, in scope: String, entries: [Str
       break
     }
     components.removeLast()
+  }
+  guard dropsQualifiers else {
+    return nil
   }
   var suffix = name.split(separator: ".").map(String.init).dropFirst()
   while !suffix.isEmpty {

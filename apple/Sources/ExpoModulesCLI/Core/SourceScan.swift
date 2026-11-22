@@ -9,7 +9,7 @@ import Foundation
 
 /// Walks `paths`, and for each `.swift` file that might contain one of `macros` or one of
 /// `conformances` (the pre-filter passes it), reads the source and hands it to `process` along with the
-/// file path. Returns the run's stats.
+/// file path. A file that the pre-filter skips goes to `skipped` instead. Returns the run's stats.
 ///
 /// The shared core every scan command builds on: the walk, read, pre-filter, and stats are identical;
 /// only what each command does per parsed file differs (`scan-packages` collects `Detection`s,
@@ -18,6 +18,7 @@ func scanFiles(
   paths: [String],
   macros: Set<DetectedMacro>,
   conformances: Set<String> = [],
+  skipped: (_ source: String, _ file: String) -> Void = { _, _ in },
   process: (_ source: String, _ file: String) -> Void
 ) -> ScanStats {
   let clock = ContinuousClock()
@@ -39,6 +40,7 @@ func scanFiles(
     // substring scan is far cheaper than a full parse, and most files in a large tree mention none
     // of these names. See `mightContainMacro` for why this never drops a real match.
     guard mightContainMacro(in: source, prefilter: prefilter) else {
+      skipped(source, file)
       continue
     }
     filesParsed += 1

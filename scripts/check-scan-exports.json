@@ -811,6 +811,187 @@
           },
           "nativeRefType": "unknown"
         }
+      },
+      {
+        "accessLevel": "open",
+        "events": [
+          {
+            "dispatch": "scheduled",
+            "jsName": "end",
+            "name": "onEnd",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          }
+        ],
+        "file": "PlayerModule.swift",
+        "functions": [
+          {
+            "async": false,
+            "jsName": "stop",
+            "name": "stop",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "static": false,
+            "throws": false
+          }
+        ],
+        "jsName": "Playable",
+        "name": "Playable",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": []
+      },
+      {
+        "accessLevel": "public",
+        "events": [
+          {
+            "dispatch": "scheduled",
+            "inheritedFrom": "Playable",
+            "jsName": "end",
+            "name": "onEnd",
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ]
+          }
+        ],
+        "file": "PlayerModule.swift",
+        "functions": [
+          {
+            "async": false,
+            "inheritedFrom": "Playable",
+            "jsName": "stop",
+            "name": "stop",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "static": false,
+            "throws": false
+          },
+          {
+            "async": false,
+            "jsName": "next",
+            "name": "next",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "static": false,
+            "throws": false
+          }
+        ],
+        "jsName": "ScanCheckPlaylist",
+        "name": "Playlist",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": [],
+        "superclass": {
+          "jsName": "Playable",
+          "name": "Playable"
+        }
       }
     ],
     "unions": [
@@ -1076,6 +1257,6 @@
       }
     ]
   },
-  "filesScanned": 2,
-  "filesParsed": 2
+  "filesScanned": 3,
+  "filesParsed": 3
 }

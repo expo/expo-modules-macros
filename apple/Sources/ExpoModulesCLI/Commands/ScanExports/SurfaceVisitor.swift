@@ -29,6 +29,9 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// The `@ViewProps` structs, which `ExportedSurface.joiningViewProps(_:)` copies into the views once
   /// every file has been walked.
   private(set) var viewProps: [ViewPropsDeclaration] = []
+  /// The classes without a macro that the surface reports, which a shared object can inherit through
+  /// (see `ExportedSurface.mergingInheritedMembers(through:)`).
+  private(set) var plainClasses: [PlainClassDeclaration] = []
 
   init(file: String, tree: SourceFileSyntax) {
     self.file = file
@@ -124,9 +127,9 @@ final class SurfaceVisitor: SyntaxVisitor {
     return .visitChildren
   }
 
-  /// Routes a class or struct to the right collector based on which Expo macro it carries. A type
-  /// carrying none of them is ignored. The macros are mutually exclusive in practice, so the first
-  /// match wins.
+  /// Routes a class or struct to the right collector based on which Expo macro it carries. A class
+  /// carrying none of them is a plain class, which a shared object can inherit through, and a struct
+  /// carrying none is ignored. The macros are mutually exclusive in practice, so the first match wins.
   ///
   /// `name` is the declared name and `scope` the names of the types enclosing it. The reported `name`
   /// is qualified with the scope, while a default `jsName` is the declared name alone, as the macros
@@ -189,7 +192,7 @@ final class SurfaceVisitor: SyntaxVisitor {
           accessLevel: accessLevel,
           platforms: platforms,
           file: file,
-          superclass: sharedObjectSuperclass(of: node),
+          declaredSuperclass: declaredSuperclass(of: node),
           ownNativeRefType: declaredNativeRefType(in: members)
         )
       )
@@ -246,6 +249,19 @@ final class SurfaceVisitor: SyntaxVisitor {
           events: events,
           platforms: platforms,
           baseLookupName: extendedPropsType(of: attribute)
+        )
+      )
+      return
+    }
+
+    if node.is(ClassDeclSyntax.self) {
+      plainClasses.append(
+        PlainClassDeclaration(
+          name: qualified,
+          declaredSuperclass: declaredSuperclass(of: node),
+          sharedRef: sharedRefSuperclass(of: node),
+          ownNativeRefType: declaredNativeRefType(in: members),
+          platforms: platforms
         )
       )
     }
@@ -967,18 +983,18 @@ private func sharedRefSuperclass(of node: some DeclGroupSyntax) -> ExportedShare
   )
 }
 
-/// The superclass a `@SharedObject` class names, without generic arguments (`Outer.ImageRef`), or `nil`
-/// when it names none, `SharedObject`, or `SharedRef`. The first entry of the inheritance clause is read,
-/// since Swift requires the superclass to come first. It may also be a protocol, which then names no
-/// scanned shared object.
-private func sharedObjectSuperclass(of node: some DeclGroupSyntax) -> String? {
+/// The superclass a class names, without generic arguments (`Outer.ImageRef`), or `nil`
+/// when it names none, `SharedObject`, `SharedRef`, or `AnySharedObject`, the protocol of the shared
+/// objects. The first entry of the inheritance clause is read, since Swift requires the superclass to
+/// come first. It may also be another protocol, which then names no scanned shared object.
+private func declaredSuperclass(of node: some DeclGroupSyntax) -> String? {
   guard let type = node.inheritanceClause?.inheritedTypes.first?.type,
     let spelling = spellingWithoutGenericArguments(of: type)
   else {
     return nil
   }
   let name = spelling.split(separator: ".").last.map(String.init)
-  return name == "SharedObject" || name == "SharedRef" ? nil : spelling
+  return name == "SharedObject" || name == "SharedRef" || name == "AnySharedObject" ? nil : spelling
 }
 
 /// A simple or qualified type name as written, without backticks or generic arguments, or `nil` for any
