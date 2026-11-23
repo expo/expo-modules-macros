@@ -37,3 +37,25 @@ public enum ClassNamespace {
   @JSClass
   public final class Nested {}
 }
+
+// A root with a `@JS init` and an instance function that takes an instance of the class, so the expansion constructs
+// the class, guards the constructor against a subclass, unwraps `this` with `_native(from:)` and decodes an argument
+// of the class.
+@JSClass
+open class Counter {
+  @JS
+  public init(start: Double) {}
+
+  @JS
+  public func add(_ other: Counter) {}
+}
+
+// A `final` root constructs itself without the guard.
+@JSClass
+public final class FinalCounter {
+  @JS
+  public init(start: Double) {}
+
+  @JS
+  public func reset() {}
+}

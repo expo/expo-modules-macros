@@ -24,7 +24,13 @@ import SwiftSyntaxMacros
 /// `AnyJavaScriptClass` in the conformances of the member role only when no superclass conforms yet.
 ///
 /// Unlike a shared object, the native instance has no registry ID and no events, and core doesn't map
-/// it back to its JavaScript object. `@SharedObject` is the macro for a `SharedObject` subclass.
+/// it back to its JavaScript object. A `@JSClass` class can't be a shared object: the macro reports a
+/// class that inherits from one, with a fix-it that uses `@SharedObject`. In the compiler, it finds a
+/// superclass that is a shared object because the member role doesn't get `AnySharedObject` then.
+///
+/// JavaScript gets an instance only from the constructor, because the class isn't
+/// `JavaScriptEncodable`. So the macro warns about a `final` class that has instance `@JS` members
+/// but no `@JS init`.
 ///
 /// As an extension macro, it adds the `AnyJavaScriptClass` and `JavaScriptDecodable` conformances to a
 /// root, and an `@unchecked Sendable` conformance when the class isn't `Sendable` yet. A root isn't
@@ -51,16 +57,16 @@ public struct JSClassMacro: MemberMacro {
       idPrefix: "jsclass",
       in: context
     )
-    if inheritsFromAny(classDecl, names: sharedObjectBaseNames) {
-      context.diagnose(sharedObjectSuperclassDiagnostic(for: node))
+    if namesSharedObjectSuperclass(classDecl)
+      || !protocols.contains(where: { $0.trimmedDescription == "AnySharedObject" })
+    {
+      throw DiagnosticsError(diagnostics: [sharedObjectSuperclassDiagnostic(for: node)])
     }
 
     let typeName = classDecl.name.text
     let isRoot = isRootClass(classDecl, conformingTo: protocols)
-    // A subclass of another class with a JavaScript class gets the members of that class through the
-    // prototype chain. The JavaScript class of `SharedObject` and `SharedRef` doesn't bind accessors
-    // that a function of this class would call, as `@SharedObject` assumes too.
-    let mayInheritJSMembers = !isRoot && !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"])
+    // A subclass of another `@JSClass` class gets the members of that class through the prototype chain.
+    let mayInheritJSMembers = !isRoot
     // An instance binding recovers its receiver with `_native(from:)`, which reads the native state that
     // core attaches to the JavaScript object of the instance, and throws on a foreign object or a type
     // mismatch.
@@ -70,7 +76,8 @@ public struct JSClassMacro: MemberMacro {
       macroName: "@JSClass",
       instanceUnwrapStatement: "let _self = try \(typeName)._native(from: this.asObject(in: runtime))",
       mayInheritJSMembers: mayInheritJSMembers,
-      isRoot: isRoot
+      isRoot: isRoot,
+      instancesComeFromConstructor: true
     )
     return try expansion.members(in: context)
   }
@@ -98,7 +105,11 @@ extension JSClassMacro: ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
-    guard let classDecl = declaration.as(ClassDeclSyntax.self), !hasSharedObjectAttribute(classDecl) else {
+    // The member role reports a shared object. This role gets only the conformances of its own
+    // declaration, so it finds one only by the name of its superclass.
+    guard let classDecl = declaration.as(ClassDeclSyntax.self), !hasSharedObjectAttribute(classDecl),
+      !namesSharedObjectSuperclass(classDecl)
+    else {
       return []
     }
     var extensions: [ExtensionDeclSyntax] = []
@@ -107,7 +118,7 @@ extension JSClassMacro: ExtensionMacro {
     }
     // A superclass in the expanded files has a JavaScript class, so it got `@unchecked Sendable` from its
     // own macro, as the compiler would tell.
-    if !inheritsFromExpandedJSClass(classDecl),
+    if !superclass(of: classDecl, isIn: ExpandHints.current?.jsClassNames),
       let sendable = uncheckedSendableExtension(for: type, of: declaration, conformingTo: protocols)
     {
       extensions.append(sendable)
@@ -119,6 +130,13 @@ extension JSClassMacro: ExtensionMacro {
 /// The base classes and the protocol of the shared objects. A class that inherits one of them is a
 /// shared object, whose macro is `@SharedObject`.
 private let sharedObjectBaseNames: Set<String> = ["SharedObject", "SharedRef", "AnySharedObject"]
+
+/// Whether the clause names a shared object base, or a superclass that `expand` found as a shared
+/// object (see `ExpandHints`).
+private func namesSharedObjectSuperclass(_ classDecl: ClassDeclSyntax) -> Bool {
+  return inheritsFromAny(classDecl, names: sharedObjectBaseNames)
+    || superclass(of: classDecl, isIn: ExpandHints.current?.sharedObjectNames)
+}
 
 /// The conformances of a root class. Core implements `JavaScriptDecodable` for every
 /// `AnyJavaScriptClass`: it reads the native instance from the native state that it attaches to the
@@ -138,19 +156,14 @@ private func isRootClass(_ classDecl: ClassDeclSyntax, conformingTo protocols: [
   if inheritsProtocol(named: "AnyJavaScriptClass", in: classDecl) {
     return true
   }
-  return protocols.contains { $0.trimmedDescription == "AnyJavaScriptClass" } && !namesJSSuperclass(classDecl)
+  return protocols.contains { $0.trimmedDescription == "AnyJavaScriptClass" }
+    && !superclass(of: classDecl, isIn: ExpandHints.current?.jsClassNames)
 }
 
-/// Whether the superclass in the clause has a JavaScript class, by its name: a shared object base, or
-/// a class that `expand` found with a JavaScript class. The compiler doesn't need it, because it leaves
-/// the conformances of the superclass out of `protocols`.
-private func namesJSSuperclass(_ classDecl: ClassDeclSyntax) -> Bool {
-  return inheritsFromAny(classDecl, names: sharedObjectBaseNames) || inheritsFromExpandedJSClass(classDecl)
-}
-
-/// Whether `expand` found a JavaScript class for the superclass, the first type of the clause.
-private func inheritsFromExpandedJSClass(_ classDecl: ClassDeclSyntax) -> Bool {
-  guard let names = ExpandHints.jsClassNames,
+/// Whether the superclass, the first type of the clause, has one of `names`. `false` without names,
+/// which is the case in the compiler.
+private func superclass(of classDecl: ClassDeclSyntax, isIn names: Set<String>?) -> Bool {
+  guard let names,
     let superclass = classDecl.inheritanceClause?.inheritedTypes.first,
     let name = baseIdentifier(of: superclass.type)
   else {
@@ -168,7 +181,7 @@ private func rootConformanceExtension(
   of classDecl: ClassDeclSyntax,
   conformingTo protocols: [TypeSyntax]
 ) -> ExtensionDeclSyntax? {
-  guard !namesJSSuperclass(classDecl) else {
+  guard !superclass(of: classDecl, isIn: ExpandHints.current?.jsClassNames) else {
     return nil
   }
   let missing = rootConformances.filter { name in
@@ -182,9 +195,8 @@ private func rootConformanceExtension(
   return conformance.cast(ExtensionDeclSyntax.self)
 }
 
-/// The warning for `@JSClass` on a class whose clause names a shared object base. The class is a shared
-/// object, so the macro works, but `@SharedObject` checks the class as a shared object. The fix-it
-/// replaces the name of the attribute and keeps its arguments.
+/// The error for `@JSClass` on a shared object. The fix-it replaces the name of the attribute and keeps
+/// its arguments, so `@SharedObject` gives the class its JavaScript class.
 private func sharedObjectSuperclassDiagnostic(for node: AttributeSyntax) -> Diagnostic {
   let name = node.attributeName
   let fixIt = FixIt(
@@ -201,9 +213,9 @@ private func sharedObjectSuperclassDiagnostic(for node: AttributeSyntax) -> Diag
   return Diagnostic(
     node: node,
     message: JSClassDiagnosticMessage(
-      "This class inherits from a shared object, so use @SharedObject instead of @JSClass",
+      "A @JSClass class can't be a shared object, and this class inherits from one. Use @SharedObject instead of @JSClass",
       id: "jsclass-shared-object-superclass",
-      severity: .warning
+      severity: .error
     ),
     fixIts: [fixIt]
   )

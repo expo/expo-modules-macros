@@ -2,10 +2,10 @@ import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// Marker macro applied to module / shared-object members that should be exposed to JavaScript.
-/// `@ExpoModule` and `@SharedObject` discover declarations carrying this attribute and bind each one
-/// directly into the JS object, with the decode-call-encode body inlined into the binding; that part
-/// of the expansion lives in those macros.
+/// Marker macro applied to the members of a module, shared object or JavaScript class that should be
+/// exposed to JavaScript. `@ExpoModule`, `@SharedObject` and `@JSClass` discover declarations carrying
+/// this attribute and bind each one directly into the JS object, with the decode-call-encode body
+/// inlined into the binding; that part of the expansion lives in those macros.
 ///
 /// On its own, `@JS` emits one thing: a never-called peer that asserts each type crossing the JS
 /// boundary is convertible in the direction it travels — arguments are `JavaScriptDecodable`, return
@@ -64,8 +64,9 @@ public struct JSMacro: PeerMacro {
     diagnoseRuntimeParameter(of: node, on: declaration, in: context)
     diagnoseSymbolArgument(of: node, on: declaration, in: context)
 
-    // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
-    // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
+    // In an `@ExpoModule`, `@SharedObject` or `@JSClass` class, the class macro emits the assertion
+    // instead: it sees the type aliases declared in the class body, which this macro can't (see
+    // `TupleTypeAliases`).
     guard !isInBindingClass(context), let assertion = jsConformanceAssertion(for: declaration) else {
       return []
     }
@@ -81,9 +82,9 @@ private func jsConformanceAssertion(for declaration: some DeclSyntaxProtocol) ->
   return directionalConformanceAssertion(name: member.name, types: member.types, isStatic: member.isStatic)
 }
 
-/// The conformance assertion of a `@JS` member, for an `@ExpoModule` or `@SharedObject` class to fold
-/// into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when the member has
-/// no type to assert.
+/// The conformance assertion of a `@JS` member, for an `@ExpoModule`, `@SharedObject` or `@JSClass`
+/// class to fold into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when
+/// the member has no type to assert.
 internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtocol) -> MemberConformanceAssertion? {
   guard let member = boundaryMember(of: declaration) else {
     return nil

@@ -41,10 +41,37 @@ public struct JavaScriptUnownedValue: ~Copyable {
   public func copied(in runtime: JavaScriptRuntime) -> JavaScriptValue {
     return JavaScriptValue(number: number)
   }
+
+  /// The JavaScript `this` of a `@JS` instance member of a JavaScript class. The value is never an object.
+  public func asObject(in runtime: JavaScriptRuntime) throws -> JavaScriptObject {
+    throw DecodingError()
+  }
 }
 
-/// The arguments of a JavaScript call. The classes of `JSClasses.swift` have no `@JS init`, so it has no API.
-public struct JavaScriptValuesBuffer: ~Copyable {}
+/// The arguments of a JavaScript call, which the `@JS` members of `JSClasses.swift` read.
+public struct JavaScriptValuesBuffer: ~Copyable {
+  public let count: Int
+
+  public func unownedValue(at index: Int) -> JavaScriptUnownedValue {
+    return JavaScriptUnownedValue(number: nil)
+  }
+}
+
+extension JavaScriptRuntime {
+  public typealias VoidFunctionClosure =
+    @JavaScriptActor (
+      _ this: borrowing JavaScriptUnownedValue,
+      _ arguments: consuming JavaScriptValuesBuffer
+    ) throws -> Void
+
+  public typealias HostFunctionClosure =
+    @JavaScriptActor (
+      _ this: borrowing JavaScriptUnownedValue,
+      _ arguments: consuming JavaScriptValuesBuffer,
+      _ result: borrowing JavaScriptValue.Slot,
+      _ runtime: borrowing JavaScriptRuntime
+    ) throws -> Void
+}
 
 /// An owning JavaScript value that is `null` or a number.
 public final class JavaScriptValue {
@@ -53,6 +80,9 @@ public final class JavaScriptValue {
   public init(number: Double?) {
     self.number = number
   }
+
+  /// Where a host function writes its result.
+  public struct Slot: ~Copyable {}
 }
 
 // The free-form decoding of `JavaScriptCodable+Any.swift` in ExpoModulesJSI, for types that hold `Any`.
@@ -262,9 +292,20 @@ public macro ViewProps<Base: AnyViewProps>(extending base: Base.Type) =
 
 // MARK: - Shared objects
 
-/// The object that the decorator phases of a JavaScript class bind members on. The classes of
-/// `SharedObjects.swift` and `JSClasses.swift` have no `@JS` members, so it has no API.
-public struct JavaScriptObject: Sendable, ~Copyable {}
+/// The object that the decorator phases of a JavaScript class bind members on. Only the functions of
+/// `JSClasses.swift` bind members, so it binds only functions.
+public struct JavaScriptObject: Sendable, ~Copyable {
+  public func setProperty(_ name: String, function: sending @escaping JavaScriptRuntime.VoidFunctionClosure) {}
+
+  public func setProperty(_ name: String, function: sending @escaping JavaScriptRuntime.HostFunctionClosure) {}
+}
+
+/// The error that a binding throws for a wrong number of arguments.
+public enum Exceptions {
+  public struct ArgumentsRangeMismatch: Error {
+    public init(_ param: (functionName: String, received: Int, required: Int, maximum: Int)) {}
+  }
+}
 
 /// The protocol of the classes with a JavaScript class, with the hooks that core calls when it builds the class.
 /// `SharedObject` implements them, and the `@JSClass` expansion of a root class. The members of a root that core reads
@@ -290,8 +331,16 @@ public protocol AnyJavaScriptClass: AnyObject {
   ) throws -> (any AnyJavaScriptClass)?
 }
 
-// Core decodes every JavaScript class from the native state of its JavaScript object, so a root `@JSClass` class only
-// declares the conformances. This stand-in can't decode.
+// Core reads the native instance from the native state of its JavaScript object, for the receiver of an instance
+// binding and to decode an argument, so a root `@JSClass` class only declares the conformance. This stand-in can't read
+// it.
+extension AnyJavaScriptClass {
+  @JavaScriptActor
+  public static func _native(from object: borrowing JavaScriptObject) throws -> Self {
+    throw DecodingError()
+  }
+}
+
 extension JavaScriptDecodable where Self: AnyJavaScriptClass {
   @JavaScriptActor
   public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws
@@ -363,9 +412,25 @@ public macro SharedObject(_ name: String? = nil) =
 
 // MARK: - JavaScript classes
 
+/// The options of `@JS`, which the declaration takes.
+public enum JSOptions {
+  case concurrent
+  case withAsync(String)
+  case cached
+}
+
+@attached(peer, names: arbitrary)
+public macro JS(_ jsName: String? = nil, _ options: JSOptions...) =
+  #externalMacro(module: "ExpoModulesMacros", type: "JSMacro")
+
+@attached(peer, names: arbitrary)
+public macro JS(_ options: JSOptions...) =
+  #externalMacro(module: "ExpoModulesMacros", type: "JSMacro")
+
 @attached(
   member,
   conformances: AnyJavaScriptClass,
+  AnySharedObject,
   names: named(_jsName),
   named(_jsClassType),
   named(_jsSuperclassType),

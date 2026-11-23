@@ -60,7 +60,10 @@ struct ExpandTests {
   }
 
   @Test
-  func `Treats a @JSClass class whose superclass in the file has a JavaScript class as a subclass`() throws {
+  func
+    `Treats a @JSClass class whose superclass in the file has a JavaScript class as a subclass, and reports one below a shared object`()
+    throws
+  {
     let source = """
       @JSClass
       open class Shape {}
@@ -72,6 +75,14 @@ struct ExpandTests {
 
       @JSClass
       public final class Store: SharedObject {}
+
+      @SharedObject
+      open class SharedStore: SharedObject {}
+
+      open class PlainStore: SharedStore {}
+
+      @JSClass
+      public final class BelowStore: PlainStore {}
       """
     let result = expandMacros(source: source, file: "Shapes.swift", symbols: [])
     let expansion = try #require(result.expansions.only)
@@ -81,10 +92,12 @@ struct ExpandTests {
     // `Circle` inherits from `Shape` through `Plain`, which has no macro.
     #expect(expansion.source.contains("public override class var _jsName: String {\n    \"Circle\""))
     #expect(!expansion.source.contains("extension Circle"))
-    // `SharedObject` has a JavaScript class, but isn't `Sendable`.
-    #expect(expansion.source.contains("public override class var _jsName: String {\n    \"Store\""))
-    #expect(expansion.source.contains("extension Store: @unchecked Sendable {"))
-    #expect(!expansion.source.contains("extension Store: nonisolated"))
+    // A class below a shared object is reported, also through `PlainStore`, which has no macro, and gets
+    // nothing.
+    let reported = result.diagnostics.filter { $0.message.hasPrefix("A @JSClass class can't be a shared object") }
+    #expect(reported.map(\.line) == [9, 17])
+    #expect(!expansion.source.contains("extension Store"))
+    #expect(!expansion.source.contains("extension BelowStore"))
   }
 
   @Test

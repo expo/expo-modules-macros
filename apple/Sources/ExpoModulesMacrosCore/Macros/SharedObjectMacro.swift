@@ -75,7 +75,9 @@ public struct SharedObjectMacro: MemberMacro {
         "let _self = try SharedObject.native(from: this.asObject(in: runtime), as: \(typeName).self)",
       mayInheritJSMembers: !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"]),
       // A shared object always has a `SharedObject` superclass, which implements the hooks.
-      isRoot: false
+      isRoot: false,
+      // Core creates the JavaScript object of a shared object that native code returns.
+      instancesComeFromConstructor: false
     )
     return try expansion.members(in: context)
   }

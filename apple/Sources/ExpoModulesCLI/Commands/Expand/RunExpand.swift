@@ -127,9 +127,9 @@ func expandSources(
     }
   }
 
-  // `@JSClass` tells a subclass from a root by the classes of all the expanded files.
-  let names = jsClassNames(in: sources.map { Parser.parse(source: $0.source) })
-  let files = ExpandHints.$jsClassNames.withValue(names) {
+  // `@JSClass` reads the classes of all the expanded files.
+  let hints = expandHints(in: sources.map { Parser.parse(source: $0.source) })
+  let files = ExpandHints.$current.withValue(hints) {
     sources.map {
       (source: $0.source, contents: $0.contents, expanded: expander.expand($0.source, $0.file, options.symbols))
     }

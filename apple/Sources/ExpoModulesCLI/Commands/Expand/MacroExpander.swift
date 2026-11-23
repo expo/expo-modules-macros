@@ -25,35 +25,58 @@ import SwiftSyntaxMacros
 ///
 /// A symbol that the file doesn't declare is left out of the expansions.
 ///
-/// `@JSClass` reads `ExpandHints.jsClassNames` to tell a subclass from a root. The caller sets it for
-/// all the files that it expands; otherwise it comes from this file.
+/// `@JSClass` reads `ExpandHints.current` to tell a subclass from a root, and a shared object from a
+/// class that can have the macro. The caller sets it for all the files that it expands; otherwise it
+/// comes from this file.
 public func expandMacros(source: String, file: String, symbols: [String]) -> ExpandedFile {
   let tree = Parser.parse(source: source)
-  guard ExpandHints.jsClassNames != nil else {
-    return ExpandHints.$jsClassNames.withValue(jsClassNames(in: [tree])) {
+  guard ExpandHints.current != nil else {
+    return ExpandHints.$current.withValue(expandHints(in: [tree])) {
       expandMacros(tree: tree, file: file, symbols: symbols)
     }
   }
   return expandMacros(tree: tree, file: file, symbols: symbols)
 }
 
-/// The names of the classes in `trees` that have a JavaScript class, for `ExpandHints.jsClassNames`:
-/// the classes with `@JSClass` or `@SharedObject`, and the classes whose superclass is one of them or a
-/// shared object base, also through classes without a macro. The bases `SharedObject` and `SharedRef`
-/// aren't in the set: they aren't `Sendable`, so a direct subclass still gets `@unchecked Sendable`.
-/// Only the name of a class counts, so two classes with the same name in different scopes count as one.
-func jsClassNames(in trees: [SourceFileSyntax]) -> Set<String> {
+/// The `ExpandHints` of the classes in `trees`. Each set starts from the classes with a macro and adds
+/// the classes whose superclass is in the set, also through classes without a macro, until no class is
+/// added. Only the name of a class counts, so two classes with the same name in different scopes count
+/// as one.
+///
+/// - `jsClassNames` starts from the classes with `@JSClass` or `@SharedObject` and the shared object
+///   bases.
+/// - `sharedObjectNames` starts from the classes with `@SharedObject` and the shared object bases.
+///
+/// The bases `SharedObject` and `SharedRef` aren't in the sets: the macros check them by name.
+func expandHints(in trees: [SourceFileSyntax]) -> ExpandHints {
   let collector = ClassCollector(viewMode: .sourceAccurate)
   for tree in trees {
     collector.walk(tree)
   }
+  let classes = collector.classes
   let bases: Set<String> = ["SharedObject", "SharedRef"]
-  var names = bases.union(collector.classes.filter(\.hasJSClassMacro).map(\.name))
-  var remaining = collector.classes.filter { !names.contains($0.name) && $0.superclass != nil }
+  let jsClassMacros: Set<String> = ["JSClass", "SharedObject"]
+  return ExpandHints(
+    jsClassNames: names(
+      inheritingFrom: bases.union(classes.filter { !$0.macros.isDisjoint(with: jsClassMacros) }.map(\.name)),
+      in: classes
+    ).subtracting(bases),
+    sharedObjectNames: names(
+      inheritingFrom: bases.union(classes.filter { $0.macros.contains("SharedObject") }.map(\.name)),
+      in: classes
+    ).subtracting(bases)
+  )
+}
+
+/// `seeds` and the names of the classes that inherit from one of them, directly or through the other
+/// classes.
+private func names(inheritingFrom seeds: Set<String>, in classes: [ClassCollector.Class]) -> Set<String> {
+  var names = seeds
+  var remaining = classes.filter { !names.contains($0.name) && $0.superclass != nil }
   while true {
     let found = remaining.filter { names.contains($0.superclass ?? "") }
     guard !found.isEmpty else {
-      return names.subtracting(bases)
+      return names
     }
     names.formUnion(found.map(\.name))
     remaining.removeAll { names.contains($0.name) }
@@ -61,12 +84,12 @@ func jsClassNames(in trees: [SourceFileSyntax]) -> Set<String> {
 }
 
 /// The classes of a file, also nested ones, with the name of their superclass (the first type of the
-/// clause, which may be a protocol) and whether they have a macro that gives them a JavaScript class.
+/// clause, which may be a protocol) and the names of their attributes.
 private final class ClassCollector: SyntaxVisitor {
   struct Class {
     let name: String
     let superclass: String?
-    let hasJSClassMacro: Bool
+    let macros: Set<String>
   }
 
   private(set) var classes: [Class] = []
@@ -76,12 +99,7 @@ private final class ClassCollector: SyntaxVisitor {
       Class(
         name: node.name.text,
         superclass: node.inheritanceClause?.inheritedTypes.first.flatMap { superclassName(of: $0.type) },
-        hasJSClassMacro: node.attributes.contains { attribute in
-          guard let name = attribute.as(AttributeSyntax.self)?.attributeName.trimmedDescription else {
-            return false
-          }
-          return name == "JSClass" || name == "SharedObject"
-        }
+        macros: Set(node.attributes.compactMap { $0.as(AttributeSyntax.self)?.attributeName.trimmedDescription })
       )
     )
     return .visitChildren

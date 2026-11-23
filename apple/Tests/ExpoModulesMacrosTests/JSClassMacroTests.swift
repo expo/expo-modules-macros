@@ -7,8 +7,12 @@ import Testing
 
 /// The conformances that the compiler passes for a root class, which conforms to none of them yet.
 private let rootConformances: [TypeSyntax] = [
-  "AnyJavaScriptClass", "JavaScriptDecodable", "Sendable",
+  "AnyJavaScriptClass", "AnySharedObject", "JavaScriptDecodable", "Sendable",
 ]
+
+/// The conformances that the compiler passes for a subclass of a `@JSClass` class, which isn't a shared
+/// object.
+private let subclassConformances: [TypeSyntax] = ["AnySharedObject"]
 
 /// The macros of the tests, with `@JSClass` getting `conformances`. The compiler passes only the
 /// conformances that the class doesn't have yet, so a test of a subclass passes fewer.
@@ -17,6 +21,7 @@ private func macroSpecs(jsClassConformances conformances: [TypeSyntax]) -> [Stri
     "JS": MacroSpec(type: JSMacro.self),
     "JSClass": MacroSpec(type: JSClassMacro.self, conformances: conformances),
     "SharedObject": MacroSpec(type: SharedObjectMacro.self),
+    "Event": MacroSpec(type: EventMacro.self),
   ]
 }
 
@@ -178,7 +183,7 @@ struct JSClassMacroTests {
 
   @Test
   func `A subclass overrides the hooks, defines its functions first and has no constructor without a @JS init`() {
-    // The compiler passes no conformance: the superclass has them all.
+    // The compiler passes only `AnySharedObject`: the superclass has the other conformances.
     assertExpansion(
       """
       @JSClass
@@ -222,7 +227,17 @@ struct JSClassMacroTests {
           }
         }
         """,
-      conformances: []
+      conformances: subclassConformances,
+      diagnostics: [
+        // The class is `final`, and the constructor of `Shape` doesn't construct a subclass.
+        DiagnosticSpec(
+          message:
+            "'Circle' has instance @JS members but no @JS initializer, and JavaScript gets an instance of this class only from its constructor. Add a @JS init, or make the members static",
+          line: 2,
+          column: 20,
+          severity: .warning
+        )
+      ]
     )
   }
 
@@ -271,13 +286,13 @@ struct JSClassMacroTests {
           }
         }
         """,
-      conformances: []
+      conformances: subclassConformances
     )
   }
 
   @Test
   func `A class that names AnyJavaScriptClass is a root and gets only the conformances it doesn't name`() {
-    // The compiler leaves out `AnyJavaScriptClass`, which the clause names.
+    // The compiler leaves out `AnyJavaScriptClass`, which the clause names, and `Sendable`.
     assertExpansion(
       """
       @JSClass
@@ -316,13 +331,13 @@ struct JSClassMacroTests {
         extension Point: nonisolated JavaScriptDecodable {
         }
         """,
-      conformances: ["JavaScriptDecodable"]
+      conformances: ["AnySharedObject", "JavaScriptDecodable"]
     )
   }
 
   @Test
-  func `On a shared object, warns with a fix-it that uses @SharedObject and keeps the name`() {
-    // `SharedObject` has the root conformances, but isn't `Sendable`.
+  func `On a SharedObject subclass, reports an error with a fix-it that uses @SharedObject and keeps the name`() {
+    // `SharedObject` has the root conformances and `AnySharedObject`, but isn't `Sendable`.
     assertExpansion(
       """
       @JSClass("Store")
@@ -331,44 +346,53 @@ struct JSClassMacroTests {
       """,
       expandedSource: """
         public final class Storage: SharedObject {
-
-          public override class var _jsName: String {
-            "Store"
-          }
-
-          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
-            Storage.self
-          }
-
-          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
-            super._jsClassType
-          }
-
-          @JavaScriptActor
-          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-          }
-
-          @JavaScriptActor
-          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-          }
-        }
-
-        extension Storage: @unchecked Sendable {
         }
         """,
       conformances: ["Sendable"],
       diagnostics: [
         DiagnosticSpec(
-          message: "This class inherits from a shared object, so use @SharedObject instead of @JSClass",
+          message:
+            "A @JSClass class can't be a shared object, and this class inherits from one. Use @SharedObject instead of @JSClass",
           line: 1,
           column: 1,
-          severity: .warning,
           fixIts: [FixItSpec(message: "Use '@SharedObject'")]
         )
       ],
       fixedSource: """
         @SharedObject("Store")
         public final class Storage: SharedObject {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Reports a class below a shared object, which the compiler tells by leaving out AnySharedObject`() {
+    // `Store` has `@SharedObject`, so the class has every conformance already. Its clause doesn't name
+    // a shared object base.
+    assertExpansion(
+      """
+      @JSClass
+      public final class Cache: Store {
+      }
+      """,
+      expandedSource: """
+        public final class Cache: Store {
+        }
+        """,
+      conformances: [],
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JSClass class can't be a shared object, and this class inherits from one. Use @SharedObject instead of @JSClass",
+          line: 1,
+          column: 1,
+          fixIts: [FixItSpec(message: "Use '@SharedObject'")]
+        )
+      ],
+      fixedSource: """
+        @SharedObject
+        public final class Cache: Store {
         }
         """
     )
@@ -442,7 +466,7 @@ struct JSClassMacroTests {
           }
         }
         """,
-      conformances: [],
+      conformances: subclassConformances,
       diagnostics: [
         DiagnosticSpec(
           message:
@@ -480,7 +504,7 @@ struct JSClassMacroTests {
   }
 
   @Test
-  func `Reports a second @JS initializer with the name of the macro`() {
+  func `Reports a second @JS initializer on it, and binds the first without a guard in a final class`() {
     assertExpansion(
       """
       @JSClass
@@ -498,6 +522,34 @@ struct JSClassMacroTests {
           init() {}
           @JavaScriptActor
           init(x: Double) {}
+
+          nonisolated public class var _jsName: String {
+            "Point"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Point.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            guard arguments.count == 0 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Point", received: arguments.count, required: 0, maximum: 0))
+            }
+            return Point()
+          }
         }
 
         extension Point: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
@@ -510,10 +562,147 @@ struct JSClassMacroTests {
         DiagnosticSpec(
           message:
             "@JSClass classes can have at most one @JS initializer: JavaScript classes have a single constructor",
-          line: 1,
-          column: 1
+          line: 6,
+          column: 3
         )
       ]
+    )
+  }
+
+  @Test
+  func `Warns about a final class with instance @JS members but no @JS init`() {
+    assertExpansion(
+      """
+      @JSClass
+      public final class Timer {
+        @JS
+        func start() {}
+      }
+      """,
+      expandedSource: """
+        public final class Timer {
+          @JavaScriptActor
+          func start() {}
+
+          nonisolated public class var _jsName: String {
+            "Timer"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Timer.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("start") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try Timer._native(from: this.asObject(in: runtime))
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "start", received: arguments.count, required: 0, maximum: 0))
+              }
+              _self.start()
+            }
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            return nil
+          }
+        }
+
+        extension Timer: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Timer: @unchecked Sendable {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "'Timer' has instance @JS members but no @JS initializer, and JavaScript gets an instance of this class only from its constructor. Add a @JS init, or make the members static",
+          line: 2,
+          column: 20,
+          severity: .warning
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An @Event member asserts that the class is an EventEmitter, which a plain class isn't`() {
+    // The assertion fails to compile in a `@JSClass` class, so the build reports the event on its own
+    // declaration.
+    assertExpansion(
+      """
+      @JSClass
+      public final class Clock {
+        @JS
+        init() {}
+
+        @Event
+        var onTick: () -> Void
+      }
+      """,
+      expandedSource: """
+        public final class Clock {
+          @JavaScriptActor
+          init() {}
+          var onTick: () -> Void {
+            get {
+              { [weak self] in
+                self?.emit(event: "tick")
+              }
+            }
+          }
+
+          private func _assertTypesConformance_onTick() {
+            func onTick(_: (some EventEmitter).Type) {
+            }
+            onTick(Clock.self)
+          }
+
+          nonisolated public class var _jsName: String {
+            "Clock"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Clock.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            guard arguments.count == 0 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Clock", received: arguments.count, required: 0, maximum: 0))
+            }
+            return Clock()
+          }
+        }
+
+        extension Clock: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Clock: @unchecked Sendable {
+        }
+        """
     )
   }
 }

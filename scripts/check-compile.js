@@ -11,6 +11,9 @@
 // - builds the same files and `main.swift` as an executable and runs it, which checks the decoded and reset
 //   values, the views, and the JavaScript class chain of the shared objects and the JavaScript classes.
 //
+// It also type-checks `JSClassErrors.swift` once and expects an error on each line after an `expect-error`
+// comment.
+//
 // It runs on macOS. The macOS workflow runs it with the debug tool that `swift test` builds, during
 // the release build.
 //
@@ -182,13 +185,48 @@ function check(configuration, coreDirectory, directory) {
   console.log(`  ran main.swift: ${result.stdout.trim()}`);
 }
 
+// Type-checks `JSClassErrors.swift`, which must fail with an error on each line after an `// expect-error` line
+// and on no other line. The macro reports these errors from the conformances that the compiler passes, so only the
+// compiler can show them.
+function checkExpectedErrors(coreDirectory) {
+  const file = fixture('JSClassErrors.swift');
+  const expected = fs
+    .readFileSync(file, 'utf8')
+    .split('\n')
+    .flatMap((line, index) => (line.trim() === '// expect-error' ? [index + 2] : []));
+  const result = childProcess.spawnSync(
+    'swiftc',
+    ['-swift-version', '6', '-parse-as-library', '-typecheck', '-load-plugin-executable', plugin, '-I', coreDirectory, file],
+    { encoding: 'utf8' }
+  );
+  if (result.error) {
+    throw result.error;
+  }
+  const output = `${result.stdout}${result.stderr}`;
+  const reported = [
+    ...new Set([...output.matchAll(/JSClassErrors\.swift:(\d+):\d+: error:/g)].map((match) => Number(match[1]))),
+  ];
+  if (result.status === 0 || reported.join(',') !== expected.join(',')) {
+    throw new Error(
+      `JSClassErrors.swift reported errors on lines [${reported}], not [${expected}]:\n${output}`
+    );
+  }
+  console.log(`type-checked JSClassErrors.swift: errors on lines ${expected.join(', ')}, as expected`);
+}
+
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'check-compile-'));
 try {
   const coreDirectory = path.join(directory, 'core');
   fs.mkdirSync(coreDirectory);
   buildCore(coreDirectory);
-  // Each configuration runs, also after one fails, so that the output shows every failing one.
+  // Each check runs, also after one fails, so that the output shows every failing one.
   const failed = [];
+  try {
+    checkExpectedErrors(coreDirectory);
+  } catch (error) {
+    console.error(error.message);
+    failed.push('JSClassErrors.swift');
+  }
   for (const configuration of CONFIGURATIONS) {
     console.log(`${configuration.name}:`);
     const configurationDirectory = path.join(directory, configuration.name.replaceAll(' ', '-'));
