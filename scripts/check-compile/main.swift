@@ -272,6 +272,7 @@ func checkJSClasses() -> [String] {
   expect(DeclaredRoot._jsSuperclassType, nil, "DeclaredRoot._jsSuperclassType")
   expect(ClassNamespace.Nested._jsClassType, ClassNamespace.Nested.self, "ClassNamespace.Nested._jsClassType")
   expect(Counter._jsSuperclassType, nil, "Counter._jsSuperclassType")
+  expect(StepCounter._jsSuperclassType, Counter.self, "StepCounter._jsSuperclassType")
   expect(FinalCounter._jsClassType, FinalCounter.self, "FinalCounter._jsClassType")
 
   let leaf: any AnyJavaScriptClass.Type = ClassLeaf.self

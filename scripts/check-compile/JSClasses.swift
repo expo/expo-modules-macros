@@ -50,6 +50,16 @@ open class Counter {
   public func add(_ other: Counter) {}
 }
 
+// A subclass with its own `@JS init` overrides the constructor of `Counter`, without the guard, since the class is
+// `final`.
+@JSClass
+public final class StepCounter: Counter, @unchecked Sendable {
+  @JS
+  public init(step: Double) {
+    super.init(start: step)
+  }
+}
+
 // A `final` root constructs itself without the guard.
 @JSClass
 public final class FinalCounter {

@@ -26,9 +26,10 @@ internal struct JSClassExpansion {
   /// each function of this class then defines its name as a data property first.
   let mayInheritJSMembers: Bool
   /// True when no superclass conforms to `AnyJavaScriptClass`, so the class implements the hooks of
-  /// the protocol instead of overriding them, and has no JavaScript superclass. The hooks of a root are
-  /// `nonisolated`, so that core can read them off the main actor also when the module builds with
-  /// `-default-isolation MainActor`; the decorate phases and the constructor stay `@JavaScriptActor`.
+  /// the protocol instead of overriding them, and has no JavaScript superclass. The class properties of
+  /// a root (`_jsName`, `_jsClassType` and `_jsSuperclassType`) are `nonisolated`, so that core can read
+  /// them off the main actor also when the module builds with `-default-isolation MainActor`. The
+  /// decorate phases and the constructor stay `@JavaScriptActor`.
   let isRoot: Bool
   /// True when JavaScript gets an instance of the class only from its constructor, as for `@JSClass`,
   /// which isn't `JavaScriptEncodable`. A `final` class with instance `@JS` members and no `@JS init`

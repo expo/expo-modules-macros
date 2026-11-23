@@ -1,5 +1,5 @@
-// Uses a props type, a view, a shared object and a JavaScript class of the `Fixtures` module, which `check-compile.js` builds with library
-// evolution and gives to this module only as its `.swiftinterface`.
+// Uses a props type, a view, a shared object and a JavaScript class of the `Fixtures` module, which
+// `check-compile.js` builds with library evolution and gives to this module only as its `.swiftinterface`.
 
 import Core
 import Fixtures

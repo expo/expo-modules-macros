@@ -37,10 +37,10 @@ if (process.platform !== 'darwin') {
 
 const fixturesDirectory = path.join(__dirname, 'check-compile');
 
-// The module of `Props.swift`, `Views.swift`, `SharedObjects.swift` and `JSClasses.swift`. Its name differs from every type and member
-// name in the fixtures: a `.swiftinterface` of Swift 6.3 or older qualifies a type with the module name, so for a
-// module named `Props` the `Props` typealias of an `@ExpoView` view reads `Props.PublicProps`, where `Props` is the
-// typealias itself.
+// The module of `Props.swift`, `Views.swift`, `SharedObjects.swift` and `JSClasses.swift`. Its name differs from
+// every type and member name in the fixtures: a `.swiftinterface` of Swift 6.3 or older qualifies a type with the
+// module name, so for a module named `Props` the `Props` typealias of an `@ExpoView` view reads
+// `Props.PublicProps`, where `Props` is the typealias itself.
 const LIBRARY_MODULE = 'Fixtures';
 const plugin = `${path.resolve(binaryArgument)}#ExpoModulesMacros`;
 
@@ -186,8 +186,9 @@ function check(configuration, coreDirectory, directory) {
 }
 
 // Type-checks `JSClassErrors.swift`, which must fail with an error on each line after an `// expect-error` line
-// and on no other line. The macro reports these errors from the conformances that the compiler passes, so only the
-// compiler can show them.
+// and on no other line. An error in another file, such as the code that a macro generates, fails the check too.
+// The macro reports these errors from the conformances that the compiler passes, so only the compiler can show
+// them.
 function checkExpectedErrors(coreDirectory) {
   const file = fixture('JSClassErrors.swift');
   const expected = fs
@@ -196,19 +197,31 @@ function checkExpectedErrors(coreDirectory) {
     .flatMap((line, index) => (line.trim() === '// expect-error' ? [index + 2] : []));
   const result = childProcess.spawnSync(
     'swiftc',
-    ['-swift-version', '6', '-parse-as-library', '-typecheck', '-load-plugin-executable', plugin, '-I', coreDirectory, file],
+    [
+      '-swift-version',
+      '6',
+      '-parse-as-library',
+      '-typecheck',
+      '-load-plugin-executable',
+      plugin,
+      '-I',
+      coreDirectory,
+      file,
+    ],
     { encoding: 'utf8' }
   );
   if (result.error) {
     throw result.error;
   }
   const output = `${result.stdout}${result.stderr}`;
-  const reported = [
-    ...new Set([...output.matchAll(/JSClassErrors\.swift:(\d+):\d+: error:/g)].map((match) => Number(match[1]))),
-  ];
-  if (result.status === 0 || reported.join(',') !== expected.join(',')) {
+  // The location of each error, as `<file>:<line>:<column>: error:` at the start of a line.
+  const errors = [...output.matchAll(/^(.+?):(\d+):\d+: error:/gm)];
+  const reported = [...new Set(errors.filter((match) => match[1] === file).map((match) => Number(match[2])))];
+  const elsewhere = errors.filter((match) => match[1] !== file).map((match) => `${match[1]}:${match[2]}`);
+  if (result.status === 0 || elsewhere.length > 0 || reported.join(',') !== expected.join(',')) {
     throw new Error(
-      `JSClassErrors.swift reported errors on lines [${reported}], not [${expected}]:\n${output}`
+      `JSClassErrors.swift reported errors on lines [${reported}], not [${expected}], and in other files ` +
+        `[${elsewhere}]:\n${output}`
     );
   }
   console.log(`type-checked JSClassErrors.swift: errors on lines ${expected.join(', ')}, as expected`);

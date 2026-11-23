@@ -4,8 +4,8 @@
 // expo-modules-core. The view protocols keep the requirements and defaults of
 // `ios/Core/Views/v2/AnyNativeView.swift` and `AnyNativeSwiftUIView.swift` that the expansions and the views of
 // `Views.swift` use. `AnyJavaScriptClass` has the hooks that core requires, and `SharedObject` keeps the hooks of
-// `ios/Core/SharedObjects/SharedObject.swift` that the expansions of the classes in `SharedObjects.swift` override. `check-compile.js` builds this file as the `Core`
-// module, with library evolution.
+// `ios/Core/SharedObjects/SharedObject.swift` that the expansions of the classes in `SharedObjects.swift` override.
+// `check-compile.js` builds this file as the `Core` module, with library evolution.
 
 import SwiftUI
 
