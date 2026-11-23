@@ -2,7 +2,7 @@ import SwiftSyntax
 
 /// A `@JS init` collected for direct JSI binding. A shared-object type has at most one (JS classes
 /// have a single constructor). Instead of a `Constructor { … }` DSL entry, the macro synthesizes an
-/// override of `SharedObject._constructSharedObject(...)` that decodes the JS arguments and returns a
+/// override of `SharedObject._constructInstance(...)` that decodes the JS arguments and returns a
 /// fresh instance; unlike the method/property bindings it produces the native instance rather than
 /// recovering one. Like a function, it can take the JavaScript runtime as its last parameter.
 internal struct JSConstructor {
@@ -59,7 +59,9 @@ internal struct JSConstructor {
   }
 
   /// Builds an instance from the JS arguments. Overrides the base `SharedObject` class method; returns
-  /// the concrete instance, which promotes to the base `SharedObject?` return type.
+  /// the concrete instance, which converts to the `(any AnyJavaScriptClass)?` return type. The return
+  /// type can't be `Self?`, since a class that isn't `final` can't return an instance of itself as
+  /// `Self`.
   ///
   /// A subclass without a `@JS init` of its own inherits this override, and would construct an instance
   /// of this class instead of the subclass. Unless the class is `final`, the override returns `nil` when
@@ -76,7 +78,7 @@ internal struct JSConstructor {
       """
     return """
       @JavaScriptActor
-      \(raw: access) override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+      \(raw: access) override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
       \(raw: subclassGuard)\(raw: bodyStatements(typeName: typeName, indent: "  "))
       }
       """

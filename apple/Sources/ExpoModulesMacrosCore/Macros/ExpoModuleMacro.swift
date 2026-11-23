@@ -106,14 +106,15 @@ public struct ExpoModuleMacro: MemberMacro {
     // JS object name, so they can't diverge.
     emitted.append("public static let _jsName = \"\(raw: moduleName)\"")
 
-    // Shared object classes are registered by type: core builds each JavaScript class from the
-    // `@SharedObject` hooks, with the name from the class's `_jsName`. The element type makes the
-    // compiler reject a class that isn't a `SharedObject` subclass. Emitted only when the argument is
-    // present, so a module without classes gains nothing.
+    // JavaScript classes are registered by type: core builds each JavaScript class from the hooks of
+    // `AnyJavaScriptClass`, which `@SharedObject` implements, with the name from the class's `_jsName`.
+    // The element type makes the compiler reject a class that doesn't conform to `AnyJavaScriptClass`.
+    // Each entry is coerced on its own, for the same reason as the entries of `_viewTypes` below.
+    // Emitted only when the argument is present, so a module without classes gains nothing.
     let classTypes = classListArgument(of: node, label: "classes")
     if !classTypes.isEmpty {
-      let entries = classTypes.map { "\($0).self" }.joined(separator: ", ")
-      emitted.append("public static let _classTypes: [SharedObject.Type] = [\(raw: entries)]")
+      let entries = classTypes.map { "\($0).self as any AnyJavaScriptClass.Type" }.joined(separator: ", ")
+      emitted.append("public static let _classTypes: [any AnyJavaScriptClass.Type] = [\(raw: entries)]")
     }
 
     // View types are registered by type, not spliced as definitions: an `@ExpoView` emits no

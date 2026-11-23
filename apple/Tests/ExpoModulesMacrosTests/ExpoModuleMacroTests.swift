@@ -3655,7 +3655,7 @@ struct ExpoModuleMacroTests {
 
           public static let _jsName = "MyModule"
 
-          public static let _classTypes: [SharedObject.Type] = [Cache.self]
+          public static let _classTypes: [any AnyJavaScriptClass.Type] = [Cache.self as any AnyJavaScriptClass.Type]
 
           public static let _viewTypes: [any AnyNativeView.Type] = [CardView.self as any AnyNativeView.Type]
         }

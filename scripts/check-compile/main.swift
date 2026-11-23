@@ -232,7 +232,7 @@ func checkViews() -> [String] {
 // Checks the places of the shared objects of `SharedObjects.swift` in the JavaScript class chain.
 func checkSharedObjects() -> [String] {
   var failures: [String] = []
-  func expect(_ actual: (any AnySharedObject.Type)?, _ expected: (any AnySharedObject.Type)?, _ label: String) {
+  func expect(_ actual: (any AnyJavaScriptClass.Type)?, _ expected: (any AnyJavaScriptClass.Type)?, _ label: String) {
     if actual != expected {
       failures.append("\(label): \(String(describing: actual)) isn't \(String(describing: expected))")
     }

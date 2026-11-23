@@ -313,24 +313,24 @@ struct JSClosureArgumentTests {
             "Watcher"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Watcher.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Watcher", received: arguments.count, required: 1, maximum: 1))
             }
@@ -411,16 +411,16 @@ struct JSClosureArgumentTests {
             "Downloader"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Downloader.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("download") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Downloader.self)
               guard arguments.count == 1 else {
@@ -438,7 +438,7 @@ struct JSClosureArgumentTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """

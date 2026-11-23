@@ -54,20 +54,20 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -89,20 +89,20 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -139,20 +139,20 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -192,20 +192,20 @@ struct SharedObjectMacroTests {
               "Cache"
             }
 
-            public override class var _jsClassType: (any AnySharedObject.Type)? {
+            public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
               Cache.self
             }
 
-            public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
               super._jsClassType
             }
 
             @JavaScriptActor
-            public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
 
             @JavaScriptActor
-            public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
           }
         }
@@ -227,20 +227,20 @@ struct SharedObjectMacroTests {
             "MyCache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -275,16 +275,16 @@ struct SharedObjectMacroTests {
             "ImageRef"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             ImageRef.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("merge") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: ImageRef.self)
               guard arguments.count == 1 else {
@@ -297,11 +297,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "ImageRef", received: arguments.count, required: 1, maximum: 1))
             }
@@ -339,20 +339,20 @@ struct SharedObjectMacroTests {
             "Thumbnail"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Thumbnail.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -405,20 +405,20 @@ struct SharedObjectMacroTests {
             "Player"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Player.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -449,16 +449,16 @@ struct SharedObjectMacroTests {
             "ImageRef"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             ImageRef.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -469,11 +469,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard self == ImageRef.self else {
               return nil
             }
@@ -512,16 +512,16 @@ struct SharedObjectMacroTests {
             "Thumbnail"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Thumbnail.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -532,7 +532,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.defineProperty("clearCache", descriptor: .init(configurable: true, enumerable: true, writable: true))
             constructor.setProperty("clearCache") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 0 else {
@@ -561,20 +561,20 @@ struct SharedObjectMacroTests {
             "Box"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Box.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -599,20 +599,20 @@ struct SharedObjectMacroTests {
               "Thumbnail"
             }
 
-            public override class var _jsClassType: (any AnySharedObject.Type)? {
+            public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
               Thumbnail.self
             }
 
-            public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+            public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
               super._jsClassType
             }
 
             @JavaScriptActor
-            public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
 
             @JavaScriptActor
-            public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
           }
         }
@@ -644,16 +644,16 @@ struct SharedObjectMacroTests {
             "Shape"
           }
 
-          open override class var _jsClassType: (any AnySharedObject.Type)? {
+          open override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Shape.self
           }
 
-          open override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          open override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          open override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          open override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("area") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Shape.self)
               guard arguments.count == 0 else {
@@ -665,7 +665,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          open override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          open override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("unit") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "unit", received: arguments.count, required: 0, maximum: 0))
@@ -686,7 +686,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Sync method binds via _decorateSharedObject(prototype:), unwrapping the receiver from this`() {
+  func `Sync method binds via _decorateJSClass(prototype:), unwrapping the receiver from this`() {
     assertExpansion(
       """
       @SharedObject
@@ -704,16 +704,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
@@ -726,7 +726,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -752,16 +752,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("loadAsync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
@@ -775,7 +775,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -801,16 +801,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let ownerDescriptor = runtime.createObject()
             ownerDescriptor.setProperty("enumerable", value: true)
             ownerDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -825,7 +825,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           private func _assertTypesConformance() {
@@ -857,16 +857,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -877,7 +877,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -885,7 +885,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `@JS init binds a _constructSharedObject that builds the instance from JS arguments`() {
+  func `@JS init binds a _constructInstance that builds the instance from JS arguments`() {
     assertExpansion(
       """
       @SharedObject
@@ -903,24 +903,24 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -951,24 +951,24 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -1005,24 +1005,24 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -1063,16 +1063,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
@@ -1092,11 +1092,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -1109,7 +1109,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Static method binds via _decorateSharedObject(constructor:), calling the type and ignoring this`() {
+  func `Static method binds via _decorateJSClass(constructor:), calling the type and ignoring this`() {
     assertExpansion(
       """
       @SharedObject
@@ -1127,20 +1127,20 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("open") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "open", received: arguments.count, required: 1, maximum: 1))
@@ -1180,20 +1180,20 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("warmUp") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "warmUp", received: arguments.count, required: 1, maximum: 1))
@@ -1229,20 +1229,20 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sharedDescriptor = runtime.createObject()
             sharedDescriptor.setProperty("enumerable", value: true)
             sharedDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1282,16 +1282,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
@@ -1304,7 +1304,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "get", received: arguments.count, required: 1, maximum: 1))
@@ -1348,16 +1348,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1375,7 +1375,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1417,16 +1417,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("resize") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count >= 1 && arguments.count <= 2 else {
@@ -1446,7 +1446,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1472,16 +1472,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let nameDescriptor = runtime.createObject()
             nameDescriptor.setProperty("enumerable", value: true)
             nameDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1496,7 +1496,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1522,16 +1522,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.defineLazyProperty("size", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               return _self.size
@@ -1539,7 +1539,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1570,16 +1570,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.defineLazyProperty("size", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               return _self.size
@@ -1587,7 +1587,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.defineLazyProperty("limit", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               Cache.limit
             }
@@ -1616,16 +1616,16 @@ struct SharedObjectMacroTests {
             "Canvas"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Canvas.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.defineLazyProperty("origin", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> JavaScriptValue in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)
               return try JavaScriptValue.encoding(in: runtime) { slot in
@@ -1635,7 +1635,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1661,16 +1661,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
@@ -1681,7 +1681,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1707,24 +1707,24 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 0 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 0, maximum: 0))
             }
@@ -1754,24 +1754,24 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -1808,24 +1808,24 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _constructSharedObject(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> SharedObject? {
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
             guard arguments.count == 1 else {
               throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
             }
@@ -1862,16 +1862,16 @@ struct SharedObjectMacroTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("resolve") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count >= 0 && arguments.count <= 1 else {
@@ -1890,7 +1890,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           private func _assertTypesConformance() {
@@ -1922,16 +1922,16 @@ struct SharedObjectMacroTests {
             "Type"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             `Type`.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: `Type`.self)
               guard arguments.count == 0 else {
@@ -1942,7 +1942,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1971,16 +1971,16 @@ struct SharedObjectMacroTests {
             "Canvas"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Canvas.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1995,7 +1995,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -2018,7 +2018,7 @@ struct ExpoModuleClassesTests {
 
           public static let _jsName = "MyModule"
 
-          public static let _classTypes: [SharedObject.Type] = [Cache.self, UserSession.self]
+          public static let _classTypes: [any AnyJavaScriptClass.Type] = [Cache.self as any AnyJavaScriptClass.Type, UserSession.self as any AnyJavaScriptClass.Type]
         }
         """
     )
@@ -2043,16 +2043,16 @@ struct ExpoModuleClassesTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("fetch") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
@@ -2068,7 +2068,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -2097,16 +2097,16 @@ struct ExpoModuleClassesTests {
             "Document"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Document.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("readSync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Document.self)
               guard arguments.count == 1 else {
@@ -2134,7 +2134,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("exists") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "exists", received: arguments.count, required: 1, maximum: 1))
@@ -2180,7 +2180,7 @@ struct ExpoModuleClassesTests {
 
           public static let _jsName = "CustomName"
 
-          public static let _classTypes: [SharedObject.Type] = [Cache.self]
+          public static let _classTypes: [any AnyJavaScriptClass.Type] = [Cache.self as any AnyJavaScriptClass.Type]
 
           @JavaScriptActor
           public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
@@ -2242,20 +2242,20 @@ struct ExpoModuleClassesTests {
             "Player"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Player.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -2336,16 +2336,16 @@ struct ExpoModuleClassesTests {
             "Player"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Player.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Player.self)
               guard arguments.count == 0 else {
@@ -2356,7 +2356,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "constructor", received: arguments.count, required: 0, maximum: 0))
