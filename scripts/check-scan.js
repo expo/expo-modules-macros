@@ -32,13 +32,13 @@ const expectedExportsPath = path.join(__dirname, 'check-scan-exports.json');
 // subdirectory. `Types/Models.swift` has CRLF line endings, as a Windows checkout can have, and a
 // non-ASCII string, which the scanner must pass through stdout unchanged. `Types/LocalPlayable.swift`
 // has no macro, so the pre-filter skips it, but a shared object inherits through the class in it, so
-// the scanner must parse it too.
+// the scanner must parse it too. `Square` is a `@JSClass` subclass of the `@JSClass` root `Shape`.
 const EXPORTS_FIXTURE = {
   'PlayerModule.swift': {
     lineEnding: '\n',
     source: `import ExpoModulesCore
 
-@ExpoModule("ScanCheckPlayer", classes: [Player.self])
+@ExpoModule("ScanCheckPlayer", classes: [Player.self, Shape.self])
 public final class PlayerModule {
   @JS
   func greet(_ name: String, punctuation: String = "!") -> String {
@@ -103,6 +103,21 @@ open class Playable: SharedObject {
 public final class Playlist: LocalPlayable {
   @JS
   func next() {}
+}
+
+@JSClass
+open class Shape {
+  @JS
+  init(name: String) {}
+
+  @JS
+  func area() -> Double { 0 }
+}
+
+@JSClass("ScanCheckSquare")
+public final class Square: Shape {
+  @JS
+  func covers(_ other: Shape) -> Bool { false }
 }
 
 @ViewProps

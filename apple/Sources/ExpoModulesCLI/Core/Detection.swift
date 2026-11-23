@@ -5,6 +5,7 @@ enum DetectedMacro: String, Codable, CaseIterable {
   case js = "JS"
   case event = "Event"
   case sharedObject = "SharedObject"
+  case jsClass = "JSClass"
   case record = "Record"
   case union = "Union"
   case expoView = "ExpoView"
@@ -42,7 +43,8 @@ struct Detection: Codable, Equatable {
   let accessLevel: String
 
   /// The explicit JS name override when written as `@ExpoModule("Foo")` / `@JS("bar")` /
-  /// `@SharedObject("Baz")`, otherwise `nil` (the name defaults to `name` at expansion time).
+  /// `@SharedObject("Baz")` / `@JSClass("Baz")`, otherwise `nil` (the name defaults to `name` at
+  /// expansion time).
   let jsName: String?
 
   /// The generic argument of the attribute as written, which is the props type of `@ExpoView<CardProps>`,

@@ -618,6 +618,22 @@ struct ScanTests {
   }
 
   @Test
+  func `scanPackages reports @JSClass classes in classes, not as modules`() throws {
+    try withTree([
+      ("Shape.swift", "@JSClass(\"JSShape\")\npublic final class Shape {}"),
+      ("Module.swift", "@ExpoModule(classes: [Shape.self])\npublic final class ShapeModule: Module {}"),
+    ]) { result in
+      #expect(result.modules.map(\.name) == ["ShapeModule"])
+      #expect(result.sharedObjects.isEmpty)
+      #expect(result.classes.map(\.name) == ["Shape"])
+      #expect(result.classes.first?.jsName == "JSShape")
+      #expect(result.classes.first?.accessLevel == "public")
+      #expect(result.classes.first?.platforms == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
+      #expect(result.stats.filesParsed == 2)
+    }
+  }
+
+  @Test
   func `scanPackages reports @ExpoView classes in views`() throws {
     try withTree([
       ("CardView.swift", "@ExpoView<CardProps>\npublic final class CardView: ExpoNativeView {}"),

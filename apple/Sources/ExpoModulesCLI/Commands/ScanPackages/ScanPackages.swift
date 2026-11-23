@@ -35,7 +35,8 @@ public enum Scanner {
 }
 
 /// One class in the `scan-packages` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
-/// class in `sharedObjects`, or an `@ExpoView` class or struct in `views`. Trimmed to what `expo-modules-autolinking` needs to register the class:
+/// class in `sharedObjects`, a `@JSClass` class in `classes`, or an `@ExpoView` class or struct in
+/// `views`. Trimmed to what `expo-modules-autolinking` needs to register the class:
 /// the Swift class name, the JS name it registers under, the platforms that include it, and the file
 /// it's in. The richer fields the visitor captures (declaration kind, raw macro arguments,
 /// line/column) are dropped here, because this command doesn't need them (the macro is always on a
@@ -44,7 +45,7 @@ struct ScannedClass: Codable, Equatable {
   /// The Swift class name.
   let name: String
 
-  /// The fully-resolved JS name: the `@ExpoModule("Foo")`, `@SharedObject("Foo")` or
+  /// The fully-resolved JS name: the `@ExpoModule("Foo")`, `@SharedObject("Foo")`, `@JSClass("Foo")` or
   /// `@ExpoView<CardProps>("Foo")` override when present, otherwise the class name. Resolved here
   /// (rather than left `nil`) so it matches how the macro derives the name and the consumer never has
   /// to apply the fallback itself.
@@ -71,7 +72,7 @@ struct ScannedClass: Codable, Equatable {
 /// `ScannedClass`, so `expo-modules-autolinking` can verify it understands the output before
 /// trusting it (and fall back to config-declared modules when it doesn't). Version 2 added the
 /// per-module `platforms` list and made the module list platform-agnostic. A new field that older
-/// consumers can ignore, such as `sharedObjects` or `views`, doesn't change the version.
+/// consumers can ignore, such as `sharedObjects`, `classes` or `views`, doesn't change the version.
 let scanPackagesSchemaVersion = 2
 
 /// The `scan-packages` result: the detected modules plus the stats describing the run. Encoded as the
@@ -84,6 +85,9 @@ struct ScanPackagesResult: Codable, Equatable {
   /// The top-level `@SharedObject` classes, in the same order and with the same platform rules as
   /// `modules`.
   let sharedObjects: [ScannedClass]
+
+  /// The top-level `@JSClass` classes, in the same order and with the same platform rules as `modules`.
+  let classes: [ScannedClass]
 
   /// The top-level `@ExpoView` classes and SwiftUI view structs, in the same order and with the same platform
   /// rules as `modules`.
@@ -107,7 +111,8 @@ private let platformUniverse: [(condition: String, reported: String)] = [
   (condition: "visionOS", reported: "visionOS"),
 ]
 
-/// Scans the given paths for top-level `@ExpoModule`, `@SharedObject` and `@ExpoView` types and returns every one
+/// Scans the given paths for top-level `@ExpoModule`, `@SharedObject`, `@JSClass` and `@ExpoView` types and returns
+/// every one
 /// found in any
 /// `#if` branch (in file then source order), each with the platforms whose builds include it, plus
 /// the stats for the run — the `scan-packages` command. Kept separate from the public entry (and
@@ -120,11 +125,12 @@ private let platformUniverse: [(condition: String, reported: String)] = [
 func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesResult {
   var modules: [ScannedClass] = []
   var sharedObjects: [ScannedClass] = []
+  var classes: [ScannedClass] = []
   var views: [ScannedClass] = []
   var warnings: [ScanWarning] = []
   var seenWarnings = Set<ScanWarning>()
 
-  let macros: Set<DetectedMacro> = [.expoModule, .sharedObject, .expoView]
+  let macros: Set<DetectedMacro> = [.expoModule, .sharedObject, .jsClass, .expoView]
   let stats = scanFiles(paths: paths, macros: macros) { source, file in
     let tree = Parser.parse(source: source)
 
@@ -154,11 +160,11 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
       }
     }
 
-    // `@ExpoModule` and `@SharedObject` reject anything but a class, and `@ExpoView` anything but a class or a
-    // SwiftUI view struct, so other declarations are never registered.
+    // `@ExpoModule`, `@SharedObject` and `@JSClass` reject anything but a class, and `@ExpoView` anything but a class
+    // or a SwiftUI view struct, so other declarations are never registered.
     for detection in allModules.detections where isRegistrable(detection) {
       // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")`,
-      // `@SharedObject("Foo")` or `@ExpoView<CardProps>("Foo")` override, else the class name.
+      // `@SharedObject("Foo")`, `@JSClass("Foo")` or `@ExpoView<CardProps>("Foo")` override, else the class name.
       let scanned = ScannedClass(
         name: detection.name,
         jsName: detection.jsName ?? detection.name,
@@ -169,6 +175,8 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
       switch detection.macro {
       case .sharedObject:
         sharedObjects.append(scanned)
+      case .jsClass:
+        classes.append(scanned)
       case .expoView:
         views.append(scanned)
       default:
@@ -181,6 +189,7 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
     schemaVersion: scanPackagesSchemaVersion,
     modules: modules,
     sharedObjects: sharedObjects,
+    classes: classes,
     views: views,
     warnings: warnings,
     stats: stats

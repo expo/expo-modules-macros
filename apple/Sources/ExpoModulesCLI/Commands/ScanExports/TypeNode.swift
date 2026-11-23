@@ -32,6 +32,7 @@ enum JSType: String, Encodable {
 enum RefKind: String, Encodable {
   case record
   case sharedObject
+  case `class`
   case `enum`
   case union
 }

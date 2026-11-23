@@ -235,8 +235,8 @@ function runScanner<T>(binaryPath: string, args: string[], timeout = 0): Promise
 }
 
 /**
- * Fast scan for top-level `@ExpoModule`, `@SharedObject` and `@ExpoView` classes, for autolinking. Each path is a `.swift` file or a
- * directory, scanned recursively.
+ * Fast scan for top-level `@ExpoModule`, `@SharedObject`, `@JSClass` and `@ExpoView` classes, for autolinking. Each
+ * path is a `.swift` file or a directory, scanned recursively.
  *
  * Conditions the scan can't answer statically come back in `warnings` rather than throwing, so the
  * caller can surface them alongside its own diagnostics.

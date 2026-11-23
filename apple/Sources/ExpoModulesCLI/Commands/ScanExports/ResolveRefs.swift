@@ -31,7 +31,7 @@ struct RefIndex {
     let kind: RefKind
     /// The JS category a ref to the declaration crosses as.
     let jsType: JSType
-    /// A `@SharedObject`'s JS name, `nil` for every other kind.
+    /// The JS name of a `@SharedObject` or `@JSClass` class, `nil` for every other kind.
     var jsName: String? = nil
   }
 
@@ -49,6 +49,9 @@ struct RefIndex {
         jsType: .object,
         jsName: sharedObject.jsName
       )
+    }
+    for jsClass in surface.classes {
+      entries[jsClass.name] = Entry(name: jsClass.name, kind: .class, jsType: .object, jsName: jsClass.jsName)
     }
     for union in surface.unions {
       // A union crosses as whichever alternative matched, so its category is only meaningful per
@@ -189,7 +192,7 @@ extension ExportedSurface {
         resolved.events = module.events.map { $0.resolvingRefs(using: index, in: module.name) }
         resolved.classes = module.classes.map { exportedClass in
           guard let entry = index.lookup(exportedClass.name, in: module.name),
-            entry.kind == .sharedObject
+            entry.kind == .sharedObject || entry.kind == .class
           else {
             return exportedClass
           }
@@ -197,18 +200,8 @@ extension ExportedSurface {
         }
         return resolved
       },
-      sharedObjects: sharedObjects.map { sharedObject in
-        var resolved = sharedObject
-        if let initializer = sharedObject.initializer {
-          resolved.initializer?.parameters = initializer.parameters.map {
-            $0.resolvingRefs(using: index, in: sharedObject.name)
-          }
-        }
-        resolved.functions = sharedObject.functions.map { $0.resolvingRefs(using: index, in: sharedObject.name) }
-        resolved.properties = sharedObject.properties.map { $0.resolvingRefs(using: index, in: sharedObject.name) }
-        resolved.events = sharedObject.events.map { $0.resolvingRefs(using: index, in: sharedObject.name) }
-        return resolved
-      },
+      sharedObjects: sharedObjects.map { $0.resolvingRefs(using: index) },
+      classes: classes.map { $0.resolvingRefs(using: index) },
       records: records.map { record in
         var resolved = record
         resolved.properties = record.properties.map { property in
@@ -268,6 +261,7 @@ extension ExportedSurface {
     return ExportedSurface(
       modules: modules,
       sharedObjects: sharedObjects,
+      classes: classes,
       records: records,
       enums: enums,
       unions: unions,
@@ -381,6 +375,20 @@ extension ExportedEvent {
   fileprivate func resolvingRefs(using index: RefIndex, in scope: String) -> ExportedEvent {
     var resolved = self
     resolved.payload = payload?.resolvingRefs(using: index, in: scope)
+    return resolved
+  }
+}
+
+extension ExportedJSClass {
+  /// This class with the refs of its constructor and members resolved from the class itself.
+  fileprivate func resolvingRefs(using index: RefIndex) -> ExportedJSClass {
+    var resolved = self
+    if let initializer {
+      resolved.initializer?.parameters = initializer.parameters.map { $0.resolvingRefs(using: index, in: name) }
+    }
+    resolved.functions = functions.map { $0.resolvingRefs(using: index, in: name) }
+    resolved.properties = properties.map { $0.resolvingRefs(using: index, in: name) }
+    resolved.events = events.map { $0.resolvingRefs(using: index, in: name) }
     return resolved
   }
 }

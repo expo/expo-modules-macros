@@ -1,5 +1,5 @@
 /// The deep-scan surface: the full JS-exported shape of every `@ExpoModule`, `@SharedObject`,
-/// `@Record`, `@Union`, and `@ExpoView` type and every `Enumerable` enum, with the per-member detail a
+/// `@JSClass`, `@Record`, `@Union`, and `@ExpoView` type and every `Enumerable` enum, with the per-member detail a
 /// TypeScript type generator needs. Read syntactically (like the macros): each boundary type becomes a
 /// structured `TypeNode` tree so the consumer walks a tagged tree rather than re-parsing Swift type
 /// syntax.
@@ -98,8 +98,8 @@ struct ExportedFunction: Encodable, Equatable {
 
   var platforms: [ExportedPlatform]
 
-  /// The `name` of the `@SharedObject` superclass that declares the member, or `nil` for a member of the
-  /// type itself. Set on the members that a shared object inherits (see
+  /// The `name` of the `@SharedObject` or `@JSClass` superclass that declares the member, or `nil` for a
+  /// member of the type itself. Set on the members that a class inherits (see
   /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var inheritedFrom: String? = nil
 
@@ -161,8 +161,8 @@ struct ExportedProperty: Encodable, Equatable {
 
   var platforms: [ExportedPlatform]
 
-  /// The `name` of the `@SharedObject` superclass that declares the member, or `nil` for a member of the
-  /// type itself. Set on the members that a shared object inherits (see
+  /// The `name` of the `@SharedObject` or `@JSClass` superclass that declares the member, or `nil` for a
+  /// member of the type itself. Set on the members that a class inherits (see
   /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var inheritedFrom: String? = nil
 
@@ -253,8 +253,8 @@ struct ExportedEvent: Encodable, Equatable {
 
   var platforms: [ExportedPlatform]
 
-  /// The `name` of the `@SharedObject` superclass that declares the event, or `nil` for an event of the
-  /// type itself. Set on the events that a shared object inherits (see
+  /// The `name` of the `@SharedObject` or `@JSClass` superclass that declares the event, or `nil` for an
+  /// event of the type itself. Set on the events that a class inherits (see
   /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var inheritedFrom: String? = nil
 
@@ -302,18 +302,18 @@ struct ExportedModule: Encodable, Equatable {
 
 /// One entry of `@ExpoModule(classes: [...])`.
 struct ExportedClass: Encodable, Equatable {
-  /// The `name` of the matching `@SharedObject`, which is qualified when the class is nested
-  /// (`Outer.Statement`). The Swift name as spelled in the argument when the scan found no
-  /// `@SharedObject` with this name.
+  /// The `name` of the matching `@SharedObject` or `@JSClass` class, which is qualified when the class is
+  /// nested (`Outer.Statement`). The Swift name as spelled in the argument when the scan found no such
+  /// class with this name.
   let name: String
 
-  /// The name of the module member JS reads the class from: the matching `@SharedObject`'s `jsName`.
-  /// `nil` when the scan found no `@SharedObject` with this name, for example a class defined
-  /// outside the scanned paths.
+  /// The name of the module member JS reads the class from: the `jsName` of the matching class. `nil`
+  /// when the scan found no `@SharedObject` or `@JSClass` class with this name, for example a class
+  /// defined outside the scanned paths.
   let jsName: String?
 }
 
-/// The `@JS init` of a shared object: the constructor JS calls with `new`.
+/// The `@JS init` of a `@SharedObject` or `@JSClass` class: the constructor JS calls with `new`.
 struct ExportedInitializer: Encodable, Equatable {
   var parameters: [ExportedParameter]
 
@@ -323,29 +323,31 @@ struct ExportedInitializer: Encodable, Equatable {
   let platforms: [ExportedPlatform]
 }
 
-/// A `@SharedObject` type: a JS class with an optional `@JS init` constructor plus its `@JS` members.
-struct ExportedSharedObject: Encodable, Equatable {
+/// A `@SharedObject` or `@JSClass` type: a JS class with an optional `@JS init` constructor plus its `@JS`
+/// members. Both macros give a class the same surface, so the two arrays of the surface hold this type.
+struct ExportedJSClass: Encodable, Equatable {
   /// The Swift class name, qualified with the types it is nested in (`Outer.Player`).
   let name: String
 
-  /// The JS class name: `@SharedObject("Foo")` override, else the class name without the enclosing
-  /// types.
+  /// The JS class name: the `@SharedObject("Foo")` or `@JSClass("Foo")` override, else the class name
+  /// without the enclosing types.
   let jsName: String
 
-  /// The `@JS init`, or `nil` when there's none. A shared object has at most one; the first is kept
+  /// The `@JS init`, or `nil` when there's none. A class has at most one; the first is kept
   /// if a malformed source has more. Not named `constructor`, which every JS object inherits.
   var initializer: ExportedInitializer?
 
   /// What the class inherits from `SharedRef<T>`, directly or through its scanned superclasses, or
-  /// `nil` when it doesn't inherit `SharedRef`.
+  /// `nil` when it doesn't inherit `SharedRef`. Only a shared object inherits it.
   var sharedRef: ExportedSharedRef?
 
-  /// The nearest superclass with `@SharedObject`, whose JavaScript class core makes the parent of this
-  /// one, or `nil` when the class has none and its JavaScript parent is the base class (see
+  /// The nearest superclass with `@SharedObject` or `@JSClass`, whose JavaScript class core makes the
+  /// parent of this one, or `nil` when the class has none: the JavaScript parent of a shared object is
+  /// then the base class, and a `@JSClass` class has no JavaScript parent (see
   /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var superclass: ExportedSuperclass? = nil
 
-  /// The members that the class inherits from its `@SharedObject` superclasses, which have
+  /// The members that the class inherits from its `@SharedObject` and `@JSClass` superclasses, which have
   /// `inheritedFrom`, followed by its own `@JS` members (see
   /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var functions: [ExportedFunction]
@@ -360,8 +362,8 @@ struct ExportedSharedObject: Encodable, Equatable {
   let file: String
 
   /// The superclass as written, without generic arguments, or `nil` when there is none or it is
-  /// `SharedObject`, `SharedRef` or `AnySharedObject`. Not encoded: `superclass` reports what it
-  /// resolves to.
+  /// `SharedObject`, `SharedRef`, `AnySharedObject` or `AnyJavaScriptClass`. Not encoded: `superclass`
+  /// reports what it resolves to.
   var declaredSuperclass: String? = nil
 
   /// The value of the class's own `nativeRefType` override (see `ExportedSharedRef.nativeRefType`), or
@@ -374,7 +376,7 @@ struct ExportedSharedObject: Encodable, Equatable {
   }
 }
 
-/// The superclass of a shared object, the nearest one with `@SharedObject`.
+/// The superclass of a `@SharedObject` or `@JSClass` class, the nearest one with either macro.
 struct ExportedSuperclass: Encodable, Equatable {
   /// The `name` of the superclass, which is qualified when the class is nested (`Media.Player`). The
   /// name as written when the scan found no class with this name, for example a class in another
@@ -666,7 +668,9 @@ struct ViewPropsDeclaration: Equatable {
 /// self-contained object separate from `stats`.
 struct ExportedSurface: Encodable, Equatable {
   let modules: [ExportedModule]
-  let sharedObjects: [ExportedSharedObject]
+  let sharedObjects: [ExportedJSClass]
+  /// The `@JSClass` classes.
+  let classes: [ExportedJSClass]
   let records: [ExportedRecord]
   let enums: [ExportedEnum]
   let unions: [ExportedUnion]
@@ -692,9 +696,10 @@ enum ExportedEventDispatch: String, Encodable, Equatable {
 /// `sharedRef` type kind and the `sharedRef` of a shared object; version 10 adds the `tuple` and `object` type kinds (named after a tuple alias)
 /// and resolves the tuple type aliases declared in `@ExpoModule` and `@SharedObject` classes; version 11
 /// replaces the `sync` flag of an event with `dispatch`; version 12 adds the `symbol` of a function or
-/// property bound with `@JS(symbol: ...)`, which then has no `jsName`. A new field that older consumers
-/// can ignore, such as `views`, doesn't change the version.
-let scanExportsSchemaVersion = 12
+/// property bound with `@JS(symbol: ...)`, which then has no `jsName`; version 13 adds the `@JSClass`
+/// classes in `classes` and the `class` ref kind. A new field that older consumers can ignore, such as
+/// `views`, doesn't change the version.
+let scanExportsSchemaVersion = 13
 
 /// The `scan-exports` result: the surface plus the run's stats. A distinct envelope from
 /// `ScanPackagesResult` (different consumer: TS generation vs. autolinking).

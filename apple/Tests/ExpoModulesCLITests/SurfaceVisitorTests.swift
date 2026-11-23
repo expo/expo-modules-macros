@@ -506,6 +506,47 @@ struct SharedObjectSurfaceTests {
   }
 }
 
+@Suite("Exports surface: JavaScript classes")
+struct JSClassSurfaceTests {
+  @Test
+  func `Reports a @JSClass class in classes, and a class with both macros as a shared object`() throws {
+    let visitor = surface(
+      """
+      @JSClass("Point2D")
+      public final class Point {
+        @JS
+        init(x: Double, y: Double) {}
+
+        @JS
+        func length() -> Double { 0 }
+
+        @JS
+        static var origin: Point { Point(x: 0, y: 0) }
+      }
+
+      @JSClass
+      @SharedObject
+      final class Both: SharedObject {}
+
+      @JSClass
+      struct NotAClass {}
+      """
+    )
+
+    #expect(visitor.classes.map(\.name) == ["Point"])
+    let point = try #require(visitor.classes.first)
+    #expect(point.jsName == "Point2D")
+    #expect(point.accessLevel == "public")
+    #expect(point.initializer?.parameters.map(\.name) == ["x", "y"])
+    #expect(point.functions.map(\.jsName) == ["length"])
+    #expect(point.properties.map(\.name) == ["origin"])
+    #expect(point.properties.first?.isStatic == true)
+    #expect(point.sharedRef == nil)
+    // `@SharedObject` reports a class with both macros, as the macros do.
+    #expect(visitor.sharedObjects.map(\.name) == ["Both"])
+  }
+}
+
 @Suite("Exports surface: records")
 struct RecordSurfaceTests {
   @Test
@@ -2421,6 +2462,26 @@ struct RefResolutionTests {
       ]
     )
   }
+
+  @Test
+  func `A ref to a @JSClass class has the class kind, and a module class takes its JS name`() throws {
+    let surface = try resolvedSurface(
+      """
+      @JSClass("JSShape")
+      final class Shape {}
+
+      @ExpoModule(classes: [Shape.self])
+      final class M {
+        @JS
+        func area(of shape: Shape) -> Double { 0 }
+      }
+      """
+    )
+
+    #expect(surface.modules.first?.classes == [ExportedClass(name: "Shape", jsName: "JSShape")])
+    let parameter = try #require(surface.modules.first?.functions.first?.parameters.first)
+    #expect(parameter.type == .ref(name: "Shape", refKind: .class))
+  }
 }
 
 @Suite("Inherited shared object members")
@@ -2445,7 +2506,7 @@ struct InheritedSharedObjectMembersTests {
     return scanExports(paths: [root.path])
   }
 
-  private func sharedObject(_ name: String, in surface: ExportedSurface) throws -> ExportedSharedObject {
+  private func sharedObject(_ name: String, in surface: ExportedSurface) throws -> ExportedJSClass {
     return try #require(surface.sharedObjects.first { $0.name == name })
   }
 
@@ -2968,6 +3029,61 @@ struct InheritedSharedObjectMembersTests {
     let b = try sharedObject("B", in: surface)
     #expect(b.functions.map(\.jsName) == ["a", "b"])
     #expect(b.superclass == ExportedSuperclass(name: "A", jsName: "A"))
+  }
+
+  @Test
+  func `A @JSClass chain resolves like a shared object chain, also onto a shared object`() throws {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      @JSClass
+      open class Shape {
+        @JS
+        func area() -> Double { 0 }
+      }
+
+      open class Polygon: Shape {}
+
+      @JSClass("JSSquare")
+      final class Square: Polygon {
+        @JS
+        func side() -> Double { 1 }
+      }
+
+      @JSClass
+      final class Declared: AnyJavaScriptClass {}
+
+      @JSClass
+      final class OnObject: NSObject {}
+
+      @SharedObject
+      class Store: SharedObject {
+        @JS
+        func load() {}
+      }
+
+      @JSClass
+      final class Cache: Store {}
+      """
+    ])
+
+    func jsClass(_ name: String) throws -> ExportedJSClass {
+      return try #require(surface.classes.first { $0.name == name })
+    }
+    // A root has no superclass, also when it names the protocol.
+    #expect(try jsClass("Shape").superclass == nil)
+    #expect(try jsClass("Declared").superclass == nil)
+    // The chain goes on through `Polygon`, which has no macro.
+    let square = try jsClass("Square")
+    #expect(square.superclass == ExportedSuperclass(name: "Shape", jsName: "Shape"))
+    #expect(square.functions.map(\.jsName) == ["area", "side"])
+    #expect(square.functions.map(\.inheritedFrom) == ["Shape", nil])
+    // The scan can't tell a class in another package from a protocol, as for a shared object.
+    #expect(try jsClass("OnObject").superclass == ExportedSuperclass(name: "NSObject", jsName: nil))
+    // A `@JSClass` class can extend a shared object.
+    let cache = try jsClass("Cache")
+    #expect(cache.superclass == ExportedSuperclass(name: "Store", jsName: "Store"))
+    #expect(cache.functions.map(\.inheritedFrom) == ["Store"])
+    #expect(surface.sharedObjects.map(\.name) == ["Store"])
   }
 
   @Test

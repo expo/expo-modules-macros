@@ -1,5 +1,199 @@
 {
   "exports": {
+    "classes": [
+      {
+        "accessLevel": "open",
+        "events": [],
+        "file": "PlayerModule.swift",
+        "functions": [
+          {
+            "async": false,
+            "jsName": "area",
+            "name": "area",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "kind": "primitive",
+              "name": "Double",
+              "typeof": "number"
+            },
+            "static": false,
+            "throws": false
+          }
+        ],
+        "initializer": {
+          "parameters": [
+            {
+              "label": "name",
+              "name": "name",
+              "optional": false,
+              "type": {
+                "kind": "primitive",
+                "name": "String",
+                "typeof": "string"
+              }
+            }
+          ],
+          "platforms": [
+            {
+              "name": "iOS"
+            },
+            {
+              "name": "macOS"
+            },
+            {
+              "name": "tvOS"
+            },
+            {
+              "name": "watchOS"
+            },
+            {
+              "name": "visionOS"
+            }
+          ]
+        },
+        "jsName": "Shape",
+        "name": "Shape",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": []
+      },
+      {
+        "accessLevel": "public",
+        "events": [],
+        "file": "PlayerModule.swift",
+        "functions": [
+          {
+            "async": false,
+            "inheritedFrom": "Shape",
+            "jsName": "area",
+            "name": "area",
+            "parameters": [],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "kind": "primitive",
+              "name": "Double",
+              "typeof": "number"
+            },
+            "static": false,
+            "throws": false
+          },
+          {
+            "async": false,
+            "jsName": "covers",
+            "name": "covers",
+            "parameters": [
+              {
+                "label": "_",
+                "name": "other",
+                "optional": false,
+                "type": {
+                  "kind": "ref",
+                  "name": "Shape",
+                  "refKind": "class",
+                  "typeof": "object"
+                }
+              }
+            ],
+            "platforms": [
+              {
+                "name": "iOS"
+              },
+              {
+                "name": "macOS"
+              },
+              {
+                "name": "tvOS"
+              },
+              {
+                "name": "watchOS"
+              },
+              {
+                "name": "visionOS"
+              }
+            ],
+            "returns": {
+              "kind": "primitive",
+              "name": "Bool",
+              "typeof": "boolean"
+            },
+            "static": false,
+            "throws": false
+          }
+        ],
+        "jsName": "ScanCheckSquare",
+        "name": "Square",
+        "platforms": [
+          {
+            "name": "iOS"
+          },
+          {
+            "name": "macOS"
+          },
+          {
+            "name": "tvOS"
+          },
+          {
+            "name": "watchOS"
+          },
+          {
+            "name": "visionOS"
+          }
+        ],
+        "properties": [],
+        "superclass": {
+          "jsName": "Shape",
+          "name": "Shape"
+        }
+      }
+    ],
     "enums": [
       {
         "cases": [
@@ -160,6 +354,10 @@
           {
             "jsName": "Player",
             "name": "Player"
+          },
+          {
+            "jsName": "Shape",
+            "name": "Shape"
           }
         ],
         "events": [

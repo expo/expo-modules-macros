@@ -26,23 +26,24 @@ extension Scanner {
   }
 }
 
-/// Scans `paths` for `@ExpoModule`, `@SharedObject`, `@Record`, `@Union`, `@ExpoView`, and
+/// Scans `paths` for `@ExpoModule`, `@SharedObject`, `@JSClass`, `@Record`, `@Union`, `@ExpoView`, and
 /// `@ViewProps` types plus `Enumerable` enums, and returns their exported surface plus the run's stats.
 /// Separate from the public entry so tests can drive it without argv/stdout.
 ///
-/// The pre-filter omits `@Event`: an event only declares a member of a module or shared object, so a
+/// The pre-filter omits `@Event`: an event only declares a member of a module, shared object or class, so a
 /// file containing one already matches on its enclosing type. It does include `Enumerable`, which is a
 /// conformance rather than an attribute: an enum is commonly declared in a file of its own, which no
 /// macro attribute would match.
 ///
-/// A shared object can inherit through a class without a macro, which can be declared in a file that
+/// A `@SharedObject` or `@JSClass` class can inherit through a class without a macro, which can be declared in a file that
 /// the pre-filter skips. So the names of the classes in a skipped file are kept, and once every other
 /// file is walked, the skipped files that declare a superclass the scan hasn't found are parsed too
 /// (see `plainClassesDeclaringSuperclasses(of:plainClasses:classFiles:)`). The stats count them as
 /// parsed.
 func scanExports(paths: [String]) -> ScanExportsResult {
   var modules: [ExportedModule] = []
-  var sharedObjects: [ExportedSharedObject] = []
+  var sharedObjects: [ExportedJSClass] = []
+  var classes: [ExportedJSClass] = []
   var records: [ExportedRecord] = []
   var enums: [ExportedEnum] = []
   var unions: [ExportedUnion] = []
@@ -54,7 +55,7 @@ func scanExports(paths: [String]) -> ScanExportsResult {
 
   let fileStats = scanFiles(
     paths: paths,
-    macros: [.expoModule, .sharedObject, .record, .union, .expoView, .viewProps],
+    macros: [.expoModule, .sharedObject, .jsClass, .record, .union, .expoView, .viewProps],
     conformances: [enumerableConformanceName],
     skipped: { source, file in
       for name in declaredClassNames(in: source) {
@@ -67,6 +68,7 @@ func scanExports(paths: [String]) -> ScanExportsResult {
       visitor.walk(tree)
       modules.append(contentsOf: visitor.modules)
       sharedObjects.append(contentsOf: visitor.sharedObjects)
+      classes.append(contentsOf: visitor.classes)
       records.append(contentsOf: visitor.records)
       enums.append(contentsOf: visitor.enums)
       unions.append(contentsOf: visitor.unions)
@@ -84,6 +86,7 @@ func scanExports(paths: [String]) -> ScanExportsResult {
   let walked = ExportedSurface(
     modules: modules,
     sharedObjects: sharedObjects,
+    classes: classes,
     records: records,
     enums: enums,
     unions: unions,

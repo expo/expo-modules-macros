@@ -1,7 +1,7 @@
 import SwiftParser
 import SwiftSyntax
 
-/// Extracts the full JS-exported surface of every `@ExpoModule`, `@SharedObject`, `@Record`,
+/// Extracts the full JS-exported surface of every `@ExpoModule`, `@SharedObject`, `@JSClass`, `@Record`,
 /// `@ExpoView`, and `@ViewProps` type: their `@JS` members, record properties, view props, and view
 /// events. The deep counterpart to `DetectionVisitor`. Recognition is purely syntactic and re-reads
 /// what the macros read (the macro target can't be imported), so it stays in step with `JSFunction` /
@@ -13,15 +13,16 @@ import SwiftSyntax
 ///
 /// Each declaration and member reports the platforms that build it (see `PlatformResolver`), and one
 /// that no platform builds is not reported. `#if` is read only where the runtime sees what it holds:
-/// around types, `@Event` members, and enum cases. `@ExpoModule`, `@SharedObject`, `@Record`,
-/// `@Union`, and `@ViewProps` read only the members written directly in the type body, so `@JS`
+/// around types, `@Event` members, and enum cases. `@ExpoModule`, `@SharedObject`, `@JSClass`,
+/// `@Record`, `@Union`, and `@ViewProps` read only the members written directly in the type body, so `@JS`
 /// members, record properties, union cases, and view props in a `#if` clause are never bound and are
 /// not reported. An `@Event` expands on its own declaration, and the compiler reads enum cases itself.
 final class SurfaceVisitor: SyntaxVisitor {
   private let file: String
   private let platformResolver: PlatformResolver
   private(set) var modules: [ExportedModule] = []
-  private(set) var sharedObjects: [ExportedSharedObject] = []
+  private(set) var sharedObjects: [ExportedJSClass] = []
+  private(set) var classes: [ExportedJSClass] = []
   private(set) var records: [ExportedRecord] = []
   private(set) var enums: [ExportedEnum] = []
   private(set) var unions: [ExportedUnion] = []
@@ -29,8 +30,8 @@ final class SurfaceVisitor: SyntaxVisitor {
   /// The `@ViewProps` structs, which `ExportedSurface.joiningViewProps(_:)` copies into the views once
   /// every file has been walked.
   private(set) var viewProps: [ViewPropsDeclaration] = []
-  /// The classes without a macro that the surface reports, which a shared object can inherit through
-  /// (see `ExportedSurface.mergingInheritedMembers(through:)`).
+  /// The classes without a macro that the surface reports, which a `@SharedObject` or `@JSClass` class
+  /// can inherit through (see `ExportedSurface.mergingInheritedMembers(through:)`).
   private(set) var plainClasses: [PlainClassDeclaration] = []
 
   init(file: String, tree: SourceFileSyntax) {
@@ -172,7 +173,11 @@ final class SurfaceVisitor: SyntaxVisitor {
       return
     }
 
-    if let attribute = attributes.firstAttribute(named: DetectedMacro.sharedObject.rawValue) {
+    // `@SharedObject` comes first: it reports a class that has both macros, and `@JSClass` adds nothing to it.
+    let sharedObjectAttribute = attributes.firstAttribute(named: DetectedMacro.sharedObject.rawValue)
+    let jsClassAttribute =
+      node.is(ClassDeclSyntax.self) ? attributes.firstAttribute(named: DetectedMacro.jsClass.rawValue) : nil
+    if let attribute = sharedObjectAttribute ?? jsClassAttribute {
       let aliases = TupleTypeAliases(in: members, scope: qualified)
       var (functions, properties, events, initializer) = collectJSMembers(members)
       functions = functions.map(aliases.resolving)
@@ -180,22 +185,25 @@ final class SurfaceVisitor: SyntaxVisitor {
       if let parameters = initializer?.parameters {
         initializer?.parameters = parameters.map(aliases.resolving)
       }
-      sharedObjects.append(
-        ExportedSharedObject(
-          name: qualified,
-          jsName: stringArgument(of: attribute) ?? name,
-          initializer: initializer,
-          sharedRef: sharedRefSuperclass(of: node),
-          functions: functions,
-          properties: properties,
-          events: events,
-          accessLevel: accessLevel,
-          platforms: platforms,
-          file: file,
-          declaredSuperclass: declaredSuperclass(of: node),
-          ownNativeRefType: declaredNativeRefType(in: members)
-        )
+      let declaration = ExportedJSClass(
+        name: qualified,
+        jsName: stringArgument(of: attribute) ?? name,
+        initializer: initializer,
+        sharedRef: sharedRefSuperclass(of: node),
+        functions: functions,
+        properties: properties,
+        events: events,
+        accessLevel: accessLevel,
+        platforms: platforms,
+        file: file,
+        declaredSuperclass: declaredSuperclass(of: node),
+        ownNativeRefType: declaredNativeRefType(in: members)
       )
+      if sharedObjectAttribute != nil {
+        sharedObjects.append(declaration)
+      } else {
+        classes.append(declaration)
+      }
       return
     }
 
@@ -983,19 +991,23 @@ private func sharedRefSuperclass(of node: some DeclGroupSyntax) -> ExportedShare
   )
 }
 
-/// The superclass a class names, without generic arguments (`Outer.ImageRef`), or `nil`
-/// when it names none, `SharedObject`, `SharedRef`, or `AnySharedObject`, the protocol of the shared
-/// objects. The first entry of the inheritance clause is read, since Swift requires the superclass to
-/// come first. It may also be another protocol, which then names no scanned shared object.
+/// The superclass a class names, without generic arguments (`Outer.ImageRef`), or `nil` when it names
+/// none, a base that ends the JavaScript class chain (`SharedObject`, `SharedRef`), or a protocol that a
+/// class conforms to without a JavaScript superclass (`AnySharedObject`, `AnyJavaScriptClass`). The
+/// first entry of the inheritance clause is read, since Swift requires the superclass to come first. It
+/// may also be another protocol, which then names no scanned class.
 private func declaredSuperclass(of node: some DeclGroupSyntax) -> String? {
   guard let type = node.inheritanceClause?.inheritedTypes.first?.type,
     let spelling = spellingWithoutGenericArguments(of: type)
   else {
     return nil
   }
-  let name = spelling.split(separator: ".").last.map(String.init)
-  return name == "SharedObject" || name == "SharedRef" || name == "AnySharedObject" ? nil : spelling
+  let name = spelling.split(separator: ".").last.map(String.init) ?? spelling
+  return chainBaseNames.contains(name) ? nil : spelling
 }
+
+/// The names that end the JavaScript class chain when a class names one of them first in its clause.
+private let chainBaseNames: Set<String> = ["SharedObject", "SharedRef", "AnySharedObject", "AnyJavaScriptClass"]
 
 /// A simple or qualified type name as written, without backticks or generic arguments, or `nil` for any
 /// other kind of type.
