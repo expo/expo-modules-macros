@@ -155,11 +155,11 @@ struct JSRuntimeParameterTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("make") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "make", received: arguments.count, required: 0, maximum: 0))
@@ -255,11 +255,11 @@ struct JSRuntimeParameterTests {
           }
 
           @JavaScriptActor
-          open override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          open override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          open override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          open override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -293,11 +293,11 @@ struct JSRuntimeParameterTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor

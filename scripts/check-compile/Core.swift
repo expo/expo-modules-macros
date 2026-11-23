@@ -290,10 +290,10 @@ open class SharedObject: AnySharedObject {
   }
 
   @JavaScriptActor
-  open class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
+  open class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
 
   @JavaScriptActor
-  open class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
+  open class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
 }
 
 open class SharedRef<RefType>: SharedObject {
@@ -309,7 +309,7 @@ open class SharedRef<RefType>: SharedObject {
   names: named(_jsName),
   named(_jsClassType),
   named(_jsSuperclassType),
-  named(_decorateJSClass),
+  named(_decorateClass),
   named(_constructInstance),
   named(_assertTypesConformance)
 )

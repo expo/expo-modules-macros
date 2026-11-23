@@ -125,11 +125,11 @@ struct SendableConformanceTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 
@@ -163,11 +163,11 @@ struct SendableConformanceTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -202,11 +202,11 @@ struct SendableConformanceTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 
@@ -243,11 +243,11 @@ struct SendableConformanceTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 
@@ -281,11 +281,11 @@ struct SendableConformanceTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 
@@ -319,11 +319,11 @@ struct SendableConformanceTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
 

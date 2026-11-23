@@ -32,7 +32,7 @@ internal struct JSClassExpansion {
     let access = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.open) } ? "open" : "public"
 
     // `@JS func`s/`var`s and the `@JS init` are bound directly into the class's JS object by
-    // the synthesized `_decorateJSClass(prototype:)` / `_decorateJSClass(constructor:)` / `_constructInstance`.
+    // the synthesized `_decorateClass(prototype:)` / `_decorateClass(constructor:)` / `_constructInstance`.
     //
     // Members split by the `static`/`class` modifier onto two different JS objects: instance members
     // decorate the prototype (receiver recovered from JS `this`), static members decorate the
@@ -126,8 +126,8 @@ internal struct JSClassExpansion {
     ]
 
     // Direct JSI binding, split by which JS object each member decorates:
-    // `_decorateJSClass(prototype:)` binds instance `@JS func`/`var`s (unwrapping the per-call receiver from
-    // `this`); `_decorateJSClass(constructor:)` binds `static`/`class` ones (called on the metatype); and
+    // `_decorateClass(prototype:)` binds instance `@JS func`/`var`s (unwrapping the per-call receiver from
+    // `this`); `_decorateClass(constructor:)` binds `static`/`class` ones (called on the metatype); and
     // `_constructInstance` builds an instance from the `@JS init` arguments. Both decorator phases
     // are emitted also when they bind nothing, since a class without its own phase would run the phase of
     // its superclass on its own objects. Each class binds only its own members: the inherited ones are on

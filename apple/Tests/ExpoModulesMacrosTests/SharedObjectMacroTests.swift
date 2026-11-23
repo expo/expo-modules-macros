@@ -63,11 +63,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -98,11 +98,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -148,11 +148,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -201,11 +201,11 @@ struct SharedObjectMacroTests {
             }
 
             @JavaScriptActor
-            public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
 
             @JavaScriptActor
-            public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
           }
         }
@@ -236,11 +236,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -284,7 +284,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("merge") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: ImageRef.self)
               guard arguments.count == 1 else {
@@ -297,7 +297,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -348,11 +348,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -414,11 +414,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -458,7 +458,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -469,7 +469,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -521,7 +521,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -532,7 +532,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.defineProperty("clearCache", descriptor: .init(configurable: true, enumerable: true, writable: true))
             constructor.setProperty("clearCache") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 0 else {
@@ -570,11 +570,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -608,11 +608,11 @@ struct SharedObjectMacroTests {
             }
 
             @JavaScriptActor
-            public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
 
             @JavaScriptActor
-            public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             }
           }
         }
@@ -653,7 +653,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          open override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          open override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("area") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Shape.self)
               guard arguments.count == 0 else {
@@ -665,7 +665,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          open override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          open override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("unit") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "unit", received: arguments.count, required: 0, maximum: 0))
@@ -686,7 +686,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Sync method binds via _decorateJSClass(prototype:), unwrapping the receiver from this`() {
+  func `Sync method binds via _decorateClass(prototype:), unwrapping the receiver from this`() {
     assertExpansion(
       """
       @SharedObject
@@ -713,7 +713,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
@@ -726,7 +726,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -761,7 +761,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("loadAsync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
@@ -775,7 +775,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -810,7 +810,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let ownerDescriptor = runtime.createObject()
             ownerDescriptor.setProperty("enumerable", value: true)
             ownerDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -825,7 +825,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           private func _assertTypesConformance() {
@@ -866,7 +866,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -877,7 +877,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -912,11 +912,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -960,11 +960,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -1014,11 +1014,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -1072,7 +1072,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
@@ -1092,7 +1092,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -1109,7 +1109,7 @@ struct SharedObjectMacroTests {
   }
 
   @Test
-  func `Static method binds via _decorateJSClass(constructor:), calling the type and ignoring this`() {
+  func `Static method binds via _decorateClass(constructor:), calling the type and ignoring this`() {
     assertExpansion(
       """
       @SharedObject
@@ -1136,11 +1136,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("open") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "open", received: arguments.count, required: 1, maximum: 1))
@@ -1189,11 +1189,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("warmUp") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "warmUp", received: arguments.count, required: 1, maximum: 1))
@@ -1238,11 +1238,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sharedDescriptor = runtime.createObject()
             sharedDescriptor.setProperty("enumerable", value: true)
             sharedDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1291,7 +1291,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 1 else {
@@ -1304,7 +1304,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "get", received: arguments.count, required: 1, maximum: 1))
@@ -1357,7 +1357,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1375,7 +1375,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1426,7 +1426,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("resize") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count >= 1 && arguments.count <= 2 else {
@@ -1446,7 +1446,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1481,7 +1481,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let nameDescriptor = runtime.createObject()
             nameDescriptor.setProperty("enumerable", value: true)
             nameDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1496,7 +1496,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1531,7 +1531,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.defineLazyProperty("size", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               return _self.size
@@ -1539,7 +1539,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1579,7 +1579,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.defineLazyProperty("size", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               return _self.size
@@ -1587,7 +1587,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.defineLazyProperty("limit", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> Int in
               Cache.limit
             }
@@ -1625,7 +1625,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.defineLazyProperty("origin", options: [.enumerable]) { (this: borrowing JavaScriptUnownedValue, runtime: borrowing JavaScriptRuntime) -> JavaScriptValue in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Canvas.self)
               return try JavaScriptValue.encoding(in: runtime) { slot in
@@ -1635,7 +1635,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1670,7 +1670,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("clear") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
@@ -1681,7 +1681,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1716,11 +1716,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -1763,11 +1763,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -1817,11 +1817,11 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
@@ -1871,7 +1871,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("resolve") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count >= 0 && arguments.count <= 1 else {
@@ -1890,7 +1890,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           private func _assertTypesConformance() {
@@ -1931,7 +1931,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("default") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: `Type`.self)
               guard arguments.count == 0 else {
@@ -1942,7 +1942,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -1980,7 +1980,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             let sizeDescriptor = runtime.createObject()
             sizeDescriptor.setProperty("enumerable", value: true)
             sizeDescriptor.setProperty("get") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
@@ -1995,7 +1995,7 @@ struct SharedObjectMacroTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -2052,7 +2052,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("fetch") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Cache.self)
               guard arguments.count == 0 else {
@@ -2068,7 +2068,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """
@@ -2106,7 +2106,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("readSync") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Document.self)
               guard arguments.count == 1 else {
@@ -2134,7 +2134,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("exists") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               guard arguments.count == 1 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "exists", received: arguments.count, required: 1, maximum: 1))
@@ -2251,11 +2251,11 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """,
@@ -2345,7 +2345,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             prototype.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
               let _self = try SharedObject.native(from: this.asObject(in: runtime), as: Player.self)
               guard arguments.count == 0 else {
@@ -2356,7 +2356,7 @@ struct ExpoModuleClassesTests {
           }
 
           @JavaScriptActor
-          public override class func _decorateJSClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
             constructor.setProperty("constructor") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer) -> Void in
               guard arguments.count == 0 else {
                 throw Exceptions.ArgumentsRangeMismatch((functionName: "constructor", received: arguments.count, required: 0, maximum: 0))
