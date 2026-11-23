@@ -344,13 +344,13 @@ internal struct JSFunction {
   ///
   /// A function bound under a symbol gets the symbol from the runtime first, so the statement is
   /// marked `try`.
-  /// Whether the body of a synchronous binding uses the runtime: to decode an argument, to unwrap a shared
-  /// object from `this`, or to pass it to a function that takes the runtime.
+  /// Whether the body of a synchronous binding uses the runtime: to decode an argument, to unwrap a class
+  /// instance from `this`, or to pass it to a function that takes the runtime.
   private func bodyUsesRuntime(receiver: Receiver) -> Bool {
     if runtimeLabel != nil || !parameters.isEmpty {
       return true
     }
-    if case .sharedObject = receiver {
+    if case .instance = receiver {
       return true
     }
     return false
@@ -583,8 +583,8 @@ private func encodeIntoSlotStatement(_ type: String, freeForm: FreeFormConversio
 /// The body shared by every decorator phase: every `@JS func` bound via an inlined `setProperty`
 /// closure and every `@JS var` via a `defineProperty` accessor, joined for the function body. `object`
 /// is the local the bindings decorate (matching the entry point's argument label); `receiver` selects
-/// how each binding reaches its Swift value (module `self`, shared-object instance `_self`, or the
-/// metatype for a static member).
+/// how each binding reaches its Swift value (module `self`, class instance `_self`, or the metatype for
+/// a static member).
 ///
 /// `replacesInherited` first defines the name of each function as a writable data property on the
 /// object: an object up its prototype chain may hold an accessor with that name, which an assignment
@@ -621,7 +621,7 @@ private func decorateBody(
 /// `borrowing` object parameter (it mutates through the reference without reassigning or taking
 /// ownership). Only emitted when there's at least
 /// one member to bind. Uses the shared body generation with the module `object:` phase and `self`
-/// receiver; the shared-object counterpart is `buildDecorateSharedObjectPhase`.
+/// receiver; the JavaScript class counterpart is `buildDecorateJSClassPhase`.
 internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties: [JSProperty]) -> DeclSyntax {
   let body = decorateBody(
     functions: functions,
@@ -637,13 +637,13 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
     """
 }
 
-/// A shared-object decorator phase, a label overload of `_decorateSharedObject` overriding the matching
-/// `open class func` on the `SharedObject` base so core can dispatch through the concrete type's
-/// metatype. The `prototype:` overload binds the type's instance `@JS func`/`var` members onto the class
-/// prototype (the original hook, unchanged); the `constructor:` overload binds the `static`/`class` ones
-/// onto the constructor function itself (a new, additive overload, so introducing it isn't a breaking
-/// core change). Both are *static* (a shared object has no singleton `self`). An instance binding
-/// recovers its typed receiver from the JS `this` per call (`SharedObject.native(from:as:)`); a static
+/// A decorator phase of a JavaScript class, a label overload of `_decorateSharedObject` overriding the
+/// matching `open class func` on the `SharedObject` base so core can dispatch through the concrete
+/// type's metatype. The `prototype:` overload binds the type's instance `@JS func`/`var` members onto
+/// the class prototype (the original hook, unchanged); the `constructor:` overload binds the
+/// `static`/`class` ones onto the constructor function itself (a new, additive overload, so introducing
+/// it isn't a breaking core change). Both are *static* (a class has no singleton `self`). An instance
+/// binding recovers its typed receiver from the JS `this` per call (`instanceReceiver`); a static
 /// binding calls the Swift member on the type and ignores `this` (which, on the static side, is the
 /// constructor). The constructor *object* the static members decorate is distinct from the `@JS init`,
 /// which builds an instance and is emitted separately (see `JSConstructor.buildConstructor`). `access`
@@ -655,20 +655,18 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
 /// member of the subclass shadows an inherited one with the same JavaScript name. The macro emits both
 /// phases for every class, also when one binds nothing, so a class never runs the phase of its
 /// superclass. With `replacesInherited`, which the macro passes when the superclass may be another
-/// `@SharedObject` class, each function first defines its name as a data property (see
+/// class with the macro, each function first defines its name as a data property (see
 /// `decorateBody`).
-internal func buildDecorateSharedObjectPhase(
+internal func buildDecorateJSClassPhase(
   phase: Phase,
   functions: [JSFunction],
   properties: [JSProperty],
   typeName: String,
+  instanceReceiver: Receiver,
   access: String,
   replacesInherited: Bool
 ) -> DeclSyntax {
-  let receiver: Receiver =
-    phase == .constructor
-    ? .staticMember(typeName: typeName)
-    : .sharedObject(typeName: typeName)
+  let receiver: Receiver = phase == .constructor ? .staticMember(typeName: typeName) : instanceReceiver
   let body = decorateBody(
     functions: functions,
     properties: properties,

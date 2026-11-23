@@ -6,28 +6,29 @@ import SwiftSyntax
 /// receiver is `self`, `_self`, or the metatype.
 ///
 /// - A module is a singleton, so its bindings call `self` and ignore the JS `this`.
-/// - A shared-object *instance* member has a distinct native instance per JS object, so it recovers
-///   the typed receiver from `this`.
+/// - An *instance* member of a JavaScript class has a distinct native instance per JS object, so it
+///   recovers the typed receiver from `this`.
 /// - A `static`/`class` member has no instance at all; it calls the Swift member on the metatype
 ///   (`Cache.open(…)`) and ignores `this` (which, on the static side, is the constructor).
 internal enum Receiver {
   /// The module singleton; the closure captures `self` strong.
   case module
-  /// A shared object of the given concrete type; the closure captures nothing and recovers the receiver
-  /// from `this` per call.
-  case sharedObject(typeName: String)
+  /// An instance of a JavaScript class; the closure captures nothing and recovers the receiver from
+  /// `this` per call with the given statement, which binds `_self`. The class macro builds the
+  /// statement, since the way to recover the instance depends on the kind of class.
+  case instance(unwrapStatement: String)
   /// A `static`/`class` member of the given concrete type; the closure captures nothing and calls the
   /// Swift member on the type itself, ignoring `this`.
   case staticMember(typeName: String)
 
   /// The expression the body calls members on: `self` for a module, `_self` (bound by `unwrapStatement`)
-  /// for a shared-object instance, the type name for a static member. The leading underscore on `_self`
+  /// for a class instance, the type name for a static member. The leading underscore on `_self`
   /// avoids colliding with a user member like `var owner`.
   var callee: String {
     switch self {
     case .module:
       return "self"
-    case .sharedObject:
+    case .instance:
       return "_self"
     case .staticMember(let typeName):
       return typeName
@@ -35,29 +36,28 @@ internal enum Receiver {
   }
 
   /// The leading body line binding the receiver, or `nil` when nothing needs to be unwrapped (a module
-  /// reads `self` directly; a static member calls the type directly). For a shared-object instance,
-  /// `native(from:as:)` recovers the typed instance from `this`, throwing on a foreign object or a type
-  /// mismatch.
+  /// reads `self` directly; a static member calls the type directly). For a class instance, it is the
+  /// statement of the case.
   ///
-  /// The `this` object always comes from the borrowed `JavaScriptUnownedValue` (`asObject(in:)`): an
-  /// async binding unwraps in its synchronous decode phase, before the borrowed value's lifetime ends,
+  /// The statement reads the `this` object from the borrowed `JavaScriptUnownedValue` (`asObject(in:)`):
+  /// an async binding unwraps in its synchronous decode phase, before the borrowed value's lifetime ends,
   /// and only the recovered native instance crosses into the async body.
   var unwrapStatement: String? {
     switch self {
     case .module, .staticMember:
       return nil
-    case .sharedObject(let typeName):
-      return "let _self = try SharedObject.native(from: this.asObject(in: runtime), as: \(typeName).self)"
+    case .instance(let unwrapStatement):
+      return unwrapStatement
     }
   }
 
   /// The capture-clause fragment (with a trailing space, or empty when nothing is captured). A module
-  /// captures `self` strong; a shared-object instance and a static member capture nothing.
+  /// captures `self` strong; a class instance and a static member capture nothing.
   var captureClause: String {
     switch self {
     case .module:
       return "[self] "
-    case .sharedObject, .staticMember:
+    case .instance, .staticMember:
       return ""
     }
   }
