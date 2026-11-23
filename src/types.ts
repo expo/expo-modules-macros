@@ -333,7 +333,8 @@ export interface ExportedJSClass extends ExportedAccess, ExportedAvailability {
    * The nearest superclass with `@SharedObject` or `@JSClass`, whose JS class is the parent of this
    * one, also when classes without a macro are between them. Absent when no superclass has either
    * macro: the JS parent of a shared object is then the base `SharedObject` class, and a `@JSClass`
-   * class has no JS parent.
+   * class has no JS parent. A `@JSClass` class can't extend a shared object, since the macro reports
+   * it.
    */
   superclass?: ExportedSuperclass;
   /**
@@ -365,7 +366,9 @@ export interface ExportedSuperclass {
   name: string;
   /**
    * The `jsName` of the superclass. Absent when the scan found no class with this name, or when the
-   * superclass depends on the platform.
+   * superclass depends on the platform. Without it, the scan doesn't know whether the superclass has a
+   * JS class. For a `@JSClass` class it often has none, for example `NSObject`, and the JS class of the
+   * class then has no parent, so don't emit `extends` for it.
    */
   jsName?: string;
 }

@@ -1,6 +1,7 @@
 /// Adds to each `@SharedObject` and `@JSClass` class its `superclass`, the nearest one with either macro,
-/// and the `@JS` members it inherits from it. A chain can mix the two macros: a `@JSClass` class can
-/// extend a shared object, and the scan reports what the source declares either way.
+/// and the `@JS` members it inherits from it. A `@SharedObject` class can name a `@JSClass` class as
+/// its superclass, and the scan resolves that chain too. A `@JSClass` class can't extend a shared
+/// object: the macro reports it.
 ///
 /// Core builds the JavaScript class of a subclass on the JavaScript class of its nearest superclass
 /// with the macro, so an instance and the constructor of the subclass get the members of that class
@@ -10,9 +11,8 @@
 
 extension ExportedSurface {
   /// This surface with the `superclass` of each `@SharedObject` and `@JSClass` class and the members it
-  /// inherits. Runs after
-  /// `resolvingRefs()`, so the refs in an inherited member are resolved from the superclass that
-  /// declares it, as Swift resolves them.
+  /// inherits. Runs after `resolvingRefs()`, so the refs in an inherited member are resolved from the
+  /// superclass that declares it, as Swift resolves them.
   ///
   /// The superclass is looked up from the scope that encloses the class, the way `RefIndex` looks up a
   /// ref. The lookup goes on through `plainClasses`, the classes without a macro, as the chain does at

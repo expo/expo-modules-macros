@@ -111,10 +111,8 @@ private let platformUniverse: [(condition: String, reported: String)] = [
   (condition: "visionOS", reported: "visionOS"),
 ]
 
-/// Scans the given paths for top-level `@ExpoModule`, `@SharedObject`, `@JSClass` and `@ExpoView` types and returns
-/// every one
-/// found in any
-/// `#if` branch (in file then source order), each with the platforms whose builds include it, plus
+/// Scans the given paths for top-level `@ExpoModule`, `@SharedObject`, `@JSClass` and `@ExpoView` types and
+/// returns every one found in any `#if` branch (in file then source order), each with the platforms whose builds include it, plus
 /// the stats for the run — the `scan-packages` command. Kept separate from the public entry (and
 /// `internal`) so tests can drive it without going through argv/stdout.
 ///
@@ -161,8 +159,13 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
     }
 
     // `@ExpoModule`, `@SharedObject` and `@JSClass` reject anything but a class, and `@ExpoView` anything but a class
-    // or a SwiftUI view struct, so other declarations are never registered.
+    // or a SwiftUI view struct, so other declarations are never registered. A class with both `@SharedObject` and
+    // `@JSClass` is a shared object, as the macros treat it.
+    let sharedObjectKeys = Set(allModules.detections.filter { $0.macro == .sharedObject }.map(detectionKey))
     for detection in allModules.detections where isRegistrable(detection) {
+      if detection.macro == .jsClass && sharedObjectKeys.contains(detectionKey(detection)) {
+        continue
+      }
       // Resolve the JS name the way the macro does: explicit `@ExpoModule("Foo")`,
       // `@SharedObject("Foo")`, `@JSClass("Foo")` or `@ExpoView<CardProps>("Foo")` override, else the class name.
       let scanned = ScannedClass(

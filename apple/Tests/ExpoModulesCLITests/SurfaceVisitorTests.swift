@@ -3032,7 +3032,8 @@ struct InheritedSharedObjectMembersTests {
   }
 
   @Test
-  func `A @JSClass chain resolves like a shared object chain, also onto a shared object`() throws {
+  func `A @JSClass chain resolves like a shared object chain, and a shared object can extend a @JSClass class`() throws
+  {
     let surface = try scannedSurface([
       "Source.swift": """
       @JSClass
@@ -3056,13 +3057,10 @@ struct InheritedSharedObjectMembersTests {
       final class OnObject: NSObject {}
 
       @SharedObject
-      class Store: SharedObject {
+      final class Store: Shape {
         @JS
         func load() {}
       }
-
-      @JSClass
-      final class Cache: Store {}
       """
     ])
 
@@ -3079,11 +3077,11 @@ struct InheritedSharedObjectMembersTests {
     #expect(square.functions.map(\.inheritedFrom) == ["Shape", nil])
     // The scan can't tell a class in another package from a protocol, as for a shared object.
     #expect(try jsClass("OnObject").superclass == ExportedSuperclass(name: "NSObject", jsName: nil))
-    // A `@JSClass` class can extend a shared object.
-    let cache = try jsClass("Cache")
-    #expect(cache.superclass == ExportedSuperclass(name: "Store", jsName: "Store"))
-    #expect(cache.functions.map(\.inheritedFrom) == ["Store"])
-    #expect(surface.sharedObjects.map(\.name) == ["Store"])
+    // A `@SharedObject` class can name a `@JSClass` class as its superclass.
+    let store = try #require(surface.sharedObjects.first { $0.name == "Store" })
+    #expect(store.superclass == ExportedSuperclass(name: "Shape", jsName: "Shape"))
+    #expect(store.functions.map(\.jsName) == ["area", "load"])
+    #expect(store.functions.map(\.inheritedFrom) == ["Shape", nil])
   }
 
   @Test

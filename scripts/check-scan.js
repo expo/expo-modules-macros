@@ -243,12 +243,18 @@ async function check({ expandMacros, getScannerBinaryPath, scanExports, scanPack
   try {
     const moduleFile = path.join(fixture, 'Module.swift');
     fs.writeFileSync(moduleFile, '@ExpoModule\npublic final class ScanCheckModule {}\n');
+    fs.writeFileSync(path.join(fixture, 'Shape.swift'), '@JSClass\npublic final class ScanCheckShape {}\n');
     const result = await scanPackages([fixture], { timeout: 60_000 });
     const module = result.modules.find((candidate) => candidate.name === 'ScanCheckModule');
     if (!module) {
       throw new Error(`scanPackages didn't report ScanCheckModule:\n${JSON.stringify(result, null, 2)}`);
     }
     console.log(`scanPackages reported ${module.name} in ${module.file}`);
+    const jsClass = result.classes.find((candidate) => candidate.name === 'ScanCheckShape');
+    if (!jsClass || result.modules.some((candidate) => candidate.name === 'ScanCheckShape')) {
+      throw new Error(`scanPackages didn't report ScanCheckShape in classes only:\n${JSON.stringify(result, null, 2)}`);
+    }
+    console.log(`scanPackages reported ${jsClass.name} in classes`);
 
     const expanded = await expandMacros([moduleFile], { timeout: 60_000 });
     const source = expanded.files[0]?.expansions[0]?.source ?? '';

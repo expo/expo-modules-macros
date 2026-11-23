@@ -634,6 +634,14 @@ struct ScanTests {
   }
 
   @Test
+  func `scanPackages reports a class with both @SharedObject and @JSClass only as a shared object`() throws {
+    try withTree([("Cache.swift", "@JSClass\n@SharedObject\npublic final class Cache: SharedObject {}")]) { result in
+      #expect(result.sharedObjects.map(\.name) == ["Cache"])
+      #expect(result.classes.isEmpty)
+    }
+  }
+
+  @Test
   func `scanPackages reports @ExpoView classes in views`() throws {
     try withTree([
       ("CardView.swift", "@ExpoView<CardProps>\npublic final class CardView: ExpoNativeView {}"),

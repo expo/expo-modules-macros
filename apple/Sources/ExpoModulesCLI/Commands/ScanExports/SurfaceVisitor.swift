@@ -129,8 +129,9 @@ final class SurfaceVisitor: SyntaxVisitor {
   }
 
   /// Routes a class or struct to the right collector based on which Expo macro it carries. A class
-  /// carrying none of them is a plain class, which a shared object can inherit through, and a struct
-  /// carrying none is ignored. The macros are mutually exclusive in practice, so the first match wins.
+  /// carrying none of them is a plain class, which a `@SharedObject` or `@JSClass` class can inherit
+  /// through, and a struct carrying none is ignored. The macros are mutually exclusive, so the first
+  /// match wins; `@SharedObject` comes before `@JSClass`, as the macros treat a class with both.
   ///
   /// `name` is the declared name and `scope` the names of the types enclosing it. The reported `name`
   /// is qualified with the scope, while a default `jsName` is the declared name alone, as the macros

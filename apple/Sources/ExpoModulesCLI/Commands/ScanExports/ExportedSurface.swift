@@ -343,7 +343,8 @@ struct ExportedJSClass: Encodable, Equatable {
 
   /// The nearest superclass with `@SharedObject` or `@JSClass`, whose JavaScript class core makes the
   /// parent of this one, or `nil` when the class has none: the JavaScript parent of a shared object is
-  /// then the base class, and a `@JSClass` class has no JavaScript parent (see
+  /// then the base class, and a `@JSClass` class has no JavaScript parent. A `@JSClass` class can't
+  /// extend a shared object, since the macro reports it (see
   /// `ExportedSurface.mergingInheritedMembers(through:)`).
   var superclass: ExportedSuperclass? = nil
 
@@ -387,7 +388,9 @@ struct ExportedSuperclass: Encodable, Equatable {
   let name: String
 
   /// The `jsName` of the superclass, or `nil` when the scan found no class with this name, or when the
-  /// superclass depends on the platform.
+  /// superclass depends on the platform. Without it, the scan doesn't know whether the superclass has a
+  /// JavaScript class. For a `@JSClass` class it often has none, for example `NSObject`, and the
+  /// JavaScript class of the class then has no parent.
   let jsName: String?
 }
 
