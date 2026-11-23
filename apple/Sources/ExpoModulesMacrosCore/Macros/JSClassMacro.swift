@@ -26,9 +26,10 @@ import SwiftSyntaxMacros
 /// Unlike a shared object, the native instance has no registry ID and no events, and core doesn't map
 /// it back to its JavaScript object. `@SharedObject` is the macro for a `SharedObject` subclass.
 ///
-/// As an extension macro, it adds the `AnyJavaScriptClass`, `JavaScriptDecodable` and
-/// `JavaScriptEncodable` conformances to a root, and an `@unchecked Sendable` conformance when the
-/// class isn't `Sendable` yet.
+/// As an extension macro, it adds the `AnyJavaScriptClass` and `JavaScriptDecodable` conformances to a
+/// root, and an `@unchecked Sendable` conformance when the class isn't `Sendable` yet. A root isn't
+/// `JavaScriptEncodable`: core doesn't map a native instance back to its JavaScript object, so a `@JS`
+/// member that returns the class fails the conformance check of the class macro.
 public struct JSClassMacro: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -119,9 +120,10 @@ extension JSClassMacro: ExtensionMacro {
 /// shared object, whose macro is `@SharedObject`.
 private let sharedObjectBaseNames: Set<String> = ["SharedObject", "SharedRef", "AnySharedObject"]
 
-/// The conformances of a root class. Core implements `JavaScriptDecodable` and `JavaScriptEncodable`
-/// for every `AnyJavaScriptClass`, so the class only declares them.
-private let rootConformances = ["AnyJavaScriptClass", "JavaScriptDecodable", "JavaScriptEncodable"]
+/// The conformances of a root class. Core implements `JavaScriptDecodable` for every
+/// `AnyJavaScriptClass`: it reads the native instance from the native state that it attaches to the
+/// JavaScript object, as `_native(from:)` does. So the class only declares the conformance.
+private let rootConformances = ["AnyJavaScriptClass", "JavaScriptDecodable"]
 
 private func hasSharedObjectAttribute(_ classDecl: ClassDeclSyntax) -> Bool {
   return classDecl.attributes.firstAttribute(named: "SharedObject") != nil

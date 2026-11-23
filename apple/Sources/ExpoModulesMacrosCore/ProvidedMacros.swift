@@ -25,7 +25,7 @@ public struct ProvidedMacro {
       ProvidedMacro(
         name: "JSClass",
         type: JSClassMacro.self,
-        conformances: ["AnyJavaScriptClass", "JavaScriptDecodable", "JavaScriptEncodable", "Sendable"]
+        conformances: ["AnyJavaScriptClass", "JavaScriptDecodable", "Sendable"]
       ),
       ProvidedMacro(name: "Record", type: RecordMacro.self, conformances: ["Record"]),
       ProvidedMacro(

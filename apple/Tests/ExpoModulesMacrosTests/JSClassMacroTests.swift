@@ -7,7 +7,7 @@ import Testing
 
 /// The conformances that the compiler passes for a root class, which conforms to none of them yet.
 private let rootConformances: [TypeSyntax] = [
-  "AnyJavaScriptClass", "JavaScriptDecodable", "JavaScriptEncodable", "Sendable",
+  "AnyJavaScriptClass", "JavaScriptDecodable", "Sendable",
 ]
 
 /// The macros of the tests, with `@JSClass` getting `conformances`. The compiler passes only the
@@ -85,7 +85,7 @@ struct JSClassMacroTests {
           }
         }
 
-        extension Point: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
+        extension Point: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
         }
 
         extension Point: @unchecked Sendable {
@@ -167,7 +167,7 @@ struct JSClassMacroTests {
           }
         }
 
-        extension Shape: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
+        extension Shape: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
         }
 
         extension Shape: @unchecked Sendable {
@@ -313,10 +313,10 @@ struct JSClassMacroTests {
           }
         }
 
-        extension Point: nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
+        extension Point: nonisolated JavaScriptDecodable {
         }
         """,
-      conformances: ["JavaScriptDecodable", "JavaScriptEncodable"]
+      conformances: ["JavaScriptDecodable"]
     )
   }
 
@@ -500,7 +500,7 @@ struct JSClassMacroTests {
           init(x: Double) {}
         }
 
-        extension Point: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable, nonisolated JavaScriptEncodable {
+        extension Point: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
         }
 
         extension Point: @unchecked Sendable {

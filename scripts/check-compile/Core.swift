@@ -374,7 +374,7 @@ public macro SharedObject(_ name: String? = nil) =
   named(_assertTypesConformance)
 )
 @attached(memberAttribute)
-@attached(extension, conformances: AnyJavaScriptClass, JavaScriptDecodable, JavaScriptEncodable, Sendable)
+@attached(extension, conformances: AnyJavaScriptClass, JavaScriptDecodable, Sendable)
 public macro JSClass(_ name: String? = nil) =
   #externalMacro(module: "ExpoModulesMacros", type: "JSClassMacro")
 
