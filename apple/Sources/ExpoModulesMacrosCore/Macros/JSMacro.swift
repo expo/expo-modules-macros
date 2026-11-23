@@ -91,21 +91,23 @@ internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtoco
   return memberConformanceAssertion(name: member.name, types: member.types)
 }
 
-/// True when the member is declared directly in an `@ExpoModule` or `@SharedObject` class, whose macro
-/// binds it.
+/// True when the member is declared directly in an `@ExpoModule`, `@SharedObject` or `@JSClass` class,
+/// whose macro binds it.
 private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
   guard let classDecl = context.lexicalContext.first?.as(ClassDeclSyntax.self) else {
     return false
   }
   return classDecl.attributes.firstAttribute(named: "ExpoModule") != nil
     || classDecl.attributes.firstAttribute(named: "SharedObject") != nil
+    || classDecl.attributes.firstAttribute(named: "JSClass") != nil
 }
 
 /// Reports a `@JS` attribute that no macro binds, so the member would be missing in JavaScript without
 /// an error:
 /// - on a declaration other than a function, property or initializer, such as a subscript;
-/// - on a member of an extension, since `@ExpoModule` and `@SharedObject` read only the class body;
-/// - on a member of a type that isn't an `@ExpoModule` or `@SharedObject` class;
+/// - on a member of an extension, since `@ExpoModule`, `@SharedObject` and `@JSClass` read only the
+///   class body;
+/// - on a member of a type that isn't an `@ExpoModule`, `@SharedObject` or `@JSClass` class;
 /// - on a `static` or `class` member of an `@ExpoModule` class, since JavaScript gets only the instance;
 /// - on an initializer of an `@ExpoModule` class, since JavaScript doesn't construct a module.
 private func diagnosePlacement(
@@ -136,7 +138,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'",
+          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule, @SharedObject and @JSClass bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'",
           id: "js-in-extension",
           severity: .error
         )
@@ -152,7 +154,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of \(typeName) isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to \(typeName), or move the member into such a class",
+          "A @JS member of \(typeName) isn't bound to JavaScript: only an @ExpoModule, @SharedObject or @JSClass class binds its @JS members. Add one of these macros to \(typeName), or move the member into such a class",
           id: "js-outside-binding-class",
           severity: .error
         )
@@ -184,7 +186,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
+          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @JSClass or @SharedObject class from JavaScript instead",
           id: "js-module-initializer",
           severity: .error
         ),

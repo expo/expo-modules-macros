@@ -1,3 +1,6 @@
+import ExpoModulesMacrosCore
+import SwiftParser
+
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
@@ -124,8 +127,12 @@ func expandSources(
     }
   }
 
-  let files = sources.map {
-    (source: $0.source, contents: $0.contents, expanded: expander.expand($0.source, $0.file, options.symbols))
+  // `@JSClass` tells a subclass from a root by the classes of all the expanded files.
+  let names = jsClassNames(in: sources.map { Parser.parse(source: $0.source) })
+  let files = ExpandHints.$jsClassNames.withValue(names) {
+    sources.map {
+      (source: $0.source, contents: $0.contents, expanded: expander.expand($0.source, $0.file, options.symbols))
+    }
   }
 
   let found = Set(files.flatMap { $0.expanded.expansions.compactMap(\.symbol) })

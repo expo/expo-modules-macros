@@ -5,10 +5,11 @@
 // that doesn't compile, or that compiles only in some build settings. This builds the stand-in core
 // module of `Core.swift` with library evolution, then, in each configuration of `CONFIGURATIONS`:
 //
-// - builds `Props.swift`, `Views.swift` and `SharedObjects.swift` as a library, with no warnings allowed;
+// - builds `Props.swift`, `Views.swift`, `SharedObjects.swift` and `JSClasses.swift` as a library, with no warnings
+//   allowed;
 // - with library evolution, also verifies its `.swiftinterface` and builds `Client.swift` from it;
 // - builds the same files and `main.swift` as an executable and runs it, which checks the decoded and reset
-//   values, the views, and the JavaScript class chain of the shared objects.
+//   values, the views, and the JavaScript class chain of the shared objects and the JavaScript classes.
 //
 // It runs on macOS. The macOS workflow runs it with the debug tool that `swift test` builds, during
 // the release build.
@@ -33,7 +34,7 @@ if (process.platform !== 'darwin') {
 
 const fixturesDirectory = path.join(__dirname, 'check-compile');
 
-// The module of `Props.swift`, `Views.swift` and `SharedObjects.swift`. Its name differs from every type and member
+// The module of `Props.swift`, `Views.swift`, `SharedObjects.swift` and `JSClasses.swift`. Its name differs from every type and member
 // name in the fixtures: a `.swiftinterface` of Swift 6.3 or older qualifies a type with the module name, so for a
 // module named `Props` the `Props` typealias of an `@ExpoView` view reads `Props.PublicProps`, where `Props` is the
 // typealias itself.
@@ -129,8 +130,9 @@ function check(configuration, coreDirectory, directory) {
     fixture('Props.swift'),
     fixture('Views.swift'),
     fixture('SharedObjects.swift'),
+    fixture('JSClasses.swift'),
   ]);
-  console.log(`  built Props.swift, Views.swift and SharedObjects.swift as a library`);
+  console.log(`  built Props.swift, Views.swift, SharedObjects.swift and JSClasses.swift as a library`);
 
   if (configuration.libraryEvolution) {
     // The interface directory has no binary module, so `import Fixtures` builds the module from the
@@ -167,6 +169,7 @@ function check(configuration, coreDirectory, directory) {
     fixture('Props.swift'),
     fixture('Views.swift'),
     fixture('SharedObjects.swift'),
+    fixture('JSClasses.swift'),
     fixture('main.swift'),
   ]);
   const result = childProcess.spawnSync(executable, { encoding: 'utf8' });

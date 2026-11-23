@@ -24,8 +24,80 @@ import SwiftSyntaxMacros
 ///   can generate a little differently than for the whole type.
 ///
 /// A symbol that the file doesn't declare is left out of the expansions.
+///
+/// `@JSClass` reads `ExpandHints.jsClassNames` to tell a subclass from a root. The caller sets it for
+/// all the files that it expands; otherwise it comes from this file.
 public func expandMacros(source: String, file: String, symbols: [String]) -> ExpandedFile {
   let tree = Parser.parse(source: source)
+  guard ExpandHints.jsClassNames != nil else {
+    return ExpandHints.$jsClassNames.withValue(jsClassNames(in: [tree])) {
+      expandMacros(tree: tree, file: file, symbols: symbols)
+    }
+  }
+  return expandMacros(tree: tree, file: file, symbols: symbols)
+}
+
+/// The names of the classes in `trees` that have a JavaScript class, for `ExpandHints.jsClassNames`:
+/// the classes with `@JSClass` or `@SharedObject`, and the classes whose superclass is one of them or a
+/// shared object base, also through classes without a macro. The bases `SharedObject` and `SharedRef`
+/// aren't in the set: they aren't `Sendable`, so a direct subclass still gets `@unchecked Sendable`.
+/// Only the name of a class counts, so two classes with the same name in different scopes count as one.
+func jsClassNames(in trees: [SourceFileSyntax]) -> Set<String> {
+  let collector = ClassCollector(viewMode: .sourceAccurate)
+  for tree in trees {
+    collector.walk(tree)
+  }
+  let bases: Set<String> = ["SharedObject", "SharedRef"]
+  var names = bases.union(collector.classes.filter(\.hasJSClassMacro).map(\.name))
+  var remaining = collector.classes.filter { !names.contains($0.name) && $0.superclass != nil }
+  while true {
+    let found = remaining.filter { names.contains($0.superclass ?? "") }
+    guard !found.isEmpty else {
+      return names.subtracting(bases)
+    }
+    names.formUnion(found.map(\.name))
+    remaining.removeAll { names.contains($0.name) }
+  }
+}
+
+/// The classes of a file, also nested ones, with the name of their superclass (the first type of the
+/// clause, which may be a protocol) and whether they have a macro that gives them a JavaScript class.
+private final class ClassCollector: SyntaxVisitor {
+  struct Class {
+    let name: String
+    let superclass: String?
+    let hasJSClassMacro: Bool
+  }
+
+  private(set) var classes: [Class] = []
+
+  override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
+    classes.append(
+      Class(
+        name: node.name.text,
+        superclass: node.inheritanceClause?.inheritedTypes.first.flatMap { superclassName(of: $0.type) },
+        hasJSClassMacro: node.attributes.contains { attribute in
+          guard let name = attribute.as(AttributeSyntax.self)?.attributeName.trimmedDescription else {
+            return false
+          }
+          return name == "JSClass" || name == "SharedObject"
+        }
+      )
+    )
+    return .visitChildren
+  }
+
+  /// The rightmost name of a type, without generic arguments: `Base` for `Base`, `Module.Base` and
+  /// `Base<Int>`.
+  private func superclassName(of type: TypeSyntax) -> String? {
+    if let identifier = type.as(IdentifierTypeSyntax.self) {
+      return identifier.name.text
+    }
+    return type.as(MemberTypeSyntax.self)?.name.text
+  }
+}
+
+private func expandMacros(tree: SourceFileSyntax, file: String, symbols: [String]) -> ExpandedFile {
   let converter = SourceLocationConverter(fileName: file, tree: tree)
   let (expanded, context) = expand(tree, file: file)
 

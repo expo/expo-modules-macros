@@ -1,10 +1,10 @@
-// Stand-ins for the ExpoModulesJSI and expo-modules-core symbols that the `@ViewProps`, `@ExpoView` and
-// `@SharedObject` expansions use, with the signatures of the real ones. `AnyViewProps` and the macro declarations
+// Stand-ins for the ExpoModulesJSI and expo-modules-core symbols that the `@ViewProps`, `@ExpoView`, `@SharedObject`
+// and `@JSClass` expansions use, with the signatures of the real ones. `AnyViewProps` and the macro declarations
 // are copies of `ios/Core/Views/v2/AnyViewProps.swift` and `ios/Core/ExpoModulesMacros.swift` in
 // expo-modules-core. The view protocols keep the requirements and defaults of
 // `ios/Core/Views/v2/AnyNativeView.swift` and `AnyNativeSwiftUIView.swift` that the expansions and the views of
-// `Views.swift` use. `SharedObject` keeps the hooks of `ios/Core/SharedObjects/SharedObject.swift` that the
-// expansions of the classes in `SharedObjects.swift` override. `check-compile.js` builds this file as the `Core`
+// `Views.swift` use. `AnyJavaScriptClass` has the hooks that core requires, and `SharedObject` keeps the hooks of
+// `ios/Core/SharedObjects/SharedObject.swift` that the expansions of the classes in `SharedObjects.swift` override. `check-compile.js` builds this file as the `Core`
 // module, with library evolution.
 
 import SwiftUI
@@ -42,6 +42,9 @@ public struct JavaScriptUnownedValue: ~Copyable {
     return JavaScriptValue(number: number)
   }
 }
+
+/// The arguments of a JavaScript call. The classes of `JSClasses.swift` have no `@JS init`, so it has no API.
+public struct JavaScriptValuesBuffer: ~Copyable {}
 
 /// An owning JavaScript value that is `null` or a number.
 public final class JavaScriptValue {
@@ -259,13 +262,44 @@ public macro ViewProps<Base: AnyViewProps>(extending base: Base.Type) =
 
 // MARK: - Shared objects
 
-/// The object that the decorator phases of a shared object bind members on. The classes of
-/// `SharedObjects.swift` have no `@JS` members, so it has no API.
+/// The object that the decorator phases of a JavaScript class bind members on. The classes of
+/// `SharedObjects.swift` and `JSClasses.swift` have no `@JS` members, so it has no API.
 public struct JavaScriptObject: Sendable, ~Copyable {}
 
-/// The protocol of the classes with a JavaScript class, which types the members of the JavaScript class chain. The
-/// one in core has the hooks as requirements, which `SharedObject` implements. This stand-in leaves them out.
-public protocol AnyJavaScriptClass: AnyObject {}
+/// The protocol of the classes with a JavaScript class, with the hooks that core calls when it builds the class.
+/// `SharedObject` implements them, and the `@JSClass` expansion of a root class. The members of a root that core reads
+/// off the main actor are `nonisolated`, which `-default-isolation MainActor` checks.
+public protocol AnyJavaScriptClass: AnyObject {
+  static var _jsName: String { get }
+
+  static var _jsClassType: (any AnyJavaScriptClass.Type)? { get }
+
+  static var _jsSuperclassType: (any AnyJavaScriptClass.Type)? { get }
+
+  @JavaScriptActor
+  static func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws
+
+  @JavaScriptActor
+  static func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws
+
+  @JavaScriptActor
+  static func _constructInstance(
+    this: borrowing JavaScriptValue,
+    arguments: borrowing JavaScriptValuesBuffer,
+    in runtime: JavaScriptRuntime
+  ) throws -> (any AnyJavaScriptClass)?
+}
+
+// Core decodes every JavaScript class from the native state of its JavaScript object, so a root `@JSClass` class only
+// declares the conformances. This stand-in can't decode.
+extension JavaScriptDecodable where Self: AnyJavaScriptClass {
+  @JavaScriptActor
+  public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws
+    -> Self
+  {
+    throw DecodingError()
+  }
+}
 
 /// The protocol of the shared objects, which the `@SharedObject` expansion adds to a class that doesn't conform yet.
 /// The one in core has requirements, which `SharedObject` implements. This stand-in leaves them out.
@@ -294,6 +328,15 @@ open class SharedObject: AnySharedObject {
 
   @JavaScriptActor
   open class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
+
+  @JavaScriptActor
+  open class func _constructInstance(
+    this: borrowing JavaScriptValue,
+    arguments: borrowing JavaScriptValuesBuffer,
+    in runtime: JavaScriptRuntime
+  ) throws -> (any AnyJavaScriptClass)? {
+    return nil
+  }
 }
 
 open class SharedRef<RefType>: SharedObject {
@@ -317,6 +360,23 @@ open class SharedRef<RefType>: SharedObject {
 @attached(extension, conformances: AnySharedObject, Sendable)
 public macro SharedObject(_ name: String? = nil) =
   #externalMacro(module: "ExpoModulesMacros", type: "SharedObjectMacro")
+
+// MARK: - JavaScript classes
+
+@attached(
+  member,
+  conformances: AnyJavaScriptClass,
+  names: named(_jsName),
+  named(_jsClassType),
+  named(_jsSuperclassType),
+  named(_decorateClass),
+  named(_constructInstance),
+  named(_assertTypesConformance)
+)
+@attached(memberAttribute)
+@attached(extension, conformances: AnyJavaScriptClass, JavaScriptDecodable, JavaScriptEncodable, Sendable)
+public macro JSClass(_ name: String? = nil) =
+  #externalMacro(module: "ExpoModulesMacros", type: "JSClassMacro")
 
 // MARK: - Views
 

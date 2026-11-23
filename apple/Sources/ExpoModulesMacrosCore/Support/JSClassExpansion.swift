@@ -4,9 +4,10 @@ import SwiftSyntaxMacros
 
 /// The part of a JavaScript class macro that doesn't depend on the kind of class. It collects the `@JS`
 /// members of the class body, reports their diagnostics, and emits the hooks that core calls when it
-/// builds the JavaScript class. `@SharedObject` uses it, and gives it what is specific to shared objects:
-/// its name for the diagnostics, the statement that recovers the native instance from the JavaScript
-/// `this`, and whether the superclass may bind JavaScript members.
+/// builds the JavaScript class. `@JSClass` and `@SharedObject` use it, and give it what is specific to
+/// the kind of class: the macro name for the diagnostics, the statement that recovers the native
+/// instance from the JavaScript `this`, whether the superclass may bind JavaScript members, and whether
+/// the class is the root of its JavaScript class chain.
 internal struct JSClassExpansion {
   /// The class that the macro is attached to.
   let classDecl: ClassDeclSyntax
@@ -22,6 +23,11 @@ internal struct JSClassExpansion {
   /// `members(in:)`). An assignment to a name that it binds as an accessor would call the accessor, so
   /// each function of this class then defines its name as a data property first.
   let mayInheritJSMembers: Bool
+  /// True when no superclass conforms to `AnyJavaScriptClass`, so the class implements the hooks of
+  /// the protocol instead of overriding them, and has no JavaScript superclass. The hooks of a root are
+  /// `nonisolated`, so that core can read them off the main actor also when the module builds with
+  /// `-default-isolation MainActor`; the decorate phases and the constructor stay `@JavaScriptActor`.
+  let isRoot: Bool
 
   /// The members that the macro adds to the class.
   func members(in context: some MacroExpansionContext) throws -> [DeclSyntax] {
@@ -110,19 +116,22 @@ internal struct JSClassExpansion {
     )
     diagnoseEventNameCollisions(in: classDecl.memberBlock, in: context)
 
-    // The resolved JS class name, read by core when it builds the class. An `override` of the
-    // `SharedObject` class property, so core reads it through the concrete type's metatype.
+    // The resolved JS class name, read by core when it builds the class. A class property, which a
+    // subclass overrides, so core reads it through the concrete type's metatype.
     //
     // `_jsClassType` returns this class, written by name and not as `Self`, so a subclass without the
     // macro inherits it and core gives that subclass the JavaScript class of this one. Inside a generic
     // class, the bare name means the class with its own generic arguments. `_jsSuperclassType` returns the
     // `_jsClassType` of the superclass, which is the nearest class above with the macro, or `nil` for the
-    // base `SharedObject` or `SharedRef`. Core builds the JavaScript class of that class first and
-    // creates this one on it, so the JavaScript chain follows the Swift chain.
+    // base `SharedObject` or `SharedRef`. A root has no JavaScript superclass, so it returns `nil`. Core
+    // builds the JavaScript class of the superclass first and creates this one on it, so the JavaScript
+    // chain follows the Swift chain.
+    let modifiers = isRoot ? "nonisolated \(access)" : "\(access) override"
+    let superclassType = isRoot ? "nil" : "super._jsClassType"
     var emitted: [DeclSyntax] = [
-      "\(raw: access) override class var _jsName: String { \"\(raw: jsName)\" }",
-      "\(raw: access) override class var _jsClassType: (any AnyJavaScriptClass.Type)? { \(raw: typeName).self }",
-      "\(raw: access) override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? { super._jsClassType }",
+      "\(raw: modifiers) class var _jsName: String { \"\(raw: jsName)\" }",
+      "\(raw: modifiers) class var _jsClassType: (any AnyJavaScriptClass.Type)? { \(raw: typeName).self }",
+      "\(raw: modifiers) class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? { \(raw: superclassType) }",
     ]
 
     // Direct JSI binding, split by which JS object each member decorates:
@@ -131,7 +140,8 @@ internal struct JSClassExpansion {
     // `_constructInstance` builds an instance from the `@JS init` arguments. Both decorator phases
     // are emitted also when they bind nothing, since a class without its own phase would run the phase of
     // its superclass on its own objects. Each class binds only its own members: the inherited ones are on
-    // the JavaScript class of the superclass. The constructor is emitted only for a `@JS init`.
+    // the JavaScript class of the superclass. A subclass emits the constructor only for a `@JS init`; a
+    // root always emits it (see `JSConstructor.buildAbsentConstructor`).
     let instanceReceiver = Receiver.instance(unwrapStatement: instanceUnwrapStatement)
     emitted.append(
       buildDecorateJSClassPhase(
@@ -141,6 +151,7 @@ internal struct JSClassExpansion {
         typeName: typeName,
         instanceReceiver: instanceReceiver,
         access: access,
+        isOverride: !isRoot,
         replacesInherited: mayInheritJSMembers
       )
     )
@@ -152,11 +163,16 @@ internal struct JSClassExpansion {
         typeName: typeName,
         instanceReceiver: instanceReceiver,
         access: access,
+        isOverride: !isRoot,
         replacesInherited: mayInheritJSMembers
       )
     )
     if let constructor {
-      emitted.append(constructor.buildConstructor(typeName: typeName, access: access, isFinal: isFinal))
+      emitted.append(
+        constructor.buildConstructor(typeName: typeName, access: access, isFinal: isFinal, isOverride: !isRoot)
+      )
+    } else if isRoot {
+      emitted.append(JSConstructor.buildAbsentConstructor(access: access))
     }
 
     // The conformance assertions of the `@JS` members, which `@JS` leaves to this macro (see

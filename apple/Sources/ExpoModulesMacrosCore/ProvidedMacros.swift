@@ -22,6 +22,11 @@ public struct ProvidedMacro {
         type: SharedObjectMacro.self,
         conformances: ["AnySharedObject", "Sendable"]
       ),
+      ProvidedMacro(
+        name: "JSClass",
+        type: JSClassMacro.self,
+        conformances: ["AnyJavaScriptClass", "JavaScriptDecodable", "JavaScriptEncodable", "Sendable"]
+      ),
       ProvidedMacro(name: "Record", type: RecordMacro.self, conformances: ["Record"]),
       ProvidedMacro(
         name: "Union",

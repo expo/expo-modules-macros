@@ -1,10 +1,10 @@
 import SwiftSyntax
 
-/// A `@JS init` collected for direct JSI binding. A shared-object type has at most one (JS classes
-/// have a single constructor). Instead of a `Constructor { … }` DSL entry, the macro synthesizes an
-/// override of `SharedObject._constructInstance(...)` that decodes the JS arguments and returns a
-/// fresh instance; unlike the method/property bindings it produces the native instance rather than
-/// recovering one. Like a function, it can take the JavaScript runtime as its last parameter.
+/// A `@JS init` collected for direct JSI binding. A class has at most one (JS classes have a single
+/// constructor). Instead of a `Constructor { … }` DSL entry, the macro synthesizes a
+/// `_constructInstance(...)` hook that decodes the JS arguments and returns a fresh instance; unlike
+/// the method/property bindings it produces the native instance rather than recovering one. Like a
+/// function, it can take the JavaScript runtime as its last parameter.
 internal struct JSConstructor {
   /// The parameters that take JavaScript arguments, without the runtime parameter.
   let parameters: [FunctionParameterSyntax]
@@ -58,15 +58,16 @@ internal struct JSConstructor {
       .joined(separator: "\n")
   }
 
-  /// Builds an instance from the JS arguments. Overrides the base `SharedObject` class method; returns
-  /// the concrete instance, which converts to the `(any AnyJavaScriptClass)?` return type. The return
-  /// type can't be `Self?`, since a class that isn't `final` can't return an instance of itself as
-  /// `Self`.
+  /// Builds an instance from the JS arguments. It overrides the hook of the superclass, or, in the root
+  /// of the chain, implements the requirement of `AnyJavaScriptClass` (`isOverride` is `false`). It
+  /// returns the concrete instance, which converts to the `(any AnyJavaScriptClass)?` return type. The
+  /// return type can't be `Self?`, since a class that isn't `final` can't return an instance of itself
+  /// as `Self`.
   ///
-  /// A subclass without a `@JS init` of its own inherits this override, and would construct an instance
-  /// of this class instead of the subclass. Unless the class is `final`, the override returns `nil` when
+  /// A subclass without a `@JS init` of its own inherits this hook, and would construct an instance of
+  /// this class instead of the subclass. Unless the class is `final`, the hook returns `nil` when
   /// called on a subclass, so core reports that the subclass has no JavaScript constructor.
-  func buildConstructor(typeName: String, access: String, isFinal: Bool) -> DeclSyntax {
+  func buildConstructor(typeName: String, access: String, isFinal: Bool, isOverride: Bool) -> DeclSyntax {
     let subclassGuard =
       isFinal
       ? ""
@@ -78,8 +79,20 @@ internal struct JSConstructor {
       """
     return """
       @JavaScriptActor
-      \(raw: access) override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+      \(raw: access) \(raw: isOverride ? "override " : "")class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
       \(raw: subclassGuard)\(raw: bodyStatements(typeName: typeName, indent: "  "))
+      }
+      """
+  }
+
+  /// The hook of a root class without a `@JS init`: it returns `nil`, so core reports that the class has
+  /// no JavaScript constructor. A root emits it anyway, so that a subclass with a `@JS init` overrides a
+  /// class method: a default in a protocol extension couldn't be overridden.
+  static func buildAbsentConstructor(access: String) -> DeclSyntax {
+    return """
+      @JavaScriptActor
+      \(raw: access) class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+        return nil
       }
       """
   }
