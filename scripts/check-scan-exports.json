@@ -168,6 +168,37 @@
             "throws": false
           }
         ],
+        "initializer": {
+          "parameters": [
+            {
+              "label": "side",
+              "name": "side",
+              "optional": false,
+              "type": {
+                "kind": "primitive",
+                "name": "Double",
+                "typeof": "number"
+              }
+            }
+          ],
+          "platforms": [
+            {
+              "name": "iOS"
+            },
+            {
+              "name": "macOS"
+            },
+            {
+              "name": "tvOS"
+            },
+            {
+              "name": "watchOS"
+            },
+            {
+              "name": "visionOS"
+            }
+          ]
+        },
         "jsName": "ScanCheckSquare",
         "name": "Square",
         "platforms": [

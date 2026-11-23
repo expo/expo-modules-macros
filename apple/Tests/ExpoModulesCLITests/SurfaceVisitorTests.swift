@@ -2997,6 +2997,9 @@ struct InheritedSharedObjectMembersTests {
       }
 
       @SharedObject
+      final class FromOtherProtocol: CustomStringConvertible {}
+
+      @SharedObject
       final class FromAnySharedObject: AnySharedObject {}
 
       @SharedObject
@@ -3017,10 +3020,15 @@ struct InheritedSharedObjectMembersTests {
     let fromPlain = try sharedObject("FromPlain", in: surface)
     #expect(fromPlain.functions.map(\.jsName) == ["own"])
     #expect(fromPlain.superclass == nil)
-    // The scan can't tell a protocol from a class in another package.
+    // `Sendable` is a protocol, which ends the chain.
     let fromProtocol = try sharedObject("FromProtocol", in: surface)
     #expect(fromProtocol.functions.map(\.jsName) == ["own"])
-    #expect(fromProtocol.superclass == ExportedSuperclass(name: "Sendable", jsName: nil))
+    #expect(fromProtocol.superclass == nil)
+    // The scan can't tell another protocol from a class in another package.
+    #expect(
+      try sharedObject("FromOtherProtocol", in: surface).superclass
+        == ExportedSuperclass(name: "CustomStringConvertible", jsName: nil)
+    )
     // `AnySharedObject` is the protocol of the shared objects, so the chain ends there, as at `SharedObject`.
     #expect(try sharedObject("FromAnySharedObject", in: surface).superclass == nil)
     let a = try sharedObject("A", in: surface)
@@ -3056,6 +3064,9 @@ struct InheritedSharedObjectMembersTests {
       @JSClass
       final class OnObject: NSObject {}
 
+      @JSClass
+      final class Point: Sendable {}
+
       @SharedObject
       final class Store: Shape {
         @JS
@@ -3077,6 +3088,8 @@ struct InheritedSharedObjectMembersTests {
     #expect(square.functions.map(\.inheritedFrom) == ["Shape", nil])
     // The scan can't tell a class in another package from a protocol, as for a shared object.
     #expect(try jsClass("OnObject").superclass == ExportedSuperclass(name: "NSObject", jsName: nil))
+    // `Sendable` is a protocol, so it isn't a superclass.
+    #expect(try jsClass("Point").superclass == nil)
     // A `@SharedObject` class can name a `@JSClass` class as its superclass.
     let store = try #require(surface.sharedObjects.first { $0.name == "Store" })
     #expect(store.superclass == ExportedSuperclass(name: "Shape", jsName: "Shape"))

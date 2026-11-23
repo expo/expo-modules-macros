@@ -156,8 +156,8 @@ enum SuperclassTarget: Equatable {
   case jsClass(name: String, jsName: String)
 
   /// No superclass has either macro: the chain ends at `SharedObject`, `SharedRef`, a class without a
-  /// superclass, or the protocol that the class names instead (`AnySharedObject`, `AnyJavaScriptClass`). `sharedRef` is set when a class without the macro on the way names
-  /// `SharedRef<T>`.
+  /// superclass, or a protocol that the class names instead (`AnySharedObject`, `AnyJavaScriptClass`,
+  /// `Sendable`). `sharedRef` is set when a class without the macro on the way names `SharedRef<T>`.
   case base(sharedRef: ExportedSharedRef?)
 
   /// A superclass that the scan doesn't declare as a class, by its spelling: a class in another

@@ -35,8 +35,8 @@ extension Scanner {
 /// conformance rather than an attribute: an enum is commonly declared in a file of its own, which no
 /// macro attribute would match.
 ///
-/// A `@SharedObject` or `@JSClass` class can inherit through a class without a macro, which can be declared in a file that
-/// the pre-filter skips. So the names of the classes in a skipped file are kept, and once every other
+/// A `@SharedObject` or `@JSClass` class can inherit through a class without a macro, which can be declared
+/// in a file that the pre-filter skips. So the names of the classes in a skipped file are kept, and once every other
 /// file is walked, the skipped files that declare a superclass the scan hasn't found are parsed too
 /// (see `plainClassesDeclaringSuperclasses(of:plainClasses:classFiles:)`). The stats count them as
 /// parsed.

@@ -339,10 +339,9 @@ export interface ExportedJSClass extends ExportedAccess, ExportedAvailability {
   superclass?: ExportedSuperclass;
   /**
    * The class's `@JS` members include the ones it inherits from its `@SharedObject` and `@JSClass`
-   * superclasses, the
-   * inherited ones first, with `inheritedFrom`. An own member replaces an inherited one with the same
-   * JS name. When the superclass depends on the platform, an inherited member has only the platforms
-   * that inherit it.
+   * superclasses, the inherited ones first, with `inheritedFrom`. An own member replaces an inherited
+   * one with the same JS name. When the superclass depends on the platform, an inherited member has only
+   * the platforms that inherit it.
    */
   functions: ExportedFunction[];
   properties: ExportedProperty[];

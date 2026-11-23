@@ -117,6 +117,9 @@ open class Shape {
 @JSClass("ScanCheckSquare")
 public final class Square: Shape {
   @JS
+  init(side: Double) {}
+
+  @JS
   func covers(_ other: Shape) -> Bool { false }
 }
 

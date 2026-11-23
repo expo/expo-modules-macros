@@ -161,8 +161,8 @@ final class SurfaceVisitor: SyntaxVisitor {
           functions: functions.map(aliases.resolving),
           properties: properties.map(aliases.resolving),
           events: events,
-          // `jsName` is filled in by `ExportedSurface.resolvingRefs()`, since the `@SharedObject` can
-          // be declared in another file.
+          // `jsName` is filled in by `ExportedSurface.resolvingRefs()`, since the `@SharedObject` or
+          // `@JSClass` class can be declared in another file.
           classes: classListArgument(of: attribute, label: "classes").map {
             ExportedClass(name: $0, jsName: nil)
           },
@@ -994,9 +994,10 @@ private func sharedRefSuperclass(of node: some DeclGroupSyntax) -> ExportedShare
 
 /// The superclass a class names, without generic arguments (`Outer.ImageRef`), or `nil` when it names
 /// none, a base that ends the JavaScript class chain (`SharedObject`, `SharedRef`), or a protocol that a
-/// class conforms to without a JavaScript superclass (`AnySharedObject`, `AnyJavaScriptClass`). The
-/// first entry of the inheritance clause is read, since Swift requires the superclass to come first. It
-/// may also be another protocol, which then names no scanned class.
+/// class conforms to without a JavaScript superclass (`AnySharedObject`, `AnyJavaScriptClass`, and
+/// `Sendable`, which a root class often names first, also as `@unchecked Sendable`). The first entry of
+/// the inheritance clause is read, since Swift requires the superclass to come first. It may also be
+/// another protocol, which then names no scanned class.
 private func declaredSuperclass(of node: some DeclGroupSyntax) -> String? {
   guard let type = node.inheritanceClause?.inheritedTypes.first?.type,
     let spelling = spellingWithoutGenericArguments(of: type)
@@ -1008,7 +1009,9 @@ private func declaredSuperclass(of node: some DeclGroupSyntax) -> String? {
 }
 
 /// The names that end the JavaScript class chain when a class names one of them first in its clause.
-private let chainBaseNames: Set<String> = ["SharedObject", "SharedRef", "AnySharedObject", "AnyJavaScriptClass"]
+private let chainBaseNames: Set<String> = [
+  "SharedObject", "SharedRef", "AnySharedObject", "AnyJavaScriptClass", "Sendable",
+]
 
 /// A simple or qualified type name as written, without backticks or generic arguments, or `nil` for any
 /// other kind of type.

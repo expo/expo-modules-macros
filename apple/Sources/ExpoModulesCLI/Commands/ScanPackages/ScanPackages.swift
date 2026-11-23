@@ -112,9 +112,9 @@ private let platformUniverse: [(condition: String, reported: String)] = [
 ]
 
 /// Scans the given paths for top-level `@ExpoModule`, `@SharedObject`, `@JSClass` and `@ExpoView` types and
-/// returns every one found in any `#if` branch (in file then source order), each with the platforms whose builds include it, plus
-/// the stats for the run — the `scan-packages` command. Kept separate from the public entry (and
-/// `internal`) so tests can drive it without going through argv/stdout.
+/// returns every one found in any `#if` branch (in file then source order), each with the platforms whose
+/// builds include it, plus the stats for the run — the `scan-packages` command. Kept separate from the
+/// public entry (and `internal`) so tests can drive it without going through argv/stdout.
 ///
 /// Each file is parsed once and walked once per platform (plus once unconditionally to enumerate
 /// every type): a type's `platforms` are the OSes whose evaluated walk reached it, given the

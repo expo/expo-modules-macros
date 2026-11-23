@@ -72,8 +72,8 @@ func declaredClassNames(in source: String) -> Set<String> {
 }
 
 /// Parses the files that the pre-filter skipped and that may declare a superclass of a `@SharedObject` or
-/// `@JSClass` class that the scan hasn't found, and returns the classes without a macro in them, with the number of files
-/// it parsed. `classFiles` maps a class name to the skipped files that may declare it (see
+/// `@JSClass` class that the scan hasn't found, and returns the classes without a macro in them, with the
+/// number of files it parsed. `classFiles` maps a class name to the skipped files that may declare it (see
 /// `declaredClassNames(in:)`). A class found this way can name another superclass that the scan hasn't
 /// found, so it repeats until no new file can declare one. A skipped file has no macro, so it adds only
 /// classes without a macro.
