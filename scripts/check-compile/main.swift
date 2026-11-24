@@ -252,7 +252,38 @@ func checkSharedObjects() -> [String] {
   return failures
 }
 
-let failures = try await check() + checkViews() + checkSharedObjects()
+// Checks the places of the classes of `JSClasses.swift` in the JavaScript class chain, also through
+// `AnyJavaScriptClass`, as core reads them.
+func checkJSClasses() -> [String] {
+  var failures: [String] = []
+  func expect(_ actual: (any AnyJavaScriptClass.Type)?, _ expected: (any AnyJavaScriptClass.Type)?, _ label: String) {
+    if actual != expected {
+      failures.append("\(label): \(String(describing: actual)) isn't \(String(describing: expected))")
+    }
+  }
+
+  expect(ClassRoot._jsClassType, ClassRoot.self, "ClassRoot._jsClassType")
+  expect(ClassRoot._jsSuperclassType, nil, "ClassRoot._jsSuperclassType")
+  expect(ClassMiddle._jsClassType, ClassRoot.self, "ClassMiddle._jsClassType")
+  expect(ClassLeaf._jsClassType, ClassLeaf.self, "ClassLeaf._jsClassType")
+  expect(ClassLeaf._jsSuperclassType, ClassRoot.self, "ClassLeaf._jsSuperclassType")
+  expect(GenericRoot<Int>._jsClassType, GenericRoot<Int>.self, "GenericRoot<Int>._jsClassType")
+  expect(IntRoot._jsSuperclassType, GenericRoot<Int>.self, "IntRoot._jsSuperclassType")
+  expect(DeclaredRoot._jsSuperclassType, nil, "DeclaredRoot._jsSuperclassType")
+  expect(ClassNamespace.Nested._jsClassType, ClassNamespace.Nested.self, "ClassNamespace.Nested._jsClassType")
+  expect(Counter._jsSuperclassType, nil, "Counter._jsSuperclassType")
+  expect(StepCounter._jsSuperclassType, Counter.self, "StepCounter._jsSuperclassType")
+  expect(FinalCounter._jsClassType, FinalCounter.self, "FinalCounter._jsClassType")
+
+  let leaf: any AnyJavaScriptClass.Type = ClassLeaf.self
+  expect(leaf._jsSuperclassType, ClassRoot.self, "ClassLeaf._jsSuperclassType through AnyJavaScriptClass")
+  if leaf._jsName != "ClassLeaf" {
+    failures.append("ClassLeaf._jsName through AnyJavaScriptClass: \(leaf._jsName)")
+  }
+  return failures
+}
+
+let failures = try await check() + checkViews() + checkSharedObjects() + checkJSClasses()
 for failure in failures {
   print("error: \(failure)")
 }

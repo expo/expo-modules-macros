@@ -2,10 +2,10 @@ import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// Marker macro applied to module / shared-object members that should be exposed to JavaScript.
-/// `@ExpoModule` and `@SharedObject` discover declarations carrying this attribute and bind each one
-/// directly into the JS object, with the decode-call-encode body inlined into the binding; that part
-/// of the expansion lives in those macros.
+/// Marker macro applied to the members of a module, shared object or JavaScript class that should be
+/// exposed to JavaScript. `@ExpoModule`, `@SharedObject` and `@JSClass` discover declarations carrying
+/// this attribute and bind each one directly into the JS object, with the decode-call-encode body
+/// inlined into the binding; that part of the expansion lives in those macros.
 ///
 /// On its own, `@JS` emits one thing: a never-called peer that asserts each type crossing the JS
 /// boundary is convertible in the direction it travels — arguments are `JavaScriptDecodable`, return
@@ -64,8 +64,9 @@ public struct JSMacro: PeerMacro {
     diagnoseRuntimeParameter(of: node, on: declaration, in: context)
     diagnoseSymbolArgument(of: node, on: declaration, in: context)
 
-    // In an `@ExpoModule` or `@SharedObject` class, the class macro emits the assertion instead: it sees
-    // the type aliases declared in the class body, which this macro can't (see `TupleTypeAliases`).
+    // In an `@ExpoModule`, `@SharedObject` or `@JSClass` class, the class macro emits the assertion
+    // instead: it sees the type aliases declared in the class body, which this macro can't (see
+    // `TupleTypeAliases`).
     guard !isInBindingClass(context), let assertion = jsConformanceAssertion(for: declaration) else {
       return []
     }
@@ -81,9 +82,9 @@ private func jsConformanceAssertion(for declaration: some DeclSyntaxProtocol) ->
   return directionalConformanceAssertion(name: member.name, types: member.types, isStatic: member.isStatic)
 }
 
-/// The conformance assertion of a `@JS` member, for an `@ExpoModule` or `@SharedObject` class to fold
-/// into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when the member has
-/// no type to assert.
+/// The conformance assertion of a `@JS` member, for an `@ExpoModule`, `@SharedObject` or `@JSClass`
+/// class to fold into its `_assertTypesConformance()` (see `classConformanceAssertions`), or `nil` when
+/// the member has no type to assert.
 internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtocol) -> MemberConformanceAssertion? {
   guard let member = boundaryMember(of: declaration) else {
     return nil
@@ -91,21 +92,23 @@ internal func jsConformanceAssertionBody(for declaration: some DeclSyntaxProtoco
   return memberConformanceAssertion(name: member.name, types: member.types)
 }
 
-/// True when the member is declared directly in an `@ExpoModule` or `@SharedObject` class, whose macro
-/// binds it.
+/// True when the member is declared directly in an `@ExpoModule`, `@SharedObject` or `@JSClass` class,
+/// whose macro binds it.
 private func isInBindingClass(_ context: some MacroExpansionContext) -> Bool {
   guard let classDecl = context.lexicalContext.first?.as(ClassDeclSyntax.self) else {
     return false
   }
   return classDecl.attributes.firstAttribute(named: "ExpoModule") != nil
     || classDecl.attributes.firstAttribute(named: "SharedObject") != nil
+    || classDecl.attributes.firstAttribute(named: "JSClass") != nil
 }
 
 /// Reports a `@JS` attribute that no macro binds, so the member would be missing in JavaScript without
 /// an error:
 /// - on a declaration other than a function, property or initializer, such as a subscript;
-/// - on a member of an extension, since `@ExpoModule` and `@SharedObject` read only the class body;
-/// - on a member of a type that isn't an `@ExpoModule` or `@SharedObject` class;
+/// - on a member of an extension, since `@ExpoModule`, `@SharedObject` and `@JSClass` read only the
+///   class body;
+/// - on a member of a type that isn't an `@ExpoModule`, `@SharedObject` or `@JSClass` class;
 /// - on a `static` or `class` member of an `@ExpoModule` class, since JavaScript gets only the instance;
 /// - on an initializer of an `@ExpoModule` class, since JavaScript doesn't construct a module.
 private func diagnosePlacement(
@@ -136,7 +139,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'",
+          "A @JS member of an extension isn't bound to JavaScript: @ExpoModule, @SharedObject and @JSClass bind only the @JS members declared in the class body. Move the member into the declaration of '\(typeName)'",
           id: "js-in-extension",
           severity: .error
         )
@@ -152,7 +155,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "A @JS member of \(typeName) isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to \(typeName), or move the member into such a class",
+          "A @JS member of \(typeName) isn't bound to JavaScript: only an @ExpoModule, @SharedObject or @JSClass class binds its @JS members. Add one of these macros to \(typeName), or move the member into such a class",
           id: "js-outside-binding-class",
           severity: .error
         )
@@ -184,7 +187,7 @@ private func diagnosePlacement(
       Diagnostic(
         node: node,
         message: JSDiagnosticMessage(
-          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
+          "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @JSClass or @SharedObject class from JavaScript instead",
           id: "js-module-initializer",
           severity: .error
         ),

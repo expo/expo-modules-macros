@@ -40,6 +40,10 @@ public struct SharedObjectMacro: MemberMacro {
     guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
       throw MacroExpansionErrorMessage("@SharedObject can only be applied to a class")
     }
+    // `@JSClass` adds nothing to a class with this macro, so this one reports the class.
+    if let jsClassAttribute = classDecl.attributes.firstAttribute(named: "JSClass") {
+      throw DiagnosticsError(diagnostics: [bothMacrosDiagnostic(for: jsClassAttribute, in: classDecl)])
+    }
     diagnoseNonPublicClass(
       classDecl,
       macroName: "@SharedObject",
@@ -69,7 +73,11 @@ public struct SharedObjectMacro: MemberMacro {
       macroName: "@SharedObject",
       instanceUnwrapStatement:
         "let _self = try SharedObject.native(from: this.asObject(in: runtime), as: \(typeName).self)",
-      mayInheritJSMembers: !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"])
+      mayInheritJSMembers: !inheritsFromAny(classDecl, names: ["SharedObject", "SharedRef"]),
+      // A shared object always has a `SharedObject` superclass, which implements the hooks.
+      isRoot: false,
+      // Core creates the JavaScript object of a shared object that native code returns.
+      instancesComeFromConstructor: false
     )
     return try expansion.members(in: context)
   }
@@ -163,6 +171,27 @@ private func missingBaseClassDiagnostic(for classDecl: ClassDeclSyntax) -> Diagn
     message: SharedObjectDiagnosticMessage(
       "@SharedObject class '\(name.text)' must inherit from 'SharedObject', directly or through another class such as 'SharedRef'. Add ': SharedObject' to the class declaration",
       id: "sharedobject-missing-base-class"
+    ),
+    fixIts: [fixIt]
+  )
+}
+
+/// The error for a class with both `@SharedObject` and `@JSClass`, with a fix-it that removes `@JSClass`.
+/// The fix-it removes the attribute and the space up to the next token, so the next attribute or
+/// keyword takes its place.
+private func bothMacrosDiagnostic(for attribute: AttributeSyntax, in classDecl: ClassDeclSyntax) -> Diagnostic {
+  let end =
+    attribute.lastToken(viewMode: .sourceAccurate)?.nextToken(viewMode: .sourceAccurate)?
+    .positionAfterSkippingLeadingTrivia ?? attribute.endPosition
+  let fixIt = FixIt(
+    message: SharedObjectFixItMessage("Remove '@JSClass'", id: "sharedobject-remove-jsclass"),
+    changes: [.replaceText(range: attribute.positionAfterSkippingLeadingTrivia..<end, with: "", in: Syntax(classDecl))]
+  )
+  return Diagnostic(
+    node: attribute,
+    message: SharedObjectDiagnosticMessage(
+      "A @SharedObject class can't also have @JSClass: @SharedObject gives the class its JavaScript class. Remove @JSClass",
+      id: "sharedobject-with-jsclass"
     ),
     fixIts: [fixIt]
   )

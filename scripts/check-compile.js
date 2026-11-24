@@ -5,10 +5,14 @@
 // that doesn't compile, or that compiles only in some build settings. This builds the stand-in core
 // module of `Core.swift` with library evolution, then, in each configuration of `CONFIGURATIONS`:
 //
-// - builds `Props.swift`, `Views.swift` and `SharedObjects.swift` as a library, with no warnings allowed;
+// - builds `Props.swift`, `Views.swift`, `SharedObjects.swift` and `JSClasses.swift` as a library, with no warnings
+//   allowed;
 // - with library evolution, also verifies its `.swiftinterface` and builds `Client.swift` from it;
 // - builds the same files and `main.swift` as an executable and runs it, which checks the decoded and reset
-//   values, the views, and the JavaScript class chain of the shared objects.
+//   values, the views, and the JavaScript class chain of the shared objects and the JavaScript classes.
+//
+// It also type-checks `JSClassErrors.swift` once and expects an error on each line after an `expect-error`
+// comment.
 //
 // It runs on macOS. The macOS workflow runs it with the debug tool that `swift test` builds, during
 // the release build.
@@ -33,10 +37,10 @@ if (process.platform !== 'darwin') {
 
 const fixturesDirectory = path.join(__dirname, 'check-compile');
 
-// The module of `Props.swift`, `Views.swift` and `SharedObjects.swift`. Its name differs from every type and member
-// name in the fixtures: a `.swiftinterface` of Swift 6.3 or older qualifies a type with the module name, so for a
-// module named `Props` the `Props` typealias of an `@ExpoView` view reads `Props.PublicProps`, where `Props` is the
-// typealias itself.
+// The module of `Props.swift`, `Views.swift`, `SharedObjects.swift` and `JSClasses.swift`. Its name differs from
+// every type and member name in the fixtures: a `.swiftinterface` of Swift 6.3 or older qualifies a type with the
+// module name, so for a module named `Props` the `Props` typealias of an `@ExpoView` view reads
+// `Props.PublicProps`, where `Props` is the typealias itself.
 const LIBRARY_MODULE = 'Fixtures';
 const plugin = `${path.resolve(binaryArgument)}#ExpoModulesMacros`;
 
@@ -129,8 +133,9 @@ function check(configuration, coreDirectory, directory) {
     fixture('Props.swift'),
     fixture('Views.swift'),
     fixture('SharedObjects.swift'),
+    fixture('JSClasses.swift'),
   ]);
-  console.log(`  built Props.swift, Views.swift and SharedObjects.swift as a library`);
+  console.log(`  built Props.swift, Views.swift, SharedObjects.swift and JSClasses.swift as a library`);
 
   if (configuration.libraryEvolution) {
     // The interface directory has no binary module, so `import Fixtures` builds the module from the
@@ -167,6 +172,7 @@ function check(configuration, coreDirectory, directory) {
     fixture('Props.swift'),
     fixture('Views.swift'),
     fixture('SharedObjects.swift'),
+    fixture('JSClasses.swift'),
     fixture('main.swift'),
   ]);
   const result = childProcess.spawnSync(executable, { encoding: 'utf8' });
@@ -179,13 +185,61 @@ function check(configuration, coreDirectory, directory) {
   console.log(`  ran main.swift: ${result.stdout.trim()}`);
 }
 
+// Type-checks `JSClassErrors.swift`, which must fail with an error on each line after an `// expect-error` line
+// and on no other line. An error in another file, such as the code that a macro generates, fails the check too.
+// The macro reports these errors from the conformances that the compiler passes, so only the compiler can show
+// them.
+function checkExpectedErrors(coreDirectory) {
+  const file = fixture('JSClassErrors.swift');
+  const expected = fs
+    .readFileSync(file, 'utf8')
+    .split('\n')
+    .flatMap((line, index) => (line.trim() === '// expect-error' ? [index + 2] : []));
+  const result = childProcess.spawnSync(
+    'swiftc',
+    [
+      '-swift-version',
+      '6',
+      '-parse-as-library',
+      '-typecheck',
+      '-load-plugin-executable',
+      plugin,
+      '-I',
+      coreDirectory,
+      file,
+    ],
+    { encoding: 'utf8' }
+  );
+  if (result.error) {
+    throw result.error;
+  }
+  const output = `${result.stdout}${result.stderr}`;
+  // The location of each error, as `<file>:<line>:<column>: error:` at the start of a line.
+  const errors = [...output.matchAll(/^(.+?):(\d+):\d+: error:/gm)];
+  const reported = [...new Set(errors.filter((match) => match[1] === file).map((match) => Number(match[2])))];
+  const elsewhere = errors.filter((match) => match[1] !== file).map((match) => `${match[1]}:${match[2]}`);
+  if (result.status === 0 || elsewhere.length > 0 || reported.join(',') !== expected.join(',')) {
+    throw new Error(
+      `JSClassErrors.swift reported errors on lines [${reported}], not [${expected}], and in other files ` +
+        `[${elsewhere}]:\n${output}`
+    );
+  }
+  console.log(`type-checked JSClassErrors.swift: errors on lines ${expected.join(', ')}, as expected`);
+}
+
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'check-compile-'));
 try {
   const coreDirectory = path.join(directory, 'core');
   fs.mkdirSync(coreDirectory);
   buildCore(coreDirectory);
-  // Each configuration runs, also after one fails, so that the output shows every failing one.
+  // Each check runs, also after one fails, so that the output shows every failing one.
   const failed = [];
+  try {
+    checkExpectedErrors(coreDirectory);
+  } catch (error) {
+    console.error(error.message);
+    failed.push('JSClassErrors.swift');
+  }
   for (const configuration of CONFIGURATIONS) {
     console.log(`${configuration.name}:`);
     const configurationDirectory = path.join(directory, configuration.name.replaceAll(' ', '-'));

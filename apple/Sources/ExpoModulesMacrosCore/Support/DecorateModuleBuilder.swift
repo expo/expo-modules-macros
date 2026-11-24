@@ -637,17 +637,18 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
     """
 }
 
-/// A decorator phase of a JavaScript class, a label overload of `_decorateClass` overriding the
-/// matching `open class func` on the `SharedObject` base so core can dispatch through the concrete
-/// type's metatype. The `prototype:` overload binds the type's instance `@JS func`/`var` members onto
-/// the class prototype (the original hook, unchanged); the `constructor:` overload binds the
-/// `static`/`class` ones onto the constructor function itself (a new, additive overload, so introducing
-/// it isn't a breaking core change). Both are *static* (a class has no singleton `self`). An instance
+/// A decorator phase of a JavaScript class, a label overload of the `_decorateClass` class method, so
+/// core can dispatch through the concrete type's metatype. The `prototype:` overload binds the type's
+/// instance `@JS func`/`var` members onto the class prototype; the `constructor:` overload binds the
+/// `static`/`class` ones onto the constructor function itself. Both are *static* (a class has no
+/// singleton `self`). An instance
 /// binding recovers its typed receiver from the JS `this` per call (`instanceReceiver`); a static
 /// binding calls the Swift member on the type and ignores `this` (which, on the static side, is the
 /// constructor). The constructor *object* the static members decorate is distinct from the `@JS init`,
 /// which builds an instance and is emitted separately (see `JSConstructor.buildConstructor`). `access`
-/// is the access modifier of the override, `open` in an `open` class and `public` otherwise.
+/// is the access modifier of the hook, `open` in an `open` class and `public` otherwise. The hook is an
+/// `override` unless the class is the root of its chain (`isOverride` is `false`), where it implements
+/// the requirement of `AnyJavaScriptClass`.
 ///
 /// Each phase binds only the members of its own class and doesn't call `super`. Core builds the
 /// JavaScript class of a subclass on the JavaScript class of its superclass (`_jsSuperclassType`), so the
@@ -664,6 +665,7 @@ internal func buildDecorateJSClassPhase(
   typeName: String,
   instanceReceiver: Receiver,
   access: String,
+  isOverride: Bool,
   replacesInherited: Bool
 ) -> DeclSyntax {
   let receiver: Receiver = phase == .constructor ? .staticMember(typeName: typeName) : instanceReceiver
@@ -678,7 +680,7 @@ internal func buildDecorateJSClassPhase(
   let statements = body.isEmpty ? "" : "\(body)\n"
   return """
     @JavaScriptActor
-    \(raw: access) override class func _decorateClass(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+    \(raw: access) \(raw: isOverride ? "override " : "")class func _decorateClass(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
     \(raw: statements)}
     """
 }

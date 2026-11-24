@@ -1,7 +1,8 @@
-import ExpoModulesCLI
 import ExpoModulesMacrosCore
 import Foundation
 import Testing
+
+@testable import ExpoModulesCLI
 
 @Suite("expand")
 struct ExpandTests {
@@ -56,6 +57,112 @@ struct ExpandTests {
     #expect(!expansion.source.contains("extension Session"))
     // Both shared objects inherit `AnySharedObject` from `SharedObject`.
     #expect(!expansion.source.contains(": nonisolated AnySharedObject"))
+  }
+
+  @Test
+  func
+    `Treats a @JSClass class whose superclass in the file has a JavaScript class as a subclass, and reports one below a shared object`()
+    throws
+  {
+    let source = """
+      @JSClass
+      open class Shape {}
+
+      open class Plain: Shape {}
+
+      @JSClass
+      public final class Circle: Plain {}
+
+      @JSClass
+      public final class Store: SharedObject {}
+
+      @SharedObject
+      open class SharedStore: SharedObject {}
+
+      open class PlainStore: SharedStore {}
+
+      @JSClass
+      public final class BelowStore: PlainStore {}
+      """
+    let result = expandMacros(source: source, file: "Shapes.swift", symbols: [])
+    let expansion = try #require(result.expansions.only)
+    #expect(expansion.source.contains("nonisolated open class var _jsSuperclassType"))
+    #expect(expansion.source.contains("extension Shape: nonisolated AnyJavaScriptClass,"))
+    #expect(expansion.source.contains("extension Shape: @unchecked Sendable {"))
+    // `Circle` inherits from `Shape` through `Plain`, which has no macro.
+    #expect(expansion.source.contains("public override class var _jsName: String {\n    \"Circle\""))
+    #expect(!expansion.source.contains("extension Circle"))
+    // A class below a shared object is reported, also through `PlainStore`, which has no macro, and gets
+    // nothing.
+    let reported = result.diagnostics.filter { $0.message.hasPrefix("A @JSClass class can't be a shared object") }
+    #expect(reported.map(\.line) == [9, 17])
+    #expect(!expansion.source.contains("extension Store"))
+    #expect(!expansion.source.contains("extension BelowStore"))
+  }
+
+  @Test
+  func `Finds the superclass of a @JSClass class by its name in the scope of the class`() throws {
+    let source = """
+      public enum A {
+        @SharedObject
+        open class Store: SharedObject {}
+      }
+
+      public enum B {
+        open class Store {}
+      }
+
+      @JSClass
+      public final class Plain: B.Store {}
+
+      @JSClass
+      public final class Shared: A.Store {}
+
+      extension A {
+        @JSClass
+        public final class Nested: Store {}
+      }
+
+      extension B {
+        @JSClass
+        public final class Local: Store {}
+      }
+      """
+    let result = expandMacros(source: source, file: "Stores.swift", symbols: [])
+    let expansion = try #require(result.expansions.only)
+    // `B.Store` has no JavaScript class, also though `A.Store` is a shared object.
+    #expect(expansion.source.contains("extension Plain: nonisolated AnyJavaScriptClass,"))
+    #expect(expansion.source.contains("extension B.Local: nonisolated AnyJavaScriptClass,"))
+    let reported = result.diagnostics.filter { $0.message.hasPrefix("A @JSClass class can't be a shared object") }
+    #expect(reported.map(\.line) == [13, 17])
+  }
+
+  @Test
+  func `Treats a @JSClass class whose superclass is in another expanded file as a subclass`() throws {
+    let fileManager = FileManager.default
+    let root = fileManager.temporaryDirectory.appendingPathComponent(
+      "macros-expand-\(ProcessInfo.processInfo.globallyUniqueString)"
+    )
+    defer { try? fileManager.removeItem(at: root) }
+    try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+    try "@JSClass\nopen class Shape {}\n".write(
+      to: root.appendingPathComponent("Shape.swift"),
+      atomically: true,
+      encoding: .utf8
+    )
+    let circle = "@JSClass\npublic final class Circle: Shape {}\n"
+    try circle.write(to: root.appendingPathComponent("Circle.swift"), atomically: true, encoding: .utf8)
+
+    let expander = MacroExpander(attributeNames: Set(ProvidedMacro.all.map(\.name)), expand: expandMacros)
+    let files = try expandFiles(options: ExpandOptions(paths: [root.path]), expander: expander).get().files
+    let circleExpansion = try #require(files.first { $0.file.hasSuffix("Circle.swift") }?.expansions.only)
+    #expect(circleExpansion.source.contains("public override class var _jsName"))
+    #expect(!circleExpansion.source.contains("extension Circle"))
+
+    // Alone, the file has no superclass with a JavaScript class, so `Circle` is a root.
+    let alone = try #require(expandMacros(source: circle, file: "Circle.swift", symbols: []).expansions.only)
+    #expect(alone.source.contains("nonisolated public class var _jsName"))
+    #expect(alone.source.contains("extension Circle: nonisolated AnyJavaScriptClass,"))
   }
 
   @Test

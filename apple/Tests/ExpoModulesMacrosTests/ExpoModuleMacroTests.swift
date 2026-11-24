@@ -3907,7 +3907,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS member of an extension isn't bound to JavaScript: @ExpoModule and @SharedObject bind only the @JS members declared in the class body. Move the member into the declaration of 'MyModule'",
+            "A @JS member of an extension isn't bound to JavaScript: @ExpoModule, @SharedObject and @JSClass bind only the @JS members declared in the class body. Move the member into the declaration of 'MyModule'",
           line: 2,
           column: 3,
           severity: .error
@@ -3937,7 +3937,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
+            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @JSClass or @SharedObject class from JavaScript instead",
           line: 3,
           column: 3,
           severity: .error,
@@ -3972,7 +3972,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @SharedObject class from JavaScript instead",
+            "@JS on an initializer of an @ExpoModule class isn't bound to JavaScript: JavaScript doesn't construct a module, it gets the instance that the app context creates. Remove @JS, or construct a @JSClass or @SharedObject class from JavaScript instead",
           line: 3,
           column: 3,
           severity: .error
@@ -4084,7 +4084,7 @@ struct ExpoModuleMacroTests {
       diagnostics: [
         DiagnosticSpec(
           message:
-            "A @JS member of 'Helper' isn't bound to JavaScript: only an @ExpoModule or @SharedObject class binds its @JS members. Add one of these macros to 'Helper', or move the member into such a class",
+            "A @JS member of 'Helper' isn't bound to JavaScript: only an @ExpoModule, @SharedObject or @JSClass class binds its @JS members. Add one of these macros to 'Helper', or move the member into such a class",
           line: 2,
           column: 3,
           severity: .error

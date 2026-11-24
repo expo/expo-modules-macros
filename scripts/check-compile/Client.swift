@@ -1,5 +1,5 @@
-// Uses a props type, a view and a shared object of the `Fixtures` module, which `check-compile.js` builds with library
-// evolution and gives to this module only as its `.swiftinterface`.
+// Uses a props type, a view, a shared object and a JavaScript class of the `Fixtures` module, which
+// `check-compile.js` builds with library evolution and gives to this module only as its `.swiftinterface`.
 
 import Core
 import Fixtures
@@ -49,3 +49,8 @@ public func previewHasAppContext() -> Bool {
 // from another module.
 @SharedObject
 public final class ClientObject: ChainRoot, @unchecked Sendable {}
+
+// Subclasses an `open` root `@JSClass` class of the `Fixtures` module, so its expansion overrides the `open` hooks that
+// the root implements, from another module.
+@JSClass
+public final class ClientClass: ClassRoot, @unchecked Sendable {}
