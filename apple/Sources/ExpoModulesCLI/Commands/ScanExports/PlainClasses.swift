@@ -7,15 +7,16 @@ import FoundationEssentials
 import Foundation
 #endif
 
-/// A class without a macro that the surface reports, which a shared object can inherit through. Core
-/// builds the JavaScript class of a shared object on the JavaScript class of its nearest superclass
-/// with `@SharedObject`, also when a class without the macro is between them. Not encoded.
+/// A class without a macro that the surface reports, which a `@SharedObject` or `@JSClass` class can
+/// inherit through. Core builds the JavaScript class of such a class on the JavaScript class of its
+/// nearest superclass with either macro, also when a class without a macro is between them. Not
+/// encoded.
 struct PlainClassDeclaration: Equatable {
   /// The Swift class name, qualified with the types it is nested in (`Media.Base`).
   let name: String
 
   /// The superclass as written, without generic arguments, or `nil` when there is none or it is
-  /// `SharedObject`, `SharedRef` or `AnySharedObject`.
+  /// `SharedObject`, `SharedRef`, `AnySharedObject` or `AnyJavaScriptClass`.
   let declaredSuperclass: String?
 
   /// The `SharedRef<T>` that the class names as its superclass, or `nil` when it names another one or
@@ -30,8 +31,8 @@ struct PlainClassDeclaration: Equatable {
 }
 
 /// The names that follow the `class` keyword in `source`, without parsing it. The pre-filter skips the
-/// parse of a file without a macro, but a shared object can inherit through a class declared in such a
-/// file, so `scanExports` keeps these names to find the file. An over-approximation, like the
+/// parse of a file without a macro, but a `@SharedObject` or `@JSClass` class can inherit through a
+/// class declared in such a file, so `scanExports` keeps these names to find the file. An over-approximation, like the
 /// pre-filter: the keyword also matches in a comment or a string, and in `class func` or `class var`,
 /// which adds names that no lookup asks for.
 func declaredClassNames(in source: String) -> Set<String> {
@@ -70,9 +71,9 @@ func declaredClassNames(in source: String) -> Set<String> {
   }
 }
 
-/// Parses the files that the pre-filter skipped and that may declare a superclass of a shared object
-/// that the scan hasn't found, and returns the classes without a macro in them, with the number of files
-/// it parsed. `classFiles` maps a class name to the skipped files that may declare it (see
+/// Parses the files that the pre-filter skipped and that may declare a superclass of a `@SharedObject` or
+/// `@JSClass` class that the scan hasn't found, and returns the classes without a macro in them, with the
+/// number of files it parsed. `classFiles` maps a class name to the skipped files that may declare it (see
 /// `declaredClassNames(in:)`). A class found this way can name another superclass that the scan hasn't
 /// found, so it repeats until no new file can declare one. A skipped file has no macro, so it adds only
 /// classes without a macro.

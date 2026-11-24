@@ -32,13 +32,13 @@ const expectedExportsPath = path.join(__dirname, 'check-scan-exports.json');
 // subdirectory. `Types/Models.swift` has CRLF line endings, as a Windows checkout can have, and a
 // non-ASCII string, which the scanner must pass through stdout unchanged. `Types/LocalPlayable.swift`
 // has no macro, so the pre-filter skips it, but a shared object inherits through the class in it, so
-// the scanner must parse it too.
+// the scanner must parse it too. `Square` is a `@JSClass` subclass of the `@JSClass` root `Shape`.
 const EXPORTS_FIXTURE = {
   'PlayerModule.swift': {
     lineEnding: '\n',
     source: `import ExpoModulesCore
 
-@ExpoModule("ScanCheckPlayer", classes: [Player.self])
+@ExpoModule("ScanCheckPlayer", classes: [Player.self, Shape.self])
 public final class PlayerModule {
   @JS
   func greet(_ name: String, punctuation: String = "!") -> String {
@@ -103,6 +103,24 @@ open class Playable: SharedObject {
 public final class Playlist: LocalPlayable {
   @JS
   func next() {}
+}
+
+@JSClass
+open class Shape {
+  @JS
+  init(name: String) {}
+
+  @JS
+  func area() -> Double { 0 }
+}
+
+@JSClass("ScanCheckSquare")
+public final class Square: Shape {
+  @JS
+  init(side: Double) {}
+
+  @JS
+  func covers(_ other: Shape) -> Bool { false }
 }
 
 @ViewProps
@@ -228,12 +246,18 @@ async function check({ expandMacros, getScannerBinaryPath, scanExports, scanPack
   try {
     const moduleFile = path.join(fixture, 'Module.swift');
     fs.writeFileSync(moduleFile, '@ExpoModule\npublic final class ScanCheckModule {}\n');
+    fs.writeFileSync(path.join(fixture, 'Shape.swift'), '@JSClass\npublic final class ScanCheckShape {}\n');
     const result = await scanPackages([fixture], { timeout: 60_000 });
     const module = result.modules.find((candidate) => candidate.name === 'ScanCheckModule');
     if (!module) {
       throw new Error(`scanPackages didn't report ScanCheckModule:\n${JSON.stringify(result, null, 2)}`);
     }
     console.log(`scanPackages reported ${module.name} in ${module.file}`);
+    const jsClass = result.classes.find((candidate) => candidate.name === 'ScanCheckShape');
+    if (!jsClass || result.modules.some((candidate) => candidate.name === 'ScanCheckShape')) {
+      throw new Error(`scanPackages didn't report ScanCheckShape in classes only:\n${JSON.stringify(result, null, 2)}`);
+    }
+    console.log(`scanPackages reported ${jsClass.name} in classes`);
 
     const expanded = await expandMacros([moduleFile], { timeout: 60_000 });
     const source = expanded.files[0]?.expansions[0]?.source ?? '';

@@ -1,5 +1,7 @@
-/// Adds to each `@SharedObject` class its `superclass`, the nearest one with `@SharedObject`, and the
-/// `@JS` members it inherits from it.
+/// Adds to each `@SharedObject` and `@JSClass` class its `superclass`, the nearest one with either macro,
+/// and the `@JS` members it inherits from it. A `@SharedObject` class can name a `@JSClass` class as
+/// its superclass, and the scan resolves that chain too. A `@JSClass` class can't extend a shared
+/// object: the macro reports it.
 ///
 /// Core builds the JavaScript class of a subclass on the JavaScript class of its nearest superclass
 /// with the macro, so an instance and the constructor of the subclass get the members of that class
@@ -8,9 +10,9 @@
 /// a class that extends the superclass and leaves the inherited members out.
 
 extension ExportedSurface {
-  /// This surface with the `superclass` of each shared object and the members it inherits. Runs after
-  /// `resolvingRefs()`, so the refs in an inherited member are resolved from the superclass that
-  /// declares it, as Swift resolves them.
+  /// This surface with the `superclass` of each `@SharedObject` and `@JSClass` class and the members it
+  /// inherits. Runs after `resolvingRefs()`, so the refs in an inherited member are resolved from the
+  /// superclass that declares it, as Swift resolves them.
   ///
   /// The superclass is looked up from the scope that encloses the class, the way `RefIndex` looks up a
   /// ref. The lookup goes on through `plainClasses`, the classes without a macro, as the chain does at
@@ -34,14 +36,14 @@ extension ExportedSurface {
   /// names it, with the nearest `nativeRefType` override: its own, or one of a class on the way.
   func mergingInheritedMembers(through plainClasses: [PlainClassDeclaration]) -> ExportedSurface {
     let resolver = SuperclassResolver(surface: self, plainClasses: plainClasses)
-    let declarations = Dictionary(grouping: sharedObjects, by: \.name)
+    let declarations = Dictionary(grouping: sharedObjects + classes, by: \.name)
 
     // `chain` holds the classes being merged, so a malformed cycle in the inheritance ends instead of
     // recursing forever.
-    func merged(_ sharedObject: ExportedSharedObject, chain: Set<String>) -> ExportedSharedObject {
-      var result = sharedObject
-      let groups = resolver.resolutions(of: sharedObject)
-      result.superclass = superclass(of: sharedObject, in: groups)
+    func merged(_ jsClass: ExportedJSClass, chain: Set<String>) -> ExportedJSClass {
+      var result = jsClass
+      let groups = resolver.resolutions(of: jsClass)
+      result.superclass = superclass(of: jsClass, in: groups)
       // With one group, every platform of the class inherits the same members, so they keep their own
       // platforms.
       let limitsPlatforms = groups.count > 1
@@ -51,7 +53,7 @@ extension ExportedSurface {
       var events: [ExportedEvent] = []
       var sharedRef: ExportedSharedRef? = nil
       for group in groups {
-        let nativeRefType = sharedObject.ownNativeRefType ?? group.nativeRefType
+        let nativeRefType = jsClass.ownNativeRefType ?? group.nativeRefType
         switch group.target {
         case .unresolved:
           continue
@@ -64,14 +66,14 @@ extension ExportedSurface {
             )
           }
 
-        case .sharedObject(let name, _):
+        case .jsClass(let name, _):
           guard !chain.contains(name) else {
             continue
           }
           let platforms = Set(group.platforms)
           let parents = (declarations[name] ?? [])
             .filter { declaration in declaration.platforms.contains { platforms.contains($0.name) } }
-            .map { merged($0, chain: chain.union([sharedObject.name])) }
+            .map { merged($0, chain: chain.union([jsClass.name])) }
           func inherited<Member: InheritedMember>(_ members: [Member], from parent: String) -> [Member] {
             let members = members.map { $0.inherited(from: parent) }
             return limitsPlatforms ? members.compactMap { $0.limited(to: platforms) } : members
@@ -93,20 +95,20 @@ extension ExportedSurface {
       }
 
       let ownMembers = Set(
-        sharedObject.functions.map { MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic) }
-          + sharedObject.properties.map { MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic) }
+        jsClass.functions.map { MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic) }
+          + jsClass.properties.map { MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic) }
       )
       result.functions =
         functions.filter {
           !ownMembers.contains(MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic))
         }
-        + sharedObject.functions
+        + jsClass.functions
       result.properties =
         properties.filter {
           !ownMembers.contains(MemberKey(jsName: $0.jsName, symbol: $0.symbol, isStatic: $0.isStatic))
         }
-        + sharedObject.properties
-      result.events = events + sharedObject.events
+        + jsClass.properties
+      result.events = events + jsClass.events
       if result.sharedRef == nil {
         result.sharedRef = sharedRef
       }
@@ -116,6 +118,7 @@ extension ExportedSurface {
     return ExportedSurface(
       modules: modules,
       sharedObjects: sharedObjects.map { merged($0, chain: []) },
+      classes: classes.map { merged($0, chain: []) },
       records: records,
       enums: enums,
       unions: unions,
@@ -124,20 +127,20 @@ extension ExportedSurface {
   }
 }
 
-/// The `superclass` of `sharedObject`: the superclass that every platform of the class leads to, or the
+/// The `superclass` of `jsClass`: the superclass that every platform of the class leads to, or the
 /// name that the class writes, without a `jsName`, when different platforms lead to different ones.
 private func superclass(
-  of sharedObject: ExportedSharedObject,
+  of jsClass: ExportedJSClass,
   in groups: [SuperclassResolver.Group]
 ) -> ExportedSuperclass? {
   guard let target = groups.first?.target else {
     return nil
   }
   guard groups.count == 1 else {
-    return sharedObject.declaredSuperclass.map { ExportedSuperclass(name: $0, jsName: nil) }
+    return jsClass.declaredSuperclass.map { ExportedSuperclass(name: $0, jsName: nil) }
   }
   switch target {
-  case .sharedObject(let name, let jsName):
+  case .jsClass(let name, let jsName):
     return ExportedSuperclass(name: name, jsName: jsName)
   case .unresolved(let spelling):
     return ExportedSuperclass(name: spelling, jsName: nil)
@@ -146,14 +149,15 @@ private func superclass(
   }
 }
 
-/// Where the superclass of a shared object leads on one platform, as `SuperclassResolver` finds it.
+/// Where the superclass of a `@SharedObject` or `@JSClass` class leads on one platform, as
+/// `SuperclassResolver` finds it.
 enum SuperclassTarget: Equatable {
-  /// The nearest superclass with `@SharedObject`, by its qualified `name`.
-  case sharedObject(name: String, jsName: String)
+  /// The nearest superclass with `@SharedObject` or `@JSClass`, by its qualified `name`.
+  case jsClass(name: String, jsName: String)
 
-  /// No superclass has `@SharedObject`: the chain ends at `SharedObject` or `SharedRef`, or at a class
-  /// without a superclass. `sharedRef` is set when a class without the macro on the way names
-  /// `SharedRef<T>`.
+  /// No superclass has either macro: the chain ends at `SharedObject`, `SharedRef`, a class without a
+  /// superclass, or a protocol that the class names instead (`AnySharedObject`, `AnyJavaScriptClass`,
+  /// `Sendable`). `sharedRef` is set when a class without the macro on the way names `SharedRef<T>`.
   case base(sharedRef: ExportedSharedRef?)
 
   /// A superclass that the scan doesn't declare as a class, by its spelling: a class in another
@@ -161,10 +165,10 @@ enum SuperclassTarget: Equatable {
   case unresolved(spelling: String)
 }
 
-/// Finds the nearest superclass with `@SharedObject` of a shared object, through the classes without a
-/// macro between them, as core does at run time.
+/// Finds the nearest superclass with `@SharedObject` or `@JSClass` of a class with either macro, through
+/// the classes without a macro between them, as core does at run time.
 struct SuperclassResolver {
-  /// The platforms of a shared object that lead to the same `target`.
+  /// The platforms of a class that lead to the same `target`.
   struct Group: Equatable {
     let target: SuperclassTarget
 
@@ -172,12 +176,14 @@ struct SuperclassResolver {
     /// on the first of `platforms`.
     let nativeRefType: String??
 
-    /// The names of the platforms, in the order of the platforms of the shared object.
+    /// The names of the platforms, in the order of the platforms of the class.
     var platforms: [String]
   }
 
   private enum Entry {
-    case sharedObject(name: String, jsName: String)
+    /// The declarations of a class with `@SharedObject` or `@JSClass`, more than one when it is declared
+    /// in `#if` branches.
+    case jsClass([ExportedJSClass])
     /// The declarations of a class without a macro, more than one when it is declared in `#if`
     /// branches.
     case plainClass([PlainClassDeclaration])
@@ -188,7 +194,8 @@ struct SuperclassResolver {
   /// A declaration's qualified name -> its entry.
   private var entries: [String: Entry] = [:]
 
-  private let sharedObjects: [ExportedSharedObject]
+  /// The classes with `@SharedObject` or `@JSClass`.
+  private let jsClasses: [ExportedJSClass]
 
   init(surface: ExportedSurface, plainClasses: [PlainClassDeclaration]) {
     for name in surface.records.map(\.name) + surface.enums.map(\.name) + surface.unions.map(\.name) {
@@ -197,18 +204,18 @@ struct SuperclassResolver {
     for (name, declarations) in Dictionary(grouping: plainClasses, by: \.name) {
       entries[name] = .plainClass(declarations)
     }
-    for sharedObject in surface.sharedObjects {
-      entries[sharedObject.name] = .sharedObject(name: sharedObject.name, jsName: sharedObject.jsName)
+    jsClasses = surface.sharedObjects + surface.classes
+    for (name, declarations) in Dictionary(grouping: jsClasses, by: \.name) {
+      entries[name] = .jsClass(declarations)
     }
-    sharedObjects = surface.sharedObjects
   }
 
-  /// Where the superclass of `sharedObject` leads, with the platforms of the class grouped by the
+  /// Where the superclass of `jsClass` leads, with the platforms of the class grouped by the
   /// target they lead to. One group when every platform leads to the same target.
-  func resolutions(of sharedObject: ExportedSharedObject) -> [Group] {
+  func resolutions(of jsClass: ExportedJSClass) -> [Group] {
     var groups: [Group] = []
-    for platform in sharedObject.platforms.map(\.name) {
-      let (target, nativeRefType, _) = resolve(sharedObject, on: platform)
+    for platform in jsClass.platforms.map(\.name) {
+      let (target, nativeRefType, _) = resolve(jsClass, on: platform)
       if let index = groups.firstIndex(where: { $0.target == target }) {
         groups[index].platforms.append(platform)
       } else {
@@ -223,27 +230,27 @@ struct SuperclassResolver {
   /// qualifiers counts too, since the class it names can be in a file that the scan hasn't parsed.
   func unresolvedSuperclassNames() -> Set<String> {
     var names: Set<String> = []
-    for sharedObject in sharedObjects {
-      for platform in sharedObject.platforms.map(\.name) {
-        names.formUnion(resolve(sharedObject, on: platform).missingNames)
+    for jsClass in jsClasses {
+      for platform in jsClass.platforms.map(\.name) {
+        names.formUnion(resolve(jsClass, on: platform).missingNames)
       }
     }
     return names
   }
 
-  /// Follows the superclass of `sharedObject` on `platform` through the classes without a macro until
-  /// it reaches a shared object, the base class, or a name that the scan doesn't declare as a class.
+  /// Follows the superclass of `jsClass` on `platform` through the classes without a macro until
+  /// it reaches a class with a macro, the base class, or a name that the scan doesn't declare as a class.
   /// It follows the declaration of a class without a macro that builds on `platform`.
   ///
   /// `missingNames` are the names, without their qualifiers, that the lookup didn't find as written. A
   /// qualified name is then looked up without its leading components, which can name a module the scan
   /// doesn't see.
   private func resolve(
-    _ sharedObject: ExportedSharedObject,
+    _ jsClass: ExportedJSClass,
     on platform: String
   ) -> (target: SuperclassTarget, nativeRefType: String??, missingNames: Set<String>) {
-    var spelling = sharedObject.declaredSuperclass
-    var scope = enclosingScope(of: sharedObject.name)
+    var spelling = jsClass.declaredSuperclass
+    var scope = enclosingScope(of: jsClass.name)
     var nativeRefType: String?? = .none
     var missingNames: Set<String> = []
     var visited: Set<String> = []
@@ -257,8 +264,13 @@ struct SuperclassResolver {
         entry = scopedLookup(current, in: scope, entries: entries)
       }
       switch entry {
-      case .sharedObject(let name, let jsName):
-        return (.sharedObject(name: name, jsName: jsName), nativeRefType, missingNames)
+      case .jsClass(let declarations):
+        // The declaration that builds on `platform`, which can have its own JS name. The last one when
+        // none does, which can't build there.
+        let declaration =
+          declarations.first { declaration in declaration.platforms.contains { $0.name == platform } }
+          ?? declarations[declarations.count - 1]
+        return (.jsClass(name: declaration.name, jsName: declaration.jsName), nativeRefType, missingNames)
 
       case .plainClass(let declarations):
         guard
@@ -289,7 +301,7 @@ private func enclosingScope(of name: String) -> String {
   return name.split(separator: ".").dropLast().joined(separator: ".")
 }
 
-/// A member that a shared object can inherit, which records the class that declares it.
+/// A member that a class can inherit, which records the class that declares it.
 private protocol InheritedMember {
   var inheritedFrom: String? { get set }
   var platforms: [ExportedPlatform] { get set }

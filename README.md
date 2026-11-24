@@ -83,7 +83,7 @@ The Swift compiler launches a plugin executable with no arguments and speaks the
 ExpoModulesMacros <subcommand> [options] <path> [<path> ...]
 
 subcommands:
-  scan-packages  fast scan for top-level @ExpoModule, @SharedObject and @ExpoView types (autolinking)
+  scan-packages  fast scan for top-level @ExpoModule, @SharedObject, @JSClass and @ExpoView types (autolinking)
   scan-exports   deep scan of the full JS-exported surface (type generation)
   expand         print the code that the macros generate, and the macro diagnostics
   fix            apply the Fix-Its of the macro diagnostics to the files

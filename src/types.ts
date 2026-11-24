@@ -54,7 +54,7 @@ export type TypeNode =
       kind: 'ref';
       typeof: JSType;
       name: string;
-      refKind?: 'record' | 'sharedObject' | 'enum' | 'union';
+      refKind?: 'record' | 'sharedObject' | 'class' | 'enum' | 'union';
     }
   /**
    * An unlabeled Swift tuple of two or more elements, `(A, B)`. It crosses as an array with one value per
@@ -204,8 +204,8 @@ export interface ExportedFunction extends ExportedAccess, ExportedAvailability {
   throws: boolean;
   static: boolean;
   /**
-   * The `name` of the shared object superclass that declares the member. Present only on the members
-   * that a shared object inherits.
+   * The `name` of the `@SharedObject` or `@JSClass` superclass that declares the member. Present only
+   * on the members that a class inherits.
    */
   inheritedFrom?: string;
 }
@@ -230,8 +230,8 @@ export interface ExportedProperty extends ExportedAccess, ExportedAvailability {
   /** The initial value of a stored property as Swift source text, absent when none is written. */
   defaultValue?: string;
   /**
-   * The `name` of the shared object superclass that declares the member. Present only on the members
-   * that a shared object inherits.
+   * The `name` of the `@SharedObject` or `@JSClass` superclass that declares the member. Present only
+   * on the members that a class inherits.
    */
   inheritedFrom?: string;
 }
@@ -269,15 +269,15 @@ export interface ExportedModule extends ExportedAccess, ExportedAvailability {
 /** One entry of `@ExpoModule(classes: [...])`. */
 export interface ExportedClass {
   /**
-   * The `name` of the matching shared object, which is qualified when the class is nested
-   * (`Outer.Statement`). The Swift name as spelled in the argument when the scan found no shared
-   * object with this name.
+   * The `name` of the matching `@SharedObject` or `@JSClass` class, which is qualified when the class
+   * is nested (`Outer.Statement`). The Swift name as spelled in the argument when the scan found no
+   * such class with this name.
    */
   name: string;
   /**
-   * The name of the module member JS reads the class from: the matching shared object's `jsName`.
-   * Absent when the scan found no shared object with this name, for example a class defined outside
-   * the scanned paths.
+   * The name of the module member JS reads the class from: the `jsName` of the matching class. Absent
+   * when the scan found no `@SharedObject` or `@JSClass` class with this name, for example a class
+   * defined outside the scanned paths.
    */
   jsName?: string;
 }
@@ -296,24 +296,27 @@ export interface ExportedEvent extends ExportedAccess, ExportedAvailability {
   /** How the event is dispatched: the default `scheduled`, or the `.inline` or `.blocking` option. */
   dispatch: 'scheduled' | 'inline' | 'blocking';
   /**
-   * The `name` of the shared object superclass that declares the event. Present only on the events
-   * that a shared object inherits.
+   * The `name` of the `@SharedObject` or `@JSClass` superclass that declares the event. Present only on
+   * the events that a class inherits.
    */
   inheritedFrom?: string;
 }
 
-/** The `@JS init` of a shared object: the constructor JS calls with `new`. */
+/** The `@JS init` of a `@SharedObject` or `@JSClass` class: the constructor JS calls with `new`. */
 export interface ExportedInitializer extends ExportedAccess, ExportedAvailability {
   parameters: ExportedParameter[];
 }
 
-/** A `@SharedObject` type: a JS class with an optional constructor plus its `@JS` members. */
-export interface ExportedSharedObject extends ExportedAccess, ExportedAvailability {
+/**
+ * A `@SharedObject` or `@JSClass` type: a JS class with an optional constructor plus its `@JS`
+ * members. Both macros give a class the same surface.
+ */
+export interface ExportedJSClass extends ExportedAccess, ExportedAvailability {
   /** The Swift class name, qualified with the types it is nested in (`Outer.Player`). */
   name: string;
   /**
-   * The JS class name: `@SharedObject("Foo")` override, else the class name without the enclosing
-   * types.
+   * The JS class name: the `@SharedObject("Foo")` or `@JSClass("Foo")` override, else the class name
+   * without the enclosing types.
    */
   jsName: string;
   /**
@@ -323,20 +326,22 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
   initializer?: ExportedInitializer;
   /**
    * What the class inherits from `SharedRef<T>`, directly or through its scanned superclasses, or
-   * absent when it doesn't inherit `SharedRef`.
+   * absent when it doesn't inherit `SharedRef`. Only a shared object inherits it.
    */
   sharedRef?: ExportedSharedRef;
   /**
-   * The nearest superclass with `@SharedObject`, whose JS class is the parent of this one, also when
-   * classes without the macro are between them. Absent when no superclass has the macro, so the JS
-   * parent is the base `SharedObject` class.
+   * The nearest superclass with `@SharedObject` or `@JSClass`, whose JS class is the parent of this
+   * one, also when classes without a macro are between them. Absent when no superclass has either
+   * macro: the JS parent of a shared object is then the base `SharedObject` class, and a `@JSClass`
+   * class has no JS parent. A `@JSClass` class can't extend a shared object, since the macro reports
+   * it.
    */
   superclass?: ExportedSuperclass;
   /**
-   * The class's `@JS` members include the ones it inherits from its `@SharedObject` superclasses, the
-   * inherited ones first, with `inheritedFrom`. An own member replaces an inherited one with the same
-   * JS name. When the superclass depends on the platform, an inherited member has only the platforms
-   * that inherit it.
+   * The class's `@JS` members include the ones it inherits from its `@SharedObject` and `@JSClass`
+   * superclasses, the inherited ones first, with `inheritedFrom`. An own member replaces an inherited
+   * one with the same JS name. When the superclass depends on the platform, an inherited member has only
+   * the platforms that inherit it.
    */
   functions: ExportedFunction[];
   properties: ExportedProperty[];
@@ -344,7 +349,10 @@ export interface ExportedSharedObject extends ExportedAccess, ExportedAvailabili
   file: string;
 }
 
-/** The superclass of a shared object: the nearest one with `@SharedObject`. */
+/** A `@SharedObject` type, which has the same surface as a `@JSClass` type. */
+export type ExportedSharedObject = ExportedJSClass;
+
+/** The superclass of a `@SharedObject` or `@JSClass` class: the nearest one with either macro. */
 export interface ExportedSuperclass {
   /**
    * The `name` of the superclass, which is qualified when the class is nested (`Media.Player`). The
@@ -357,7 +365,9 @@ export interface ExportedSuperclass {
   name: string;
   /**
    * The `jsName` of the superclass. Absent when the scan found no class with this name, or when the
-   * superclass depends on the platform.
+   * superclass depends on the platform. Without it, the scan doesn't know whether the superclass has a
+   * JS class. For a `@JSClass` class it often has none, for example `NSObject`, and the JS class of the
+   * class then has no parent, so don't emit `extends` for it.
    */
   jsName?: string;
 }
@@ -504,6 +514,8 @@ export interface ExportedView extends ExportedAccess, ExportedAvailability {
 export interface ExportedSurface {
   modules: ExportedModule[];
   sharedObjects: ExportedSharedObject[];
+  /** The `@JSClass` classes. */
+  classes: ExportedJSClass[];
   records: ExportedRecord[];
   enums: ExportedEnum[];
   unions: ExportedUnion[];
@@ -523,8 +535,8 @@ export interface ScanStats {
   filesScanned: number;
   /**
    * Of those, how many were parsed: the ones that matched the pre-filter (a macro attribute or a
-   * scanned conformance), and for `scanExports`, the ones that declare a class that a shared object
-   * inherits through.
+   * scanned conformance), and for `scanExports`, the ones that declare a class that a `@SharedObject`
+   * or `@JSClass` class inherits through.
    */
   filesParsed: number;
   /** Wall-clock duration of the scan, in milliseconds. */
@@ -533,12 +545,12 @@ export interface ScanStats {
 
 /**
  * One class in the `scan-packages` output: an `@ExpoModule` class in `modules`, a `@SharedObject`
- * class in `sharedObjects`, or an `@ExpoView` class in `views`.
+ * class in `sharedObjects`, a `@JSClass` class in `classes`, or an `@ExpoView` class in `views`.
  */
 export interface ScannedClass {
   name: string;
   /**
-   * The resolved JS name: the `@ExpoModule("Foo")`, `@SharedObject("Foo")` or
+   * The resolved JS name: the `@ExpoModule("Foo")`, `@SharedObject("Foo")`, `@JSClass("Foo")` or
    * `@ExpoView<CardProps>("Foo")` override, else the class name.
    */
   jsName: string;
@@ -563,6 +575,8 @@ export interface ScanPackagesResult {
   modules: ScannedClass[];
   /** The top-level `@SharedObject` classes, with the same platform rules as `modules`. */
   sharedObjects: ScannedClass[];
+  /** The top-level `@JSClass` classes, with the same platform rules as `modules`. */
+  classes: ScannedClass[];
   /** The top-level `@ExpoView` classes, with the same platform rules as `modules`. */
   views: ScannedClass[];
   warnings: ScanWarning[];
@@ -633,7 +647,7 @@ export interface ExpandResult {
  * as a clear error instead of silently misread fields.
  */
 export const SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION = 2;
-export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 12;
+export const SUPPORTED_SCAN_EXPORTS_SCHEMA_VERSION = 13;
 export const SUPPORTED_EXPAND_SCHEMA_VERSION = 1;
 
 /** @deprecated Renamed to `SUPPORTED_SCAN_PACKAGES_SCHEMA_VERSION`. */
