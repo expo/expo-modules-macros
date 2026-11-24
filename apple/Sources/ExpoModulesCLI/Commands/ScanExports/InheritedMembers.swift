@@ -181,8 +181,9 @@ struct SuperclassResolver {
   }
 
   private enum Entry {
-    /// A class with `@SharedObject` or `@JSClass`.
-    case jsClass(name: String, jsName: String)
+    /// The declarations of a class with `@SharedObject` or `@JSClass`, more than one when it is declared
+    /// in `#if` branches.
+    case jsClass([ExportedJSClass])
     /// The declarations of a class without a macro, more than one when it is declared in `#if`
     /// branches.
     case plainClass([PlainClassDeclaration])
@@ -204,8 +205,8 @@ struct SuperclassResolver {
       entries[name] = .plainClass(declarations)
     }
     jsClasses = surface.sharedObjects + surface.classes
-    for jsClass in jsClasses {
-      entries[jsClass.name] = .jsClass(name: jsClass.name, jsName: jsClass.jsName)
+    for (name, declarations) in Dictionary(grouping: jsClasses, by: \.name) {
+      entries[name] = .jsClass(declarations)
     }
   }
 
@@ -263,8 +264,13 @@ struct SuperclassResolver {
         entry = scopedLookup(current, in: scope, entries: entries)
       }
       switch entry {
-      case .jsClass(let name, let jsName):
-        return (.jsClass(name: name, jsName: jsName), nativeRefType, missingNames)
+      case .jsClass(let declarations):
+        // The declaration that builds on `platform`, which can have its own JS name. The last one when
+        // none does, which can't build there.
+        let declaration =
+          declarations.first { declaration in declaration.platforms.contains { $0.name == platform } }
+          ?? declarations[declarations.count - 1]
+        return (.jsClass(name: declaration.name, jsName: declaration.jsName), nativeRefType, missingNames)
 
       case .plainClass(let declarations):
         guard

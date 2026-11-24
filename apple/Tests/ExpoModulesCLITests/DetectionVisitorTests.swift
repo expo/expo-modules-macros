@@ -637,6 +637,7 @@ struct ScanTests {
   func `scanPackages reports a class with both @SharedObject and @JSClass only as a shared object`() throws {
     try withTree([("Cache.swift", "@JSClass\n@SharedObject\npublic final class Cache: SharedObject {}")]) { result in
       #expect(result.sharedObjects.map(\.name) == ["Cache"])
+      #expect(result.sharedObjects.first?.platforms == ["iOS", "macOS", "tvOS", "watchOS", "visionOS"])
       #expect(result.classes.isEmpty)
     }
   }

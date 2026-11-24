@@ -2923,6 +2923,42 @@ struct InheritedSharedObjectMembersTests {
   }
 
   @Test
+  func `A superclass declared in #if branches gives each platform the JS name of the declaration that builds there`()
+    throws
+  {
+    let surface = try scannedSurface([
+      "Source.swift": """
+      #if os(iOS)
+      @SharedObject("IOSShape")
+      class Shape: SharedObject {}
+      #else
+      @JSClass("OtherShape")
+      open class Shape {}
+      #endif
+
+      #if os(iOS)
+      @SharedObject
+      final class IOSSquare: Shape {}
+      #elseif os(tvOS)
+      @JSClass
+      final class TVSquare: Shape {}
+      #endif
+
+      @SharedObject
+      final class Circle: Shape {}
+      """
+    ])
+
+    #expect(
+      try sharedObject("IOSSquare", in: surface).superclass == ExportedSuperclass(name: "Shape", jsName: "IOSShape")
+    )
+    let tvSquare = try #require(surface.classes.first { $0.name == "TVSquare" })
+    #expect(tvSquare.superclass == ExportedSuperclass(name: "Shape", jsName: "OtherShape"))
+    // `Circle` inherits from another declaration on iOS than elsewhere, so `superclass` has no JS name.
+    #expect(try sharedObject("Circle", in: surface).superclass == ExportedSuperclass(name: "Shape", jsName: nil))
+  }
+
+  @Test
   func `Refs in an inherited member stay resolved from the superclass`() throws {
     let surface = try scannedSurface([
       "Source.swift": """

@@ -148,8 +148,9 @@ func scanPackages(paths: [String], defines: Set<String> = []) -> ScanPackagesRes
         configuration: configuration
       )
       visitor.walk(tree)
-      for detection in visitor.detections {
-        platformsByDetection[detectionKey(detection), default: []].append(platform.reported)
+      // A class with both `@SharedObject` and `@JSClass` has a detection for each, with the same key.
+      for key in Set(visitor.detections.map(detectionKey)) {
+        platformsByDetection[key, default: []].append(platform.reported)
       }
       // The same unanswerable condition diagnoses identically in every per-platform walk; report
       // it once.
