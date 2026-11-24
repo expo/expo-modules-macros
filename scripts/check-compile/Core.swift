@@ -263,10 +263,13 @@ public macro ViewProps<Base: AnyViewProps>(extending base: Base.Type) =
 /// `SharedObjects.swift` have no `@JS` members, so it has no API.
 public struct JavaScriptObject: Sendable, ~Copyable {}
 
+/// The protocol of the classes with a JavaScript class, which types the members of the JavaScript class chain. The
+/// one in core has the hooks as requirements, which `SharedObject` implements. This stand-in leaves them out.
+public protocol AnyJavaScriptClass: AnyObject {}
+
 /// The protocol of the shared objects, which the `@SharedObject` expansion adds to a class that doesn't conform yet.
-/// It also types the members of the JavaScript class chain. The one in core has requirements, which `SharedObject`
-/// implements. This stand-in leaves them out.
-public protocol AnySharedObject: AnyObject {}
+/// The one in core has requirements, which `SharedObject` implements. This stand-in leaves them out.
+public protocol AnySharedObject: AnyJavaScriptClass {}
 
 /// The base class of the shared objects, with the hooks that the `@SharedObject` expansion overrides. The base
 /// class has no JavaScript class in the chain of a `@SharedObject` class, so `_jsClassType` and `_jsSuperclassType`
@@ -278,20 +281,19 @@ open class SharedObject: AnySharedObject {
     return String(describing: self)
   }
 
-  open class var _jsClassType: (any AnySharedObject.Type)? {
+  open class var _jsClassType: (any AnyJavaScriptClass.Type)? {
     return nil
   }
 
-  open class var _jsSuperclassType: (any AnySharedObject.Type)? {
+  open class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
     return nil
   }
 
   @JavaScriptActor
-  open class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
+  open class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
 
   @JavaScriptActor
-  open class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
-  }
+  open class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {}
 }
 
 open class SharedRef<RefType>: SharedObject {
@@ -307,8 +309,8 @@ open class SharedRef<RefType>: SharedObject {
   names: named(_jsName),
   named(_jsClassType),
   named(_jsSuperclassType),
-  named(_decorateSharedObject),
-  named(_constructSharedObject),
+  named(_decorateClass),
+  named(_constructInstance),
   named(_assertTypesConformance)
 )
 @attached(memberAttribute)

@@ -32,7 +32,7 @@ internal struct JSClassExpansion {
     let access = classDecl.modifiers.contains { $0.name.tokenKind == .keyword(.open) } ? "open" : "public"
 
     // `@JS func`s/`var`s and the `@JS init` are bound directly into the class's JS object by
-    // the synthesized `_decorateSharedObject(prototype:)` / `_decorateSharedObject(constructor:)` / `_constructSharedObject`.
+    // the synthesized `_decorateClass(prototype:)` / `_decorateClass(constructor:)` / `_constructInstance`.
     //
     // Members split by the `static`/`class` modifier onto two different JS objects: instance members
     // decorate the prototype (receiver recovered from JS `this`), static members decorate the
@@ -121,14 +121,14 @@ internal struct JSClassExpansion {
     // creates this one on it, so the JavaScript chain follows the Swift chain.
     var emitted: [DeclSyntax] = [
       "\(raw: access) override class var _jsName: String { \"\(raw: jsName)\" }",
-      "\(raw: access) override class var _jsClassType: (any AnySharedObject.Type)? { \(raw: typeName).self }",
-      "\(raw: access) override class var _jsSuperclassType: (any AnySharedObject.Type)? { super._jsClassType }",
+      "\(raw: access) override class var _jsClassType: (any AnyJavaScriptClass.Type)? { \(raw: typeName).self }",
+      "\(raw: access) override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? { super._jsClassType }",
     ]
 
     // Direct JSI binding, split by which JS object each member decorates:
-    // `_decorateSharedObject(prototype:)` binds instance `@JS func`/`var`s (unwrapping the per-call receiver from
-    // `this`); `_decorateSharedObject(constructor:)` binds `static`/`class` ones (called on the metatype); and
-    // `_constructSharedObject` builds an instance from the `@JS init` arguments. Both decorator phases
+    // `_decorateClass(prototype:)` binds instance `@JS func`/`var`s (unwrapping the per-call receiver from
+    // `this`); `_decorateClass(constructor:)` binds `static`/`class` ones (called on the metatype); and
+    // `_constructInstance` builds an instance from the `@JS init` arguments. Both decorator phases
     // are emitted also when they bind nothing, since a class without its own phase would run the phase of
     // its superclass on its own objects. Each class binds only its own members: the inherited ones are on
     // the JavaScript class of the superclass. The constructor is emitted only for a `@JS init`.

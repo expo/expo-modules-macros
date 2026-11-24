@@ -2,7 +2,7 @@ import SwiftSyntax
 
 /// A `@JS func` collected for **direct JSI binding**. Instead of describing the function with a
 /// `Function(...)` / `AsyncFunction(...)` DSL entry that the runtime interprets per call, the enclosing
-/// macro synthesizes a decorator (`_decorateModule(object:)` / `_decorateSharedObject(prototype:)`) that binds each such
+/// macro synthesizes a decorator (`_decorateModule(object:)` / `_decorateClass(prototype:)`) that binds each such
 /// function into the JS object via the closure-taking `JavaScriptObject.setProperty(_:)`, with the
 /// decode-call-encode body inlined into the closure. This omits the dynamic-call path entirely:
 /// every argument is decoded individually by its static type.
@@ -392,7 +392,7 @@ internal struct JSFunction {
 
 /// A `@JS var` collected for **direct JSI binding**. Instead of describing the property with a
 /// `Property(...)` DSL entry, the enclosing macro synthesizes a get/set accessor into the JS object
-/// inside its decorator (`_decorateModule(object:)` / `_decorateSharedObject(prototype:)`): it builds a descriptor object
+/// inside its decorator (`_decorateModule(object:)` / `_decorateClass(prototype:)`): it builds a descriptor object
 /// (`enumerable` + `get`, and `set` when the property is settable) and installs it with
 /// `object.defineProperty(name, descriptor:)`.
 /// The `get`/`set` host functions are installed the same way `@JS func`s are — the closure-taking
@@ -637,7 +637,7 @@ internal func buildDecorateJavaScriptObject(functions: [JSFunction], properties:
     """
 }
 
-/// A decorator phase of a JavaScript class, a label overload of `_decorateSharedObject` overriding the
+/// A decorator phase of a JavaScript class, a label overload of `_decorateClass` overriding the
 /// matching `open class func` on the `SharedObject` base so core can dispatch through the concrete
 /// type's metatype. The `prototype:` overload binds the type's instance `@JS func`/`var` members onto
 /// the class prototype (the original hook, unchanged); the `constructor:` overload binds the
@@ -678,7 +678,7 @@ internal func buildDecorateJSClassPhase(
   let statements = body.isEmpty ? "" : "\(body)\n"
   return """
     @JavaScriptActor
-    \(raw: access) override class func _decorateSharedObject(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+    \(raw: access) override class func _decorateClass(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
     \(raw: statements)}
     """
 }

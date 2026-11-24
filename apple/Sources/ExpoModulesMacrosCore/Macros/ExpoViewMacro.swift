@@ -70,7 +70,7 @@ import SwiftSyntaxMacros
 /// event names from the props type's own `_eventNames` (synthesized by `@ViewProps`). Both are
 /// static, so no builder has to be evaluated.
 ///
-/// Views also get no `_decorateView` hook: `_decorateModule` and `_decorateSharedObject` exist to bind
+/// Views also get no `_decorateView` hook: `_decorateModule` and `_decorateClass` exist to bind
 /// members into a JS object, and a view has no such object. Props reach a view through Fabric's
 /// mounting layer, not a JS call, so a view's runtime entry point is the props update hook.
 ///

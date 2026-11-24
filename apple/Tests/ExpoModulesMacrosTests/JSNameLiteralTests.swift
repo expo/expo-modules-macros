@@ -121,20 +121,20 @@ struct JSNameLiteralTests {
             "Cache"
           }
 
-          public override class var _jsClassType: (any AnySharedObject.Type)? {
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
             Cache.self
           }
 
-          public override class var _jsSuperclassType: (any AnySharedObject.Type)? {
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
             super._jsClassType
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
 
           @JavaScriptActor
-          public override class func _decorateSharedObject(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
           }
         }
         """##
