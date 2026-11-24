@@ -101,6 +101,43 @@ struct ExpandTests {
   }
 
   @Test
+  func `Finds the superclass of a @JSClass class by its name in the scope of the class`() throws {
+    let source = """
+      public enum A {
+        @SharedObject
+        open class Store: SharedObject {}
+      }
+
+      public enum B {
+        open class Store {}
+      }
+
+      @JSClass
+      public final class Plain: B.Store {}
+
+      @JSClass
+      public final class Shared: A.Store {}
+
+      extension A {
+        @JSClass
+        public final class Nested: Store {}
+      }
+
+      extension B {
+        @JSClass
+        public final class Local: Store {}
+      }
+      """
+    let result = expandMacros(source: source, file: "Stores.swift", symbols: [])
+    let expansion = try #require(result.expansions.only)
+    // `B.Store` has no JavaScript class, also though `A.Store` is a shared object.
+    #expect(expansion.source.contains("extension Plain: nonisolated AnyJavaScriptClass,"))
+    #expect(expansion.source.contains("extension B.Local: nonisolated AnyJavaScriptClass,"))
+    let reported = result.diagnostics.filter { $0.message.hasPrefix("A @JSClass class can't be a shared object") }
+    #expect(reported.map(\.line) == [13, 17])
+  }
+
+  @Test
   func `Treats a @JSClass class whose superclass is in another expanded file as a subclass`() throws {
     let fileManager = FileManager.default
     let root = fileManager.temporaryDirectory.appendingPathComponent(

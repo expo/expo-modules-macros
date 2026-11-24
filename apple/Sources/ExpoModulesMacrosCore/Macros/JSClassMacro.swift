@@ -57,14 +57,14 @@ public struct JSClassMacro: MemberMacro {
       idPrefix: "jsclass",
       in: context
     )
-    if namesSharedObjectSuperclass(classDecl)
+    if namesSharedObjectSuperclass(classDecl, in: context)
       || !protocols.contains(where: { $0.trimmedDescription == "AnySharedObject" })
     {
       throw DiagnosticsError(diagnostics: [sharedObjectSuperclassDiagnostic(for: node)])
     }
 
     let typeName = classDecl.name.text
-    let isRoot = isRootClass(classDecl, conformingTo: protocols)
+    let isRoot = isRootClass(classDecl, conformingTo: protocols, in: context)
     // A subclass of another `@JSClass` class gets the members of that class through the prototype chain.
     let mayInheritJSMembers = !isRoot
     // An instance binding recovers its receiver with `_native(from:)`, which reads the native state that
@@ -108,17 +108,17 @@ extension JSClassMacro: ExtensionMacro {
     // The member role reports a shared object. This role gets only the conformances of its own
     // declaration, so it finds one only by the name of its superclass.
     guard let classDecl = declaration.as(ClassDeclSyntax.self), !hasSharedObjectAttribute(classDecl),
-      !namesSharedObjectSuperclass(classDecl)
+      !namesSharedObjectSuperclass(classDecl, in: context)
     else {
       return []
     }
     var extensions: [ExtensionDeclSyntax] = []
-    if let conformance = rootConformanceExtension(for: type, of: classDecl, conformingTo: protocols) {
+    if let conformance = rootConformanceExtension(for: type, of: classDecl, conformingTo: protocols, in: context) {
       extensions.append(conformance)
     }
     // A superclass in the expanded files has a JavaScript class, so it got `@unchecked Sendable` from its
     // own macro, as the compiler would tell.
-    if !superclass(of: classDecl, isIn: ExpandHints.current?.jsClassNames),
+    if ExpandHints.current?.superclassHasJSClass(classDecl, in: context.lexicalContext) != true,
       let sendable = uncheckedSendableExtension(for: type, of: declaration, conformingTo: protocols)
     {
       extensions.append(sendable)
@@ -133,9 +133,12 @@ private let sharedObjectBaseNames: Set<String> = ["SharedObject", "SharedRef", "
 
 /// Whether the clause names a shared object base, or a superclass that `expand` found as a shared
 /// object (see `ExpandHints`).
-private func namesSharedObjectSuperclass(_ classDecl: ClassDeclSyntax) -> Bool {
+private func namesSharedObjectSuperclass(
+  _ classDecl: ClassDeclSyntax,
+  in context: some MacroExpansionContext
+) -> Bool {
   return inheritsFromAny(classDecl, names: sharedObjectBaseNames)
-    || superclass(of: classDecl, isIn: ExpandHints.current?.sharedObjectNames)
+    || ExpandHints.current?.superclassIsSharedObject(classDecl, in: context.lexicalContext) == true
 }
 
 /// The conformances of a root class. Core implements `JavaScriptDecodable` for every
@@ -150,26 +153,18 @@ private func hasSharedObjectAttribute(_ classDecl: ClassDeclSyntax) -> Bool {
 /// Whether the class is the root of its JavaScript class chain. The compiler passes `AnyJavaScriptClass`
 /// in `protocols` only when the class doesn't conform yet, also through a superclass. A class that
 /// names `AnyJavaScriptClass` in its clause conforms, but implements the hooks itself, so it is a root
-/// too. `expand` passes the conformance for every class, so a class whose superclass has a JavaScript
-/// class by its name is a subclass there (see `ExpandHints`).
-private func isRootClass(_ classDecl: ClassDeclSyntax, conformingTo protocols: [TypeSyntax]) -> Bool {
+/// too. `expand` passes the conformance for every class, so a class whose superclass `expand` found
+/// with a JavaScript class is a subclass there (see `ExpandHints`).
+private func isRootClass(
+  _ classDecl: ClassDeclSyntax,
+  conformingTo protocols: [TypeSyntax],
+  in context: some MacroExpansionContext
+) -> Bool {
   if inheritsProtocol(named: "AnyJavaScriptClass", in: classDecl) {
     return true
   }
   return protocols.contains { $0.trimmedDescription == "AnyJavaScriptClass" }
-    && !superclass(of: classDecl, isIn: ExpandHints.current?.jsClassNames)
-}
-
-/// Whether the superclass, the first type of the clause, has one of `names`. `false` without names,
-/// which is the case in the compiler.
-private func superclass(of classDecl: ClassDeclSyntax, isIn names: Set<String>?) -> Bool {
-  guard let names,
-    let superclass = classDecl.inheritanceClause?.inheritedTypes.first,
-    let name = baseIdentifier(of: superclass.type)
-  else {
-    return false
-  }
-  return names.contains(name)
+    && ExpandHints.current?.superclassHasJSClass(classDecl, in: context.lexicalContext) != true
 }
 
 /// The conformances that a root class gets, or `nil` when it has them all. Each one is added only when
@@ -179,9 +174,10 @@ private func superclass(of classDecl: ClassDeclSyntax, isIn names: Set<String>?)
 private func rootConformanceExtension(
   for type: some TypeSyntaxProtocol,
   of classDecl: ClassDeclSyntax,
-  conformingTo protocols: [TypeSyntax]
+  conformingTo protocols: [TypeSyntax],
+  in context: some MacroExpansionContext
 ) -> ExtensionDeclSyntax? {
-  guard !superclass(of: classDecl, isIn: ExpandHints.current?.jsClassNames) else {
+  guard ExpandHints.current?.superclassHasJSClass(classDecl, in: context.lexicalContext) != true else {
     return nil
   }
   let missing = rootConformances.filter { name in

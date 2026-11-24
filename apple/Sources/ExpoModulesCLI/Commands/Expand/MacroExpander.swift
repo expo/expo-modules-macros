@@ -38,53 +38,84 @@ public func expandMacros(source: String, file: String, symbols: [String]) -> Exp
   return expandMacros(tree: tree, file: file, symbols: symbols)
 }
 
-/// The `ExpandHints` of the classes in `trees`. Each set starts from the classes with a macro and adds
-/// the classes whose superclass is in the set, also through classes without a macro, until no class is
-/// added. Only the name of a class counts, so two classes with the same name in different scopes count
-/// as one.
+/// The `ExpandHints` of the classes in `trees`. The superclass of a class is found by its name in the
+/// scope of the class, as Swift does (`scopedLookup`). A superclass whose name, without its qualifiers,
+/// is `SharedObject` or `SharedRef` is that base, also when a file declares a class of that name.
 ///
-/// - `jsClassNames` starts from the classes with `@JSClass` or `@SharedObject` and the shared object
-///   bases.
-/// - `sharedObjectNames` starts from the classes with `@SharedObject` and the shared object bases.
-///
-/// The bases `SharedObject` and `SharedRef` aren't in the sets: the macros check them by name.
+/// - `jsSubclassNames` holds the classes whose superclass is a base, has `@JSClass` or `@SharedObject`,
+///   or is in the set, also through classes without a macro.
+/// - `sharedObjectSubclassNames` holds the classes whose superclass is a base, has `@SharedObject`, or
+///   is in the set.
 func expandHints(in trees: [SourceFileSyntax]) -> ExpandHints {
   let collector = ClassCollector(viewMode: .sourceAccurate)
   for tree in trees {
     collector.walk(tree)
   }
-  let classes = collector.classes
-  let bases: Set<String> = ["SharedObject", "SharedRef"]
-  let jsClassMacros: Set<String> = ["JSClass", "SharedObject"]
+  let names = Dictionary(collector.classes.map { ($0.name, $0.name) }, uniquingKeysWith: { name, _ in name })
+  let links = collector.classes.map { declaration -> ClassLink in
+    guard let spelling = declaration.superclass else {
+      return ClassLink(name: declaration.name, macros: declaration.macros, superclass: nil)
+    }
+    if let name = spelling.split(separator: ".").last, sharedObjectBaseNames.contains(String(name)) {
+      return ClassLink(name: declaration.name, macros: declaration.macros, superclass: .base)
+    }
+    let scope = declaration.name.split(separator: ".").dropLast().joined(separator: ".")
+    return ClassLink(
+      name: declaration.name,
+      macros: declaration.macros,
+      superclass: scopedLookup(spelling, in: scope, entries: names).map(ClassLink.Superclass.declared)
+    )
+  }
   return ExpandHints(
-    jsClassNames: names(
-      inheritingFrom: bases.union(classes.filter { !$0.macros.isDisjoint(with: jsClassMacros) }.map(\.name)),
-      in: classes
-    ).subtracting(bases),
-    sharedObjectNames: names(
-      inheritingFrom: bases.union(classes.filter { $0.macros.contains("SharedObject") }.map(\.name)),
-      in: classes
-    ).subtracting(bases)
+    jsSubclassNames: subclassNames(of: ["JSClass", "SharedObject"], in: links),
+    sharedObjectSubclassNames: subclassNames(of: ["SharedObject"], in: links)
   )
 }
 
-/// `seeds` and the names of the classes that inherit from one of them, directly or through the other
+/// The base classes of the shared objects.
+private let sharedObjectBaseNames: Set<String> = ["SharedObject", "SharedRef"]
+
+/// A class of the expanded files with the class that its superclass names.
+private struct ClassLink {
+  enum Superclass {
+    /// `SharedObject` or `SharedRef`.
+    case base
+    /// A class of the expanded files, by its qualified name.
+    case declared(String)
+  }
+
+  let name: String
+  let macros: Set<String>
+
+  /// `nil` when the class names no superclass, or one that the expanded files don't declare.
+  let superclass: Superclass?
+}
+
+/// The names of the classes whose superclass is a base or is in the chain of `macros`: a class with one
+/// of `macros`, a base, or a class whose superclass is in the chain, directly or through the other
 /// classes.
-private func names(inheritingFrom seeds: Set<String>, in classes: [ClassCollector.Class]) -> Set<String> {
-  var names = seeds
-  var remaining = classes.filter { !names.contains($0.name) && $0.superclass != nil }
-  while true {
-    let found = remaining.filter { names.contains($0.superclass ?? "") }
-    guard !found.isEmpty else {
-      return names
+private func subclassNames(of macros: Set<String>, in links: [ClassLink]) -> Set<String> {
+  var chain = Set(links.filter { !$0.macros.isDisjoint(with: macros) }.map(\.name))
+  let superclassIsInChain = { (link: ClassLink) -> Bool in
+    switch link.superclass {
+    case .base: true
+    case .declared(let name): chain.contains(name)
+    case nil: false
     }
-    names.formUnion(found.map(\.name))
-    remaining.removeAll { names.contains($0.name) }
+  }
+  var remaining = links.filter { !chain.contains($0.name) }
+  while true {
+    let found = remaining.filter(superclassIsInChain)
+    guard !found.isEmpty else {
+      return Set(links.filter(superclassIsInChain).map(\.name))
+    }
+    chain.formUnion(found.map(\.name))
+    remaining.removeAll { chain.contains($0.name) }
   }
 }
 
-/// The classes of a file, also nested ones, with the name of their superclass (the first type of the
-/// clause, which may be a protocol) and the names of their attributes.
+/// The classes of a file, also nested ones, by their qualified names, with the superclass that they
+/// name (the first type of the clause, which may be a protocol) and the names of their attributes.
 private final class ClassCollector: SyntaxVisitor {
   struct Class {
     let name: String
@@ -97,21 +128,12 @@ private final class ClassCollector: SyntaxVisitor {
   override func visit(_ node: ClassDeclSyntax) -> SyntaxVisitorContinueKind {
     classes.append(
       Class(
-        name: node.name.text,
-        superclass: node.inheritanceClause?.inheritedTypes.first.flatMap { superclassName(of: $0.type) },
+        name: ExpandHints.qualifiedName(of: node, in: sequence(first: Syntax(node), next: \.parent).dropFirst()),
+        superclass: ExpandHints.superclassSpelling(of: node),
         macros: Set(node.attributes.compactMap { $0.as(AttributeSyntax.self)?.attributeName.trimmedDescription })
       )
     )
     return .visitChildren
-  }
-
-  /// The rightmost name of a type, without generic arguments: `Base` for `Base`, `Module.Base` and
-  /// `Base<Int>`.
-  private func superclassName(of type: TypeSyntax) -> String? {
-    if let identifier = type.as(IdentifierTypeSyntax.self) {
-      return identifier.name.text
-    }
-    return type.as(MemberTypeSyntax.self)?.name.text
   }
 }
 
