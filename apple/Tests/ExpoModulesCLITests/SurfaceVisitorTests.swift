@@ -276,12 +276,14 @@ struct ModuleSurfaceTests {
         typealias A = (B, B)
         typealias B = (A, A)
         typealias Loop = (Loop, Int)
+        typealias Dependent = (A, Int)
+        typealias GenA = Array<GenB>
+        typealias GenB = (GenA, GenA)
         typealias Pair = (Int, Int)
-        typealias Extra1 = Int
-        typealias Extra2 = String
+        typealias Pairs = Array<Pair>
 
         @JS
-        func use(_ a: A, _ loop: Loop, _ pair: Pair) {}
+        func use(_ a: A, _ loop: Loop, _ dep: Dependent, _ gen: GenA, _ pairs: Pairs) {}
       }
       """
     )
@@ -290,7 +292,15 @@ struct ModuleSurfaceTests {
       elements: [.primitive(name: "Int", jsType: .number), .primitive(name: "Int", jsType: .number)],
       name: "CyclicModule.Pair"
     )
-    #expect(use.parameters.map(\.type) == [.ref(name: "A"), .ref(name: "Loop"), pair])
+    #expect(
+      use.parameters.map(\.type) == [
+        .ref(name: "A"),
+        .ref(name: "Loop"),
+        .ref(name: "Dependent"),
+        .ref(name: "GenA"),
+        .array(element: pair),
+      ]
+    )
   }
 
   @Test

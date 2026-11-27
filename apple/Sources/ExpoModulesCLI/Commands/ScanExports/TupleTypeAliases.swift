@@ -62,9 +62,14 @@ struct TupleTypeAliases {
 /// Resolves declared aliases through each other with memoized DFS and cycle detection. Any alias
 /// that reaches a cycle is omitted from the resolved map.
 private final class AliasResolver {
+  private enum State {
+    case visiting
+    case resolved(TypeNode)
+    case cyclic
+  }
+
   private let declared: [String: TypeNode]
-  private var cache: [String: TypeNode?] = [:]
-  private var visiting: Set<String> = []
+  private var states: [String: State] = [:]
 
   init(declared: [String: TypeNode]) {
     self.declared = declared
@@ -81,16 +86,18 @@ private final class AliasResolver {
   }
 
   private func resolve(_ name: String) -> TypeNode? {
-    if let cached = cache[name] {
-      return cached
+    switch states[name] {
+    case .resolved(let node):
+      return node
+    case .visiting, .cyclic:
+      return nil
+    case nil:
+      break
     }
     guard let body = declared[name] else {
       return nil
     }
-    guard visiting.insert(name).inserted else {
-      return nil
-    }
-    defer { visiting.remove(name) }
+    states[name] = .visiting
 
     var hitCycle = false
     let rewritten = body.replacingAliases { refName in
@@ -103,9 +110,12 @@ private final class AliasResolver {
       }
       return resolved
     }
-    let result: TypeNode? = hitCycle ? nil : rewritten
-    cache[name] = result
-    return result
+    if hitCycle {
+      states[name] = .cyclic
+      return nil
+    }
+    states[name] = .resolved(rewritten)
+    return rewritten
   }
 }
 
