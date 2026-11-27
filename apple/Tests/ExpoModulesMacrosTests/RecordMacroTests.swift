@@ -767,9 +767,6 @@ struct RecordMacroTests {
         struct Options {
           var items = []
         }
-
-        extension Options: nonisolated Record {
-        }
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -1510,9 +1507,6 @@ struct RecordMacroTests {
           var name: String
           @Field var defaultName = "foo"
         }
-
-        extension Options: nonisolated Record {
-        }
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -1549,9 +1543,6 @@ struct RecordMacroTests {
           @Field("full_name") var name: String = ""
           @Field
           var age: Int = 0
-        }
-
-        extension Options: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -2288,9 +2279,6 @@ struct RecordMacroTests {
         struct Payload {
           var value: \(type)
         }
-
-        extension Payload: nonisolated Record {
-        }
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -2976,9 +2964,6 @@ struct RecordMacroTests {
           var name: String
           var onTap: (Int) -> Void
         }
-
-        extension Options: nonisolated Record {
-        }
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -3003,9 +2988,6 @@ struct RecordMacroTests {
       expandedSource: """
         struct Options {
           var handlers: [String: ((Any) -> Void)?] = [:]
-        }
-
-        extension Options: nonisolated Record {
         }
         """,
       diagnostics: [
@@ -3161,9 +3143,6 @@ struct RecordMacroTests {
           var name: String
           let count: Int = 0
         }
-
-        extension Options: nonisolated Record {
-        }
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -3203,9 +3182,6 @@ struct RecordMacroTests {
           private var note: String?
           private let id = 0
         }
-
-        extension Options: nonisolated Record {
-        }
         """,
       diagnostics: [
         DiagnosticSpec(
@@ -3214,6 +3190,361 @@ struct RecordMacroTests {
           line: 4,
           column: 15
         )
+      ]
+    )
+  }
+
+  @Test
+  func `Optional property with a default uses the default when omitted and in the memberwise init`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var count: Int? = 5
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var count: Int? = 5
+
+          nonisolated public init() {
+          }
+
+          nonisolated public init(count: Int? = 5) {
+            self.count = count
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            throw RecordDictionaryConversionException(String(describing: Self.self))
+          }
+
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["count"] = self.count
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          nonisolated private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "count")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { countJSValue in
+              return countJSValue.isUndefined() ? 5 : try Int?.decode(countJSValue, in: runtime)
+            }
+            return Self(count: field0)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            slot.emplace(object)
+          }
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Optional let and Optional<T> properties are initialized to nil in init()`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        let note: String?
+        var explicit: Optional<String>
+        var sugar: String?
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          let note: String?
+          var explicit: Optional<String>
+          var sugar: String?
+
+          nonisolated public init() {
+            self.note = nil
+            self.explicit = nil
+          }
+
+          nonisolated public init(note: String? = nil, explicit: Optional<String> = nil, sugar: String? = nil) {
+            self.note = note
+            self.explicit = explicit
+            self.sugar = sugar
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            throw RecordDictionaryConversionException(String(describing: Self.self))
+          }
+
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["note"] = self.note
+            dictionary["explicit"] = self.explicit
+            dictionary["sugar"] = self.sugar
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          nonisolated private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+            let _name1: JavaScriptPropNameID
+            let _name2: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "note")
+              self._name1 = JavaScriptPropNameID(runtime, string: "explicit")
+              self._name2 = JavaScriptPropNameID(runtime, string: "sugar")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { noteJSValue in
+              return try String?.decode(noteJSValue, in: runtime)
+            }
+            let field1 = try object.withUnownedProperty(_propNames._name1) { explicitJSValue in
+              return try Optional<String>.decode(explicitJSValue, in: runtime)
+            }
+            let field2 = try object.withUnownedProperty(_propNames._name2) { sugarJSValue in
+              return try String?.decode(sugarJSValue, in: runtime)
+            }
+            return Self(note: field0, explicit: field1, sugar: field2)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.note)
+            try object.setProperty(_propNames._name1, encoding: value.explicit)
+            try object.setProperty(_propNames._name2, encoding: value.sugar)
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.note)
+            try object.setProperty(_propNames._name1, encoding: value.explicit)
+            try object.setProperty(_propNames._name2, encoding: value.sugar)
+            slot.emplace(object)
+          }
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Stored properties with property observers are included as record fields`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var count: Int = 0 {
+          didSet {}
+        }
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var count: Int = 0 {
+            didSet {}
+          }
+
+          nonisolated public init() {
+          }
+
+          nonisolated public init(count: Int) {
+            self.count = count
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            throw RecordDictionaryConversionException(String(describing: Self.self))
+          }
+
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["count"] = self.count
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          nonisolated private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "count")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { countJSValue in
+              return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            }
+            return Self(count: field0)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            slot.emplace(object)
+          }
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Private Optional<T> and private observed properties without defaults are diagnosed`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var name: String
+        private var explicit: Optional<String>
+        private var observed: Int {
+          didSet {}
+        }
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var name: String
+          private var explicit: Optional<String>
+          private var observed: Int {
+            didSet {}
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Record leaves out the private property 'explicit', so the synthesized initializer doesn't set it. Give it a default value, or remove 'private' to make it a record property",
+          line: 4,
+          column: 15
+        ),
+        DiagnosticSpec(
+          message:
+            "@Record leaves out the private property 'observed', so the synthesized initializer doesn't set it. Give it a default value, or remove 'private' to make it a record property",
+          line: 5,
+          column: 15
+        ),
       ]
     )
   }

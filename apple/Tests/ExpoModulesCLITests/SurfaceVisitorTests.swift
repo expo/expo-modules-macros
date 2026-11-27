@@ -611,6 +611,31 @@ struct RecordSurfaceTests {
     let function = try #require(surface.modules.first?.functions.first)
     #expect(function.parameters.map(\.isOptional) == [true])
   }
+
+  @Test
+  func `Includes stored properties with property observers while excluding computed ones`() throws {
+    let record = try #require(
+      surface(
+        """
+        @Record
+        struct Options {
+          var observed: Int = 0 {
+            didSet {}
+          }
+          var watched: String {
+            willSet {}
+          }
+          var computed: Int {
+            get { 1 }
+            set {}
+          }
+        }
+        """
+      ).records.first
+    )
+
+    #expect(record.properties.map(\.name) == ["observed", "watched"])
+  }
 }
 
 @Suite("Exports surface: enums")
