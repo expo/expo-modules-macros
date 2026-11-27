@@ -3241,6 +3241,67 @@ struct ExpoModuleMacroTests {
     )
   }
 
+  @Test
+  func `Cyclic type aliases are left unresolved without exponential expansion`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        typealias A = (B, B)
+        typealias B = (A, A)
+        typealias Loop = (Loop, Int)
+        typealias Dependent = (A, Int)
+        typealias GenA = Array<GenB>
+        typealias GenB = (GenA, GenA)
+        typealias Pair = (Int, Int)
+        typealias Pairs = Array<Pair>
+
+        @JS
+        func use(_ a: A, _ loop: Loop, _ dep: Dependent, _ gen: GenA, _ pairs: Pairs) {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          typealias A = (B, B)
+          typealias B = (A, A)
+          typealias Loop = (Loop, Int)
+          typealias Dependent = (A, Int)
+          typealias GenA = Array<GenB>
+          typealias GenB = (GenA, GenA)
+          typealias Pair = (Int, Int)
+          typealias Pairs = Array<Pair>
+          @JavaScriptActor
+          func use(_ a: A, _ loop: Loop, _ dep: Dependent, _ gen: GenA, _ pairs: Pairs) {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("use") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 5 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "use", received: arguments.count, required: 5, maximum: 5))
+              }
+              let arg0 = try A.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg1 = try Loop.decode(arguments.unownedValue(at: 1), in: runtime)
+              let arg2 = try Dependent.decode(arguments.unownedValue(at: 2), in: runtime)
+              let arg3 = try GenA.decode(arguments.unownedValue(at: 3), in: runtime)
+              let arg4 = try JavaScriptValue.decodeArray(arguments.unownedValue(at: 4), in: runtime, element: { value, runtime in
+                  return try JavaScriptValue.decodeTuple(value, as: Int.self, Int.self, in: runtime)
+                })
+              self.use(arg0, arg1, arg2, arg3, arg4)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func use(_: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type, _: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            use(A.self, Loop.self, Dependent.self, GenA.self)
+          }
+        }
+        """
+    )
+  }
+
   // MARK: - Free-form (Any) types
 
   @Test
