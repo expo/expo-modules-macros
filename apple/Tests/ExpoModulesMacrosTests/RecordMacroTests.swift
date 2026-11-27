@@ -3195,22 +3195,26 @@ struct RecordMacroTests {
   }
 
   @Test
-  func `Optional property with a default uses the default when omitted and in the memberwise init`() {
+  func
+    `Optional property with a default uses the default when omitted and leaves the memberwise init parameter without a default`()
+  {
     assertExpansion(
       """
       @Record
-      struct Options {
-        var count: Int? = 5
+      public struct Options {
+        private static let defaultCount = 5
+        public var count: Int? = defaultCount
       }
       """,
       expandedSource: """
-        struct Options {
-          var count: Int? = 5
+        public struct Options {
+          private static let defaultCount = 5
+          public var count: Int? = defaultCount
 
           nonisolated public init() {
           }
 
-          nonisolated public init(count: Int? = 5) {
+          nonisolated public init(count: Int?) {
             self.count = count
           }
 
@@ -3254,7 +3258,7 @@ struct RecordMacroTests {
               return _PropNames(runtime)
             }
             let field0 = try object.withUnownedProperty(_propNames._name0) { countJSValue in
-              return countJSValue.isUndefined() ? 5 : try Int?.decode(countJSValue, in: runtime)
+              return countJSValue.isUndefined() ? defaultCount : try Int?.decode(countJSValue, in: runtime)
             }
             return Self(count: field0)
           }
@@ -3545,6 +3549,143 @@ struct RecordMacroTests {
           line: 5,
           column: 15
         ),
+      ]
+    )
+  }
+
+  @Test
+  func `Private bindings sharing an optional type annotation produce no diagnostic`() {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var count: Int = 0
+        private var a, b, c: String?
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var count: Int = 0
+          private var a, b, c: String?
+
+          nonisolated public init() {
+          }
+
+          nonisolated public init(count: Int) {
+            self.count = count
+          }
+
+          @JavaScriptActor
+          public static func from(object: borrowing JavaScriptObject, appContext: AppContext) throws -> Self {
+            let runtime = try appContext.runtime
+            return try object.asValue().withUnownedValue(in: runtime) { unownedValue in
+              return try decode(unownedValue, in: runtime)
+            }
+          }
+
+          nonisolated public static func from(dictionary: [String: Any], appContext: AppContext) throws -> Self {
+            throw RecordDictionaryConversionException(String(describing: Self.self))
+          }
+
+          nonisolated public func toDictionary(appContext: AppContext? = nil) -> [String: Any] {
+            var dictionary: [String: Any] = [:]
+            dictionary["count"] = self.count
+            return dictionary
+          }
+
+          @JavaScriptActor
+          public func toObject(appContext: AppContext) throws -> JavaScriptObject {
+            return try Self.encode(self, in: appContext.runtime).asObject()
+          }
+
+          nonisolated private final class _PropNames {
+            static let _key = JavaScriptRuntime.Cache.Key<_PropNames>()
+
+            let _name0: JavaScriptPropNameID
+
+            init(_ runtime: borrowing JavaScriptRuntime) {
+              self._name0 = JavaScriptPropNameID(runtime, string: "count")
+            }
+          }
+
+          @JavaScriptActor
+          public static func decode(_ value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws -> Self {
+            let object = try value.asObject(in: runtime)
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            let field0 = try object.withUnownedProperty(_propNames._name0) { countJSValue in
+              return countJSValue.isUndefined() ? 0 : try Int.decode(countJSValue, in: runtime)
+            }
+            return Self(count: field0)
+          }
+
+          @JavaScriptActor
+          public static func encode(_ value: Options, in runtime: borrowing JavaScriptRuntime) throws -> JavaScriptValue {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            return object.takeValue()
+          }
+
+          @JavaScriptActor
+          public static func encode(
+            _ value: Options,
+            into slot: borrowing JavaScriptValue.Slot,
+            in runtime: borrowing JavaScriptRuntime
+          ) throws {
+            let object = runtime.createObject()
+            let _propNames = runtime.cached(_PropNames._key) {
+              return _PropNames(runtime)
+            }
+            try object.setProperty(_propNames._name0, encoding: value.count)
+            slot.emplace(object)
+          }
+        }
+
+        extension Options: nonisolated Record {
+        }
+        """
+    )
+  }
+
+  @Test
+  func
+    `An unset private property is still diagnosed when only the memberwise init is hand-written and init() is synthesized`()
+  {
+    assertExpansion(
+      """
+      @Record
+      struct Options {
+        var count: Int = 0
+        private var cache: Int
+
+        init(count: Int) {
+          self.count = count
+          self.cache = 0
+        }
+      }
+      """,
+      expandedSource: """
+        struct Options {
+          var count: Int = 0
+          private var cache: Int
+
+          init(count: Int) {
+            self.count = count
+            self.cache = 0
+          }
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Record leaves out the private property 'cache', so the synthesized initializer doesn't set it. Give it a default value, or remove 'private' to make it a record property",
+          line: 4,
+          column: 15
+        )
       ]
     )
   }

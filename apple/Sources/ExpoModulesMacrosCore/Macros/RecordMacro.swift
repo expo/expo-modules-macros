@@ -60,33 +60,9 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
-    let typeName: String
-    if let structDecl = declaration.as(StructDeclSyntax.self) {
-      typeName = structDecl.name.text
-    } else if let classDecl = declaration.as(ClassDeclSyntax.self) {
-      typeName = classDecl.name.text
-    } else {
-      throw MacroExpansionErrorMessage("@Record can only be applied to a struct or class")
-    }
-    let classDiagnostics = unsupportedClassDiagnostics(of: declaration)
-    guard classDiagnostics.isEmpty else {
-      throw DiagnosticsError(diagnostics: classDiagnostics)
-    }
-
-    let properties = try recordProperties(of: declaration)
+    let record = try validatedRecord(of: declaration)
+    let properties = record.properties
     let cachesPropNames = !properties.isEmpty && !isInGenericContext(declaration, context: context)
-
-    // The user may hand-write any of the initializers the macro would otherwise synthesize. Emitting
-    // a duplicate is a hard "invalid redeclaration" error, so skip anything already declared and let
-    // the author's version stand — the factories only need *an* `init(<properties>)` and `Record` only
-    // needs *an* `init()`, regardless of who wrote them.
-    let existingInitLabels = initializerParameterLabels(of: declaration)
-    if !existingInitLabels.contains(properties.map { $0.key }) {
-      let diagnostics = unsetPrivatePropertyDiagnostics(of: declaration)
-      guard diagnostics.isEmpty else {
-        throw DiagnosticsError(diagnostics: diagnostics)
-      }
-    }
 
     var members: [DeclSyntax] = []
 
@@ -94,7 +70,7 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     // ways (the JS-value paths call `decode`/`encode`). Each property keeps its own named assertion
     // inside, so the compiler's conformance diagnostic names the offending property (see
     // `typeConformanceAssertions`). Emitted first so that, for a non-conforming type, this clear
-    // "requires that '…' conform to '…'" error is reported ahead of the noisier "no member 'decode'"
+    // "requires that '...' conform to '...'" error is reported ahead of the noisier "no member 'decode'"
     // errors from the conversion code below.
     let assertions = properties.map { property in
       ConformanceAssertion(name: property.name, types: property.freeForm == nil ? [property.type] : [])
@@ -103,12 +79,10 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
       members.append(assertionMember)
     }
 
-    if !existingInitLabels.contains([]) {
-      if let defaultInit = defaultInit(properties: properties) {
-        members.append(defaultInit)
-      }
+    if record.synthesizesDefaultInit, let defaultInit = defaultInit(properties: properties) {
+      members.append(defaultInit)
     }
-    if !existingInitLabels.contains(properties.map { $0.key }) {
+    if record.synthesizesMemberwiseInit {
       members.append(memberwiseInit(properties: properties))
     }
     members.append(fromJSObjectFactory())
@@ -121,7 +95,7 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     members.append(
       contentsOf: javaScriptCodableWitnesses(
         properties: properties,
-        typeName: typeName,
+        typeName: record.typeName,
         cachesPropNames: cachesPropNames
       )
     )
@@ -141,19 +115,7 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
-    guard declaration.is(StructDeclSyntax.self) || declaration.is(ClassDeclSyntax.self) else {
-      return []
-    }
-    guard unsupportedClassDiagnostics(of: declaration).isEmpty else {
-      return []
-    }
-    guard let properties = try? recordProperties(of: declaration) else {
-      return []
-    }
-    let existingInitLabels = initializerParameterLabels(of: declaration)
-    if !existingInitLabels.contains(properties.map { $0.key }),
-      !unsetPrivatePropertyDiagnostics(of: declaration).isEmpty
-    {
+    guard (try? validatedRecord(of: declaration)) != nil else {
       return []
     }
     if inheritsProtocol(named: "Record", in: declaration) {
@@ -173,6 +135,56 @@ public struct RecordMacro: MemberMacro, ExtensionMacro {
 }
 
 // MARK: - Property model
+
+/// A validated `@Record` declaration: its type name, discovered properties, and which initializers
+/// the macro needs to synthesize.
+private struct ValidatedRecord {
+  let typeName: String
+  let properties: [RecordProperty]
+  let synthesizesDefaultInit: Bool
+  let synthesizesMemberwiseInit: Bool
+}
+
+/// Validates a `@Record` declaration for both the member and extension roles.
+private func validatedRecord(of declaration: some DeclGroupSyntax) throws -> ValidatedRecord {
+  let typeName: String
+  if let structDecl = declaration.as(StructDeclSyntax.self) {
+    typeName = structDecl.name.text
+  } else if let classDecl = declaration.as(ClassDeclSyntax.self) {
+    typeName = classDecl.name.text
+  } else {
+    throw MacroExpansionErrorMessage("@Record can only be applied to a struct or class")
+  }
+  let classDiagnostics = unsupportedClassDiagnostics(of: declaration)
+  guard classDiagnostics.isEmpty else {
+    throw DiagnosticsError(diagnostics: classDiagnostics)
+  }
+
+  let properties = try recordProperties(of: declaration)
+
+  // The user may hand-write any of the initializers the macro would otherwise synthesize. Emitting
+  // a duplicate is a hard "invalid redeclaration" error, so skip anything already declared and let
+  // the author's version stand: the factories only need an `init(<properties>)` and `Record` only
+  // needs an `init()`, regardless of who wrote them.
+  let existingInitLabels = initializerParameterLabels(of: declaration)
+  let synthesizesDefaultInit = !existingInitLabels.contains([])
+  let synthesizesMemberwiseInit = !existingInitLabels.contains(properties.map { $0.key })
+  let synthesizesNonTrappingDefaultInit =
+    synthesizesDefaultInit && !properties.isEmpty && !properties.contains(where: { $0.isRequired })
+  if synthesizesMemberwiseInit || synthesizesNonTrappingDefaultInit {
+    let diagnostics = unsetPrivatePropertyDiagnostics(of: declaration)
+    guard diagnostics.isEmpty else {
+      throw DiagnosticsError(diagnostics: diagnostics)
+    }
+  }
+
+  return ValidatedRecord(
+    typeName: typeName,
+    properties: properties,
+    synthesizesDefaultInit: synthesizesDefaultInit,
+    synthesizesMemberwiseInit: synthesizesMemberwiseInit
+  )
+}
 
 /// A single record property discovered on the type, paired with everything the synthesized
 /// conversions need: its property name, its written type, and how the source may omit it.
@@ -357,14 +369,14 @@ private func defaultInit(properties: [RecordProperty]) -> DeclSyntax? {
 }
 
 /// Explicit memberwise initializer over the discovered properties, in declaration order. The factories
-/// call this as the single construction point. Optional properties default to their declared default
-/// (or `nil` when none is written) for ergonomics; all other parameters are required at this level (the
-/// factories supply a value for every property, inlining each declared default where the source omits
-/// it).
+/// call this as the single construction point. Optional properties without an explicit default default
+/// to `nil` for ergonomics; properties with a declared default (optional or not) omit the parameter
+/// default here so non-public default expressions don't violate Swift's visibility rules on `public
+/// init(...)`, while the factories evaluate each declared default inside `decode(_:in:)`.
 private func memberwiseInit(properties: [RecordProperty]) -> DeclSyntax {
   let params = properties.map { property -> String in
-    if property.isOptional {
-      return "\(property.name): \(property.type) = \(property.defaultValue ?? "nil")"
+    if property.isOptional && !property.hasDefault {
+      return "\(property.name): \(property.type) = nil"
     }
     return "\(property.name): \(property.type)"
   }
@@ -701,7 +713,7 @@ private func unsetPrivatePropertyDiagnostics(of declaration: some DeclGroupSynta
     let isVar = varDecl.bindingSpecifier.tokenKind == .keyword(.var)
     for binding in varDecl.bindings where isStoredBinding(binding) && binding.initializer == nil {
       guard let ident = binding.pattern.as(IdentifierPatternSyntax.self),
-        !(isVar && binding.typeAnnotation.map { hasImplicitNilDefault($0.type) } == true)
+        !(isVar && resolvedTypeAnnotation(of: binding, in: varDecl).map { hasImplicitNilDefault($0.type) } == true)
       else {
         continue
       }
@@ -717,6 +729,26 @@ private func unsetPrivatePropertyDiagnostics(of declaration: some DeclGroupSynta
     }
   }
   return diagnostics
+}
+
+/// The binding's own type annotation, or the trailing annotation shared with preceding bindings.
+private func resolvedTypeAnnotation(
+  of binding: PatternBindingSyntax,
+  in varDecl: VariableDeclSyntax
+) -> TypeAnnotationSyntax? {
+  if let typeAnnotation = binding.typeAnnotation {
+    return typeAnnotation
+  }
+  var foundBinding = false
+  for candidate in varDecl.bindings {
+    if foundBinding, let typeAnnotation = candidate.typeAnnotation {
+      return typeAnnotation
+    }
+    if candidate.id == binding.id {
+      foundBinding = true
+    }
+  }
+  return nil
 }
 
 /// The error for a `let` property with a default value, attached to the `let` keyword and carrying a
