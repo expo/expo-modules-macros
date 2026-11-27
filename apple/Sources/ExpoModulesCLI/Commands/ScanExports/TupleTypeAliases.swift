@@ -24,12 +24,10 @@ struct TupleTypeAliases {
       let name = alias.name.text
       declared[name] = typeNode(from: alias.initializer.value).named("\(scope).\(name)")
     }
-    // Aliases may refer to each other, so each one is resolved through the others. An alias that refers
-    // back to itself is invalid Swift, and is left as written after `declared.count` rounds.
-    var resolved = declared
-    for _ in 0..<declared.count {
-      resolved = resolved.mapValues { $0.replacingAliases(resolved) }
-    }
+    // Aliases may refer to each other, so resolve each one once with cycle detection. An alias that
+    // refers back to itself (directly or transitively) is invalid Swift and is left unresolved,
+    // avoiding exponential expansion on cyclic definitions.
+    let resolved = AliasResolver(declared: declared).resolveAll()
     self.resolved = resolved.filter { $0.value.holdsTuple }
   }
 
@@ -38,7 +36,7 @@ struct TupleTypeAliases {
     guard !resolved.isEmpty else {
       return node
     }
-    return node.replacingAliases(resolved)
+    return node.replacingAliases { resolved[$0] }
   }
 
   func resolving(_ function: ExportedFunction) -> ExportedFunction {
@@ -61,35 +59,85 @@ struct TupleTypeAliases {
   }
 }
 
+/// Resolves declared aliases through each other with memoized DFS and cycle detection. Any alias
+/// that reaches a cycle is omitted from the resolved map.
+private final class AliasResolver {
+  private let declared: [String: TypeNode]
+  private var cache: [String: TypeNode?] = [:]
+  private var visiting: Set<String> = []
+
+  init(declared: [String: TypeNode]) {
+    self.declared = declared
+  }
+
+  func resolveAll() -> [String: TypeNode] {
+    var result: [String: TypeNode] = [:]
+    for name in declared.keys {
+      if let resolved = resolve(name) {
+        result[name] = resolved
+      }
+    }
+    return result
+  }
+
+  private func resolve(_ name: String) -> TypeNode? {
+    if let cached = cache[name] {
+      return cached
+    }
+    guard let body = declared[name] else {
+      return nil
+    }
+    guard visiting.insert(name).inserted else {
+      return nil
+    }
+    defer { visiting.remove(name) }
+
+    var hitCycle = false
+    let rewritten = body.replacingAliases { refName in
+      guard self.declared[refName] != nil else {
+        return nil
+      }
+      guard let resolved = self.resolve(refName) else {
+        hitCycle = true
+        return nil
+      }
+      return resolved
+    }
+    let result: TypeNode? = hitCycle ? nil : rewritten
+    cache[name] = result
+    return result
+  }
+}
+
 extension TypeNode {
-  /// This node with each ref named in `aliases`, bare (`Span`) or qualified with `Self` (`Self.Span`),
+  /// This node with each ref matched by `lookup`, bare (`Span`) or qualified with `Self` (`Self.Span`),
   /// replaced by the aliased type.
-  fileprivate func replacingAliases(_ aliases: [String: TypeNode]) -> TypeNode {
+  fileprivate func replacingAliases(_ lookup: (String) -> TypeNode?) -> TypeNode {
     switch self {
     case .primitive, .unknown, .sharedRef:
       return self
     case .ref(let name, _, _):
       let unqualified = name.hasPrefix("Self.") ? String(name.dropFirst("Self.".count)) : name
-      return aliases[unqualified] ?? self
+      return lookup(unqualified) ?? self
     case .optional(let wrapped):
-      return .optional(wrapped: wrapped.replacingAliases(aliases))
+      return .optional(wrapped: wrapped.replacingAliases(lookup))
     case .array(let element):
-      return .array(element: element.replacingAliases(aliases))
+      return .array(element: element.replacingAliases(lookup))
     case .dictionary(let key, let value):
-      return .dictionary(key: key.replacingAliases(aliases), value: value.replacingAliases(aliases))
+      return .dictionary(key: key.replacingAliases(lookup), value: value.replacingAliases(lookup))
     case .promise(let value):
-      return .promise(value: value.replacingAliases(aliases))
+      return .promise(value: value.replacingAliases(lookup))
     case .tuple(let elements, let name):
-      return .tuple(elements: elements.map { $0.replacingAliases(aliases) }, name: name)
+      return .tuple(elements: elements.map { $0.replacingAliases(lookup) }, name: name)
     case .object(let properties, let name):
       return .object(
-        properties: properties.map { TypeNodeProperty(name: $0.name, type: $0.type.replacingAliases(aliases)) },
+        properties: properties.map { TypeNodeProperty(name: $0.name, type: $0.type.replacingAliases(lookup)) },
         name: name
       )
     case .function(let parameters, let returns, let isAsync, let isThrowing):
       return .function(
-        parameters: parameters.map { $0.replacingAliases(aliases) },
-        returns: returns?.replacingAliases(aliases),
+        parameters: parameters.map { $0.replacingAliases(lookup) },
+        returns: returns?.replacingAliases(lookup),
         isAsync: isAsync,
         isThrowing: isThrowing
       )

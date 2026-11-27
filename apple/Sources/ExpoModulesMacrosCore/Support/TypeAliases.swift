@@ -21,13 +21,10 @@ internal struct TupleTypeAliases {
       }
       declared[alias.name.text] = alias.initializer.value
     }
-    // Aliases may refer to each other, so each one is resolved through the others. An alias that refers
-    // back to itself is invalid Swift, and is left as written after `declared.count` rounds.
-    var resolved = declared
-    for _ in 0..<declared.count {
-      let rewriter = AliasRewriter(aliases: resolved)
-      resolved = resolved.mapValues { rewriter.rewrite($0).cast(TypeSyntax.self) }
-    }
+    // Aliases may refer to each other, so resolve each one once with cycle detection. An alias that
+    // refers back to itself (directly or transitively) is invalid Swift and is left unresolved,
+    // avoiding exponential expansion on cyclic definitions.
+    let resolved = AliasResolver(declared: declared).resolveAll()
     self.resolved = resolved.filter { tupleConversion(of: $0.value) != nil }
   }
 
@@ -41,7 +38,58 @@ internal struct TupleTypeAliases {
     guard !resolved.isEmpty else {
       return node
     }
-    return AliasRewriter(aliases: resolved).rewrite(node).cast(Node.self)
+    return AliasRewriter(lookup: { resolved[$0] }).rewrite(node).cast(Node.self)
+  }
+}
+
+/// Resolves declared aliases through each other with memoized DFS and cycle detection. Any alias
+/// that reaches a cycle is omitted from the resolved map.
+private final class AliasResolver {
+  private let declared: [String: TypeSyntax]
+  private var cache: [String: TypeSyntax?] = [:]
+  private var visiting: Set<String> = []
+
+  init(declared: [String: TypeSyntax]) {
+    self.declared = declared
+  }
+
+  func resolveAll() -> [String: TypeSyntax] {
+    var result: [String: TypeSyntax] = [:]
+    for name in declared.keys {
+      if let resolved = resolve(name) {
+        result[name] = resolved
+      }
+    }
+    return result
+  }
+
+  private func resolve(_ name: String) -> TypeSyntax? {
+    if let cached = cache[name] {
+      return cached
+    }
+    guard let body = declared[name] else {
+      return nil
+    }
+    guard visiting.insert(name).inserted else {
+      return nil
+    }
+    defer { visiting.remove(name) }
+
+    var hitCycle = false
+    let rewriter = AliasRewriter { refName in
+      guard self.declared[refName] != nil else {
+        return nil
+      }
+      guard let resolved = self.resolve(refName) else {
+        hitCycle = true
+        return nil
+      }
+      return resolved
+    }
+    let rewritten = rewriter.rewrite(body).cast(TypeSyntax.self)
+    let result: TypeSyntax? = hitCycle ? nil : rewritten
+    cache[name] = result
+    return result
   }
 }
 
@@ -49,16 +97,16 @@ internal struct TupleTypeAliases {
 /// with `Self` (`Self.Pair`). A name with generic arguments isn't an alias reference, since the
 /// resolved aliases aren't generic.
 private final class AliasRewriter: SyntaxRewriter {
-  let aliases: [String: TypeSyntax]
+  let lookup: (String) -> TypeSyntax?
 
-  init(aliases: [String: TypeSyntax]) {
-    self.aliases = aliases
+  init(lookup: @escaping (String) -> TypeSyntax?) {
+    self.lookup = lookup
     super.init(viewMode: .sourceAccurate)
   }
 
   override func visit(_ node: IdentifierTypeSyntax) -> TypeSyntax {
-    guard node.genericArgumentClause == nil, let aliased = aliases[node.name.text] else {
-      return TypeSyntax(node)
+    guard node.genericArgumentClause == nil, let aliased = lookup(node.name.text) else {
+      return super.visit(node)
     }
     return aliased.with(\.leadingTrivia, node.leadingTrivia).with(\.trailingTrivia, node.trailingTrivia)
   }
@@ -66,7 +114,7 @@ private final class AliasRewriter: SyntaxRewriter {
   override func visit(_ node: MemberTypeSyntax) -> TypeSyntax {
     guard node.baseType.as(IdentifierTypeSyntax.self)?.name.text == "Self",
       node.genericArgumentClause == nil,
-      let aliased = aliases[node.name.text]
+      let aliased = lookup(node.name.text)
     else {
       return super.visit(node)
     }

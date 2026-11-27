@@ -3241,6 +3241,58 @@ struct ExpoModuleMacroTests {
     )
   }
 
+  @Test
+  func `Cyclic type aliases are left unresolved without exponential expansion`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        typealias A = (B, B)
+        typealias B = (A, A)
+        typealias Loop = (Loop, Int)
+        typealias Pair = (Int, Int)
+        typealias Extra1 = Int
+        typealias Extra2 = String
+
+        @JS
+        func use(_ a: A, _ pair: Pair) {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          typealias A = (B, B)
+          typealias B = (A, A)
+          typealias Loop = (Loop, Int)
+          typealias Pair = (Int, Int)
+          typealias Extra1 = Int
+          typealias Extra2 = String
+          @JavaScriptActor
+          func use(_ a: A, _ pair: Pair) {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("use") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count == 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "use", received: arguments.count, required: 2, maximum: 2))
+              }
+              let arg0 = try A.decode(arguments.unownedValue(at: 0), in: runtime)
+              let arg1 = try JavaScriptValue.decodeTuple(arguments.unownedValue(at: 1), as: Int.self, Int.self, in: runtime)
+              self.use(arg0, arg1)
+            }
+          }
+
+          private func _assertTypesConformance() {
+            func use(_: (some JavaScriptDecodable & ~Copyable).Type) {
+            }
+            use(A.self)
+          }
+        }
+        """
+    )
+  }
+
   // MARK: - Free-form (Any) types
 
   @Test

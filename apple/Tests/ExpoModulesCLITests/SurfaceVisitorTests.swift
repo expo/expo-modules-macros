@@ -267,6 +267,33 @@ struct ModuleSurfaceTests {
   }
 
   @Test
+  func `Cyclic type aliases are left as refs without exponential expansion while acyclic aliases still resolve`() throws
+  {
+    let visitor = surface(
+      """
+      @ExpoModule
+      final class CyclicModule {
+        typealias A = (B, B)
+        typealias B = (A, A)
+        typealias Loop = (Loop, Int)
+        typealias Pair = (Int, Int)
+        typealias Extra1 = Int
+        typealias Extra2 = String
+
+        @JS
+        func use(_ a: A, _ loop: Loop, _ pair: Pair) {}
+      }
+      """
+    )
+    let use = try #require(visitor.modules.first?.functions.first)
+    let pair = TypeNode.tuple(
+      elements: [.primitive(name: "Int", jsType: .number), .primitive(name: "Int", jsType: .number)],
+      name: "CyclicModule.Pair"
+    )
+    #expect(use.parameters.map(\.type) == [.ref(name: "A"), .ref(name: "Loop"), pair])
+  }
+
+  @Test
   func `Reports closure parameters of a @JS function as function types`() throws {
     let module = try #require(
       surface(
