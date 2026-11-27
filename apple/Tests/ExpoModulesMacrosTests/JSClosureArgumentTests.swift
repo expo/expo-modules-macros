@@ -900,4 +900,43 @@ struct JSClosureArgumentTests {
         """
     )
   }
+
+  @Test
+  func `Closure diagnostics and Fix-Its keep original source locations with both a specifier and an attribute`() {
+    assertExpansion(
+      """
+      @JS
+      func run(_ transform: sending @escaping (Int) -> Int) {}
+      @JS
+      func show(_ render: sending @MainActor (Int) -> Void) {}
+      """,
+      expandedSource: """
+        func run(_ transform: sending @escaping (Int) -> Int) {}
+        func show(_ render: sending @MainActor (Int) -> Void) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return",
+          line: 2,
+          column: 41,
+          severity: .error,
+          fixIts: [FixItSpec(message: "Mark the closure 'throws'")]
+        ),
+        DiagnosticSpec(
+          message:
+            "'@MainActor' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed",
+          line: 4,
+          column: 29,
+          severity: .error
+        ),
+      ],
+      fixedSource: """
+        @JS
+        func run(_ transform: sending @escaping (Int) throws -> Int) {}
+        @JS
+        func show(_ render: sending @MainActor (Int) -> Void) {}
+        """
+    )
+  }
 }
