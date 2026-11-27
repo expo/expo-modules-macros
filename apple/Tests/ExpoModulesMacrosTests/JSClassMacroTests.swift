@@ -486,6 +486,120 @@ struct JSClassMacroTests {
   }
 
   @Test
+  func `A class inside a public extension produces no non-public warning unless it narrows access`() {
+    assertExpansion(
+      """
+      public extension Outer {
+        @JSClass
+        final class Inner {
+        }
+      }
+      """,
+      expandedSource: """
+        public extension Outer {
+          final class Inner {
+
+            nonisolated public class var _jsName: String {
+              "Inner"
+            }
+
+            nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+              Inner.self
+            }
+
+            nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+              nil
+            }
+
+            @JavaScriptActor
+            public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            }
+
+            @JavaScriptActor
+            public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            }
+
+            @JavaScriptActor
+            public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+              return nil
+            }
+          }
+        }
+
+        extension Outer.Inner: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Outer.Inner: @unchecked Sendable {
+        }
+        """
+    )
+
+    assertExpansion(
+      """
+      public extension Outer {
+        @JSClass
+        internal final class Hidden {
+        }
+      }
+      """,
+      expandedSource: """
+        public extension Outer {
+          internal final class Hidden {
+
+            nonisolated public class var _jsName: String {
+              "Hidden"
+            }
+
+            nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+              Hidden.self
+            }
+
+            nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+              nil
+            }
+
+            @JavaScriptActor
+            public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            }
+
+            @JavaScriptActor
+            public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            }
+
+            @JavaScriptActor
+            public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+              return nil
+            }
+          }
+        }
+
+        extension Outer.Hidden: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Outer.Hidden: @unchecked Sendable {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@JSClass class 'Hidden' should be public or open, so that the modules provider that autolinking generates in the app target can export it",
+          line: 3,
+          column: 3,
+          severity: .warning,
+          fixIts: [FixItSpec(message: "Make the class 'public'")]
+        )
+      ],
+      fixedSource: """
+        public extension Outer {
+          @JSClass
+          public final class Hidden {
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Reports a declaration that isn't a class`() {
     assertExpansion(
       """

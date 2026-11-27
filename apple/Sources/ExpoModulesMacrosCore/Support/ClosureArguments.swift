@@ -27,6 +27,12 @@ internal struct JSClosureType {
   /// array. One optional layer is accepted around the function type.
   init?(_ type: TypeSyntax) {
     var type = unparenthesized(type)
+    if let attributed = type.as(AttributedTypeSyntax.self),
+      !attributed.specifiers.isEmpty,
+      attributed.attributes.isEmpty
+    {
+      type = unparenthesized(attributed.baseType)
+    }
     var isOptional = false
     if let wrapped = optionalWrappedType(type) {
       isOptional = true

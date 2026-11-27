@@ -223,6 +223,21 @@ private func validatedUnion(of declaration: some DeclGroupSyntax) throws -> Unio
         continue
       }
 
+      // Free-form `Any` types can't conform to `JavaScriptDecodable` or `JavaScriptEncodable` and have
+      // no `decodableKinds` for union discrimination.
+      if mentionsFreeFormAny(parameter.type) {
+        diagnostics.append(
+          Diagnostic(
+            node: parameter.type,
+            message: UnionDiagnosticMessage(
+              "@Union case '\(name)' can't carry the free-form type '\(parameter.type.trimmedDescription)': a union discriminates cases through 'JavaScriptDecodable' and 'JavaScriptEncodable', which types holding 'Any' can't conform to. Use a concrete type, a @Record, or 'JavaScriptValue' instead",
+              id: "union-free-form-payload"
+            )
+          )
+        )
+        continue
+      }
+
       let payloadType = parameter.type.trimmedDescription
       // Alternatives decode in declaration order and the first success wins, so a case whose payload
       // type repeats an earlier case's is unreachable: an exact-spelling duplicate is an error. (An

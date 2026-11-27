@@ -832,4 +832,111 @@ struct JSClosureArgumentTests {
       ]
     )
   }
+
+  @Test
+  func `Optional closure argument with ownership specifier expands without error`() {
+    assertExpansion(
+      """
+      @ExpoModule
+      public final class MyModule: Module {
+        @JS
+        func run(_ onDone: sending ((Int) -> Void)?, _ onCancel: borrowing ((Int) -> Void)?) {}
+      }
+      """,
+      expandedSource: """
+        public final class MyModule: Module {
+          @JavaScriptActor
+          func run(_ onDone: sending ((Int) -> Void)?, _ onCancel: borrowing ((Int) -> Void)?) {}
+
+          public static let _jsName = "MyModule"
+
+          @JavaScriptActor
+          public func _decorateModule(object: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            object.setProperty("run") { [self] (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              guard arguments.count >= 0 && arguments.count <= 2 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "run", received: arguments.count, required: 0, maximum: 2))
+              }
+              switch arguments.count {
+              case 0:
+                self.run(nil, nil)
+              case 1:
+                let arg0: ((Int) -> Void)?
+                if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
+                  arg0 = { @Sendable p0 in
+                    arg0Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                      try _arguments.emplace(_values, at: 0, in: _runtime)
+                    }
+                  }
+                } else {
+                  arg0 = nil
+                }
+                self.run(arg0, nil)
+              default:
+                let arg0: ((Int) -> Void)?
+                if let arg0Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 0), in: runtime) {
+                  arg0 = { @Sendable p0 in
+                    arg0Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                      try _arguments.emplace(_values, at: 0, in: _runtime)
+                    }
+                  }
+                } else {
+                  arg0 = nil
+                }
+                let arg1: ((Int) -> Void)?
+                if let arg1Callback = try JavaScriptCallback.decodeIfPresent(arguments.unownedValue(at: 1), in: runtime) {
+                  arg1 = { @Sendable p0 in
+                    arg1Callback.invokeDetached(p0, argumentCount: 1) { _values, _arguments, _runtime in
+                      try _arguments.emplace(_values, at: 0, in: _runtime)
+                    }
+                  }
+                } else {
+                  arg1 = nil
+                }
+                self.run(arg0, arg1)
+              }
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Closure diagnostics and Fix-Its keep original source locations with both a specifier and an attribute`() {
+    assertExpansion(
+      """
+      @JS
+      func run(_ transform: sending @escaping (Int) -> Int) {}
+      @JS
+      func show(_ render: sending @MainActor (Int) -> Void) {}
+      """,
+      expandedSource: """
+        func run(_ transform: sending @escaping (Int) -> Int) {}
+        func show(_ render: sending @MainActor (Int) -> Void) {}
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS closure argument that returns a value must be 'throws': when the JavaScript function throws, the closure has no value to return",
+          line: 2,
+          column: 41,
+          severity: .error,
+          fixIts: [FixItSpec(message: "Mark the closure 'throws'")]
+        ),
+        DiagnosticSpec(
+          message:
+            "'@MainActor' isn't supported on a @JS closure argument. The closure calls JavaScript through its own thread hop, so only '@escaping' and '@Sendable' are allowed",
+          line: 4,
+          column: 29,
+          severity: .error
+        ),
+      ],
+      fixedSource: """
+        @JS
+        func run(_ transform: sending @escaping (Int) throws -> Int) {}
+        @JS
+        func show(_ render: sending @MainActor (Int) -> Void) {}
+        """
+    )
+  }
 }

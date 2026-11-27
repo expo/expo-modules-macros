@@ -1604,4 +1604,29 @@ struct UnionMacroTests {
       ]
     )
   }
+
+  @Test(arguments: ["Any", "[Any]", "[String: Any]"])
+  func `Free-form Any payload produces a diagnostic and omits the extension`(type: String) {
+    assertExpansion(
+      """
+      @Union
+      enum Value {
+        case payload(\(type))
+      }
+      """,
+      expandedSource: """
+        enum Value {
+          case payload(\(type))
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "@Union case 'payload' can't carry the free-form type '\(type)': a union discriminates cases through 'JavaScriptDecodable' and 'JavaScriptEncodable', which types holding 'Any' can't conform to. Use a concrete type, a @Record, or 'JavaScriptValue' instead",
+          line: 3,
+          column: 16
+        )
+      ]
+    )
+  }
 }
