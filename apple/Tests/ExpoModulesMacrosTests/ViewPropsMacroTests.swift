@@ -4472,6 +4472,77 @@ struct ViewPropsMacroTests {
   }
 
   @Test
+  func `Three or more private bindings sharing an optional type annotation produce no diagnostic`() {
+    assertExpansion(
+      """
+      @ViewProps
+      struct Props {
+        var color: UIColor = .red
+        private var a, b, c: String?
+      }
+      """,
+      expandedSource: """
+        struct Props {
+          var color: UIColor = .red
+          private var a, b, c: String?
+
+          @frozen nonisolated public enum PropName: String, CaseIterable {
+            case color
+          }
+
+          nonisolated public struct PropSet: OptionSet, Sendable {
+            public let rawValue: UInt64
+
+            public init(rawValue: UInt64) {
+              self.rawValue = rawValue
+            }
+
+            public static let color = PropSet(rawValue: 1 << 0)
+          }
+
+          nonisolated public static let _eventNames: [String] = []
+
+          public typealias Diff = PropsDiff<Self>
+
+          @JavaScriptActor
+          static func _resetViewProp(_ _name: PropName, in _props: inout Self) {
+            switch _name {
+            case .color:
+              _props.color = .red
+            }
+          }
+        }
+
+        extension Props: nonisolated AnyViewProps {
+          nonisolated public static let allProps = PropSet(rawValue: 0b1)
+
+          /// `@inlinable` so core's raw-key fold can inline the lookup across the module boundary:
+          /// it runs once per changed key per props batch.
+          @inlinable
+          nonisolated public static func propSet(for name: PropName) -> PropSet {
+            switch name {
+            case .color:
+              return .color
+            }
+          }
+
+          @JavaScriptActor
+          public mutating func _decode(_ name: PropName, from value: borrowing JavaScriptUnownedValue, in runtime: borrowing JavaScriptRuntime) throws {
+            if value.isNull() || value.isUndefined() {
+              Self._resetViewProp(name, in: &self)
+              return
+            }
+            switch name {
+            case .color:
+              self.color = try Self._decodeViewProp(value, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `A throwing init() produces a diagnostic with a fix-it`() {
     assertExpansion(
       """

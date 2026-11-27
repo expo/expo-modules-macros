@@ -252,8 +252,9 @@ private func diagnoseClosureParameters(
   in context: some MacroExpansionContext
 ) {
   for parameter in parameters {
-    guard let closure = JSClosureType(parameter.type) else {
-      if let nested = firstFunctionType(in: parameter.type) {
+    let bareType = SpecifiedType(parameter.type).type
+    guard let closure = JSClosureType(bareType) else {
+      if let nested = firstFunctionType(in: bareType) {
         context.diagnose(
           Diagnostic(
             node: nested,

@@ -1251,7 +1251,9 @@ private func resolvedTypeAnnotation(
     if foundBinding, let typeAnnotation = candidate.typeAnnotation {
       return typeAnnotation
     }
-    foundBinding = candidate.id == binding.id
+    if candidate.id == binding.id {
+      foundBinding = true
+    }
   }
   return nil
 }

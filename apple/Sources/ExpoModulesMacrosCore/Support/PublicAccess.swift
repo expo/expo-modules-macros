@@ -15,9 +15,15 @@ internal func diagnoseNonPublicClass(
   guard !isLocal(context: context) else {
     return
   }
-  let accessModifier = classDecl.modifiers.first { accessLevelKeywords.contains($0.name.tokenKind) }
-  if let accessModifier,
-    [.keyword(.public), .keyword(.open)].contains(accessModifier.name.tokenKind)
+  let accessModifier = classDecl.modifiers.first {
+    $0.detail == nil && accessLevelKeywords.contains($0.name.tokenKind)
+  }
+  if let accessModifier {
+    if [.keyword(.public), .keyword(.open)].contains(accessModifier.name.tokenKind) {
+      return
+    }
+  } else if let enclosingExtension = context.lexicalContext.first?.as(ExtensionDeclSyntax.self),
+    enclosingExtension.modifiers.contains(where: { $0.detail == nil && $0.name.tokenKind == .keyword(.public) })
   {
     return
   }
