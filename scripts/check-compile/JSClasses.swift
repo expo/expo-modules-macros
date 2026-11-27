@@ -69,3 +69,10 @@ public final class FinalCounter {
   @JS
   public func reset() {}
 }
+
+// A throwing `@JS init` with trailing optional and defaulted parameters.
+@JSClass("Configurable")
+public final class ConfigurableCounter {
+  @JS
+  public init(start: Double, label: String?, step: Int = 1) throws {}
+}

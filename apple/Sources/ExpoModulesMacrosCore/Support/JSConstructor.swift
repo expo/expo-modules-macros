@@ -11,51 +11,120 @@ internal struct JSConstructor {
   /// The label of the parameter that takes the JavaScript runtime, or `nil` when the initializer has
   /// none.
   private let runtimeLabel: String?
+  /// True when the initializer is marked `throws`.
+  private let isThrowing: Bool
 
   init(initDecl: InitializerDeclSyntax) {
     let declaredParameters = initDecl.signature.parameterClause.parameters
     self.parameters = declaredParameters.filter { !isRuntimeParameter($0) }
     self.runtimeLabel = declaredParameters.first(where: isRuntimeParameter)?.firstName.text
+    self.isThrowing = initDecl.signature.effectSpecifiers?.throwsClause?.throwsSpecifier != nil
   }
 
-  /// The body statements, indented with `indent`: arity guard, per-argument decode through
-  /// `JavaScriptDecodable.decode` on a zero-copy `arguments.unownedValue(at:)` (the arity guard proves
-  /// each index is in bounds) or a wrapper for a closure argument, then `return <Type>(label: arg0, …)`.
-  private func bodyStatements(typeName: String, indent: String) -> String {
+  /// The number of leading parameters that must always be supplied: the total minus the maximal
+  /// trailing run of omittable parameters (each having a default value or an optional type).
+  private var requiredArgumentCount: Int {
+    var required = parameters.count
+    for parameter in parameters.reversed() {
+      guard isOmittable(parameter) else {
+        break
+      }
+      required -= 1
+    }
+    return required
+  }
+
+  /// The body statements, indented with `indent`: arity guard (exact when every parameter is required,
+  /// otherwise a range check), per-argument decode through `JavaScriptDecodable.decode` on a zero-copy
+  /// `arguments.unownedValue(at:)` (the arity guard proves each index is in bounds) or a wrapper for a
+  /// closure argument, then `return [try] <Type>(label: arg0, ...)`. When a trailing run of parameters
+  /// is omittable, the call branches on `arguments.count` so omitted trailing slots are never indexed.
+  private func bodyStatements(typeName: String, functionName: String, indent: String) -> String {
+    let required = requiredArgumentCount
+    let maximum = parameters.count
     var lines: [String] = []
 
-    lines.append(
-      """
-      guard arguments.count == \(parameters.count) else {
-        throw Exceptions.ArgumentsRangeMismatch((functionName: "\(typeName)", received: arguments.count, required: \(parameters.count), maximum: \(parameters.count)))
-      }
-      """
-    )
-
-    var callArguments: [String] = []
-    for (index, parameter) in parameters.enumerated() {
+    if required == maximum {
       lines.append(
-        contentsOf: argumentDecodeStatements(
-          type: parameter.type,
-          into: "arg\(index)",
-          from: "arguments.unownedValue(at: \(index))"
-        )
+        """
+        guard arguments.count == \(maximum) else {
+          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
+        }
+        """
       )
-
-      let label = parameter.firstName.text
-      callArguments.append(label == "_" ? "arg\(index)" : "\(label): arg\(index)")
+    } else {
+      lines.append(
+        """
+        guard arguments.count >= \(required) && arguments.count <= \(maximum) else {
+          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
+        }
+        """
+      )
     }
-    if let runtimeLabel {
-      callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
+
+    for index in 0..<required {
+      lines.append(contentsOf: decodeLines(at: index))
     }
 
-    lines.append("return \(typeName)(\(callArguments.joined(separator: ", ")))")
+    if required == maximum {
+      lines.append("return \(callExpression(typeName: typeName, arity: maximum))")
+    } else {
+      lines.append("switch arguments.count {")
+      for arity in required...maximum {
+        let label = arity == maximum ? "default:" : "case \(arity):"
+        lines.append(label)
+        for index in required..<arity {
+          lines.append(contentsOf: decodeLines(at: index).map { "  " + $0 })
+        }
+        lines.append("  return \(callExpression(typeName: typeName, arity: arity))")
+      }
+      lines.append("}")
+    }
 
     return
       lines
       .flatMap { $0.split(separator: "\n", omittingEmptySubsequences: false) }
       .map { indent + $0 }
       .joined(separator: "\n")
+  }
+
+  private func decodeLines(at index: Int) -> [String] {
+    return argumentDecodeStatements(
+      type: parameters[index].type,
+      into: "arg\(index)",
+      from: "arguments.unownedValue(at: \(index))"
+    )
+  }
+
+  private func callExpression(typeName: String, arity: Int) -> String {
+    let tryKeyword = isThrowing ? "try " : ""
+    return "\(tryKeyword)\(typeName)(\(callArguments(arity: arity)))"
+  }
+
+  /// The argument list for the given arity. Slots `0..<arity` pass their decoded `arg<i>`; an omitted
+  /// trailing optional without a default passes `nil`; an omitted trailing defaulted slot is dropped so
+  /// Swift applies its default.
+  private func callArguments(arity: Int) -> String {
+    var callArguments: [String] = []
+    for (index, parameter) in parameters.enumerated() {
+      let label = parameter.firstName.text
+      let value: String?
+      if index < arity {
+        value = "arg\(index)"
+      } else if hasDefaultValue(parameter) {
+        value = nil
+      } else {
+        value = "nil"
+      }
+      guard let value else {
+        continue
+      }
+      callArguments.append(label == "_" ? value : "\(label): \(value)")
+    }
+    if let runtimeLabel {
+      callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
+    }
+    return callArguments.joined(separator: ", ")
   }
 
   /// Builds an instance from the JS arguments. It overrides the hook of the superclass, or, in the root
@@ -67,7 +136,13 @@ internal struct JSConstructor {
   /// A subclass without a `@JS init` of its own inherits this hook, and would construct an instance of
   /// this class instead of the subclass. Unless the class is `final`, the hook returns `nil` when
   /// called on a subclass, so core reports that the subclass has no JavaScript constructor.
-  func buildConstructor(typeName: String, access: String, isFinal: Bool, isOverride: Bool) -> DeclSyntax {
+  func buildConstructor(
+    typeName: String,
+    jsName: String,
+    access: String,
+    isFinal: Bool,
+    isOverride: Bool
+  ) -> DeclSyntax {
     let subclassGuard =
       isFinal
       ? ""
@@ -80,7 +155,7 @@ internal struct JSConstructor {
     return """
       @JavaScriptActor
       \(raw: access) \(raw: isOverride ? "override " : "")class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
-      \(raw: subclassGuard)\(raw: bodyStatements(typeName: typeName, indent: "  "))
+      \(raw: subclassGuard)\(raw: bodyStatements(typeName: typeName, functionName: jsName, indent: "  "))
       }
       """
   }

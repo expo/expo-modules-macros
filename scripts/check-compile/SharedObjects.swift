@@ -32,3 +32,9 @@ public enum Namespace {
   @SharedObject
   public final class Nested: SharedObject {}
 }
+
+@SharedObject
+public final class ThrowingObject: SharedObject {
+  @JS
+  public init(value: Double, limit: Int = 10) throws {}
+}
