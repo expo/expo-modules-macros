@@ -158,6 +158,26 @@ internal func hasAsyncVariant(_ decl: DeclSyntaxProtocol) -> Bool {
   return asyncVariantOption(of: attribute) != nil
 }
 
+/// True if Swift gives a `var` of this type an implicit `nil` initial value, so `init() {}` can leave
+/// it uninitialized. Only the `T?` and `T!` sugar gets an implicit `nil`, also in parentheses (`(T?)`):
+/// a property written as `Optional<T>` has no default.
+internal func hasImplicitNilDefault(_ type: TypeSyntax) -> Bool {
+  let type = withoutParentheses(type)
+  return type.is(OptionalTypeSyntax.self) || type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self)
+}
+
+/// True when a `var` or `let` binding is a stored property: it has no accessor block, or only
+/// `willSet` / `didSet` property observers.
+internal func isStoredBinding(_ binding: PatternBindingSyntax) -> Bool {
+  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
+    return binding.accessorBlock == nil
+  }
+  return !accessors.isEmpty
+    && accessors.allSatisfy {
+      $0.accessorSpecifier.tokenKind == .keyword(.willSet) || $0.accessorSpecifier.tokenKind == .keyword(.didSet)
+    }
+}
+
 /// True if the type is written as an optional: `T?`, `T!`, or the explicit `Optional<T>`, also in
 /// parentheses (`(T?)`), which Swift treats as the same type. Used to decide argument requiredness (an
 /// optional parameter may be omitted) and record-field nullability.

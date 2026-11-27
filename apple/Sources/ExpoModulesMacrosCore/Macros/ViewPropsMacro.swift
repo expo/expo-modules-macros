@@ -1197,20 +1197,6 @@ private func isAboveInternal(_ access: TokenKind) -> Bool {
   return access == .keyword(.public) || access == .keyword(.open) || access == .keyword(.package)
 }
 
-/// True if the binding has storage: no accessor block, or only `willSet`/`didSet` observers.
-private func isStoredBinding(_ binding: PatternBindingSyntax) -> Bool {
-  guard let accessorBlock = binding.accessorBlock else {
-    return true
-  }
-  guard case .accessors(let accessors) = accessorBlock.accessors else {
-    return false
-  }
-  return accessors.allSatisfy { accessor in
-    accessor.accessorSpecifier.tokenKind == .keyword(.willSet)
-      || accessor.accessorSpecifier.tokenKind == .keyword(.didSet)
-  }
-}
-
 /// The errors for the `private` and `fileprivate` stored properties of a declaration that have no
 /// initial value. `static`, `class` and `lazy` properties are exempt, and so is an optional `var`
 /// written as `T?` or `T!`, which defaults to `nil`.
@@ -1287,14 +1273,6 @@ private func emptyClosure(arity: Int) -> String {
     return "{}"
   }
   return "{ \(Array(repeating: "_", count: arity).joined(separator: ", ")) in }"
-}
-
-/// True if Swift gives a `var` of this type an implicit `nil` initial value, so `Self()` can leave it
-/// out. Only the `T?` and `T!` sugar does, also in parentheses (`(T?)`): a property written as
-/// `Optional<T>` has no default.
-private func hasImplicitNilDefault(_ type: TypeSyntax) -> Bool {
-  let type = withoutParentheses(type)
-  return type.is(OptionalTypeSyntax.self) || type.is(ImplicitlyUnwrappedOptionalTypeSyntax.self)
 }
 
 /// The function type a props property declares, unwrapping any number of enclosing parentheses and an

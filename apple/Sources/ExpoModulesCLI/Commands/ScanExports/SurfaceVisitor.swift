@@ -520,7 +520,7 @@ final class SurfaceVisitor: SyntaxVisitor {
         continue
       }
       for binding in varDecl.bindings {
-        if binding.accessorBlock != nil {
+        guard isStoredBinding(binding) else {
           continue
         }
         guard let ident = binding.pattern.as(IdentifierPatternSyntax.self) else {
@@ -1285,4 +1285,16 @@ private func inferredLiteralType(of expression: ExprSyntax) -> TypeNode? {
   default:
     return nil
   }
+}
+
+/// True when a `var` or `let` binding is a stored property: it has no accessor block, or only
+/// `willSet` / `didSet` property observers. Mirrors `isStoredBinding` in the macros.
+private func isStoredBinding(_ binding: PatternBindingSyntax) -> Bool {
+  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
+    return binding.accessorBlock == nil
+  }
+  return !accessors.isEmpty
+    && accessors.allSatisfy {
+      $0.accessorSpecifier.tokenKind == .keyword(.willSet) || $0.accessorSpecifier.tokenKind == .keyword(.didSet)
+    }
 }

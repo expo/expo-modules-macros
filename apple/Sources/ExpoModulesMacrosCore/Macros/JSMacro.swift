@@ -439,7 +439,8 @@ private func diagnoseCachedOption(
       message =
         "'.cached' applies only to a getter-only computed @JS property, and a 'lazy var' already stores its first value on the JavaScript object. Make the property computed, or remove '.cached'. A computed property has no storage that two runtimes on different threads could initialize at once"
       id = "js-cached-on-lazy-property"
-    } else if varDecl.bindingSpecifier.tokenKind == .keyword(.let) || varDecl.bindings.contains(where: isStored) {
+    } else if varDecl.bindingSpecifier.tokenKind == .keyword(.let) || varDecl.bindings.contains(where: isStoredBinding)
+    {
       message =
         "'.cached' applies only to a getter-only computed @JS property, not to a stored property. Make the property computed, or remove '.cached'"
       id = "js-cached-on-stored-property"
@@ -455,17 +456,6 @@ private func diagnoseCachedOption(
     id = "js-cached-requires-property"
   }
   context.diagnose(Diagnostic(node: node, message: JSDiagnosticMessage(message, id: id, severity: .error)))
-}
-
-/// True when a `var` binding is a stored property: it has no accessors, or only the `willSet` and
-/// `didSet` observers.
-private func isStored(_ binding: PatternBindingSyntax) -> Bool {
-  guard case .accessors(let accessors) = binding.accessorBlock?.accessors else {
-    return binding.accessorBlock == nil
-  }
-  return accessors.allSatisfy {
-    $0.accessorSpecifier.tokenKind == .keyword(.willSet) || $0.accessorSpecifier.tokenKind == .keyword(.didSet)
-  }
 }
 
 /// The fix-it that removes the `.withAsync` option of an `async` function. It is offered only for one
