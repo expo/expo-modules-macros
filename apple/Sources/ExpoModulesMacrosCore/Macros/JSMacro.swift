@@ -54,6 +54,11 @@ public struct JSMacro: PeerMacro {
       )
       return []
     }
+    if let initDecl = declaration.as(InitializerDeclSyntax.self),
+      diagnoseUnsupportedInitializer(initDecl, in: context)
+    {
+      return []
+    }
     diagnoseParameterSpecifiers(in: declaration, in: context)
     diagnoseFreeFormTypes(in: declaration, in: context)
     diagnoseClosureTypes(in: declaration, in: context)
@@ -195,6 +200,45 @@ private func diagnosePlacement(
       )
     )
   }
+}
+
+/// Reports `@JS` initializers that can't be bound to a JavaScript constructor:
+/// - a failable initializer (`init?` or `init!`), because `_constructInstance` returns `nil` to signal
+///   that a class has no JavaScript constructor;
+/// - an `async` initializer, because JavaScript `new` runs synchronously.
+/// Returns true when any diagnostic was emitted.
+private func diagnoseUnsupportedInitializer(
+  _ initDecl: InitializerDeclSyntax,
+  in context: some MacroExpansionContext
+) -> Bool {
+  var diagnosed = false
+  if let optionalMark = initDecl.optionalMark {
+    context.diagnose(
+      Diagnostic(
+        node: optionalMark,
+        message: JSDiagnosticMessage(
+          "A @JS initializer can't be failable: throw an error from a throwing initializer instead, since returning 'nil' can't be distinguished from a class without a JavaScript constructor",
+          id: "js-failable-initializer",
+          severity: .error
+        )
+      )
+    )
+    diagnosed = true
+  }
+  if let asyncSpecifier = initDecl.signature.effectSpecifiers?.asyncSpecifier {
+    context.diagnose(
+      Diagnostic(
+        node: asyncSpecifier,
+        message: JSDiagnosticMessage(
+          "A @JS initializer can't be 'async': JavaScript constructors run synchronously. Expose a static async @JS factory function instead",
+          id: "js-async-initializer",
+          severity: .error
+        )
+      )
+    )
+    diagnosed = true
+  }
+  return diagnosed
 }
 
 /// The fix-it that removes a `@JS` attribute written on its own line, with the line break and

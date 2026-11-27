@@ -69,3 +69,18 @@ public final class FinalCounter {
   @JS
   public func reset() {}
 }
+
+// A throwing `@JS init` with trailing optional and defaulted parameters.
+@JSClass("Configurable")
+public final class ConfigurableCounter {
+  @JS
+  public init(start: Double, label: String?, step: Int = 1) throws {}
+}
+
+// An unlabeled defaulted parameter before an unlabeled optional without a default keeps the
+// defaulted parameter required so the binding never omits it ahead of a positional `nil`.
+@JSClass
+public final class PositionalCounter {
+  @JS
+  public init(_ start: Int = 0, _ label: String?) {}
+}

@@ -80,19 +80,9 @@ internal struct JSFunction {
     return variant
   }
 
-  /// The number of leading parameters that must always be supplied: the total minus the maximal
-  /// trailing run of *omittable* parameters (each having a default value or an optional type). A
-  /// non-omittable parameter part-way through stops the run, since arguments are positional — a
-  /// required parameter after an omittable one forces the earlier one to be supplied too.
+  /// The number of leading parameters that must always be supplied.
   private var requiredArgumentCount: Int {
-    var required = parameters.count
-    for parameter in parameters.reversed() {
-      guard isOmittable(parameter) else {
-        break
-      }
-      required -= 1
-    }
-    return required
+    return expoRequiredArgumentCount(for: parameters, runtimeLabel: runtimeLabel)
   }
 
   /// The decode-call-encode statements that form the host-function body, indented with the given
@@ -101,8 +91,8 @@ internal struct JSFunction {
   /// then the decode of the always-present required prefix via `JavaScriptDecodable.decode` on a
   /// zero-copy `arguments.unownedValue(at:)`; then the call and result encode via
   /// `JavaScriptEncodable.encode`. When a trailing run of parameters is omittable the call branches
-  /// on `arguments.count`, decoding only the slots that branch actually has — `unownedValue(at:)` is
-  /// unchecked, so a slot the caller didn't pass is never indexed.
+  /// on `arguments.count`, decoding only the slots that branch actually has (`unownedValue(at:)` is
+  /// unchecked, so a slot the caller didn't pass is never indexed).
   private func bodyStatements(receiver: Receiver, indent: String) -> String {
     let required = requiredArgumentCount
     let maximum = parameters.count
@@ -112,23 +102,13 @@ internal struct JSFunction {
       lines.append(unwrap)
     }
 
-    if required == maximum {
-      lines.append(
-        """
-        guard arguments.count == \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: \(key.functionNameLiteral), received: arguments.count, required: \(required), maximum: \(maximum)))
-        }
-        """
+    lines.append(
+      contentsOf: arityGuardLines(
+        functionNameLiteral: key.functionNameLiteral,
+        required: required,
+        maximum: maximum
       )
-    } else {
-      lines.append(
-        """
-        guard arguments.count >= \(required) && arguments.count <= \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: \(key.functionNameLiteral), received: arguments.count, required: \(required), maximum: \(maximum)))
-        }
-        """
-      )
-    }
+    )
 
     // Decode the required prefix once — these slots are present in every accepted arity, so the
     // decode is shared rather than repeated per branch.
@@ -255,32 +235,8 @@ internal struct JSFunction {
       """
   }
 
-  /// The argument list of a call for the given arity. Slots `0..<arity` are passed their decoded
-  /// `arg<i>`; a trailing optional-without-default slot that this arity omits is passed `nil`; a
-  /// trailing defaulted slot that this arity omits is dropped entirely so Swift applies its default.
   private func callArguments(arity: Int) -> String {
-    var callArguments: [String] = []
-    for (index, parameter) in parameters.enumerated() {
-      let label = parameter.firstName.text
-      let value: String?
-      if index < arity {
-        value = "arg\(index)"
-      } else if hasDefaultValue(parameter) {
-        // Omitted defaulted slot: drop it from the call so Swift fills in the default.
-        value = nil
-      } else {
-        // Omitted optional-without-default slot: pass `nil`.
-        value = "nil"
-      }
-      guard let value else {
-        continue
-      }
-      callArguments.append(label == "_" ? value : "\(label): \(value)")
-    }
-    if let runtimeLabel {
-      callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
-    }
-    return callArguments.joined(separator: ", ")
+    return argumentCallList(parameters: parameters, arity: arity, runtimeLabel: runtimeLabel)
   }
 
   /// The flat (single-arity) call-and-encode lines used when no trailing parameter is omittable:
@@ -683,6 +639,89 @@ internal func buildDecorateJSClassPhase(
     \(raw: access) \(raw: isOverride ? "override " : "")class func _decorateClass(\(raw: phase.rawValue): borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
     \(raw: statements)}
     """
+}
+
+/// The number of leading parameters that must always be supplied: the total minus the maximal
+/// trailing run of omittable parameters (each having a default value or an optional type).
+///
+/// The run also stops at a defaulted parameter that shares its external label (or unlabeled `_`)
+/// with a later parameter that the call still passes explicitly (an omitted trailing optional without
+/// a default, passed as `nil`, or a trailing runtime parameter). Dropping the defaulted argument
+/// while passing the later same-labeled argument would cause Swift to bind that later argument to
+/// the earlier slot.
+internal func expoRequiredArgumentCount(
+  for parameters: [FunctionParameterSyntax],
+  runtimeLabel: String? = nil
+) -> Int {
+  var passedTrailingLabels: Set<String> = []
+  if let runtimeLabel {
+    passedTrailingLabels.insert(withoutBackticks(runtimeLabel))
+  }
+  var required = parameters.count
+  for parameter in parameters.reversed() {
+    guard isOmittable(parameter) else {
+      break
+    }
+    let label = withoutBackticks(parameter.firstName.text)
+    if hasDefaultValue(parameter) {
+      if passedTrailingLabels.contains(label) {
+        break
+      }
+    } else {
+      passedTrailingLabels.insert(label)
+    }
+    required -= 1
+  }
+  return required
+}
+
+/// The arity guard lines for a direct JSI function or constructor binding.
+internal func arityGuardLines(
+  functionNameLiteral: String,
+  required: Int,
+  maximum: Int
+) -> [String] {
+  let condition =
+    required == maximum
+    ? "arguments.count == \(maximum)"
+    : "arguments.count >= \(required) && arguments.count <= \(maximum)"
+  return [
+    """
+    guard \(condition) else {
+      throw Exceptions.ArgumentsRangeMismatch((functionName: \(functionNameLiteral), received: arguments.count, required: \(required), maximum: \(maximum)))
+    }
+    """
+  ]
+}
+
+/// The argument list of a direct JSI call for the given arity. Slots `0..<arity` pass their decoded
+/// `arg<i>`; an omitted trailing optional without a default passes `nil`; an omitted trailing
+/// defaulted slot is dropped so Swift applies its default.
+internal func argumentCallList(
+  parameters: [FunctionParameterSyntax],
+  arity: Int,
+  runtimeLabel: String?
+) -> String {
+  var callArguments: [String] = []
+  for (index, parameter) in parameters.enumerated() {
+    let label = parameter.firstName.text
+    let value: String?
+    if index < arity {
+      value = "arg\(index)"
+    } else if hasDefaultValue(parameter) {
+      value = nil
+    } else {
+      value = "nil"
+    }
+    guard let value else {
+      continue
+    }
+    callArguments.append(label == "_" ? value : "\(label): \(value)")
+  }
+  if let runtimeLabel {
+    callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
+  }
+  return callArguments.joined(separator: ", ")
 }
 
 /// True when a return clause is absent or written as `Void` / `()` — i.e. the function returns

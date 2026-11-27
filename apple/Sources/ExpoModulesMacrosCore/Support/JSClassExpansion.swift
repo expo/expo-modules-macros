@@ -57,14 +57,27 @@ internal struct JSClassExpansion {
     var staticFunctions: [JSFunction] = []
     var staticProperties: [JSProperty] = []
     var constructor: JSConstructor?
+    var hasJSInitializer = false
     var assertions: [MemberConformanceAssertion] = []
     let aliases = TupleTypeAliases(in: classDecl.memberBlock)
 
     for member in classDecl.memberBlock.members {
       // The types of a `@JS` member are read with the class's tuple aliases resolved.
       let decl = aliases.resolving(member.decl)
-      // A generic member is reported by `@JS` and left out, so the build has no errors in its binding.
+      if let initDecl = decl.as(InitializerDeclSyntax.self),
+        initDecl.attributes.firstAttribute(named: "JS") != nil
+      {
+        hasJSInitializer = true
+      }
+      // A generic member or unsupported initializer (`init?`, `init!`, `async init`) is reported by `@JS`
+      // and left out, so the build has no errors in its binding.
       if memberHasJSAttribute(decl) && jsGenericParameterClause(of: decl) != nil {
+        continue
+      }
+      if let initDecl = decl.as(InitializerDeclSyntax.self),
+        initDecl.attributes.firstAttribute(named: "JS") != nil,
+        initDecl.optionalMark != nil || initDecl.signature.effectSpecifiers?.asyncSpecifier != nil
+      {
         continue
       }
       if memberHasJSAttribute(decl), let assertion = jsConformanceAssertionBody(for: decl) {
@@ -133,7 +146,7 @@ internal struct JSClassExpansion {
       in: context
     )
     diagnoseEventNameCollisions(in: classDecl.memberBlock, in: context)
-    if instancesComeFromConstructor, isFinal, constructor == nil,
+    if instancesComeFromConstructor, isFinal, !hasJSInitializer,
       !instanceFunctions.isEmpty || !instanceProperties.isEmpty
     {
       context.diagnose(
@@ -201,7 +214,13 @@ internal struct JSClassExpansion {
     )
     if let constructor {
       emitted.append(
-        constructor.buildConstructor(typeName: typeName, access: access, isFinal: isFinal, isOverride: !isRoot)
+        constructor.buildConstructor(
+          typeName: typeName,
+          jsName: jsName,
+          access: access,
+          isFinal: isFinal,
+          isOverride: !isRoot
+        )
       )
     } else if isRoot {
       emitted.append(JSConstructor.buildAbsentConstructor(access: access))

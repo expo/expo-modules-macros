@@ -1035,6 +1035,60 @@ struct SharedObjectMacroTests {
   }
 
   @Test
+  func `@JS init that throws and has optional or defaulted trailing parameters emits try and arity dispatch`() {
+    assertExpansion(
+      """
+      @SharedObject
+      public final class Cache: SharedObject {
+        @JS
+        init(name: String, maxSize: Int = 100, in runtime: borrowing JavaScriptRuntime) throws {}
+      }
+      """,
+      expandedSource: """
+        public final class Cache: SharedObject {
+          @JavaScriptActor
+          init(name: String, maxSize: Int = 100, in runtime: borrowing JavaScriptRuntime) throws {}
+
+          public override class var _jsName: String {
+            "Cache"
+          }
+
+          public override class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Cache.self
+          }
+
+          public override class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            super._jsClassType
+          }
+
+          @JavaScriptActor
+          public override class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            guard arguments.count >= 1 && arguments.count <= 2 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 2))
+            }
+            let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+            switch arguments.count {
+            case 1:
+              return try Cache(name: arg0, in: runtime)
+            default:
+              let arg1 = try Int.decode(arguments.unownedValue(at: 1), in: runtime)
+              return try Cache(name: arg0, maxSize: arg1, in: runtime)
+            }
+          }
+        }
+        """
+    )
+  }
+
+  @Test
   func `Mixed members: init constructs, method and property decorate`() {
     assertExpansion(
       """
@@ -1826,11 +1880,16 @@ struct SharedObjectMacroTests {
 
           @JavaScriptActor
           public override class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
-            guard arguments.count == 1 else {
-              throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 1, maximum: 1))
+            guard arguments.count >= 0 && arguments.count <= 1 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Cache", received: arguments.count, required: 0, maximum: 1))
             }
-            let arg0 = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
-            return Cache(config: arg0)
+            switch arguments.count {
+            case 0:
+              return Cache(config: nil)
+            default:
+              let arg0 = try MyRecord?.decode(arguments.unownedValue(at: 0), in: runtime)
+              return Cache(config: arg0)
+            }
           }
 
           private func _assertTypesConformance() {

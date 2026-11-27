@@ -165,7 +165,7 @@ struct JSClassMacroTests {
               return nil
             }
             guard arguments.count == 1 else {
-              throw Exceptions.ArgumentsRangeMismatch((functionName: "Shape", received: arguments.count, required: 1, maximum: 1))
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Shape2D", received: arguments.count, required: 1, maximum: 1))
             }
             let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
             return Shape(name: arg0)
@@ -564,6 +564,259 @@ struct JSClassMacroTests {
             "@JSClass classes can have at most one @JS initializer: JavaScript classes have a single constructor",
           line: 6,
           column: 3
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `A throwing @JS init with trailing optional and defaulted parameters emits try and arity dispatch`() {
+    assertExpansion(
+      """
+      @JSClass
+      public final class `Class` {
+        @JS
+        init(name: String, tag: String?, limit: Int = 10) throws {}
+      }
+      """,
+      expandedSource: """
+        public final class `Class` {
+          @JavaScriptActor
+          init(name: String, tag: String?, limit: Int = 10) throws {}
+
+          nonisolated public class var _jsName: String {
+            "Class"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            `Class`.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            guard arguments.count >= 1 && arguments.count <= 3 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Class", received: arguments.count, required: 1, maximum: 3))
+            }
+            let arg0 = try String.decode(arguments.unownedValue(at: 0), in: runtime)
+            switch arguments.count {
+            case 1:
+              return try `Class`(name: arg0, tag: nil)
+            case 2:
+              let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
+              return try `Class`(name: arg0, tag: arg1)
+            default:
+              let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
+              let arg2 = try Int.decode(arguments.unownedValue(at: 2), in: runtime)
+              return try `Class`(name: arg0, tag: arg1, limit: arg2)
+            }
+          }
+        }
+
+        extension `Class`: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension `Class`: @unchecked Sendable {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Reports a failable @JS init and leaves it unbound without a missing-initializer warning`() {
+    assertExpansion(
+      """
+      @JSClass
+      public final class Token {
+        @JS
+        init?(raw: String) {}
+
+        @JS
+        func read() -> String { "" }
+      }
+      """,
+      expandedSource: """
+        public final class Token {
+          @JavaScriptActor
+          init?(raw: String) {}
+          @JavaScriptActor
+          func read() -> String { "" }
+
+          nonisolated public class var _jsName: String {
+            "Token"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Token.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("read") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try Token._native(from: this.asObject(in: runtime))
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "read", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = _self.read()
+              try String.encode(value, into: result, in: runtime)
+            }
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            return nil
+          }
+        }
+
+        extension Token: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Token: @unchecked Sendable {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS initializer can't be failable: throw an error from a throwing initializer instead, since returning 'nil' can't be distinguished from a class without a JavaScript constructor",
+          line: 5,
+          column: 7
+        )
+      ]
+    )
+  }
+
+  @Test
+  func `An unlabeled defaulted parameter before an unlabeled optional stays required to avoid positional mismatch`() {
+    assertExpansion(
+      """
+      @JSClass
+      public final class Range {
+        @JS
+        init(_ start: Int = 0, _ label: String?) {}
+      }
+      """,
+      expandedSource: """
+        public final class Range {
+          @JavaScriptActor
+          init(_ start: Int = 0, _ label: String?) {}
+
+          nonisolated public class var _jsName: String {
+            "Range"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Range.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            guard arguments.count >= 1 && arguments.count <= 2 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Range", received: arguments.count, required: 1, maximum: 2))
+            }
+            let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+            switch arguments.count {
+            case 1:
+              return Range(arg0, nil)
+            default:
+              let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
+              return Range(arg0, arg1)
+            }
+          }
+        }
+
+        extension Range: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Range: @unchecked Sendable {
+        }
+        """
+    )
+  }
+
+  @Test
+  func `Reports an async @JS init and leaves it unbound`() {
+    assertExpansion(
+      """
+      @JSClass
+      public final class Client {
+        @JS
+        init(url: String) async {}
+      }
+      """,
+      expandedSource: """
+        public final class Client {
+          @JavaScriptActor
+          init(url: String) async {}
+
+          nonisolated public class var _jsName: String {
+            "Client"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Client.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            return nil
+          }
+        }
+
+        extension Client: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Client: @unchecked Sendable {
+        }
+        """,
+      diagnostics: [
+        DiagnosticSpec(
+          message:
+            "A @JS initializer can't be 'async': JavaScript constructors run synchronously. Expose a static async @JS factory function instead",
+          line: 5,
+          column: 21
         )
       ]
     )
