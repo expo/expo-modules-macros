@@ -634,19 +634,24 @@ struct JSClassMacroTests {
   }
 
   @Test
-  func `Reports a failable @JS init and leaves it unbound`() {
+  func `Reports a failable @JS init and leaves it unbound without a missing-initializer warning`() {
     assertExpansion(
       """
       @JSClass
       public final class Token {
         @JS
         init?(raw: String) {}
+
+        @JS
+        func read() -> String { "" }
       }
       """,
       expandedSource: """
         public final class Token {
           @JavaScriptActor
           init?(raw: String) {}
+          @JavaScriptActor
+          func read() -> String { "" }
 
           nonisolated public class var _jsName: String {
             "Token"
@@ -662,6 +667,14 @@ struct JSClassMacroTests {
 
           @JavaScriptActor
           public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+            prototype.setProperty("read") { (this: borrowing JavaScriptUnownedValue, arguments: consuming JavaScriptValuesBuffer, result: borrowing JavaScriptValue.Slot, runtime: borrowing JavaScriptRuntime) in
+              let _self = try Token._native(from: this.asObject(in: runtime))
+              guard arguments.count == 0 else {
+                throw Exceptions.ArgumentsRangeMismatch((functionName: "read", received: arguments.count, required: 0, maximum: 0))
+              }
+              let value = _self.read()
+              try String.encode(value, into: result, in: runtime)
+            }
           }
 
           @JavaScriptActor
@@ -688,6 +701,66 @@ struct JSClassMacroTests {
           column: 7
         )
       ]
+    )
+  }
+
+  @Test
+  func `An unlabeled defaulted parameter before an unlabeled optional stays required to avoid positional mismatch`() {
+    assertExpansion(
+      """
+      @JSClass
+      public final class Range {
+        @JS
+        init(_ start: Int = 0, _ label: String?) {}
+      }
+      """,
+      expandedSource: """
+        public final class Range {
+          @JavaScriptActor
+          init(_ start: Int = 0, _ label: String?) {}
+
+          nonisolated public class var _jsName: String {
+            "Range"
+          }
+
+          nonisolated public class var _jsClassType: (any AnyJavaScriptClass.Type)? {
+            Range.self
+          }
+
+          nonisolated public class var _jsSuperclassType: (any AnyJavaScriptClass.Type)? {
+            nil
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(prototype: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _decorateClass(constructor: borrowing JavaScriptObject, in runtime: JavaScriptRuntime) throws {
+          }
+
+          @JavaScriptActor
+          public class func _constructInstance(this: borrowing JavaScriptValue, arguments: borrowing JavaScriptValuesBuffer, in runtime: JavaScriptRuntime) throws -> (any AnyJavaScriptClass)? {
+            guard arguments.count >= 1 && arguments.count <= 2 else {
+              throw Exceptions.ArgumentsRangeMismatch((functionName: "Range", received: arguments.count, required: 1, maximum: 2))
+            }
+            let arg0 = try Int.decode(arguments.unownedValue(at: 0), in: runtime)
+            switch arguments.count {
+            case 1:
+              return Range(arg0, nil)
+            default:
+              let arg1 = try String?.decode(arguments.unownedValue(at: 1), in: runtime)
+              return Range(arg0, arg1)
+            }
+          }
+        }
+
+        extension Range: nonisolated AnyJavaScriptClass, nonisolated JavaScriptDecodable {
+        }
+
+        extension Range: @unchecked Sendable {
+        }
+        """
     )
   }
 

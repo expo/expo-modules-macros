@@ -21,46 +21,19 @@ internal struct JSConstructor {
     self.isThrowing = initDecl.signature.effectSpecifiers?.throwsClause?.throwsSpecifier != nil
   }
 
-  /// The number of leading parameters that must always be supplied: the total minus the maximal
-  /// trailing run of omittable parameters (each having a default value or an optional type).
-  private var requiredArgumentCount: Int {
-    var required = parameters.count
-    for parameter in parameters.reversed() {
-      guard isOmittable(parameter) else {
-        break
-      }
-      required -= 1
-    }
-    return required
-  }
-
   /// The body statements, indented with `indent`: arity guard (exact when every parameter is required,
   /// otherwise a range check), per-argument decode through `JavaScriptDecodable.decode` on a zero-copy
   /// `arguments.unownedValue(at:)` (the arity guard proves each index is in bounds) or a wrapper for a
   /// closure argument, then `return [try] <Type>(label: arg0, ...)`. When a trailing run of parameters
   /// is omittable, the call branches on `arguments.count` so omitted trailing slots are never indexed.
   private func bodyStatements(typeName: String, functionName: String, indent: String) -> String {
-    let required = requiredArgumentCount
+    let required = expoRequiredArgumentCount(for: parameters, runtimeLabel: runtimeLabel)
     let maximum = parameters.count
-    var lines: [String] = []
-
-    if required == maximum {
-      lines.append(
-        """
-        guard arguments.count == \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
-        }
-        """
-      )
-    } else {
-      lines.append(
-        """
-        guard arguments.count >= \(required) && arguments.count <= \(maximum) else {
-          throw Exceptions.ArgumentsRangeMismatch((functionName: "\(functionName)", received: arguments.count, required: \(required), maximum: \(maximum)))
-        }
-        """
-      )
-    }
+    var lines = arityGuardLines(
+      functionNameLiteral: "\"\(functionName)\"",
+      required: required,
+      maximum: maximum
+    )
 
     for index in 0..<required {
       lines.append(contentsOf: decodeLines(at: index))
@@ -98,33 +71,8 @@ internal struct JSConstructor {
 
   private func callExpression(typeName: String, arity: Int) -> String {
     let tryKeyword = isThrowing ? "try " : ""
-    return "\(tryKeyword)\(typeName)(\(callArguments(arity: arity)))"
-  }
-
-  /// The argument list for the given arity. Slots `0..<arity` pass their decoded `arg<i>`; an omitted
-  /// trailing optional without a default passes `nil`; an omitted trailing defaulted slot is dropped so
-  /// Swift applies its default.
-  private func callArguments(arity: Int) -> String {
-    var callArguments: [String] = []
-    for (index, parameter) in parameters.enumerated() {
-      let label = parameter.firstName.text
-      let value: String?
-      if index < arity {
-        value = "arg\(index)"
-      } else if hasDefaultValue(parameter) {
-        value = nil
-      } else {
-        value = "nil"
-      }
-      guard let value else {
-        continue
-      }
-      callArguments.append(label == "_" ? value : "\(label): \(value)")
-    }
-    if let runtimeLabel {
-      callArguments.append(runtimeLabel == "_" ? "runtime" : "\(runtimeLabel): runtime")
-    }
-    return callArguments.joined(separator: ", ")
+    let arguments = argumentCallList(parameters: parameters, arity: arity, runtimeLabel: runtimeLabel)
+    return "\(tryKeyword)\(typeName)(\(arguments))"
   }
 
   /// Builds an instance from the JS arguments. It overrides the hook of the superclass, or, in the root

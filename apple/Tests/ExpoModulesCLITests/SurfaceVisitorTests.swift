@@ -447,6 +447,26 @@ struct SharedObjectSurfaceTests {
   }
 
   @Test
+  func `Skips failable and async @JS initializers`() throws {
+    let result = surface(
+      """
+      @JSClass
+      final class Failable {
+        @JS init?(raw: String) {}
+      }
+
+      @JSClass
+      final class AsyncInit {
+        @JS init(url: String) async {}
+      }
+      """
+    )
+    #expect(result.classes.count == 2)
+    #expect(result.classes[0].initializer == nil)
+    #expect(result.classes[1].initializer == nil)
+  }
+
+  @Test
   func `Reports the SharedRef superclass with its native type and nativeRefType`() throws {
     let visitor = surface(
       """

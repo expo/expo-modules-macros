@@ -314,6 +314,12 @@ final class SurfaceVisitor: SyntaxVisitor {
       if let initDecl = decl.as(InitializerDeclSyntax.self),
         initDecl.attributes.firstAttribute(named: DetectedMacro.js.rawValue) != nil
       {
+        // Failable and async initializers are rejected by `@JS` and left unbound.
+        guard initDecl.optionalMark == nil,
+          initDecl.signature.effectSpecifiers?.asyncSpecifier == nil
+        else {
+          continue
+        }
         // At most one `@JS init`; keep the first if a malformed source has more (the macro errors).
         if initializer == nil {
           initializer = ExportedInitializer(
